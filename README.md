@@ -1,3 +1,3 @@
 # mosa
 
-A topic based decentralized social networl
+A topic based decentralized social network
