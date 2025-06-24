@@ -1,5 +1,15 @@
+val ktorVersion = "3.2.0"
+val koinVersion = "4.1.0"
+val exposedVersion = "1.0.0-beta-2"
+val sqliteVersion = "3.46.0.0"
+val jacksonVersion = "2.17.2"
+val logbackVersion = "1.5.18"
+val hnswlibVersion = "1.2.1"
+val onnxruntimeVersion = "1.22.0"
+
 plugins {
-    kotlin("jvm") version "2.1.21"
+    kotlin("jvm") version "2.2.0"
+    application
 }
 
 group = "straightway.mosa"
@@ -10,9 +20,49 @@ repositories {
 }
 
 dependencies {
+    // Ktor Server
+    implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-server-netty-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-server-content-negotiation-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-serialization-jackson-jvm:$ktorVersion")
+
+    // Ktor Auth (Platzhalter, für spätere MIS1.0 Logik)
+    implementation("io.ktor:ktor-server-auth-jvm:$ktorVersion")
+
+    // Koin Dependency Injection
+    implementation("io.insert-koin:koin-ktor:$koinVersion")
+    implementation("io.insert-koin:koin-logger-slf4j:$koinVersion")
+
+    // Exposed ORM + SQLite
+    implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
+    implementation("org.xerial:sqlite-jdbc:$sqliteVersion")
+
+    // HNSW4J for in-process vector indexing
+    implementation("com.github.jelmerk:hnswlib-core:${hnswlibVersion}")
+
+    // ONNX Runtime for local embeddings
+    implementation("com.microsoft.onnxruntime:onnxruntime:$onnxruntimeVersion")
+
+    // JSON & HTTP Client (für Embedding APIs etc.)
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
+    implementation("io.ktor:ktor-client-core-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-client-cio-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
+
+    // Logging
+    implementation("ch.qos.logback:logback-classic:$logbackVersion")
+
+    // Test
+    testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion")
     testImplementation(kotlin("test"))
 }
 
-tasks.test {
-    useJUnitPlatform()
+application {
+    mainClass.set("straightway.mosa.ApplicationKt")
+}
+
+kotlin {
+    jvmToolchain(23)
 }
