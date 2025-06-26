@@ -87,7 +87,7 @@ A federated social network that organizes content exclusively by **semantic topi
 
 ### Content Endpoints
 
-#### Create a new post: `POST /v1/post`
+#### Create a new post: `POST /v1/publish`
 
 The posted text is submitted via the request body.
 
