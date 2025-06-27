@@ -8,8 +8,6 @@ import io.ktor.server.routing.Route
 import io.ktor.util.reflect.typeInfo
 import straightway.mosa.base.BaseController
 
-data class QueryOnRequest(val queryOnId: String, val maxResults: Int)
-
 class ContentController(
     private val contentService: ContentService,
 ) : BaseController() {

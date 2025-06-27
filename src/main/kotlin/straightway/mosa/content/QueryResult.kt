@@ -1,7 +1,10 @@
 package straightway.mosa.content
 
-data class QueryResult(val entries: List<Entry>, val queryOnId: String) {
-    data class Entry constructor(
+data class QueryResult(
+    val entries: List<Entry>,
+    val queryOnId: String,
+) {
+    data class Entry(
         val id: String,
         val content: String,
         val similarity: Float,

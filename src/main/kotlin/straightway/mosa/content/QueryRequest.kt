@@ -4,5 +4,5 @@ data class QueryRequest(
     val embeddingVersion: String,
     val embeddingVector: List<Float>,
     val minSimilarity: Float,
-    val maxResults: Int
+    val maxResults: Int,
 )
