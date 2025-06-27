@@ -16,6 +16,7 @@ dependencies {
     val exposedVersion = "1.0.0-beta-2"
     val sqliteVersion = "3.46.0.0"
     val jacksonVersion = "2.17.2"
+    val kotlinLoggingVersion = "7.0.7"
     val logbackVersion = "1.5.18"
     val hnswlibVersion = "1.2.1"
     val onnxruntimeVersion = "1.22.0"
@@ -52,7 +53,8 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
 
     // Logging
-    implementation("ch.qos.logback:logback-classic:$logbackVersion")
+    implementation("io.github.oshai:kotlin-logging:$kotlinLoggingVersion")
+    implementation("ch.qos.logback:logback-classic:${logbackVersion}")
 
     // Test
     testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion")
