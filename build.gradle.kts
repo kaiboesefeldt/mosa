@@ -1,5 +1,8 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     kotlin("jvm") version "2.2.0"
+    id("org.jmailen.kotlinter") version "5.1.1"
     application
 }
 
@@ -20,6 +23,7 @@ dependencies {
     val logbackVersion = "1.5.18"
     val hnswlibVersion = "1.2.1"
     val onnxruntimeVersion = "1.22.0"
+    val mockkVersion = "1.14.4"
 
     // Ktor Server
     implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
@@ -68,4 +72,12 @@ application {
 
 kotlin {
     jvmToolchain(19)
+}
+
+kotlinter {
+    reporters = arrayOf("html", "plain")
+}
+
+tasks.withType<KotlinCompile> {
+    dependsOn("formatKotlin")
 }
