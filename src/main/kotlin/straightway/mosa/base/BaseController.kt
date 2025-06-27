@@ -1,5 +1,8 @@
 package straightway.mosa.base
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.server.auth.UserIdPrincipal
+import io.ktor.server.auth.principal
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.RoutingContext
@@ -11,21 +14,23 @@ fun Routing.register(controller: BaseController) {
 }
 
 abstract class BaseController {
-    abstract fun Routing.register(): Unit
+    abstract fun Route.register()
 
-    fun Route.postRouteAuthorized(path: String, build: suspend RoutingContext.() -> Unit) =
-        route("/v1/$path") {
-            post {
-                authorize()
-                build()
-            }
+    fun Route.postRoute(
+        path: String,
+        build: suspend RoutingContext.() -> Unit,
+    ) = route("/v1/$path") {
+        post {
+            log.debug { "POST $path for ${call.principal<UserIdPrincipal>()}" }
+            build()
         }
-
-    fun RoutingContext.authorize(): Unit {
-        // TODO
     }
 
     fun registerAt(routing: Routing) {
         routing.register()
+    }
+
+    private companion object {
+        private val log = KotlinLogging.logger { }
     }
 }
