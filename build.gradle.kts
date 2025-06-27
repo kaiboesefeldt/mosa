@@ -58,6 +58,7 @@ dependencies {
 
     // Test
     testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion")
+    testImplementation("io.mockk:mockk:${mockkVersion}")
     testImplementation(kotlin("test"))
 }
 
