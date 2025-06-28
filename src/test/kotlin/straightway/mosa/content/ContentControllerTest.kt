@@ -14,7 +14,7 @@ class ContentControllerTest {
     private val test get() =
         object {
             val contentService =
-                mockk<ContentService>(relaxed = true)
+                mockk<ContentService>()
             val controllerHttpTestEnvironment =
                 ControllerHttpTestEnvironment(ContentController(contentService))
         }
@@ -26,6 +26,7 @@ class ContentControllerTest {
             with(test) {
                 controllerHttpTestEnvironment {
                     val request = PublishRequest(text = "Text to publish")
+                    coEvery { contentService.postContent(request) } just runs
 
                     val response =
                         client.post("/v1/publish") {
@@ -57,6 +58,7 @@ class ContentControllerTest {
             with(test) {
                 controllerHttpTestEnvironment {
                     val request = ReplyRequest(parentHash = "01234567", text = "Reply")
+                    coEvery { contentService.reply(request) } just runs
 
                     val response =
                         client.post("/v1/reply") {
