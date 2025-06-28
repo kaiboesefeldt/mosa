@@ -20,7 +20,16 @@ class ContentControllerTest {
         }
 
     @Nested
-    inner class PublishEndpoint {
+    inner class PublishEndpoint : TestEndpoint("/v1/publish") {
+        override fun setup() {
+            test.also {
+                controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
+                serviceVerification = {
+                    coVerify(exactly = 0) { it.contentService.postContent(any()) }
+                }
+            }
+        }
+
         @Test
         fun `should return 201 Created on success`() =
             with(test) {
@@ -39,20 +48,19 @@ class ContentControllerTest {
                     coVerify(exactly = 1) { contentService.postContent(request) }
                 }
             }
-
-        @Test
-        fun `should return 401 Unauthorized when no bearer token is specified`() =
-            with(test) {
-                controllerHttpTestEnvironment {
-                    val response = client.post("/v1/publish")
-                    assertEquals(HttpStatusCode.Unauthorized, response.status)
-                    coVerify(exactly = 0) { contentService.postContent(any()) }
-                }
-            }
     }
 
     @Nested
-    inner class ReplyEndpoint {
+    inner class ReplyEndpoint : TestEndpoint("/v1/reply") {
+        override fun setup() {
+            test.also {
+                controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
+                serviceVerification = {
+                    coVerify(exactly = 0) { it.contentService.reply(any()) }
+                }
+            }
+        }
+
         @Test
         fun `should return 201 Created on success`() =
             with(test) {
@@ -71,20 +79,19 @@ class ContentControllerTest {
                     coVerify(exactly = 1) { contentService.reply(request) }
                 }
             }
-
-        @Test
-        fun `should return 401 Unauthorized when no bearer token is specified`() =
-            with(test) {
-                controllerHttpTestEnvironment {
-                    val response = client.post("/v1/reply")
-                    assertEquals(HttpStatusCode.Unauthorized, response.status)
-                    coVerify(exactly = 0) { contentService.reply(any()) }
-                }
-            }
     }
 
     @Nested
-    inner class QueryEndpoint {
+    inner class QueryEndpoint : TestEndpoint("/v1/query") {
+        override fun setup() {
+            test.also {
+                controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
+                serviceVerification = {
+                    coVerify(exactly = 0) { it.contentService.query(any()) }
+                }
+            }
+        }
+
         @Test
         fun `should return 200 OK on success`() =
             with(test) {
@@ -110,20 +117,19 @@ class ContentControllerTest {
                     assertEquals(queryResult, response.body())
                 }
             }
-
-        @Test
-        fun `should return 401 Unauthorized when no bearer token is specified`() =
-            with(test) {
-                controllerHttpTestEnvironment {
-                    val response = client.post("/v1/query")
-                    assertEquals(HttpStatusCode.Unauthorized, response.status)
-                    coVerify(exactly = 0) { contentService.query(any()) }
-                }
-            }
     }
 
     @Nested
-    inner class QueryOnEndpoint {
+    inner class QueryOnEndpoint : TestEndpoint("/v1/queryon") {
+        override fun setup() {
+            test.also {
+                controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
+                serviceVerification = {
+                    coVerify(exactly = 0) { it.contentService.queryOn(any()) }
+                }
+            }
+        }
+
         @Test
         fun `should return 200 OK on success`() =
             with(test) {
@@ -145,16 +151,6 @@ class ContentControllerTest {
                     assertEquals(HttpStatusCode.OK, response.status)
                     coVerify(exactly = 1) { contentService.queryOn(request) }
                     assertEquals(queryResult, response.body())
-                }
-            }
-
-        @Test
-        fun `should return 401 Unauthorized when no bearer token is specified`() =
-            with(test) {
-                controllerHttpTestEnvironment {
-                    val response = client.post("/v1/queryon")
-                    assertEquals(HttpStatusCode.Unauthorized, response.status)
-                    coVerify(exactly = 0) { contentService.queryOn(any()) }
                 }
             }
     }
