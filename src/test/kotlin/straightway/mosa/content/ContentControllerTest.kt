@@ -13,9 +13,7 @@ class ContentControllerTest {
     private val test get() =
         object {
             val contentService =
-                mockk<ContentService>(relaxed = true) {
-                    coEvery { postContent(any()) } just runs
-                }
+                mockk<ContentService>(relaxed = true)
             val controllerHttpTestEnvironment =
                 ControllerHttpTestEnvironment(ContentController(contentService))
         }
@@ -50,55 +48,35 @@ class ContentControllerTest {
                 }
             }
     }
+
+    @Nested
+    inner class ReplyEndpoint {
+        @Test
+        fun `should return 201 Created on success`() =
+            with(test) {
+                controllerHttpTestEnvironment {
+                    val request = ReplyRequest(parentHash = "01234567", text = "Reply")
+
+                    val response =
+                        client.post("/v1/reply") {
+                            contentType(ContentType.Application.Json)
+                            setBody(request)
+                            bearerAuth("authtoken")
+                        }
+
+                    assertEquals(HttpStatusCode.Created, response.status)
+                    coVerify(exactly = 1) { contentService.reply(request) }
+                }
+            }
+
+        @Test
+        fun `should return 401 Unauthorized when no bearer token is specified`() =
+            with(test) {
+                controllerHttpTestEnvironment {
+                    val response = client.post("/v1/reply")
+                    assertEquals(HttpStatusCode.Unauthorized, response.status)
+                    coVerify(exactly = 0) { contentService.reply(any()) }
+                }
+            }
+    }
 }
-        /*
-        @Test
-        fun `reply endpoint should return 201 Created`() = testApplication {
-            application { setupTestModule() }
-            val request = ReplyRequest(/* ... */)
-            every { contentService.reply(any()) } just runs
-
-            val response = client.post("/reply") {
-                contentType(ContentType.Application.Json)
-                setBody(Json.encodeToString(ReplyRequest.serializer(), request))
-            }
-
-            assertEquals(HttpStatusCode.Created, response.status)
-            verify { contentService.reply(request) }
-        }
-
-        @Test
-        fun `query endpoint should return 200 and result`() = testApplication {
-            application { setupTestModule() }
-            val request = QueryRequest(/* ... */)
-            val expectedResult = QueryResult(/* ... */)
-            every { contentService.query(any()) } returns expectedResult
-
-            val response = client.post("/query") {
-                contentType(ContentType.Application.Json)
-                setBody(Json.encodeToString(QueryRequest.serializer(), request))
-            }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            val body = Json.decodeFromString(QueryResult.serializer(), response.bodyAsText())
-            assertEquals(expectedResult, body)
-            verify { contentService.query(request) }
-        }
-
-        @Test
-        fun `queryon endpoint should return 200 and result`() = testApplication {
-            application { setupTestModule() }
-            val request = QueryOnRequest(/* ... */)
-            val expectedResult = QueryResult(/* ... */)
-            every { contentService.queryOn(any()) } returns expectedResult
-
-            val response = client.post("/queryon") {
-                contentType(ContentType.Application.Json)
-                setBody(Json.encodeToString(QueryOnRequest.serializer(), request))
-            }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            val body = Json.decodeFromString(QueryResult.serializer(), response.bodyAsText())
-            assertEquals(expectedResult, body)
-            verify { contentService.queryOn(request) }
-        }*/
