@@ -25,7 +25,7 @@ class ContentControllerTest {
             test.also {
                 controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.postContent(any()) }
+                    coVerify(exactly = 0) { it.contentService.publish(any()) }
                 }
             }
         }
@@ -35,7 +35,7 @@ class ContentControllerTest {
             with(test) {
                 controllerHttpTestEnvironment {
                     val request = PublishRequest(text = "Text to publish")
-                    coEvery { contentService.postContent(request) } just runs
+                    coEvery { contentService.publish(request) } just runs
 
                     val response =
                         client.post("/v1/publish") {
@@ -45,7 +45,7 @@ class ContentControllerTest {
                         }
 
                     assertEquals(HttpStatusCode.Created, response.status)
-                    coVerify(exactly = 1) { contentService.postContent(request) }
+                    coVerify(exactly = 1) { contentService.publish(request) }
                 }
             }
     }

@@ -6,7 +6,7 @@ import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
 class ContentService {
-    suspend fun postContent(request: PublishRequest) {
+    suspend fun publish(request: PublishRequest) {
         log.debug { request }
     }
 

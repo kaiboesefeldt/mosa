@@ -14,7 +14,7 @@ class ContentController(
     override fun Route.register() {
         authenticate {
             postRoute("/publish") {
-                contentService.postContent(call.receive<PublishRequest>())
+                contentService.publish(call.receive<PublishRequest>())
                 call.respond(HttpStatusCode.Created, null)
             }
             postRoute("/reply") {
