@@ -1,6 +1,5 @@
 package straightway.mosa.content
 
-import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.jackson.*
 import io.ktor.server.routing.routing

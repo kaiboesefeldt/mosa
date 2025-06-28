@@ -64,6 +64,8 @@ dependencies {
     testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion")
     testImplementation("io.mockk:mockk:${mockkVersion}")
     testImplementation(kotlin("test"))
+    testImplementation("org.junit.jupiter:junit-jupiter-api")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
 
 application {
@@ -81,3 +83,8 @@ kotlinter {
 tasks.withType<KotlinCompile> {
     dependsOn("formatKotlin")
 }
+
+tasks.test {
+    useJUnitPlatform()
+}
+
