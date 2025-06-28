@@ -94,21 +94,6 @@ class ContentControllerTest {
                             minSimilarity = 0.8f,
                             maxResults = 10,
                         )
-                    val queryResult =
-                        QueryResult(
-                            queryOnId = "queryOnId",
-                            entries =
-                                listOf(
-                                    QueryResult.Entry(
-                                        id = "id",
-                                        content = "content",
-                                        similarity = 0.9f,
-                                        authorGID = "authorGID",
-                                        storedAt = 170000000,
-                                        parent = "parent",
-                                    ),
-                                ),
-                        )
                     coEvery { contentService.query(any()) } returns queryResult
 
                     val response =
@@ -130,8 +115,63 @@ class ContentControllerTest {
                 controllerHttpTestEnvironment {
                     val response = client.post("/v1/query")
                     assertEquals(HttpStatusCode.Unauthorized, response.status)
-                    coVerify(exactly = 0) { contentService.reply(any()) }
+                    coVerify(exactly = 0) { contentService.query(any()) }
                 }
             }
+    }
+
+    @Nested
+    inner class QueryOnEndpoint {
+        @Test
+        fun `should return 200 OK on success`() =
+            with(test) {
+                controllerHttpTestEnvironment {
+                    val request =
+                        QueryOnRequest(
+                            queryOnId = "queryOnId",
+                            maxResults = 10,
+                        )
+                    coEvery { contentService.queryOn(any()) } returns queryResult
+
+                    val response =
+                        client.post("/v1/queryon") {
+                            contentType(ContentType.Application.Json)
+                            setBody(request)
+                            bearerAuth("authtoken")
+                        }
+
+                    assertEquals(HttpStatusCode.OK, response.status)
+                    coVerify(exactly = 1) { contentService.queryOn(request) }
+                    assertEquals(queryResult, response.body())
+                }
+            }
+
+        @Test
+        fun `should return 401 Unauthorized when no bearer token is specified`() =
+            with(test) {
+                controllerHttpTestEnvironment {
+                    val response = client.post("/v1/queryon")
+                    assertEquals(HttpStatusCode.Unauthorized, response.status)
+                    coVerify(exactly = 0) { contentService.queryOn(any()) }
+                }
+            }
+    }
+
+    private companion object {
+        private val queryResult =
+            QueryResult(
+                queryOnId = "queryOnId",
+                entries =
+                    listOf(
+                        QueryResult.Entry(
+                            id = "id",
+                            content = "content",
+                            similarity = 0.9f,
+                            authorGID = "authorGID",
+                            storedAt = 170000000,
+                            parent = "parent",
+                        ),
+                    ),
+            )
     }
 }
