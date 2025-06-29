@@ -21,9 +21,8 @@ dependencies {
     val jacksonVersion = "2.17.2"
     val kotlinLoggingVersion = "7.0.7"
     val logbackVersion = "1.5.18"
-    val hnswlibVersion = "1.2.1"
-    val onnxruntimeVersion = "1.22.0"
     val djlVersion = "0.31.1"
+    val luceneVersion = "9.9.0"
     val mockkVersion = "1.14.4"
 
     // Ktor Server
@@ -45,15 +44,14 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
     implementation("org.xerial:sqlite-jdbc:$sqliteVersion")
 
-    // HNSW4J for in-process vector indexing
-    //implementation("com.github.jelmerk:hnswlib-core-jdk17:${hnswlibVersion}")
+    // Lucene as Vector Store for KNN search
+    implementation("org.apache.lucene:lucene-core:$luceneVersion")
+    implementation("org.apache.lucene:lucene-analysis-common:$luceneVersion")
 
-    // ONNX Runtime for local embeddings
-    //implementation("com.microsoft.onnxruntime:onnxruntime:$onnxruntimeVersion")
+    // ONNX and djl Runtime for local embeddings
     implementation("ai.djl:api:$djlVersion")
     implementation("ai.djl.onnxruntime:onnxruntime-engine:$djlVersion")
     implementation("ai.djl.huggingface:tokenizers:$djlVersion")
-    //implementation("ai.djl.huggingface:hub:$djlVersion")
 
     // JSON & HTTP Client (for Embedding APIs etc.)
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")

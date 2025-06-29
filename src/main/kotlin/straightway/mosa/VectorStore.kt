@@ -1,18 +1,37 @@
 package straightway.mosa
 
+import java.util.UUID
+
 interface VectorStore {
-    data class SearchResult(
-        val similarity: Float,
-        val text: String,
+    data class SearchResults(
+        val resultsPage: List<SearchResult>,
+        val searchOnId: UUID,
     )
 
-    suspend fun add(
-        id: String,
-        vector: FloatArray,
+    data class SearchResult(
+        val id: String,
+        val text: String,
+        val similarity: Float,
+        val fields: Map<String, String>,
     )
+
+    interface Transaction {
+        suspend fun add(
+            id: String,
+            text: String,
+            fields: Map<String, String>,
+            vector: FloatArray,
+        )
+
+        suspend fun remove(id: String)
+    }
+
+    suspend fun writeAccess(transactionBlock: Transaction.() -> Unit)
 
     suspend fun search(
         vector: FloatArray,
         minSimilarity: Float,
-    ): List<SearchResult>
+    ): SearchResults
+
+    suspend fun searchOn(searchOnId: UUID): SearchResults
 }

@@ -34,7 +34,12 @@ class ContentControllerTest {
         fun `should return 201 Created on success`() =
             with(test) {
                 controllerHttpTestEnvironment {
-                    val request = PublishRequest(text = "Text to publish")
+                    val request =
+                        PublishRequest(
+                            authorGID = "author GID",
+                            text = "Text to publish",
+                            receivedAt = 170000000,
+                        )
                     coEvery { contentService.publish(request) } just runs
 
                     val response =
@@ -65,7 +70,16 @@ class ContentControllerTest {
         fun `should return 201 Created on success`() =
             with(test) {
                 controllerHttpTestEnvironment {
-                    val request = ReplyRequest(parentHash = "01234567", text = "Reply")
+                    val request =
+                        ReplyRequest(
+                            content =
+                                PublishRequest(
+                                    authorGID = "author GID",
+                                    text = "Text to publish",
+                                    receivedAt = 170000000,
+                                ),
+                            parentHash = "01234567",
+                        )
                     coEvery { contentService.reply(request) } just runs
 
                     val response =
