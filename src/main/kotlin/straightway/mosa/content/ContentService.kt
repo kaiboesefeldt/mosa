@@ -1,13 +1,18 @@
 package straightway.mosa.content
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import straightway.mosa.EmbeddingService
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
-class ContentService {
+class ContentService(
+    private val embeddingService: EmbeddingService,
+) {
     suspend fun publish(request: PublishRequest) {
         log.debug { request }
+        val embeddingVector = embeddingService.embed(request.text)
+        log.debug { "Embedding Vector for '${request.text}': ${embeddingVector.toList().take(10)}..." }
     }
 
     suspend fun reply(request: ReplyRequest) {
