@@ -2,73 +2,99 @@ package straightway.mosa.content
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import straightway.mosa.EmbeddingService
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
+import straightway.mosa.VectorStore
+import java.security.MessageDigest
+import java.util.UUID
 
-@OptIn(ExperimentalTime::class)
 class ContentService(
     private val embeddingService: EmbeddingService,
+    private val vectorStore: VectorStore,
+    private val hasherFactory: () -> MessageDigest,
 ) {
-    suspend fun publish(request: PublishRequest) {
-        log.debug { request }
+    suspend fun publish(request: PublishRequest) =
+        trace(request) {
+            writeContent(request)
+        }
+
+    suspend fun reply(request: ReplyRequest) =
+        trace(request) {
+            writeContent(request.content, mapOf("parentId" to request.parentId))
+        }
+
+    suspend fun query(request: QueryRequest): QueryResult =
+        trace(request) {
+            val searchResults =
+                vectorStore.search(
+                    request.embeddingVector.toFloatArray(),
+                    request.minSimilarity,
+                )
+
+            return QueryResult(
+                queryOnId = searchResults.searchOnId?.toString() ?: "",
+                entries = searchResults.resultsPage.map { it.toQueryResultEntry() },
+            )
+        }
+
+    suspend fun queryOn(request: QueryOnRequest): QueryResult =
+        trace(request) {
+            val searchOnId =
+                runCatching {
+                    if (request.queryOnId.isEmpty()) null else UUID.fromString(request.queryOnId)
+                }.getOrNull()
+            val searchResults = vectorStore.searchOn(searchOnId)
+
+            return QueryResult(
+                queryOnId = searchResults.searchOnId?.toString() ?: "",
+                entries = searchResults.resultsPage.map { it.toQueryResultEntry() },
+            )
+        }
+
+    private suspend fun writeContent(
+        request: PublishRequest,
+        additionalFields: Map<String, String> = emptyMap(),
+    ) {
         val embeddingVector = embeddingService.embed(request.text)
-        log.debug { "Embedding Vector for '${request.text}': ${embeddingVector.toList().take(10)}..." }
+        val id = request.text.hashId()
+        vectorStore.writeAccess {
+            add(
+                id = id,
+                text = request.text,
+                fields =
+                    mapOf(
+                        "authorGID" to request.authorGID,
+                        "receivedAt" to request.receivedAt.toString(),
+                    ) + additionalFields,
+                vector = embeddingVector,
+            )
+        }
     }
 
-    suspend fun reply(request: ReplyRequest) {
-        log.debug { request }
-    }
-
-    suspend fun query(request: QueryRequest): QueryResult {
-        log.debug { request }
-        return QueryResult(
-            entries =
-                listOf(
-                    QueryResult.Entry(
-                        id = "result_id1",
-                        content = "Content 1",
-                        similarity = 0.93f,
-                        parent = null,
-                        authorGID = "author A's GID",
-                        storedAt = Clock.System.now().epochSeconds,
-                    ),
-                    QueryResult.Entry(
-                        id = "result_id2",
-                        content = "Content 2",
-                        similarity = 0.93f,
-                        parent = "result_id1",
-                        authorGID = "author B's GID",
-                        storedAt = Clock.System.now().epochSeconds,
-                    ),
-                ),
-            queryOnId = "Query on ID",
+    private fun VectorStore.SearchResult.toQueryResultEntry(): QueryResult.Entry =
+        QueryResult.Entry(
+            id = id,
+            content = text,
+            similarity = similarity,
+            parent = fields["parentId"],
+            authorGID = fields["authorGID"] ?: "",
+            storedAt = fields["receivedAt"]?.toLongOrNull() ?: 0L,
         )
-    }
 
-    suspend fun queryOn(request: QueryOnRequest): QueryResult {
-        log.debug { request }
-        return QueryResult(
-            entries =
-                listOf(
-                    QueryResult.Entry(
-                        id = "result_id3",
-                        content = "Content 3",
-                        similarity = 0.93f,
-                        parent = null,
-                        authorGID = "author C's GID",
-                        storedAt = Clock.System.now().epochSeconds,
-                    ),
-                    QueryResult.Entry(
-                        id = "result_id4",
-                        content = "Content 4",
-                        similarity = 0.93f,
-                        parent = "result_id1",
-                        authorGID = "author C's GID",
-                        storedAt = Clock.System.now().epochSeconds,
-                    ),
-                ),
-            queryOnId = request.queryOnId,
-        )
+    private fun String.hashId(): String =
+        hasherFactory()
+            .digest(toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+
+    private suspend inline fun <T> trace(
+        request: Any,
+        block: suspend () -> T,
+    ): T {
+        val requestId = UUID.randomUUID()
+        log.debug { "START $requestId handling $request" }
+        return try {
+            block()
+        } finally {
+            log.debug { "FINISH $requestId handling $request" }
+        }
     }
 
     private companion object {

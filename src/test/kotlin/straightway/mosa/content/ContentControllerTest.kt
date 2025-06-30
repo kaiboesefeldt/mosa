@@ -84,7 +84,7 @@ class ContentControllerTest {
                                     text = "Text to publish",
                                     receivedAt = 170000000,
                                 ),
-                            parentHash = "01234567",
+                            parentId = "01234567",
                         )
                     coEvery { contentService.reply(request) } just runs
 

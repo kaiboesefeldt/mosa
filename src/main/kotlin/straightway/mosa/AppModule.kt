@@ -9,11 +9,11 @@ import straightway.mosa.content.ContentService
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import java.nio.file.Paths
+import java.security.MessageDigest
 
 val appModule =
     module {
         single<EmbeddingService> { OnnxLocalEmbeddingService() } onClose { (it as? AutoCloseable)?.close() }
-
         single<VectorStore> {
             LuceneLocalVectorStore(
                 directoryFactory = { MMapDirectory(Paths.get("mosa_lucene_index")) },
@@ -23,8 +23,9 @@ val appModule =
                 vectorSize = get<EmbeddingService>().dimension,
             )
         } onClose { (it as? AutoCloseable)?.close() }
+        single<() -> MessageDigest> { { MessageDigest.getInstance("SHA-256") } }
 
-        single<ContentService> { ContentService(get()) }
+        single<ContentService> { ContentService(get(), get(), get()) }
 
         single<BaseController> { ContentController(get()) }
     }
