@@ -9,6 +9,7 @@ import org.apache.lucene.document.StringField
 import org.apache.lucene.document.TextField
 import org.apache.lucene.index.DirectoryReader
 import org.apache.lucene.index.DirectoryReader.openIfChanged
+import org.apache.lucene.index.IndexNotFoundException
 import org.apache.lucene.index.IndexWriter
 import org.apache.lucene.index.IndexWriterConfig
 import org.apache.lucene.index.Term
@@ -17,6 +18,8 @@ import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.search.KnnFloatVectorQuery
 import org.apache.lucene.search.Query
 import org.apache.lucene.search.ScoreDoc
+import org.apache.lucene.search.TopDocs
+import org.apache.lucene.search.TotalHits
 import org.apache.lucene.store.Directory
 import straightway.mosa.VectorStore
 import straightway.mosa.VectorStore.SearchResult
@@ -44,28 +47,38 @@ class LuceneLocalVectorStore(
     )
 
     private inner class ReaderWriter : AutoCloseable {
-        private var reader = DirectoryReader.open(directory)
-        private val readerLock = ReentrantReadWriteLock()
         private val writer = IndexWriter(directory, config)
+        private var reader: DirectoryReader? = null
+        private val readerLock = ReentrantReadWriteLock() // TODO: Use Mutex
 
-        fun <T> read(block: DirectoryReader.() -> T): T =
-            readerLock.read {
-                reader.block()
+        fun <T> read(block: DirectoryReader.() -> T): T {
+            if (reader === null) {
+                readerLock.write {
+                    if (reader === null) {
+                        reader = DirectoryReader.open(directory)
+                    }
+                }
             }
+            return readerLock.read {
+                reader!!.block()
+            }
+        }
 
-        fun <T> write(block: IndexWriter.() -> T): T =
+        suspend fun <T> write(block: suspend IndexWriter.() -> T): T =
             readerLock.write {
                 writer.block().also {
                     writer.commit()
-                    openIfChanged(reader)?.let {
-                        reader.close()
-                        reader = it
+                    reader?.let { oldReader ->
+                        openIfChanged(reader)?.let {
+                            oldReader.close()
+                            reader = it
+                        }
                     }
                 }
             }
 
         override fun close() {
-            reader.close()
+            reader?.close()
         }
     }
 
@@ -108,8 +121,8 @@ class LuceneLocalVectorStore(
 
     private val directory: Directory = directoryFactory()
     private val analyzer: StandardAnalyzer = StandardAnalyzer()
-    private val access: ReaderWriter = ReaderWriter()
     private val config = IndexWriterConfig(analyzer)
+    private val access: ReaderWriter = ReaderWriter()
     private val searchOnRecords: ConcurrentMap<UUID, SearchOnRecord> =
         ConcurrentHashMap<UUID, SearchOnRecord>()
     private val searchOnHistory = ConcurrentLinkedQueue<UUID>()
@@ -131,7 +144,7 @@ class LuceneLocalVectorStore(
         directory.close()
     }
 
-    override suspend fun writeAccess(transactionBlock: VectorStore.Transaction.() -> Unit) {
+    override suspend fun writeAccess(transactionBlock: suspend VectorStore.Transaction.() -> Unit) {
         checkClosed()
         access.write {
             Transaction(this).transactionBlock()
@@ -144,34 +157,44 @@ class LuceneLocalVectorStore(
     ): SearchResults {
         checkClosed()
 
-        return access.read {
-            val searcher = IndexSearcher(this)
-            val knnQuery =
-                KnnFloatVectorQuery(
-                    VECTOR_FIELD_NAME,
-                    vector,
-                    maxResults,
-                )
-            val topDocs = searcher.search(knnQuery, pageSize)
-            val searchOnId = UUID.randomUUID()
+        return runCatching {
+            access.read {
+                val searcher = IndexSearcher(this)
+                val knnQuery =
+                    KnnFloatVectorQuery(
+                        VECTOR_FIELD_NAME,
+                        vector,
+                        maxResults,
+                    )
+                val topDocs = searcher.search(knnQuery, pageSize)
+                val resultsPage =
+                    topDocs
+                        .scoreDocs
+                        .filter { minSimilarity <= it.score }
+                        .map { it.toSearchResult(this) }
+                val searchOnId =
+                    if (resultsPage.isNotFullPage() || topDocs.areResultsExhausted()) {
+                        null
+                    } else {
+                        createSearchOnId(topDocs, knnQuery)
+                    }
 
-            if (topDocs.scoreDocs.any()) {
-                registerForSearchOn(searchOnId, knnQuery, topDocs.scoreDocs.last())
+                SearchResults(resultsPage, searchOnId)
             }
-
-            SearchResults(
-                resultsPage = topDocs.scoreDocs.map { it.toSearchResult(this) },
-                searchOnId = searchOnId,
-            )
-        }
+        }.onFailure { if (it !is IndexNotFoundException) throw it }
+            .getOrDefault(SearchResults(resultsPage = emptyList(), searchOnId = null))
     }
 
-    override suspend fun searchOn(searchOnId: UUID): SearchResults {
+    override suspend fun searchOn(searchOnId: UUID?): SearchResults {
         checkClosed()
+
+        if (searchOnId === null) {
+            return SearchResults(emptyList(), null)
+        }
 
         val searchOnRecord =
             searchOnRecords[searchOnId]
-                ?: return SearchResults(emptyList(), searchOnId)
+                ?: return SearchResults(emptyList(), null)
 
         return access.read {
             val searcher = IndexSearcher(this)
@@ -180,16 +203,33 @@ class LuceneLocalVectorStore(
                     searcher.searchAfter(after, query, n)
                 }
 
-            if (topDocs.scoreDocs.isEmpty()) {
-                clearSearchOnFor(searchOnId)
-            }
+            clearSearchOnFor(searchOnId)
 
-            SearchResults(
-                resultsPage = topDocs.scoreDocs.map { it.toSearchResult(this) },
-                searchOnId = searchOnId,
-            )
+            val resultsPage = topDocs.scoreDocs.map { it.toSearchResult(this) }
+
+            val nextSearchOnId =
+                if (resultsPage.isNotFullPage() || topDocs.areResultsExhausted(resultsSoFar = searchOnRecord.n)) {
+                    null
+                } else {
+                    createSearchOnId(topDocs, searchOnRecord.query)
+                }
+
+            SearchResults(resultsPage = resultsPage, searchOnId = nextSearchOnId)
         }
     }
+
+    private fun List<SearchResult>.isNotFullPage(): Boolean = size < pageSize
+
+    private fun TopDocs.areResultsExhausted(resultsSoFar: Int = 0): Boolean =
+        totalHits.value == (resultsSoFar + pageSize.toLong()) && totalHits.relation == TotalHits.Relation.EQUAL_TO
+
+    private fun createSearchOnId(
+        topDocs: TopDocs,
+        query: Query,
+    ): UUID =
+        UUID.randomUUID().also {
+            registerForSearchOn(it, query, topDocs.scoreDocs.last())
+        }
 
     private fun ScoreDoc.toSearchResult(reader: DirectoryReader): SearchResult {
         val doc = getDocument(reader)
@@ -215,7 +255,7 @@ class LuceneLocalVectorStore(
 
     private fun registerForSearchOn(
         searchOnId: UUID,
-        knnQuery: KnnFloatVectorQuery,
+        query: Query,
         after: ScoreDoc,
     ) {
         removeSurplusSearchOnRecords()
@@ -224,7 +264,7 @@ class LuceneLocalVectorStore(
             searchOnId,
             SearchOnRecord(
                 after = after,
-                query = knnQuery,
+                query = query,
                 n = pageSize,
             ),
         )

@@ -5,7 +5,7 @@ import java.util.UUID
 interface VectorStore {
     data class SearchResults(
         val resultsPage: List<SearchResult>,
-        val searchOnId: UUID,
+        val searchOnId: UUID?,
     )
 
     data class SearchResult(
@@ -26,12 +26,12 @@ interface VectorStore {
         suspend fun remove(id: String)
     }
 
-    suspend fun writeAccess(transactionBlock: Transaction.() -> Unit)
+    suspend fun writeAccess(transactionBlock: suspend Transaction.() -> Unit)
 
     suspend fun search(
         vector: FloatArray,
         minSimilarity: Float,
     ): SearchResults
 
-    suspend fun searchOn(searchOnId: UUID): SearchResults
+    suspend fun searchOn(searchOnId: UUID?): SearchResults
 }
