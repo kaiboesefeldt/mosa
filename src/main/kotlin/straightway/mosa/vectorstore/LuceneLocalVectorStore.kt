@@ -1,5 +1,7 @@
 package straightway.mosa.vectorstore
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.Document
 import org.apache.lucene.document.DocumentStoredFieldVisitor
@@ -28,9 +30,6 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ConcurrentMap
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.concurrent.read
-import kotlin.concurrent.write
 
 class LuceneLocalVectorStore(
     directoryFactory: () -> Directory,
@@ -49,23 +48,18 @@ class LuceneLocalVectorStore(
     private inner class ReaderWriter : AutoCloseable {
         private val writer = IndexWriter(directory, config)
         private var reader: DirectoryReader? = null
-        private val readerLock = ReentrantReadWriteLock() // TODO: Use Mutex
+        private val readerLock = Mutex()
 
-        fun <T> read(block: DirectoryReader.() -> T): T {
-            if (reader === null) {
-                readerLock.write {
-                    if (reader === null) {
-                        reader = DirectoryReader.open(directory)
-                    }
+        suspend fun <T> read(block: DirectoryReader.() -> T): T =
+            readerLock.withLock {
+                if (reader === null) {
+                    reader = DirectoryReader.open(directory)
                 }
-            }
-            return readerLock.read {
                 reader!!.block()
             }
-        }
 
         suspend fun <T> write(block: suspend IndexWriter.() -> T): T =
-            readerLock.write {
+            readerLock.withLock {
                 writer.block().also {
                     writer.commit()
                     reader?.let { oldReader ->
