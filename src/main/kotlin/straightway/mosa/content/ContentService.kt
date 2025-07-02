@@ -1,28 +1,44 @@
 package straightway.mosa.content
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.server.plugins.BadRequestException
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import java.security.MessageDigest
 import java.util.UUID
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class ContentService(
     private val embeddingService: EmbeddingService,
     private val vectorStore: VectorStore,
     private val hasherFactory: () -> MessageDigest,
 ) {
-    suspend fun publish(request: PublishRequest) =
-        trace(request) {
-            writeContent(request)
-        }
+    suspend fun publish(
+        userGID: String,
+        request: PublishRequest,
+    ) = trace(userGID, request) {
+        writeContent(userGID, request)
+    }
 
-    suspend fun reply(request: ReplyRequest) =
-        trace(request) {
-            writeContent(request.content, mapOf("parentId" to request.parentId))
-        }
+    suspend fun reply(
+        userGID: String,
+        request: ReplyRequest,
+    ) = trace(userGID, request) {
+        writeContent(userGID, request.content, mapOf("parentId" to request.parentId))
+    }
 
-    suspend fun query(request: QueryRequest): QueryResult =
-        trace(request) {
+    suspend fun query(
+        userGID: String,
+        request: QueryRequest,
+    ): QueryResult =
+        trace(userGID, request) {
+            if (request.embeddingVector.size != embeddingService.dimension) {
+                throw BadRequestException(
+                    "Invalid embedding vector size (expected: ${embeddingService.dimension}, got: ${request.embeddingVector.size})",
+                )
+            }
+
             val searchResults =
                 vectorStore.search(
                     request.embeddingVector.toFloatArray(),
@@ -35,8 +51,11 @@ class ContentService(
             )
         }
 
-    suspend fun queryOn(request: QueryOnRequest): QueryResult =
-        trace(request) {
+    suspend fun queryOn(
+        userGID: String,
+        request: QueryOnRequest,
+    ): QueryResult =
+        trace(userGID, request) {
             val searchOnId =
                 runCatching {
                     if (request.queryOnId.isEmpty()) null else UUID.fromString(request.queryOnId)
@@ -49,7 +68,9 @@ class ContentService(
             )
         }
 
+    @OptIn(ExperimentalTime::class)
     private suspend fun writeContent(
+        userGID: String,
         request: PublishRequest,
         additionalFields: Map<String, String> = emptyMap(),
     ) {
@@ -61,8 +82,12 @@ class ContentService(
                 text = request.text,
                 fields =
                     mapOf(
-                        "authorGID" to request.authorGID,
-                        "receivedAt" to request.receivedAt.toString(),
+                        "authorGID" to userGID,
+                        "receivedAt" to
+                            Clock.System
+                                .now()
+                                .epochSeconds
+                                .toString(),
                     ) + additionalFields,
                 vector = embeddingVector,
             )
@@ -75,8 +100,8 @@ class ContentService(
             content = text,
             similarity = similarity,
             parent = fields["parentId"],
-            authorGID = fields["authorGID"] ?: "",
-            storedAt = fields["receivedAt"]?.toLongOrNull() ?: 0L,
+            authorGID = fields["authorGID"] ?: throw RuntimeException("No authorGID field set for vector store entry $id"),
+            storedAt = fields["receivedAt"]?.toLong() ?: throw RuntimeException("No receivedAt field set for vector store entry $id"),
         )
 
     private fun String.hashId(): String =
@@ -85,15 +110,16 @@ class ContentService(
             .joinToString("") { "%02x".format(it) }
 
     private suspend inline fun <T> trace(
+        userGID: String,
         request: Any,
         block: suspend () -> T,
     ): T {
         val requestId = UUID.randomUUID()
-        log.debug { "START $requestId handling $request" }
+        log.debug { "START $requestId: user: $userGID, request $request" }
         return try {
             block()
         } finally {
-            log.debug { "FINISH $requestId handling $request" }
+            log.debug { "FINISH $requestId: user: $userGID, request $request" }
         }
     }
 

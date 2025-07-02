@@ -31,7 +31,7 @@ class ContentControllerTest {
             test.also {
                 controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.publish(any()) }
+                    coVerify(exactly = 0) { it.contentService.publish(any(), any()) }
                 }
             }
         }
@@ -42,21 +42,19 @@ class ContentControllerTest {
                 controllerHttpTestEnvironment {
                     val request =
                         PublishRequest(
-                            authorGID = "author GID",
                             text = "Text to publish",
-                            receivedAt = 170000000,
                         )
-                    coEvery { contentService.publish(request) } just runs
+                    coEvery { contentService.publish("userGID", request) } just runs
 
                     val response =
                         client.post("/v1/publish") {
                             contentType(ContentType.Application.Json)
                             setBody(request)
-                            bearerAuth("authtoken")
+                            bearerAuth("userGID")
                         }
 
                     assertEquals(HttpStatusCode.Created, response.status)
-                    coVerify(exactly = 1) { contentService.publish(request) }
+                    coVerify(exactly = 1) { contentService.publish("userGID", request) }
                 }
             }
     }
@@ -67,7 +65,7 @@ class ContentControllerTest {
             test.also {
                 controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.reply(any()) }
+                    coVerify(exactly = 0) { it.contentService.reply(any(), any()) }
                 }
             }
         }
@@ -80,23 +78,21 @@ class ContentControllerTest {
                         ReplyRequest(
                             content =
                                 PublishRequest(
-                                    authorGID = "author GID",
                                     text = "Text to publish",
-                                    receivedAt = 170000000,
                                 ),
                             parentId = "01234567",
                         )
-                    coEvery { contentService.reply(request) } just runs
+                    coEvery { contentService.reply("userGID", request) } just runs
 
                     val response =
                         client.post("/v1/reply") {
                             contentType(ContentType.Application.Json)
                             setBody(request)
-                            bearerAuth("authtoken")
+                            bearerAuth("userGID")
                         }
 
                     assertEquals(HttpStatusCode.Created, response.status)
-                    coVerify(exactly = 1) { contentService.reply(request) }
+                    coVerify(exactly = 1) { contentService.reply("userGID", request) }
                 }
             }
     }
@@ -107,7 +103,7 @@ class ContentControllerTest {
             test.also {
                 controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.query(any()) }
+                    coVerify(exactly = 0) { it.contentService.query(any(), any()) }
                 }
             }
         }
@@ -123,17 +119,17 @@ class ContentControllerTest {
                             minSimilarity = 0.8f,
                             maxResults = 10,
                         )
-                    coEvery { contentService.query(any()) } returns queryResult
+                    coEvery { contentService.query(any(), any()) } returns queryResult
 
                     val response =
                         client.post("/v1/query") {
                             contentType(ContentType.Application.Json)
                             setBody(request)
-                            bearerAuth("authtoken")
+                            bearerAuth("userGID")
                         }
 
                     assertEquals(HttpStatusCode.OK, response.status)
-                    coVerify(exactly = 1) { contentService.query(request) }
+                    coVerify(exactly = 1) { contentService.query("userGID", request) }
                     assertEquals(queryResult, response.body())
                 }
             }
@@ -145,7 +141,7 @@ class ContentControllerTest {
             test.also {
                 controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.queryOn(any()) }
+                    coVerify(exactly = 0) { it.contentService.queryOn(any(), any()) }
                 }
             }
         }
@@ -159,17 +155,17 @@ class ContentControllerTest {
                             queryOnId = "queryOnId",
                             maxResults = 10,
                         )
-                    coEvery { contentService.queryOn(any()) } returns queryResult
+                    coEvery { contentService.queryOn(any(), any()) } returns queryResult
 
                     val response =
                         client.post("/v1/queryon") {
                             contentType(ContentType.Application.Json)
                             setBody(request)
-                            bearerAuth("authtoken")
+                            bearerAuth("userGID")
                         }
 
                     assertEquals(HttpStatusCode.OK, response.status)
-                    coVerify(exactly = 1) { contentService.queryOn(request) }
+                    coVerify(exactly = 1) { contentService.queryOn("userGID", request) }
                     assertEquals(queryResult, response.body())
                 }
             }

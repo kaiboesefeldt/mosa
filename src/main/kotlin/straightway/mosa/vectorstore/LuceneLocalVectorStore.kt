@@ -1,5 +1,6 @@
 package straightway.mosa.vectorstore
 
+import io.ktor.server.plugins.BadRequestException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.apache.lucene.analysis.standard.StandardAnalyzer
@@ -20,6 +21,7 @@ import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.search.KnnFloatVectorQuery
 import org.apache.lucene.search.Query
 import org.apache.lucene.search.ScoreDoc
+import org.apache.lucene.search.TermQuery
 import org.apache.lucene.search.TopDocs
 import org.apache.lucene.search.TotalHits
 import org.apache.lucene.store.Directory
@@ -52,9 +54,7 @@ class LuceneLocalVectorStore(
 
         suspend fun <T> read(block: DirectoryReader.() -> T): T =
             readerLock.withLock {
-                if (reader === null) {
-                    reader = DirectoryReader.open(directory)
-                }
+                makeSureReaderIsInitialized()
                 reader!!.block()
             }
 
@@ -71,12 +71,21 @@ class LuceneLocalVectorStore(
                 }
             }
 
+        fun makeSureReaderIsInitialized(): DirectoryReader {
+            val nullSafeReader = reader ?: DirectoryReader.open(directory)
+            reader = nullSafeReader
+            return nullSafeReader
+        }
+
+        fun transaction() = Transaction(reader, writer)
+
         override fun close() {
             reader?.close()
         }
     }
 
     private inner class Transaction(
+        private val reader: DirectoryReader?,
         private val writer: IndexWriter,
     ) : VectorStore.Transaction {
         override suspend fun add(
@@ -96,7 +105,9 @@ class LuceneLocalVectorStore(
                 )
             }
 
-            remove(id)
+            if (reader?.existsItemWithID(id) == true) {
+                throw BadRequestException("Item with ID $id already exists")
+            }
             val doc = Document()
             doc.add(StringField(ID_FIELD_NAME, id, Field.Store.YES))
             doc.add(TextField(TEXT_FIELD_NAME, text, Field.Store.YES))
@@ -141,7 +152,7 @@ class LuceneLocalVectorStore(
     override suspend fun writeAccess(transactionBlock: suspend VectorStore.Transaction.() -> Unit) {
         checkClosed()
         access.write {
-            Transaction(this).transactionBlock()
+            access.transaction().transactionBlock()
         }
     }
 
@@ -210,6 +221,12 @@ class LuceneLocalVectorStore(
 
             SearchResults(resultsPage = resultsPage, searchOnId = nextSearchOnId)
         }
+    }
+
+    private fun DirectoryReader.existsItemWithID(itemID: String): Boolean {
+        val searcher = IndexSearcher(this)
+        val searchResult = searcher.search(TermQuery(Term(ID_FIELD_NAME, itemID)), 1)
+        return 0 < searchResult.scoreDocs.size
     }
 
     private fun List<SearchResult>.isNotFullPage(): Boolean = size < pageSize
