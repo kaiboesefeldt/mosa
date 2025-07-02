@@ -77,7 +77,11 @@ class LuceneLocalVectorStore(
             return nullSafeReader
         }
 
-        fun transaction() = Transaction(reader, writer)
+        fun transaction(): Transaction =
+            Transaction(
+                runCatching { makeSureReaderIsInitialized() }.getOrNull(),
+                writer,
+            )
 
         override fun close() {
             reader?.close()
@@ -88,6 +92,8 @@ class LuceneLocalVectorStore(
         private val reader: DirectoryReader?,
         private val writer: IndexWriter,
     ) : VectorStore.Transaction {
+        private val addedItemIdsInThisTransaction = mutableSetOf<String>()
+
         override suspend fun add(
             id: String,
             text: String,
@@ -105,9 +111,11 @@ class LuceneLocalVectorStore(
                 )
             }
 
-            if (reader?.existsItemWithID(id) == true) {
+            if (id in addedItemIdsInThisTransaction || reader?.existsItemWithID(id) == true) {
                 throw BadRequestException("Item with ID $id already exists")
             }
+            addedItemIdsInThisTransaction.add(id)
+
             val doc = Document()
             doc.add(StringField(ID_FIELD_NAME, id, Field.Store.YES))
             doc.add(TextField(TEXT_FIELD_NAME, text, Field.Store.YES))

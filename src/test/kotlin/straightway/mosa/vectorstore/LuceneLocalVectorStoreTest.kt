@@ -1,5 +1,6 @@
 package straightway.mosa.vectorstore
 
+import io.ktor.server.plugins.BadRequestException
 import kotlinx.coroutines.runBlocking
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -47,7 +48,7 @@ class LuceneLocalVectorStoreTest {
     }
 
     @Nested
-    inner class Write {
+    inner class Add {
         @Test
         fun `adding invalid vector size throws exception`() {
             test
@@ -82,6 +83,62 @@ class LuceneLocalVectorStoreTest {
                                         vector = vector,
                                     )
                                 }
+                            }
+                        }
+                    }
+                }
+        }
+
+        @Test
+        fun `adding the same record twice in the same transaction throws exception`() {
+            test
+                .apply {
+                    runBlocking {
+                        sut.writeAccess {
+                            assertDoesNotThrow {
+                                add(
+                                    id = "id",
+                                    text = "Text",
+                                    fields = emptyMap(),
+                                    vector = vector,
+                                )
+                            }
+                            assertThrows<BadRequestException> {
+                                add(
+                                    id = "id",
+                                    text = "Text",
+                                    fields = emptyMap(),
+                                    vector = vector,
+                                )
+                            }
+                        }
+                    }
+                }
+        }
+
+        @Test
+        fun `adding the same record twice in the different transactions throws exception`() {
+            test
+                .apply {
+                    runBlocking {
+                        sut.writeAccess {
+                            assertDoesNotThrow {
+                                add(
+                                    id = "id",
+                                    text = "Text",
+                                    fields = emptyMap(),
+                                    vector = vector,
+                                )
+                            }
+                        }
+                        sut.writeAccess {
+                            assertThrows<BadRequestException> {
+                                add(
+                                    id = "id",
+                                    text = "Text",
+                                    fields = emptyMap(),
+                                    vector = vector,
+                                )
                             }
                         }
                     }
