@@ -113,7 +113,7 @@ class ContentControllerTest {
             with(test) {
                 controllerHttpTestEnvironment {
                     val request =
-                        QueryRequest(
+                        SearchRequest(
                             embeddingVersion = "1",
                             embeddingVector = listOf(1.0f, 2.0f, 3.0f),
                             minSimilarity = 0.8f,
@@ -151,7 +151,7 @@ class ContentControllerTest {
             with(test) {
                 controllerHttpTestEnvironment {
                     val request =
-                        QueryOnRequest(
+                        SearchOnRequest(
                             queryOnId = "queryOnId",
                             maxResults = 10,
                         )
@@ -173,11 +173,11 @@ class ContentControllerTest {
 
     private companion object {
         private val queryResult =
-            QueryResult(
+            SearchResult(
                 queryOnId = "queryOnId",
                 entries =
                     listOf(
-                        QueryResult.Entry(
+                        SearchResult.Entry(
                             id = "id",
                             content = "content",
                             similarity = 0.9f,

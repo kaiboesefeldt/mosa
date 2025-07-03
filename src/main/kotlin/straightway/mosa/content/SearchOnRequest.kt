@@ -1,6 +1,6 @@
 package straightway.mosa.content
 
-data class QueryOnRequest(
+data class SearchOnRequest(
     val queryOnId: String,
     val maxResults: Int,
 )

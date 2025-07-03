@@ -5,6 +5,7 @@ import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.required
 import kotlinx.coroutines.runBlocking
+import straightway.mosa.content.PublishRequest
 
 @OptIn(ExperimentalCli::class)
 class PublishCommand(
@@ -14,7 +15,7 @@ class PublishCommand(
 
     override fun execute() {
         runBlocking {
-            restClient().publish(text)
+            restClient().publish(PublishRequest(text))
         }
     }
 }

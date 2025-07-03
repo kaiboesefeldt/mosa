@@ -30,8 +30,8 @@ class ContentService(
 
     suspend fun query(
         userGID: String,
-        request: QueryRequest,
-    ): QueryResult =
+        request: SearchRequest,
+    ): SearchResult =
         trace(userGID, request) {
             if (request.embeddingVector.size != embeddingService.dimension) {
                 throw BadRequestException(
@@ -45,7 +45,7 @@ class ContentService(
                     request.minSimilarity,
                 )
 
-            return QueryResult(
+            return SearchResult(
                 queryOnId = searchResults.searchOnId?.toString() ?: "",
                 entries = searchResults.resultsPage.map { it.toQueryResultEntry() },
             )
@@ -53,8 +53,8 @@ class ContentService(
 
     suspend fun queryOn(
         userGID: String,
-        request: QueryOnRequest,
-    ): QueryResult =
+        request: SearchOnRequest,
+    ): SearchResult =
         trace(userGID, request) {
             val searchOnId =
                 runCatching {
@@ -62,7 +62,7 @@ class ContentService(
                 }.getOrNull()
             val searchResults = vectorStore.searchOn(searchOnId)
 
-            return QueryResult(
+            return SearchResult(
                 queryOnId = searchResults.searchOnId?.toString() ?: "",
                 entries = searchResults.resultsPage.map { it.toQueryResultEntry() },
             )
@@ -94,8 +94,8 @@ class ContentService(
         }
     }
 
-    private fun VectorStore.SearchResult.toQueryResultEntry(): QueryResult.Entry =
-        QueryResult.Entry(
+    private fun VectorStore.SearchResult.toQueryResultEntry(): SearchResult.Entry =
+        SearchResult.Entry(
             id = id,
             content = text,
             similarity = similarity,
@@ -115,15 +115,25 @@ class ContentService(
         block: suspend () -> T,
     ): T {
         val requestId = UUID.randomUUID()
-        log.debug { "START $requestId: user: $userGID, request $request" }
+        log.debug { "START $requestId: user: $userGID, request ${request.logString()}" }
         return try {
             block()
         } finally {
-            log.debug { "FINISH $requestId: user: $userGID, request $request" }
+            log.debug { "FINISH $requestId: user: $userGID" }
         }
     }
 
     private companion object {
         private val log = KotlinLogging.logger { }
+        private const val MAX_LOG_LEN_FOR_REQUESTS = 100
+
+        private fun Any.logString(): String =
+            toString().let {
+                if (it.length <= MAX_LOG_LEN_FOR_REQUESTS) {
+                    it
+                } else {
+                    it.substring(0..MAX_LOG_LEN_FOR_REQUESTS) + "..."
+                }
+            }
     }
 }

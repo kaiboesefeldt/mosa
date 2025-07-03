@@ -1,6 +1,7 @@
 package straightway.mosa.cli
 
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -8,6 +9,8 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import straightway.mosa.content.PublishRequest
+import straightway.mosa.content.SearchRequest
+import straightway.mosa.content.SearchResult
 import java.net.URI
 import java.net.URL
 
@@ -16,13 +19,24 @@ class MosaRestClient(
     private val credentials: String,
     private val httpClient: HttpClient,
 ) {
-    suspend fun publish(text: String) {
+    suspend fun publish(publish: PublishRequest) {
         val response =
             httpClient.post(URI("$podUrl/v1/publish").toURL()) {
                 contentType(ContentType.Application.Json)
-                setBody(PublishRequest(text = text))
+                setBody(publish)
                 header(HttpHeaders.Authorization, "Bearer $credentials")
             }
         println(response)
+    }
+
+    suspend fun search(query: SearchRequest) {
+        val response =
+            httpClient.post(URI("$podUrl/v1/search").toURL()) {
+                contentType(ContentType.Application.Json)
+                setBody(query)
+                header(HttpHeaders.Authorization, "Bearer $credentials")
+            }
+        println(response)
+        println(response.body<SearchResult>())
     }
 }

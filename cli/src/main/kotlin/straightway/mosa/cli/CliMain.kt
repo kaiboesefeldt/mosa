@@ -39,6 +39,7 @@ suspend fun main(args: Array<String>) {
         )
 
     parser.subcommands(PublishCommand { mosaRestClient() })
+    parser.subcommands(SearchCommand { mosaRestClient() })
 
     val parseResult = parser.parse(args)
 
