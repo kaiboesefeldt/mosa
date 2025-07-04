@@ -152,7 +152,7 @@ class ContentControllerTest {
                 controllerHttpTestEnvironment {
                     val request =
                         SearchOnRequest(
-                            queryOnId = "queryOnId",
+                            searchOnId = "queryOnId",
                             maxResults = 10,
                         )
                     coEvery { contentService.queryOn(any(), any()) } returns queryResult
@@ -174,7 +174,7 @@ class ContentControllerTest {
     private companion object {
         private val queryResult =
             SearchResult(
-                queryOnId = "queryOnId",
+                searchOnId = "queryOnId",
                 entries =
                     listOf(
                         SearchResult.Entry(

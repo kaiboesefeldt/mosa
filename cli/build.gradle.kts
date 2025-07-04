@@ -14,12 +14,22 @@ repositories {
 dependencies {
     val kotlinxCliVersion = "0.3.6"
     val ktorVersion = "3.2.0"
+    val kotlinLoggingVersion = "7.0.7"
+    val logbackVersion = "1.5.18"
+
     implementation(project(":"))
+
     implementation("org.jetbrains.kotlinx:kotlinx-cli:$kotlinxCliVersion")
+
     implementation("io.ktor:ktor-client-core:$ktorVersion")
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
+
+    implementation("io.github.oshai:kotlin-logging:${kotlinLoggingVersion}")
+
+    implementation("ch.qos.logback:logback-classic:${logbackVersion}")
+
     testImplementation(kotlin("test"))
 }
 

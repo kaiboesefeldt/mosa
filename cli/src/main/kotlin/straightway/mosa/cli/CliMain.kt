@@ -11,7 +11,7 @@ import kotlinx.cli.default
 import java.net.URI
 
 @OptIn(ExperimentalCli::class)
-suspend fun main(args: Array<String>) {
+fun main(args: Array<String>) {
     val parser = ArgParser("MOSA CLI")
     val userGID by parser
         .option(

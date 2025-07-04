@@ -2,7 +2,7 @@ package straightway.mosa.content
 
 data class SearchResult(
     val entries: List<Entry>,
-    val queryOnId: String,
+    val searchOnId: String,
 ) {
     data class Entry(
         val id: String,

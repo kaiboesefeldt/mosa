@@ -8,6 +8,7 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.SearchRequest
 import straightway.mosa.content.SearchResult
@@ -26,17 +27,23 @@ class MosaRestClient(
                 setBody(publish)
                 header(HttpHeaders.Authorization, "Bearer $credentials")
             }
-        println(response)
+        if (!response.status.isSuccess()) {
+            throw RuntimeException("Publish request ${publish} got an error response: $response")
+        }
     }
 
-    suspend fun search(query: SearchRequest) {
+    suspend fun search(query: SearchRequest): SearchResult {
         val response =
             httpClient.post(URI("$podUrl/v1/search").toURL()) {
                 contentType(ContentType.Application.Json)
                 setBody(query)
                 header(HttpHeaders.Authorization, "Bearer $credentials")
             }
-        println(response)
-        println(response.body<SearchResult>())
+
+        if (!response.status.isSuccess()) {
+            throw RuntimeException("Search request ${query} got an error response: $response")
+        }
+
+        return response.body<SearchResult>()
     }
 }

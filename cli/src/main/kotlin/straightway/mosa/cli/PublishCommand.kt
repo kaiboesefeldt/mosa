@@ -16,6 +16,7 @@ class PublishCommand(
     override fun execute() {
         runBlocking {
             restClient().publish(PublishRequest(text))
+            println("Publish: Success")
         }
     }
 }

@@ -46,7 +46,7 @@ class ContentService(
                 )
 
             return SearchResult(
-                queryOnId = searchResults.searchOnId?.toString() ?: "",
+                searchOnId = searchResults.searchOnId?.toString() ?: "",
                 entries = searchResults.resultsPage.map { it.toQueryResultEntry() },
             )
         }
@@ -58,12 +58,12 @@ class ContentService(
         trace(userGID, request) {
             val searchOnId =
                 runCatching {
-                    if (request.queryOnId.isEmpty()) null else UUID.fromString(request.queryOnId)
+                    if (request.searchOnId.isEmpty()) null else UUID.fromString(request.searchOnId)
                 }.getOrNull()
             val searchResults = vectorStore.searchOn(searchOnId)
 
             return SearchResult(
-                queryOnId = searchResults.searchOnId?.toString() ?: "",
+                searchOnId = searchResults.searchOnId?.toString() ?: "",
                 entries = searchResults.resultsPage.map { it.toQueryResultEntry() },
             )
         }

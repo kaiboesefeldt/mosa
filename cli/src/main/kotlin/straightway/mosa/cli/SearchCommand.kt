@@ -6,7 +6,9 @@ import kotlinx.cli.Subcommand
 import kotlinx.cli.default
 import kotlinx.coroutines.runBlocking
 import straightway.mosa.content.SearchRequest
+import straightway.mosa.content.SearchResult
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
+import java.time.Instant
 
 @OptIn(ExperimentalCli::class)
 class SearchCommand(
@@ -40,7 +42,7 @@ class SearchCommand(
 
     override fun execute() {
         runBlocking {
-            val result = restClient().search(
+            val response = restClient().search(
                 SearchRequest(
                     embeddingVersion = embeddingVersion,
                     embeddingVector = embeddingVector,
@@ -48,6 +50,34 @@ class SearchCommand(
                     maxResults = maxResults
                 )
             )
+            prettyPrint(response)
         }
+    }
+
+    private fun prettyPrint(searchResult: SearchResult) {
+        val searchResultEntriesString =
+            if (searchResult.entries.isEmpty()) {
+                "Empty"
+            } else {
+                searchResult.entries.joinToString {
+                    val lines = listOf(
+                        "id: ${it.id}",
+                        "content:\n${it.content.trimIndent().prependIndent("    ")}"
+                    ) + (if (it.parent === null) listOf() else listOf("parent: ${it.parent}")) + listOf(
+                        "similarity: ${it.similarity}",
+                        "author: ${it.authorGID}",
+                        "stored: ${Instant.ofEpochSecond(it.storedAt)}"
+                    )
+                    val resultContent = lines.joinToString("\n")
+                    "Search result entry\n${resultContent.prependIndent("    ")}"
+                }
+            }
+        println(
+            """
+                |SearchResult
+                |${searchResultEntriesString.prependIndent("    ")}
+                |    ${if (searchResult.searchOnId.isBlank()) "" else "search on ID: ${searchResult.searchOnId}"}
+            """.trimMargin()
+        )
     }
 }
