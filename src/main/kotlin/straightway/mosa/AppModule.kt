@@ -3,6 +3,7 @@ package straightway.mosa
 import org.apache.lucene.store.MMapDirectory
 import org.koin.dsl.module
 import org.koin.dsl.onClose
+import straightway.mosa.authorization.TransientEd25519Factory
 import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
@@ -24,6 +25,7 @@ val appModule =
             )
         } onClose { (it as? AutoCloseable)?.close() }
         single<() -> MessageDigest> { { MessageDigest.getInstance("SHA-256") } }
+        single<SignatureFactory> { TransientEd25519Factory() }
 
         single<ContentService> { ContentService(get(), get(), get()) }
 
