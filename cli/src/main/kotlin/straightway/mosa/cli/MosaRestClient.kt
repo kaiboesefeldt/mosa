@@ -34,7 +34,7 @@ class MosaRestClient(
 
     suspend fun search(query: SearchRequest): SearchResult {
         val response =
-            httpClient.post(URI("$podUrl/v1/search").toURL()) {
+            httpClient.post(URI("$podUrl/v1/query").toURL()) {
                 contentType(ContentType.Application.Json)
                 setBody(query)
                 header(HttpHeaders.Authorization, "Bearer $credentials")

@@ -116,7 +116,7 @@ The result is a list of query results, plus a query ID which may be passed to th
 
 The query ID from the original `/v1/query` request must be passed in the request body.
 
-To allow pods efficient life cycle handling and data cleanupm, the `/v1/queryon` endpoint must be called within a very narrow time window from the last `query` or `queryon` request, e.g., 10 s. This endpoint may be called on and on and on until it yields an empty result.
+To allow pods efficient life cycle handling and data cleanupm, the `/v1/queryon` endpoint must be called within a very narrow time window from the last `search` or `searchon` request, e.g., 10 s. This endpoint may be called on and on and on until it yields an empty result.
 
 The result is a list of the next query results. 
 

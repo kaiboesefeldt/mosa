@@ -24,11 +24,11 @@ class ContentController(
                 contentService.reply(userGID, call.receive<ReplyRequest>())
                 call.respond(HttpStatusCode.Created, null)
             }
-            postRoute("/search") {
+            postRoute("/query") {
                 val result = contentService.query(userGID, call.receive<SearchRequest>())
                 call.respond(HttpStatusCode.OK, result, typeInfo<SearchResult>())
             }
-            postRoute("/searchon") {
+            postRoute("/queryon") {
                 val result = contentService.queryOn(userGID, call.receive<SearchOnRequest>())
                 call.respond(HttpStatusCode.OK, result, typeInfo<SearchResult>())
             }
