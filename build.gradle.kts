@@ -24,6 +24,7 @@ dependencies {
     val djlVersion = "0.31.1"
     val luceneVersion = "9.9.0"
     val mockkVersion = "1.14.4"
+    val auth0JwtVersion = "4.5.0"
 
     // Ktor Server
     implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
@@ -58,6 +59,7 @@ dependencies {
     implementation("io.ktor:ktor-client-core-jvm:$ktorVersion")
     implementation("io.ktor:ktor-client-cio-jvm:$ktorVersion")
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
+    implementation("com.auth0:java-jwt:$auth0JwtVersion")
 
     // Logging
     implementation("io.github.oshai:kotlin-logging:$kotlinLoggingVersion")

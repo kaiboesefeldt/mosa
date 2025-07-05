@@ -33,6 +33,7 @@ class ContentService(
         request: SearchRequest,
     ): SearchResult =
         trace(userGID, request) {
+            // TODO: Check null vector
             if (request.embeddingVector.size != embeddingService.dimension) {
                 throw BadRequestException(
                     "Invalid embedding vector size (expected: ${embeddingService.dimension}, got: ${request.embeddingVector.size})",

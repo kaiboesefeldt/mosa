@@ -16,6 +16,7 @@ dependencies {
     val ktorVersion = "3.2.0"
     val kotlinLoggingVersion = "7.0.7"
     val logbackVersion = "1.5.18"
+    val auth0JwtVersion = "4.5.0"
 
     implementation(project(":"))
 
@@ -25,6 +26,8 @@ dependencies {
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
+
+    implementation("com.auth0:java-jwt:${auth0JwtVersion}")
 
     implementation("io.github.oshai:kotlin-logging:${kotlinLoggingVersion}")
 
