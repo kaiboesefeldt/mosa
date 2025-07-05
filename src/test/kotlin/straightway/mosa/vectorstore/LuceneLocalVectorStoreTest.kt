@@ -22,7 +22,7 @@ class LuceneLocalVectorStoreTest {
                     directoryFactory = { ByteBuffersDirectory() },
                     maxResults = 10,
                     pageSize = 3,
-                    maxNotFinishedSearches = 2,
+                    maxNotFinishedQueries = 2,
                     vectorSize = 3,
                 )
 
@@ -34,13 +34,13 @@ class LuceneLocalVectorStoreTest {
     @Nested
     inner class Construction {
         @Test
-        fun `non-positive maxNotFinishedSearches throws exception`() {
+        fun `non-positive maxNotFinishedQueries throws exception`() {
             assertThrows<RuntimeException> {
                 LuceneLocalVectorStore(
                     directoryFactory = { ByteBuffersDirectory() },
                     maxResults = 10,
                     pageSize = 3,
-                    maxNotFinishedSearches = 0,
+                    maxNotFinishedQueries = 0,
                     vectorSize = 3,
                 )
             }
@@ -147,7 +147,7 @@ class LuceneLocalVectorStoreTest {
     }
 
     @Nested
-    inner class Search {
+    inner class Query {
         @Test
         fun `happy path - add item and retrieve it again`() =
             test
@@ -162,7 +162,7 @@ class LuceneLocalVectorStoreTest {
                             )
                         }
 
-                        val searchResult = sut.search(vector, minSimilarity = 0.9f)
+                        val queryResult = sut.query(vector, minSimilarity = 0.9f)
 
                         assertEquals(
                             listOf(
@@ -173,14 +173,14 @@ class LuceneLocalVectorStoreTest {
                                     fields = mapOf("Hello" to "world"),
                                 ),
                             ),
-                            searchResult.resultsPage,
+                            queryResult.resultsPage,
                         )
-                        assertNull(searchResult.searchOnId)
+                        assertNull(queryResult.queryOnId)
                     }
                 }.close()
 
         @Test
-        fun `getting exactly as many results as pageSize yields null searchOnId`() =
+        fun `getting exactly as many results as pageSize yields null queryOnId`() =
             test
                 .apply {
                     runBlocking {
@@ -195,10 +195,10 @@ class LuceneLocalVectorStoreTest {
                             }
                         }
 
-                        val searchResult = sut.search(vector, minSimilarity = 0.9f)
+                        val searchResult = sut.query(vector, minSimilarity = 0.9f)
 
                         assertEquals(3, searchResult.resultsPage.size)
-                        assertNull(searchResult.searchOnId)
+                        assertNull(searchResult.queryOnId)
                     }
                 }.close()
 
@@ -217,19 +217,19 @@ class LuceneLocalVectorStoreTest {
                                 )
                             }
 
-                            val searchResult = sut.search(vector, minSimilarity = 0.9f)
+                            val searchResult = sut.query(vector, minSimilarity = 0.9f)
 
                             assertEquals(
                                 (1..numItems).map { "id$it" },
                                 searchResult.resultsPage.map { it.id },
                             )
-                            assertNull(searchResult.searchOnId)
+                            assertNull(searchResult.queryOnId)
                         }
                     }
                 }.close()
 
         @Test
-        fun `getting exactly one result more than pageSize yields a searchOnId`() =
+        fun `getting exactly one result more than pageSize yields a queryOnId`() =
             test
                 .apply {
                     runBlocking {
@@ -244,10 +244,10 @@ class LuceneLocalVectorStoreTest {
                             }
                         }
 
-                        val searchResult = sut.search(vector, minSimilarity = 0.9f)
+                        val searchResult = sut.query(vector, minSimilarity = 0.9f)
 
                         assertEquals(3, searchResult.resultsPage.size)
-                        assertNotNull(searchResult.searchOnId)
+                        assertNotNull(searchResult.queryOnId)
                     }
                 }.close()
 
@@ -256,13 +256,13 @@ class LuceneLocalVectorStoreTest {
             test
                 .apply {
                     runBlocking {
-                        val searchResult = sut.search(vector, minSimilarity = 0.9f)
+                        val searchResult = sut.query(vector, minSimilarity = 0.9f)
 
                         assertEquals(
                             emptyList(),
                             searchResult.resultsPage,
                         )
-                        assertNull(searchResult.searchOnId)
+                        assertNull(searchResult.queryOnId)
                     }
                 }.close()
 
@@ -281,19 +281,19 @@ class LuceneLocalVectorStoreTest {
                         }
 
                         val searchResult =
-                            sut.search(vector.map { -it }.toFloatArray(), minSimilarity = 0.9f)
+                            sut.query(vector.map { -it }.toFloatArray(), minSimilarity = 0.9f)
 
                         assertEquals(
                             emptyList(),
                             searchResult.resultsPage,
                         )
-                        assertNull(searchResult.searchOnId)
+                        assertNull(searchResult.queryOnId)
                     }
                 }.close()
     }
 
     @Nested
-    inner class SearchOn {
+    inner class QueryOn {
         @Test
         fun `searching on the next page of search results`() =
             test
@@ -311,13 +311,13 @@ class LuceneLocalVectorStoreTest {
                         }
 
                         val searchResult =
-                            sut.searchOn(sut.search(vector, minSimilarity = 0.0f).searchOnId)
+                            sut.searchOn(sut.query(vector, minSimilarity = 0.0f).queryOnId)
 
                         assertEquals(
                             listOf("id4"),
                             searchResult.resultsPage.map { it.id },
                         )
-                        assertNull(searchResult.searchOnId)
+                        assertNull(searchResult.queryOnId)
                     }
                 }.close()
 
@@ -341,15 +341,15 @@ class LuceneLocalVectorStoreTest {
                             sut.searchOn(
                                 sut
                                     .searchOn(
-                                        sut.search(vector, minSimilarity = 0.0f).searchOnId,
-                                    ).searchOnId,
+                                        sut.query(vector, minSimilarity = 0.0f).queryOnId,
+                                    ).queryOnId,
                             )
 
                         assertEquals(
                             listOf("id7"),
                             searchResult.resultsPage.map { it.id },
                         )
-                        assertNull(searchResult.searchOnId)
+                        assertNull(searchResult.queryOnId)
                     }
                 }.close()
 
@@ -370,7 +370,7 @@ class LuceneLocalVectorStoreTest {
                         val searchResult = sut.searchOn(UUID.randomUUID())
 
                         assertEquals(emptyList(), searchResult.resultsPage)
-                        assertNull(searchResult.searchOnId)
+                        assertNull(searchResult.queryOnId)
                     }
                 }.close()
 
@@ -391,7 +391,7 @@ class LuceneLocalVectorStoreTest {
                         val searchResult = sut.searchOn(null)
 
                         assertEquals(emptyList(), searchResult.resultsPage)
-                        assertNull(searchResult.searchOnId)
+                        assertNull(searchResult.queryOnId)
                     }
                 }.close()
     }
@@ -424,7 +424,7 @@ class LuceneLocalVectorStoreTest {
                             remove("id")
                         }
 
-                        val searchResult = sut.search(vector, minSimilarity = 0.9f)
+                        val searchResult = sut.query(vector, minSimilarity = 0.9f)
 
                         assertEquals(emptyList(), searchResult.resultsPage)
                     }
@@ -447,7 +447,7 @@ class LuceneLocalVectorStoreTest {
                             remove("id")
                         }
 
-                        val searchResult = sut.search(vector, minSimilarity = 0.9f)
+                        val searchResult = sut.query(vector, minSimilarity = 0.9f)
 
                         assertEquals(emptyList(), searchResult.resultsPage)
                     }
@@ -455,7 +455,7 @@ class LuceneLocalVectorStoreTest {
     }
 
     @Nested
-    inner class LifeCycleOfSearchOnRecords {
+    inner class LifeCycleOfQueryOnRecords {
         @Test
         fun `oldest searchOn record is cleaned up when searchOn space is expired`() =
             test
@@ -472,11 +472,11 @@ class LuceneLocalVectorStoreTest {
                             }
                         }
 
-                        val searchResults = (1..3).map { sut.search(vector, 0.9f) }
-                        val searchOnResults = searchResults.map { sut.searchOn(it.searchOnId) }
+                        val searchResults = (1..3).map { sut.query(vector, 0.9f) }
+                        val searchOnResults = searchResults.map { sut.searchOn(it.queryOnId) }
 
                         searchResults.forEach {
-                            assertNotNull(it.searchOnId)
+                            assertNotNull(it.queryOnId)
                             assertTrue(it.resultsPage.any())
                         }
                         assertTrue(searchOnResults.first().resultsPage.isEmpty())
@@ -518,7 +518,7 @@ class LuceneLocalVectorStoreTest {
                 .apply {
                     sut.close()
                     runBlocking {
-                        assertThrows<RuntimeException> { sut.search(vector, 0.7f) }
+                        assertThrows<RuntimeException> { sut.query(vector, 0.7f) }
                     }
                 }
         }

@@ -41,13 +41,13 @@ class ContentService(
             }
 
             val searchResults =
-                vectorStore.search(
+                vectorStore.query(
                     request.embeddingVector.toFloatArray(),
                     request.minSimilarity,
                 )
 
             return SearchResult(
-                searchOnId = searchResults.searchOnId?.toString() ?: "",
+                searchOnId = searchResults.queryOnId?.toString() ?: "",
                 entries = searchResults.resultsPage.map { it.toQueryResultEntry() },
             )
         }
@@ -64,7 +64,7 @@ class ContentService(
             val searchResults = vectorStore.searchOn(searchOnId)
 
             return SearchResult(
-                searchOnId = searchResults.searchOnId?.toString() ?: "",
+                searchOnId = searchResults.queryOnId?.toString() ?: "",
                 entries = searchResults.resultsPage.map { it.toQueryResultEntry() },
             )
         }

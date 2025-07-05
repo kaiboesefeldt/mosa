@@ -37,7 +37,7 @@ class LuceneLocalVectorStore(
     directoryFactory: () -> Directory,
     private val maxResults: Int,
     private val pageSize: Int,
-    private val maxNotFinishedSearches: Int,
+    private val maxNotFinishedQueries: Int,
     private val vectorSize: Int,
 ) : VectorStore,
     AutoCloseable {
@@ -142,9 +142,9 @@ class LuceneLocalVectorStore(
     private var closed = false
 
     init {
-        if (maxNotFinishedSearches < 1) {
+        if (maxNotFinishedQueries < 1) {
             throw RuntimeException(
-                "maxNotFinishedSearches must be >= 1 (actual: $maxNotFinishedSearches)",
+                "maxNotFinishedSearches must be >= 1 (actual: $maxNotFinishedQueries)",
             )
         }
     }
@@ -164,7 +164,7 @@ class LuceneLocalVectorStore(
         }
     }
 
-    override suspend fun search(
+    override suspend fun query(
         vector: FloatArray,
         minSimilarity: Float,
     ): SearchResults {
@@ -195,7 +195,7 @@ class LuceneLocalVectorStore(
                 SearchResults(resultsPage, searchOnId)
             }
         }.onFailure { if (it !is IndexNotFoundException) throw it }
-            .getOrDefault(SearchResults(resultsPage = emptyList(), searchOnId = null))
+            .getOrDefault(SearchResults(resultsPage = emptyList(), queryOnId = null))
     }
 
     override suspend fun searchOn(searchOnId: UUID?): SearchResults {
@@ -227,7 +227,7 @@ class LuceneLocalVectorStore(
                     createSearchOnId(topDocs, searchOnRecord.query)
                 }
 
-            SearchResults(resultsPage = resultsPage, searchOnId = nextSearchOnId)
+            SearchResults(resultsPage = resultsPage, queryOnId = nextSearchOnId)
         }
     }
 
@@ -292,7 +292,7 @@ class LuceneLocalVectorStore(
     }
 
     private fun removeSurplusSearchOnRecords() {
-        while (maxNotFinishedSearches <= searchOnRecords.size) {
+        while (maxNotFinishedQueries <= searchOnRecords.size) {
             val entryToRemove = searchOnHistory.remove()
             searchOnRecords.remove(entryToRemove)
         }

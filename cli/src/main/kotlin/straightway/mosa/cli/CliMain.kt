@@ -40,6 +40,7 @@ fun main(args: Array<String>) {
 
     parser.subcommands(PublishCommand { mosaRestClient() })
     parser.subcommands(SearchCommand { mosaRestClient() })
+    parser.subcommands(GetCertCommand { mosaRestClient() })
 
     val parseResult = parser.parse(args)
 

@@ -3,6 +3,8 @@ package straightway.mosa
 import org.apache.lucene.store.MMapDirectory
 import org.koin.dsl.module
 import org.koin.dsl.onClose
+import straightway.mosa.authorization.AuthorizationController
+import straightway.mosa.authorization.PodCertificateService
 import straightway.mosa.authorization.TransientEd25519Factory
 import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentController
@@ -20,7 +22,7 @@ val appModule =
                 directoryFactory = { MMapDirectory(Paths.get("mosa_lucene_index")) },
                 maxResults = 1000,
                 pageSize = 10,
-                maxNotFinishedSearches = 10000,
+                maxNotFinishedQueries = 10000,
                 vectorSize = get<EmbeddingService>().dimension,
             )
         } onClose { (it as? AutoCloseable)?.close() }
@@ -30,4 +32,6 @@ val appModule =
         single<ContentService> { ContentService(get(), get(), get()) }
 
         single<BaseController> { ContentController(get()) }
+        single<PodCertificateService> { PodCertificateService(get()) }
+        single<BaseController> { AuthorizationController(get()) }
     }

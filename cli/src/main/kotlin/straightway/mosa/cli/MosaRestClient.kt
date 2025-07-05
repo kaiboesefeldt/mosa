@@ -9,6 +9,8 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import straightway.mosa.authorization.AuthorizationRequest
+import straightway.mosa.authorization.PodCertificate
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.SearchRequest
 import straightway.mosa.content.SearchResult
@@ -45,5 +47,19 @@ class MosaRestClient(
         }
 
         return response.body<SearchResult>()
+    }
+
+    suspend fun approveGid(request: AuthorizationRequest): PodCertificate {
+        val response =
+            httpClient.post(URI("$podUrl/v1/approvegid").toURL()) {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+
+        if (!response.status.isSuccess()) {
+            throw RuntimeException("Authorization request ${request} got an error response: $response")
+        }
+
+        return response.body<PodCertificate>()
     }
 }

@@ -140,7 +140,7 @@ Which pods are returned by is configured by the pod administrator.
 
 ### Token Management
 
-#### Request identity approval: `POST /v1/approveid`
+#### Request identity approval: `POST /v1/approvegid`
 
 The client's `gid` according to [MIS](spec/MIS1.0.md) is passed via request body. This is the only request not requiring a bearer token header.
 
