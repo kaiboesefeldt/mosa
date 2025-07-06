@@ -9,7 +9,7 @@ interface Crypto {
 
     fun deserializeKeyPair(base64: String): KeyPair
 
-    fun exportPrivateKeyToPem(keyPair: KeyPair): String
+    fun exportPrivateKeyPairToPem(keyPair: KeyPair): String
 
-    fun importPrivateKeyFromPem(pem: String): KeyPair
+    fun importKeyPairFromPem(pem: String): KeyPair
 }

@@ -18,8 +18,8 @@ class CryptoEd25519Test {
     @Test
     fun `serialize - deserialize PEM test`() {
         val originalKeyPair = sut.generateKeyPair()
-        val pem = sut.exportPrivateKeyToPem(originalKeyPair)
-        val deserialized = sut.importPrivateKeyFromPem(pem)
+        val pem = sut.exportPrivateKeyPairToPem(originalKeyPair)
+        val deserialized = sut.importKeyPairFromPem(pem)
         assertContentEquals(originalKeyPair.public.encoded, deserialized.public.encoded)
         assertContentEquals(originalKeyPair.private.encoded, deserialized.private.encoded)
     }

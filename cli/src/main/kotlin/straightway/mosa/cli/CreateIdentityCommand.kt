@@ -28,7 +28,7 @@ class CreateIdentityCommand() :
     override fun execute() {
         val crypto = CryptoEd25519()
         val keyPair = crypto.generateKeyPair()
-        if (pem || (!pem && !base64url)) println(crypto.exportPrivateKeyToPem(keyPair))
+        if (pem || (!pem && !base64url)) println(crypto.exportPrivateKeyPairToPem(keyPair))
         if (base64url) println(crypto.serializeKeyPair(keyPair))
     }
 }
