@@ -1,11 +1,9 @@
 package straightway.mosa.crypto
 
 import org.bouncycastle.asn1.ASN1OctetString
-import org.bouncycastle.asn1.edec.EdECObjectIdentifiers
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
-import org.bouncycastle.asn1.x509.AlgorithmIdentifier
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
+import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.KeyFactory
 import java.security.KeyPair
@@ -72,19 +70,14 @@ class CryptoEd25519 {
         val privInfo = PrivateKeyInfo.getInstance(privBytesPCKS8)
 
         val seed = (privInfo.parsePrivateKey().toASN1Primitive() as ASN1OctetString).octets
-
         val privParams = Ed25519PrivateKeyParameters(seed, 0)
         val pubParams = privParams.generatePublicKey()
 
         val kf = KeyFactory.getInstance("Ed25519", "BC")
         val privKey = kf.generatePrivate(PKCS8EncodedKeySpec(privInfo.encoded))
 
-        val pubInfo =
-            SubjectPublicKeyInfo(
-                AlgorithmIdentifier(EdECObjectIdentifiers.id_Ed25519),
-                pubParams.encoded,
-            )
-        val pubKey = kf.generatePublic(X509EncodedKeySpec(pubInfo.encoded))
+        val spki = SubjectPublicKeyInfoFactory.createSubjectPublicKeyInfo(pubParams)
+        val pubKey = kf.generatePublic(X509EncodedKeySpec(spki.encoded))
 
         return KeyPair(pubKey, privKey)
     }

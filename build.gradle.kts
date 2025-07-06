@@ -25,7 +25,7 @@ dependencies {
     val luceneVersion = "9.9.0"
     val mockkVersion = "1.14.4"
     val auth0JwtVersion = "4.5.0"
-    val bouncyCastleVersion = "1.70"
+    val bouncyCastleVersion = "1.81"
 
     // Ktor Server
     implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
@@ -62,7 +62,7 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
 
     // Crypto
-    implementation("org.bouncycastle:bcprov-jdk15on:$bouncyCastleVersion")
+    implementation("org.bouncycastle:bcprov-jdk15to18:$bouncyCastleVersion")
     implementation("com.auth0:java-jwt:${auth0JwtVersion}")
 
     // Logging
