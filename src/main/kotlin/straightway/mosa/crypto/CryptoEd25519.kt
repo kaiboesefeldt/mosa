@@ -40,7 +40,36 @@ class CryptoEd25519 {
                 .withPadding(Base64.PaddingOption.ABSENT)
                 .decode(base64)
 
-        val privInfo = PrivateKeyInfo.getInstance(privBytes)
+        return deserializePrivateKeyBytes(privBytes)
+    }
+
+    fun exportPrivateKeyToPem(keyPair: KeyPair): String {
+        val pemBody =
+            Base64.Default
+                .encode(keyPair.private.encoded)
+                .chunked(64)
+                .joinToString("\n")
+
+        return buildString {
+            appendLine("-----BEGIN PRIVATE KEY-----")
+            appendLine(pemBody)
+            appendLine("-----END PRIVATE KEY-----")
+        }
+    }
+
+    fun importPrivateKeyFromPem(pem: String): KeyPair {
+        val rawB64 =
+            pem
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replace("\\s+".toRegex(), "")
+
+        val der = Base64.Default.decode(rawB64)
+        return deserializePrivateKeyBytes(der)
+    }
+
+    private fun deserializePrivateKeyBytes(privBytesPCKS8: ByteArray): KeyPair {
+        val privInfo = PrivateKeyInfo.getInstance(privBytesPCKS8)
 
         val seed = (privInfo.parsePrivateKey().toASN1Primitive() as ASN1OctetString).octets
 
