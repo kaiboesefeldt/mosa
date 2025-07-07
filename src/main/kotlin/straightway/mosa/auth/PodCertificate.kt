@@ -1,4 +1,4 @@
-package straightway.mosa.authorization
+package straightway.mosa.auth
 
 data class PodCertificate(
     val gid: String,

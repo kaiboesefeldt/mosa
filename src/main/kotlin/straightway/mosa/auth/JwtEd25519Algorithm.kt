@@ -1,4 +1,4 @@
-package straightway.mosa.authorization
+package straightway.mosa.auth
 
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.exceptions.SignatureVerificationException

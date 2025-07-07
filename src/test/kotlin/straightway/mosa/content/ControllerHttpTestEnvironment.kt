@@ -5,6 +5,7 @@ import io.ktor.serialization.jackson.jackson
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import org.koin.ktor.ext.getKoin
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
 import straightway.mosa.installNetworkServerPlugins
@@ -20,7 +21,7 @@ class ControllerHttpTestEnvironment(
     ) {
         testApplication {
             application {
-                installNetworkServerPlugins()
+                installNetworkServerPlugins(getKoin().get())
                 routing {
                     (this@ControllerHttpTestEnvironment.controllers + controllers).forEach {
                         register(it)

@@ -11,18 +11,10 @@ import kotlinx.cli.default
 import straightway.mosa.crypto.CryptoEd25519
 import java.net.URI
 import java.security.KeyPair
-import java.security.PublicKey
-import kotlin.io.encoding.Base64
 
 @OptIn(ExperimentalCli::class)
 fun main(args: Array<String>) {
     val parser = ArgParser("MOSA CLI")
-    val userGIDParam by parser
-        .option(
-            ArgType.String,
-            shortName = "u",
-            description = "The Global ID (gid) of the MOSA user",
-        )
     val keyPairParam by parser
         .option(
             type = ArgType.String,
@@ -31,7 +23,6 @@ fun main(args: Array<String>) {
             description = "Base 64 URL encoding of the Ed25519 key pair to use for signing"
         )
     val keyPair = keyPairParam?.keyPairFromBase64() ?: createTemporaryKeyPair()
-    val userGID = userGIDParam ?: keyPair.public.extractGid()
     val pod by parser
         .option(
             ArgType.String,
@@ -42,7 +33,7 @@ fun main(args: Array<String>) {
     fun mosaRestClient() =
         MosaRestClient(
             podUrl = URI(pod).toURL(),
-            credentials = userGID,
+            identityKeyPair = keyPair,
             httpClient =
                 HttpClient(CIO) {
                     install(ContentNegotiation) {
@@ -69,6 +60,3 @@ private val crypto = CryptoEd25519()
 private fun String.keyPairFromBase64(): KeyPair = crypto.deserializeKeyPair(this)
 
 private fun createTemporaryKeyPair(): KeyPair = crypto.generateKeyPair()
-
-private fun PublicKey.extractGid() =
-    Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(encoded)

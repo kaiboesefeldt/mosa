@@ -2,32 +2,39 @@ package straightway.mosa.cli
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.request.header
+import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import straightway.mosa.authorization.AuthorizationRequest
-import straightway.mosa.authorization.PodCertificate
+import straightway.mosa.auth.AuthorizationRequest
+import straightway.mosa.auth.JwtBuilder
+import straightway.mosa.auth.PodCertificate
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.SearchRequest
 import straightway.mosa.content.SearchResult
 import java.net.URI
 import java.net.URL
+import java.security.KeyPair
+import java.security.MessageDigest
+import java.time.Clock
+import java.time.ZoneId
+import kotlin.io.encoding.Base64
+import kotlin.time.Duration.Companion.hours
 
 class MosaRestClient(
     private val podUrl: URL,
-    private val credentials: String,
+    private val identityKeyPair: KeyPair,
     private val httpClient: HttpClient,
 ) {
     suspend fun publish(publish: PublishRequest) {
+        val jwt = createJWT()
         val response =
             httpClient.post(URI("$podUrl/v1/publish").toURL()) {
                 contentType(ContentType.Application.Json)
                 setBody(publish)
-                header(HttpHeaders.Authorization, "Bearer $credentials")
+                bearerAuth(jwt)
             }
         if (!response.status.isSuccess()) {
             throw RuntimeException("Publish request ${publish} got an error response: $response")
@@ -35,11 +42,12 @@ class MosaRestClient(
     }
 
     suspend fun search(query: SearchRequest): SearchResult {
+        val jwt = createJWT()
         val response =
             httpClient.post(URI("$podUrl/v1/query").toURL()) {
                 contentType(ContentType.Application.Json)
                 setBody(query)
-                header(HttpHeaders.Authorization, "Bearer $credentials")
+                bearerAuth(jwt)
             }
 
         if (!response.status.isSuccess()) {
@@ -61,5 +69,20 @@ class MosaRestClient(
         }
 
         return response.body<PodCertificate>()
+    }
+
+    private suspend fun createJWT(): String {
+        val hasher = MessageDigest.getInstance("SHA-256")
+        val publicKeyHash = hasher.digest(identityKeyPair.public.encoded)
+        val gid = Base64.UrlSafe
+            .withPadding(Base64.PaddingOption.ABSENT)
+            .encode(publicKeyHash)
+        val podCert = approveGid(AuthorizationRequest(gid))
+
+        val jwtBuilder = JwtBuilder(Clock.system(ZoneId.of("GMT")), 1.hours)
+        return jwtBuilder.buildMisJwt(
+            identityKeyPair,
+            podCert = podCert
+        )
     }
 }

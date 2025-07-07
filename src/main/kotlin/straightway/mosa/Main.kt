@@ -12,10 +12,10 @@ import straightway.mosa.base.register
 suspend fun main() {
     val server =
         embeddedServer(Netty, port = 8080) {
-            installNetworkServerPlugins()
             install(Koin) {
                 modules(appModule)
             }
+            installNetworkServerPlugins(getKoin().get())
             routing {
                 getKoin().getAll<BaseController>().forEach { register(it) }
             }

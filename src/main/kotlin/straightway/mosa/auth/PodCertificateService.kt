@@ -1,4 +1,4 @@
-package straightway.mosa.authorization
+package straightway.mosa.auth
 
 import straightway.mosa.SignatureFactory
 import java.nio.ByteBuffer

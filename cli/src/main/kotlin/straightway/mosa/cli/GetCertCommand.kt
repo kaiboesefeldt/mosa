@@ -5,7 +5,7 @@ import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.required
 import kotlinx.coroutines.runBlocking
-import straightway.mosa.authorization.AuthorizationRequest
+import straightway.mosa.auth.AuthorizationRequest
 
 @OptIn(ExperimentalCli::class)
 class GetCertCommand(

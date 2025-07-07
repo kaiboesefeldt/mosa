@@ -1,4 +1,4 @@
-package straightway.mosa.authorization
+package straightway.mosa.auth
 
 import org.junit.jupiter.api.Assertions.assertFalse
 import straightway.mosa.SignatureFactory

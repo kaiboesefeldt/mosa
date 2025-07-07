@@ -62,7 +62,8 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
 
     // Crypto
-    implementation("org.bouncycastle:bcprov-jdk15to18:$bouncyCastleVersion")
+    implementation("org.bouncycastle:bcprov-jdk18on:$bouncyCastleVersion")
+    implementation("org.bouncycastle:bcpkix-jdk18on:$bouncyCastleVersion")
     implementation("com.auth0:java-jwt:${auth0JwtVersion}")
 
     // Logging

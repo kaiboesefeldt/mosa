@@ -2,13 +2,17 @@ package straightway.mosa.crypto
 
 import org.bouncycastle.asn1.ASN1OctetString
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
+import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory
 import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter
 import straightway.mosa.Crypto
 import java.security.KeyFactory
 import java.security.KeyPair
 import java.security.KeyPairGenerator
+import java.security.PublicKey
 import java.security.Security
 import java.security.spec.NamedParameterSpec
 import java.security.spec.PKCS8EncodedKeySpec
@@ -40,6 +44,15 @@ class CryptoEd25519 : Crypto {
                 .decode(base64)
 
         return deserializePrivateKeyBytes(privBytes)
+    }
+
+    override fun deserializePublicKey(base64: String): PublicKey {
+        val keyBytes =
+            Base64.UrlSafe
+                .withPadding(Base64.PaddingOption.ABSENT)
+                .decode(base64)
+
+        return deserializePublicKeyBytes(keyBytes)
     }
 
     override fun exportPrivateKeyPairToPem(keyPair: KeyPair): String {
@@ -81,5 +94,16 @@ class CryptoEd25519 : Crypto {
         val pubKey = kf.generatePublic(X509EncodedKeySpec(spki.encoded))
 
         return KeyPair(pubKey, privKey)
+    }
+
+    private fun deserializePublicKeyBytes(rawKey: ByteArray): PublicKey {
+        val publicKeyParams = Ed25519PublicKeyParameters(rawKey, 0)
+
+        val spki: SubjectPublicKeyInfo =
+            SubjectPublicKeyInfoFactory.createSubjectPublicKeyInfo(publicKeyParams)
+
+        return JcaPEMKeyConverter()
+            .setProvider("BC")
+            .getPublicKey(spki)
     }
 }

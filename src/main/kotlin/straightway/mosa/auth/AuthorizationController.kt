@@ -1,4 +1,4 @@
-package straightway.mosa.authorization
+package straightway.mosa.auth
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
