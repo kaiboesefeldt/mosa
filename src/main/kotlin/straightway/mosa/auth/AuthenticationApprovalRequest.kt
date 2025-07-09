@@ -1,5 +1,5 @@
 package straightway.mosa.auth
 
-data class AuthorizationRequest(
+data class AuthenticationApprovalRequest(
     val gid: String,
 )

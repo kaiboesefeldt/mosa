@@ -5,7 +5,7 @@ import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.required
 import kotlinx.coroutines.runBlocking
-import straightway.mosa.auth.AuthorizationRequest
+import straightway.mosa.auth.AuthenticationApprovalRequest
 
 @OptIn(ExperimentalCli::class)
 class GetCertCommand(
@@ -15,7 +15,7 @@ class GetCertCommand(
 
     override fun execute() {
         runBlocking {
-            val jwt = restClient().approveGid(AuthorizationRequest(gid))
+            val jwt = restClient().approveGid(AuthenticationApprovalRequest(gid))
             println(jwt)
         }
     }

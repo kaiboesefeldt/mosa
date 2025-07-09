@@ -5,7 +5,7 @@ import org.koin.dsl.bind
 import org.koin.dsl.module
 import org.koin.dsl.onClose
 import straightway.mosa.auth.Auth0TokenUtil
-import straightway.mosa.auth.AuthorizationController
+import straightway.mosa.auth.AuthenticationController
 import straightway.mosa.auth.PodCertificateService
 import straightway.mosa.auth.TransientEd25519Factory
 import straightway.mosa.base.BaseController
@@ -43,5 +43,5 @@ val appModule =
         single<PodCertificateService> { PodCertificateService(get()) }
 
         single { ContentController(get()) } bind BaseController::class
-        single { AuthorizationController(get()) } bind BaseController::class
+        single { AuthenticationController(get()) } bind BaseController::class
     }

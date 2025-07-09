@@ -8,12 +8,12 @@ import straightway.mosa.base.BaseController
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 
-class AuthorizationController(
+class AuthenticationController(
     private val podCertificateService: PodCertificateService,
 ) : BaseController() {
     override fun Route.register() {
         postRoute("/approvegid") {
-            val request = call.receive<AuthorizationRequest>()
+            val request = call.receive<AuthenticationApprovalRequest>()
             val cert =
                 podCertificateService.approveGid(
                     gid = request.gid,
