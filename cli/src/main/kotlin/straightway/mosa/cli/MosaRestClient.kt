@@ -73,7 +73,7 @@ class MosaRestClient(
 
     private suspend fun createJWT(): String {
         val hasher = MessageDigest.getInstance("SHA-256")
-        val publicKeyHash = hasher.digest(identityKeyPair.public.encoded)
+        val publicKeyHash = hasher.digest(identityKeyPair.public.encoded.takeLast(32).toByteArray())
         val gid = Base64.UrlSafe
             .withPadding(Base64.PaddingOption.ABSENT)
             .encode(publicKeyHash)

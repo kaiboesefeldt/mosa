@@ -21,17 +21,21 @@ class ContentControllerTest {
         object {
             val contentService =
                 mockk<ContentService>()
-            val controllerHttpTestEnvironment =
-                ControllerHttpTestEnvironment(ContentController(contentService))
+            val env =
+                ControllerHttpTestEnvironment(ContentController(contentService)) {
+                    single<ContentService> { contentService }
+                }
         }
 
     @Nested
     inner class PublishEndpoint : TestEndpoint("/v1/publish") {
         override fun setup() {
             test.also {
-                controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
+                env = it.env
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.publish(any(), any()) }
+                    coVerify(exactly = 0) {
+                        it.contentService.publish(any(), any())
+                    }
                 }
             }
         }
@@ -39,22 +43,26 @@ class ContentControllerTest {
         @Test
         fun `should return 201 Created on success`() =
             with(test) {
-                controllerHttpTestEnvironment {
+                env {
                     val request =
                         PublishRequest(
                             text = "Text to publish",
                         )
-                    coEvery { contentService.publish("userGID", request) } just runs
+                    coEvery {
+                        contentService.publish(env.gid, request)
+                    } just runs
 
                     val response =
                         client.post("/v1/publish") {
                             contentType(ContentType.Application.Json)
                             setBody(request)
-                            bearerAuth("userGID")
+                            bearerAuth(env.bearerToken)
                         }
 
                     assertEquals(HttpStatusCode.Created, response.status)
-                    coVerify(exactly = 1) { contentService.publish("userGID", request) }
+                    coVerify(exactly = 1) {
+                        contentService.publish(env.gid, request)
+                    }
                 }
             }
     }
@@ -63,7 +71,7 @@ class ContentControllerTest {
     inner class ReplyEndpoint : TestEndpoint("/v1/reply") {
         override fun setup() {
             test.also {
-                controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
+                env = it.env
                 serviceVerification = {
                     coVerify(exactly = 0) { it.contentService.reply(any(), any()) }
                 }
@@ -73,7 +81,7 @@ class ContentControllerTest {
         @Test
         fun `should return 201 Created on success`() =
             with(test) {
-                controllerHttpTestEnvironment {
+                env {
                     val request =
                         ReplyRequest(
                             content =
@@ -82,17 +90,17 @@ class ContentControllerTest {
                                 ),
                             parentId = "01234567",
                         )
-                    coEvery { contentService.reply("userGID", request) } just runs
+                    coEvery { contentService.reply(env.gid, request) } just runs
 
                     val response =
                         client.post("/v1/reply") {
                             contentType(ContentType.Application.Json)
                             setBody(request)
-                            bearerAuth("userGID")
+                            bearerAuth(env.bearerToken)
                         }
 
                     assertEquals(HttpStatusCode.Created, response.status)
-                    coVerify(exactly = 1) { contentService.reply("userGID", request) }
+                    coVerify(exactly = 1) { contentService.reply(env.gid, request) }
                 }
             }
     }
@@ -101,7 +109,7 @@ class ContentControllerTest {
     inner class QueryEndpoint : TestEndpoint("/v1/query") {
         override fun setup() {
             test.also {
-                controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
+                env = it.env
                 serviceVerification = {
                     coVerify(exactly = 0) { it.contentService.query(any(), any()) }
                 }
@@ -111,7 +119,7 @@ class ContentControllerTest {
         @Test
         fun `should return 200 OK on success`() =
             with(test) {
-                controllerHttpTestEnvironment {
+                env {
                     val request =
                         SearchRequest(
                             embeddingVersion = "1",
@@ -125,11 +133,11 @@ class ContentControllerTest {
                         client.post("/v1/query") {
                             contentType(ContentType.Application.Json)
                             setBody(request)
-                            bearerAuth("userGID")
+                            bearerAuth(env.bearerToken)
                         }
 
                     assertEquals(HttpStatusCode.OK, response.status)
-                    coVerify(exactly = 1) { contentService.query("userGID", request) }
+                    coVerify(exactly = 1) { contentService.query(env.gid, request) }
                     assertEquals(queryResult, response.body())
                 }
             }
@@ -139,7 +147,7 @@ class ContentControllerTest {
     inner class QueryOnEndpoint : TestEndpoint("/v1/queryon") {
         override fun setup() {
             test.also {
-                controllerHttpTestEnvironment = it.controllerHttpTestEnvironment
+                env = it.env
                 serviceVerification = {
                     coVerify(exactly = 0) { it.contentService.queryOn(any(), any()) }
                 }
@@ -149,7 +157,7 @@ class ContentControllerTest {
         @Test
         fun `should return 200 OK on success`() =
             with(test) {
-                controllerHttpTestEnvironment {
+                env {
                     val request =
                         SearchOnRequest(
                             searchOnId = "queryOnId",
@@ -161,11 +169,11 @@ class ContentControllerTest {
                         client.post("/v1/queryon") {
                             contentType(ContentType.Application.Json)
                             setBody(request)
-                            bearerAuth("userGID")
+                            bearerAuth(env.bearerToken)
                         }
 
                     assertEquals(HttpStatusCode.OK, response.status)
-                    coVerify(exactly = 1) { contentService.queryOn("userGID", request) }
+                    coVerify(exactly = 1) { contentService.queryOn(env.gid, request) }
                     assertEquals(queryResult, response.body())
                 }
             }

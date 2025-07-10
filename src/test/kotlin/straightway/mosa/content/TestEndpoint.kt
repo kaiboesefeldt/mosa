@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 abstract class TestEndpoint(
     val endpoint: String,
 ) {
-    lateinit var controllerHttpTestEnvironment: ControllerHttpTestEnvironment
+    lateinit var env: ControllerHttpTestEnvironment
     var serviceVerification: () -> Unit = {}
 
     abstract fun setup()
@@ -20,12 +20,12 @@ abstract class TestEndpoint(
     @Test
     fun `should return 400 BadRequest when invalid request data is specified`() {
         setup()
-        controllerHttpTestEnvironment {
+        env {
             val response =
                 client.post(endpoint) {
                     contentType(ContentType.Application.Json)
                     setBody("hello")
-                    bearerAuth("authtoken")
+                    bearerAuth(env.bearerToken)
                 }
             assertEquals(HttpStatusCode.Companion.BadRequest, response.status)
             serviceVerification()
@@ -35,7 +35,7 @@ abstract class TestEndpoint(
     @Test
     fun `should return 401 Unauthorized when no bearer token is specified`() {
         setup()
-        controllerHttpTestEnvironment {
+        env {
             val response = client.post(endpoint)
             assertEquals(HttpStatusCode.Companion.Unauthorized, response.status)
             serviceVerification()

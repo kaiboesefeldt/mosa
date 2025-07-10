@@ -76,15 +76,5 @@ class Auth0TokenUtil(
 
     private fun PodCertificate.isValid(): Boolean = podCertificateService.isValid(this)
 
-    private fun Payload.getPodCertificate(): PodCertificate? =
-        getClaim("cert")
-            .asMap()
-            ?.let {
-                PodCertificate(
-                    gid = (it["gid"] ?: return null).toString(),
-                    exp = (it["exp"] as? Number)?.toLong() ?: return null,
-                    sig = (it["sig"] ?: return null).toString(),
-                    inf = it["inf"]?.toString(),
-                )
-            }
+    private fun Payload.getPodCertificate(): PodCertificate? = getClaim("cert").asMap()?.toPodCertificate()
 }
