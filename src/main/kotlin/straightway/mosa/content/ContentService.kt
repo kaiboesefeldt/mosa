@@ -6,6 +6,7 @@ import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import java.security.MessageDigest
 import java.util.UUID
+import kotlin.io.encoding.Base64
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -106,9 +107,9 @@ class ContentService(
         )
 
     private fun String.hashId(): String =
-        hasherFactory()
-            .digest(toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
+        Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(
+            hasherFactory().digest(toByteArray(Charsets.UTF_8)),
+        )
 
     private suspend inline fun <T> trace(
         userGID: String,
