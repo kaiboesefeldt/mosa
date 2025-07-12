@@ -45,6 +45,7 @@ class LuceneLocalVectorStore(
         val after: ScoreDoc,
         val query: Query,
         val n: Int,
+        val minSimilarity: Float,
     )
 
     private inner class ReaderWriter : AutoCloseable {
@@ -189,7 +190,7 @@ class LuceneLocalVectorStore(
                     if (resultsPage.isNotFullPage() || topDocs.areResultsExhausted()) {
                         null
                     } else {
-                        createSearchOnId(topDocs, knnQuery)
+                        createSearchOnId(topDocs, knnQuery, minSimilarity)
                     }
 
                 SearchResults(resultsPage, searchOnId)
@@ -218,13 +219,21 @@ class LuceneLocalVectorStore(
 
             clearSearchOnFor(searchOnId)
 
-            val resultsPage = topDocs.scoreDocs.map { it.toSearchResult(this) }
+            val resultsPage =
+                topDocs
+                    .scoreDocs
+                    .filter { searchOnRecord.minSimilarity <= it.score }
+                    .map { it.toSearchResult(this) }
 
             val nextSearchOnId =
                 if (resultsPage.isNotFullPage() || topDocs.areResultsExhausted(resultsSoFar = searchOnRecord.n)) {
                     null
                 } else {
-                    createSearchOnId(topDocs, searchOnRecord.query)
+                    createSearchOnId(
+                        topDocs,
+                        searchOnRecord.query,
+                        searchOnRecord.minSimilarity,
+                    )
                 }
 
             SearchResults(resultsPage = resultsPage, queryOnId = nextSearchOnId)
@@ -245,9 +254,10 @@ class LuceneLocalVectorStore(
     private fun createSearchOnId(
         topDocs: TopDocs,
         query: Query,
+        minSimilarity: Float,
     ): UUID =
         UUID.randomUUID().also {
-            registerForSearchOn(it, query, topDocs.scoreDocs.last())
+            registerForSearchOn(it, query, topDocs.scoreDocs.last(), minSimilarity)
         }
 
     private fun ScoreDoc.toSearchResult(reader: DirectoryReader): SearchResult {
@@ -276,6 +286,7 @@ class LuceneLocalVectorStore(
         searchOnId: UUID,
         query: Query,
         after: ScoreDoc,
+        minSimilarity: Float,
     ) {
         removeSurplusSearchOnRecords()
         searchOnHistory.add(searchOnId)
@@ -285,6 +296,7 @@ class LuceneLocalVectorStore(
                 after = after,
                 query = query,
                 n = pageSize,
+                minSimilarity = minSimilarity,
             ),
         )
 
