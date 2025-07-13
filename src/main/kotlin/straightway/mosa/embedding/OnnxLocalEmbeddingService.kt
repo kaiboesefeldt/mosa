@@ -7,7 +7,7 @@ import kotlinx.coroutines.runBlocking
 import straightway.mosa.EmbeddingService
 
 class OnnxLocalEmbeddingService(
-    modelUrl: String = "djl://ai.djl.huggingface.onnxruntime/TaylorAI/bge-micro-v2",
+    modelUrl: String = "djl://ai.djl.huggingface.onnxruntime/BAAI/bge-small-en-v1.5",
 ) : EmbeddingService,
     AutoCloseable {
     private val model =
