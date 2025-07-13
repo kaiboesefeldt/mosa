@@ -12,6 +12,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.security.MessageDigest
 import java.util.Locale
+import kotlin.math.min
 
 class QualityTest {
     val embeddingService = OnnxLocalEmbeddingService()
@@ -63,54 +64,74 @@ class QualityTest {
     @Test
     fun testQuality() {
         data class TopicResult(
-            val overallResults: Int,
-            val falsePositives: Int,
-            val notFound: Int,
+            val onTopic: Int,
+            val offTopic: Int,
+            val firstOffTopic: Int,
         )
 
-        val topicResuls = mutableMapOf<String, TopicResult>()
+        val targetSize = 10
+        val topicResults = mutableMapOf<String, TopicResult>()
         searchable.forEach { s ->
             val overallQueryResult = mutableListOf<QueryResult.Entry>()
             runBlocking {
                 val embeddingVector = embeddingService.embed(s.text)
-                val searchResult =
+                val initialQueryResult =
                     contentService.query(
                         gid,
                         QueryRequest(
                             embeddingVersion = "1",
                             embeddingVector = embeddingVector.toList(),
-                            maxResults = 40,
+                            maxResults = 10,
                         ),
                     )
-                overallQueryResult.addAll(searchResult.entries)
-                var searchOnId = searchResult.queryOnId
-                while (searchOnId.isNotEmpty()) {
-                    val searchResult =
+                overallQueryResult.addAll(initialQueryResult.entries)
+                var searchOnId = initialQueryResult.queryOnId
+                while (overallQueryResult.size < targetSize && searchOnId.isNotEmpty()) {
+                    val queryOnResult =
                         contentService.queryOn(
                             gid,
                             QueryOnRequest(
                                 searchOnId,
-                                maxResults = 40,
+                                maxResults = 10,
                             ),
                         )
-                    overallQueryResult.addAll(searchResult.entries)
-                    searchOnId = searchResult.queryOnId
+                    overallQueryResult.addAll(queryOnResult.entries)
+                    searchOnId = queryOnResult.queryOnId
                 }
-            }
 
-            val currTopicResult = topicResuls[s.topic] ?: TopicResult(0, 0, 0)
-            val notFound =
-                40 - overallQueryResult.count { published[it.content]?.topic == s.topic }
-            val falsePositives =
-                overallQueryResult.count { published[it.content]?.topic != s.topic }
-            topicResuls[s.topic] =
-                currTopicResult.copy(
-                    falsePositives = falsePositives + currTopicResult.falsePositives,
-                    notFound = notFound + currTopicResult.notFound,
-                    overallResults = overallQueryResult.size + currTopicResult.overallResults,
-                )
+                val currTopicResult =
+                    topicResults[s.topic] ?: TopicResult(
+                        onTopic = 0,
+                        offTopic = 0,
+                        firstOffTopic = Int.MAX_VALUE,
+                    )
+                val onTopicResults =
+                    overallQueryResult.count { published[it.content]?.topic == s.topic }
+                val offTopicResults =
+                    overallQueryResult.count { published[it.content]?.topic != s.topic }
+                val firstOffTopicResult =
+                    overallQueryResult
+                        .indexOfFirst {
+                            published[it.content]?.topic == s.topic
+                        }.let { if (it < 0) Int.MAX_VALUE else it }
+                topicResults[s.topic] =
+                    currTopicResult.copy(
+                        onTopic = onTopicResults + currTopicResult.onTopic,
+                        offTopic = offTopicResults + currTopicResult.offTopic,
+                        firstOffTopic = min(firstOffTopicResult, currTopicResult.firstOffTopic),
+                    )
+            }
         }
-        println(topicResuls)
+        var overallOnTopic = 0f
+        var overallResults = 0f
+        topicResults.keys.sorted().forEach {
+            val topicResults = topicResults[it]!!
+            println("$it: $topicResults")
+            overallOnTopic += topicResults.onTopic
+            overallResults += topicResults.onTopic + topicResults.offTopic
+        }
+        val hitRate = overallOnTopic / overallResults
+        println("Hit rate: $hitRate")
     }
 
     private fun processResourceFilesInPath(
