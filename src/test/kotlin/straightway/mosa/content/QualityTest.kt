@@ -12,7 +12,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.security.MessageDigest
 import java.util.Locale
-import kotlin.math.min
+import kotlin.test.assertTrue
 
 class QualityTest {
     val embeddingService = OnnxLocalEmbeddingService()
@@ -67,6 +67,7 @@ class QualityTest {
             val onTopic: Int,
             val offTopic: Int,
             val firstOffTopic: Int,
+            val searches: Int,
         )
 
         val targetSize = 10
@@ -103,7 +104,8 @@ class QualityTest {
                     topicResults[s.topic] ?: TopicResult(
                         onTopic = 0,
                         offTopic = 0,
-                        firstOffTopic = Int.MAX_VALUE,
+                        firstOffTopic = 0,
+                        searches = 0,
                     )
                 val onTopicResults =
                     overallQueryResult.count { published[it.content]?.topic == s.topic }
@@ -112,26 +114,36 @@ class QualityTest {
                 val firstOffTopicResult =
                     overallQueryResult
                         .indexOfFirst {
-                            published[it.content]?.topic == s.topic
-                        }.let { if (it < 0) Int.MAX_VALUE else it }
+                            published[it.content]?.topic != s.topic
+                        }.let { if (it < 0) overallQueryResult.size else it }
                 topicResults[s.topic] =
                     currTopicResult.copy(
                         onTopic = onTopicResults + currTopicResult.onTopic,
                         offTopic = offTopicResults + currTopicResult.offTopic,
-                        firstOffTopic = min(firstOffTopicResult, currTopicResult.firstOffTopic),
+                        firstOffTopic = firstOffTopicResult + currTopicResult.firstOffTopic,
+                        searches = currTopicResult.searches + 1,
                     )
             }
         }
         var overallOnTopic = 0f
         var overallResults = 0f
+        var firstOffTopic = 0f
+        var searches = 0
         topicResults.keys.sorted().forEach {
             val topicResults = topicResults[it]!!
             println("$it: $topicResults")
             overallOnTopic += topicResults.onTopic
             overallResults += topicResults.onTopic + topicResults.offTopic
+            firstOffTopic += topicResults.firstOffTopic
+            searches += topicResults.searches
         }
         val hitRate = overallOnTopic / overallResults
         println("Hit rate: $hitRate")
+        val firstOffTopicAvg = firstOffTopic / searches
+        println("First off-topic: $firstOffTopicAvg")
+
+        assertTrue(0.65 < hitRate, "Hit rate too low")
+        assertTrue(4 < firstOffTopicAvg, "First off-topic hit too early")
     }
 
     private fun processResourceFilesInPath(
