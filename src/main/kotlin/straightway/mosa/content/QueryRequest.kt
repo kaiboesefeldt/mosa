@@ -1,6 +1,6 @@
 package straightway.mosa.content
 
-data class SearchRequest(
+data class QueryRequest(
     val embeddingVersion: String,
     val embeddingVector: List<Float>,
     val minSimilarity: Float,

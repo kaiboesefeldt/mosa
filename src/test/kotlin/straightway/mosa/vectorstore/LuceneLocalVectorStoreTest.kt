@@ -166,7 +166,7 @@ class LuceneLocalVectorStoreTest {
 
                         assertEquals(
                             listOf(
-                                VectorStore.SearchResult(
+                                VectorStore.QueryResult(
                                     id = "id",
                                     text = "Text",
                                     similarity = 1.0f,
@@ -311,7 +311,7 @@ class LuceneLocalVectorStoreTest {
                         }
 
                         val searchResult =
-                            sut.searchOn(sut.query(vector, minSimilarity = 0.0f).queryOnId)
+                            sut.queryOn(sut.query(vector, minSimilarity = 0.0f).queryOnId)
 
                         assertEquals(
                             listOf("id4"),
@@ -338,9 +338,9 @@ class LuceneLocalVectorStoreTest {
                         }
 
                         val searchResult =
-                            sut.searchOn(
+                            sut.queryOn(
                                 sut
-                                    .searchOn(
+                                    .queryOn(
                                         sut.query(vector, minSimilarity = 0.0f).queryOnId,
                                     ).queryOnId,
                             )
@@ -367,7 +367,7 @@ class LuceneLocalVectorStoreTest {
                             )
                         }
 
-                        val searchResult = sut.searchOn(UUID.randomUUID())
+                        val searchResult = sut.queryOn(UUID.randomUUID())
 
                         assertEquals(emptyList(), searchResult.resultsPage)
                         assertNull(searchResult.queryOnId)
@@ -388,7 +388,7 @@ class LuceneLocalVectorStoreTest {
                             )
                         }
 
-                        val searchResult = sut.searchOn(null)
+                        val searchResult = sut.queryOn(null)
 
                         assertEquals(emptyList(), searchResult.resultsPage)
                         assertNull(searchResult.queryOnId)
@@ -473,7 +473,7 @@ class LuceneLocalVectorStoreTest {
                         }
 
                         val searchResults = (1..3).map { sut.query(vector, 0.9f) }
-                        val searchOnResults = searchResults.map { sut.searchOn(it.queryOnId) }
+                        val searchOnResults = searchResults.map { sut.queryOn(it.queryOnId) }
 
                         searchResults.forEach {
                             assertNotNull(it.queryOnId)
@@ -529,7 +529,7 @@ class LuceneLocalVectorStoreTest {
                 .apply {
                     sut.close()
                     runBlocking {
-                        assertThrows<RuntimeException> { sut.searchOn(UUID.randomUUID()) }
+                        assertThrows<RuntimeException> { sut.queryOn(UUID.randomUUID()) }
                     }
                 }
         }

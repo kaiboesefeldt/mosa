@@ -12,8 +12,8 @@ import straightway.mosa.auth.AuthenticationApprovalRequest
 import straightway.mosa.auth.JwtBuilder
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.content.PublishRequest
-import straightway.mosa.content.SearchRequest
-import straightway.mosa.content.SearchResult
+import straightway.mosa.content.QueryRequest
+import straightway.mosa.content.QueryResult
 import java.net.URI
 import java.net.URL
 import java.security.KeyPair
@@ -41,7 +41,7 @@ class MosaRestClient(
         }
     }
 
-    suspend fun search(query: SearchRequest): SearchResult {
+    suspend fun search(query: QueryRequest): QueryResult {
         val jwt = createJWT()
         val response =
             httpClient.post(URI("$podUrl/v1/query").toURL()) {
@@ -54,7 +54,7 @@ class MosaRestClient(
             throw RuntimeException("Search request ${query} got an error response: $response")
         }
 
-        return response.body<SearchResult>()
+        return response.body<QueryResult>()
     }
 
     suspend fun approveGid(request: AuthenticationApprovalRequest): PodCertificate {

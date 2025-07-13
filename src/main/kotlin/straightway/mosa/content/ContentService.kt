@@ -31,8 +31,8 @@ class ContentService(
 
     suspend fun query(
         userGID: String,
-        request: SearchRequest,
-    ): SearchResult =
+        request: QueryRequest,
+    ): QueryResult =
         trace(userGID, request) {
             // TODO: Check null vector
             if (request.embeddingVector.size != embeddingService.dimension) {
@@ -41,32 +41,32 @@ class ContentService(
                 )
             }
 
-            val searchResults =
+            val queryResults =
                 vectorStore.query(
                     request.embeddingVector.toFloatArray(),
                     request.minSimilarity,
                 )
 
-            return SearchResult(
-                searchOnId = searchResults.queryOnId?.toString() ?: "",
-                entries = searchResults.resultsPage.map { it.toQueryResultEntry() },
+            return QueryResult(
+                queryOnId = queryResults.queryOnId?.toString() ?: "",
+                entries = queryResults.resultsPage.map { it.toQueryResultEntry() },
             )
         }
 
     suspend fun queryOn(
         userGID: String,
-        request: SearchOnRequest,
-    ): SearchResult =
+        request: QueryOnRequest,
+    ): QueryResult =
         trace(userGID, request) {
-            val searchOnId =
+            val queryOnId =
                 runCatching {
-                    if (request.searchOnId.isEmpty()) null else UUID.fromString(request.searchOnId)
+                    if (request.queryOnId.isEmpty()) null else UUID.fromString(request.queryOnId)
                 }.getOrNull()
-            val searchResults = vectorStore.searchOn(searchOnId)
+            val queryResults = vectorStore.queryOn(queryOnId)
 
-            return SearchResult(
-                searchOnId = searchResults.queryOnId?.toString() ?: "",
-                entries = searchResults.resultsPage.map { it.toQueryResultEntry() },
+            return QueryResult(
+                queryOnId = queryResults.queryOnId?.toString() ?: "",
+                entries = queryResults.resultsPage.map { it.toQueryResultEntry() },
             )
         }
 
@@ -96,8 +96,8 @@ class ContentService(
         }
     }
 
-    private fun VectorStore.SearchResult.toQueryResultEntry(): SearchResult.Entry =
-        SearchResult.Entry(
+    private fun VectorStore.QueryResult.toQueryResultEntry(): QueryResult.Entry =
+        QueryResult.Entry(
             id = id,
             content = text,
             similarity = similarity,

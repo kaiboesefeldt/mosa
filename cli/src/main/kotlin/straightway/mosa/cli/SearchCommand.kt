@@ -5,8 +5,8 @@ import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.default
 import kotlinx.coroutines.runBlocking
-import straightway.mosa.content.SearchRequest
-import straightway.mosa.content.SearchResult
+import straightway.mosa.content.QueryRequest
+import straightway.mosa.content.QueryResult
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import java.time.Instant
 
@@ -43,7 +43,7 @@ class SearchCommand(
     override fun execute() {
         runBlocking {
             val response = restClient().search(
-                SearchRequest(
+                QueryRequest(
                     embeddingVersion = embeddingVersion,
                     embeddingVector = embeddingVector,
                     minSimilarity = minSimilarity.toFloat(),
@@ -54,7 +54,7 @@ class SearchCommand(
         }
     }
 
-    private fun prettyPrint(searchResult: SearchResult) {
+    private fun prettyPrint(searchResult: QueryResult) {
         val searchResultEntriesString =
             if (searchResult.entries.isEmpty()) {
                 "Empty"
@@ -76,7 +76,7 @@ class SearchCommand(
             """
                 |SearchResult
                 |${searchResultEntriesString.prependIndent("    ")}
-                |    ${if (searchResult.searchOnId.isBlank()) "" else "search on ID: ${searchResult.searchOnId}"}
+                |    ${if (searchResult.queryOnId.isBlank()) "" else "search on ID: ${searchResult.queryOnId}"}
             """.trimMargin()
         )
     }

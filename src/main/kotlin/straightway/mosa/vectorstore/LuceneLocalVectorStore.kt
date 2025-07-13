@@ -26,8 +26,8 @@ import org.apache.lucene.search.TopDocs
 import org.apache.lucene.search.TotalHits
 import org.apache.lucene.store.Directory
 import straightway.mosa.VectorStore
-import straightway.mosa.VectorStore.SearchResult
-import straightway.mosa.VectorStore.SearchResults
+import straightway.mosa.VectorStore.QueryResult
+import straightway.mosa.VectorStore.QueryResults
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -168,7 +168,7 @@ class LuceneLocalVectorStore(
     override suspend fun query(
         vector: FloatArray,
         minSimilarity: Float,
-    ): SearchResults {
+    ): QueryResults {
         checkClosed()
 
         return runCatching {
@@ -193,22 +193,22 @@ class LuceneLocalVectorStore(
                         createSearchOnId(topDocs, knnQuery, minSimilarity)
                     }
 
-                SearchResults(resultsPage, searchOnId)
+                QueryResults(resultsPage, searchOnId)
             }
         }.onFailure { if (it !is IndexNotFoundException) throw it }
-            .getOrDefault(SearchResults(resultsPage = emptyList(), queryOnId = null))
+            .getOrDefault(QueryResults(resultsPage = emptyList(), queryOnId = null))
     }
 
-    override suspend fun searchOn(searchOnId: UUID?): SearchResults {
+    override suspend fun queryOn(queryOnId: UUID?): QueryResults {
         checkClosed()
 
-        if (searchOnId === null) {
-            return SearchResults(emptyList(), null)
+        if (queryOnId === null) {
+            return QueryResults(emptyList(), null)
         }
 
         val searchOnRecord =
-            searchOnRecords[searchOnId]
-                ?: return SearchResults(emptyList(), null)
+            searchOnRecords[queryOnId]
+                ?: return QueryResults(emptyList(), null)
 
         return access.read {
             val searcher = IndexSearcher(this)
@@ -217,7 +217,7 @@ class LuceneLocalVectorStore(
                     searcher.searchAfter(after, query, n)
                 }
 
-            clearSearchOnFor(searchOnId)
+            clearSearchOnFor(queryOnId)
 
             val resultsPage =
                 topDocs
@@ -236,7 +236,7 @@ class LuceneLocalVectorStore(
                     )
                 }
 
-            SearchResults(resultsPage = resultsPage, queryOnId = nextSearchOnId)
+            QueryResults(resultsPage = resultsPage, queryOnId = nextSearchOnId)
         }
     }
 
@@ -246,7 +246,7 @@ class LuceneLocalVectorStore(
         return 0 < searchResult.scoreDocs.size
     }
 
-    private fun List<SearchResult>.isNotFullPage(): Boolean = size < pageSize
+    private fun List<QueryResult>.isNotFullPage(): Boolean = size < pageSize
 
     private fun TopDocs.areResultsExhausted(resultsSoFar: Int = 0): Boolean =
         totalHits.value == (resultsSoFar + pageSize.toLong()) && totalHits.relation == TotalHits.Relation.EQUAL_TO
@@ -260,10 +260,10 @@ class LuceneLocalVectorStore(
             registerForSearchOn(it, query, topDocs.scoreDocs.last(), minSimilarity)
         }
 
-    private fun ScoreDoc.toSearchResult(reader: DirectoryReader): SearchResult {
+    private fun ScoreDoc.toSearchResult(reader: DirectoryReader): QueryResult {
         val doc = getDocument(reader)
         val fields = doc.getFieldMap()
-        return SearchResult(
+        return QueryResult(
             id = doc[ID_FIELD_NAME],
             text = doc[TEXT_FIELD_NAME],
             similarity = this.score,

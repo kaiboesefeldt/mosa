@@ -3,12 +3,12 @@ package straightway.mosa
 import java.util.UUID
 
 interface VectorStore {
-    data class SearchResults(
-        val resultsPage: List<SearchResult>,
+    data class QueryResults(
+        val resultsPage: List<QueryResult>,
         val queryOnId: UUID?,
     )
 
-    data class SearchResult(
+    data class QueryResult(
         val id: String,
         val text: String,
         val similarity: Float,
@@ -31,7 +31,7 @@ interface VectorStore {
     suspend fun query(
         vector: FloatArray,
         minSimilarity: Float,
-    ): SearchResults
+    ): QueryResults
 
-    suspend fun searchOn(searchOnId: UUID?): SearchResults
+    suspend fun queryOn(queryOnId: UUID?): QueryResults
 }

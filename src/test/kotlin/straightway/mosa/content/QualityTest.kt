@@ -70,45 +70,45 @@ class QualityTest {
 
         val topicResuls = mutableMapOf<String, TopicResult>()
         searchable.forEach { s ->
-            val overallSearchResult = mutableListOf<SearchResult.Entry>()
+            val overallQueryResult = mutableListOf<QueryResult.Entry>()
             runBlocking {
                 val embeddingVector = embeddingService.embed(s.text)
                 val searchResult =
                     contentService.query(
                         gid,
-                        SearchRequest(
+                        QueryRequest(
                             embeddingVersion = "1",
                             embeddingVector = embeddingVector.toList(),
                             minSimilarity = 0.89f,
                             maxResults = 40,
                         ),
                     )
-                overallSearchResult.addAll(searchResult.entries)
-                var searchOnId = searchResult.searchOnId
+                overallQueryResult.addAll(searchResult.entries)
+                var searchOnId = searchResult.queryOnId
                 while (searchOnId.isNotEmpty()) {
                     val searchResult =
                         contentService.queryOn(
                             gid,
-                            SearchOnRequest(
+                            QueryOnRequest(
                                 searchOnId,
                                 maxResults = 40,
                             ),
                         )
-                    overallSearchResult.addAll(searchResult.entries)
-                    searchOnId = searchResult.searchOnId
+                    overallQueryResult.addAll(searchResult.entries)
+                    searchOnId = searchResult.queryOnId
                 }
             }
 
             val currTopicResult = topicResuls[s.topic] ?: TopicResult(0, 0, 0)
             val notFound =
-                40 - overallSearchResult.count { published[it.content]?.topic == s.topic }
+                40 - overallQueryResult.count { published[it.content]?.topic == s.topic }
             val falsePositives =
-                overallSearchResult.count { published[it.content]?.topic != s.topic }
+                overallQueryResult.count { published[it.content]?.topic != s.topic }
             topicResuls[s.topic] =
                 currTopicResult.copy(
                     falsePositives = falsePositives + currTopicResult.falsePositives,
                     notFound = notFound + currTopicResult.notFound,
-                    overallResults = overallSearchResult.size + currTopicResult.overallResults,
+                    overallResults = overallQueryResult.size + currTopicResult.overallResults,
                 )
         }
         println(topicResuls)

@@ -121,7 +121,7 @@ class ContentControllerTest {
             with(test) {
                 env {
                     val request =
-                        SearchRequest(
+                        QueryRequest(
                             embeddingVersion = "1",
                             embeddingVector = listOf(1.0f, 2.0f, 3.0f),
                             minSimilarity = 0.8f,
@@ -159,8 +159,8 @@ class ContentControllerTest {
             with(test) {
                 env {
                     val request =
-                        SearchOnRequest(
-                            searchOnId = "queryOnId",
+                        QueryOnRequest(
+                            queryOnId = "queryOnId",
                             maxResults = 10,
                         )
                     coEvery { contentService.queryOn(any(), any()) } returns queryResult
@@ -181,11 +181,11 @@ class ContentControllerTest {
 
     private companion object {
         private val queryResult =
-            SearchResult(
-                searchOnId = "queryOnId",
+            QueryResult(
+                queryOnId = "queryOnId",
                 entries =
                     listOf(
-                        SearchResult.Entry(
+                        QueryResult.Entry(
                             id = "id",
                             content = "content",
                             similarity = 0.9f,
