@@ -41,11 +41,10 @@ class LuceneLocalVectorStore(
     private val vectorSize: Int,
 ) : VectorStore,
     AutoCloseable {
-    private data class SearchOnRecord(
+    private data class QueryOnRecord(
         val after: ScoreDoc,
         val query: Query,
         val n: Int,
-        val minSimilarity: Float,
     )
 
     private inner class ReaderWriter : AutoCloseable {
@@ -137,8 +136,8 @@ class LuceneLocalVectorStore(
     private val analyzer: StandardAnalyzer = StandardAnalyzer()
     private val config = IndexWriterConfig(analyzer)
     private val access: ReaderWriter = ReaderWriter()
-    private val searchOnRecords: ConcurrentMap<UUID, SearchOnRecord> =
-        ConcurrentHashMap<UUID, SearchOnRecord>()
+    private val queryOnRecords: ConcurrentMap<UUID, QueryOnRecord> =
+        ConcurrentHashMap<UUID, QueryOnRecord>()
     private val searchOnHistory = ConcurrentLinkedQueue<UUID>()
     private var closed = false
 
@@ -165,10 +164,7 @@ class LuceneLocalVectorStore(
         }
     }
 
-    override suspend fun query(
-        vector: FloatArray,
-        minSimilarity: Float,
-    ): QueryResults {
+    override suspend fun query(vector: FloatArray): QueryResults {
         checkClosed()
 
         return runCatching {
@@ -184,13 +180,12 @@ class LuceneLocalVectorStore(
                 val resultsPage =
                     topDocs
                         .scoreDocs
-                        .filter { minSimilarity <= it.score }
                         .map { it.toSearchResult(this) }
                 val searchOnId =
                     if (resultsPage.isNotFullPage() || topDocs.areResultsExhausted()) {
                         null
                     } else {
-                        createSearchOnId(topDocs, knnQuery, minSimilarity)
+                        createSearchOnId(topDocs, knnQuery)
                     }
 
                 QueryResults(resultsPage, searchOnId)
@@ -206,14 +201,14 @@ class LuceneLocalVectorStore(
             return QueryResults(emptyList(), null)
         }
 
-        val searchOnRecord =
-            searchOnRecords[queryOnId]
+        val queryOnRecord =
+            queryOnRecords[queryOnId]
                 ?: return QueryResults(emptyList(), null)
 
         return access.read {
             val searcher = IndexSearcher(this)
             val topDocs =
-                with(searchOnRecord) {
+                with(queryOnRecord) {
                     searcher.searchAfter(after, query, n)
                 }
 
@@ -222,17 +217,15 @@ class LuceneLocalVectorStore(
             val resultsPage =
                 topDocs
                     .scoreDocs
-                    .filter { searchOnRecord.minSimilarity <= it.score }
                     .map { it.toSearchResult(this) }
 
             val nextSearchOnId =
-                if (resultsPage.isNotFullPage() || topDocs.areResultsExhausted(resultsSoFar = searchOnRecord.n)) {
+                if (resultsPage.isNotFullPage() || topDocs.areResultsExhausted(resultsSoFar = queryOnRecord.n)) {
                     null
                 } else {
                     createSearchOnId(
                         topDocs,
-                        searchOnRecord.query,
-                        searchOnRecord.minSimilarity,
+                        queryOnRecord.query,
                     )
                 }
 
@@ -254,10 +247,9 @@ class LuceneLocalVectorStore(
     private fun createSearchOnId(
         topDocs: TopDocs,
         query: Query,
-        minSimilarity: Float,
     ): UUID =
         UUID.randomUUID().also {
-            registerForSearchOn(it, query, topDocs.scoreDocs.last(), minSimilarity)
+            registerForSearchOn(it, query, topDocs.scoreDocs.last())
         }
 
     private fun ScoreDoc.toSearchResult(reader: DirectoryReader): QueryResult {
@@ -286,32 +278,30 @@ class LuceneLocalVectorStore(
         searchOnId: UUID,
         query: Query,
         after: ScoreDoc,
-        minSimilarity: Float,
     ) {
         removeSurplusSearchOnRecords()
         searchOnHistory.add(searchOnId)
-        searchOnRecords.put(
+        queryOnRecords.put(
             searchOnId,
-            SearchOnRecord(
+            QueryOnRecord(
                 after = after,
                 query = query,
                 n = pageSize,
-                minSimilarity = minSimilarity,
             ),
         )
 
-        assert(searchOnRecords.size == searchOnHistory.size)
+        assert(queryOnRecords.size == searchOnHistory.size)
     }
 
     private fun removeSurplusSearchOnRecords() {
-        while (maxNotFinishedQueries <= searchOnRecords.size) {
+        while (maxNotFinishedQueries <= queryOnRecords.size) {
             val entryToRemove = searchOnHistory.remove()
-            searchOnRecords.remove(entryToRemove)
+            queryOnRecords.remove(entryToRemove)
         }
     }
 
     private fun clearSearchOnFor(searchOnId: UUID) {
-        searchOnRecords.remove(searchOnId)
+        queryOnRecords.remove(searchOnId)
         searchOnHistory.remove(searchOnId)
     }
 

@@ -28,10 +28,7 @@ interface VectorStore {
 
     suspend fun writeAccess(transactionBlock: suspend Transaction.() -> Unit)
 
-    suspend fun query(
-        vector: FloatArray,
-        minSimilarity: Float,
-    ): QueryResults
+    suspend fun query(vector: FloatArray): QueryResults
 
     suspend fun queryOn(queryOnId: UUID?): QueryResults
 }

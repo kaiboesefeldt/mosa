@@ -79,7 +79,6 @@ class QualityTest {
                         QueryRequest(
                             embeddingVersion = "1",
                             embeddingVector = embeddingVector.toList(),
-                            minSimilarity = 0.89f,
                             maxResults = 40,
                         ),
                     )

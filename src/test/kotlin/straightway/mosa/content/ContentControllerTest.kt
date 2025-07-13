@@ -124,7 +124,6 @@ class ContentControllerTest {
                         QueryRequest(
                             embeddingVersion = "1",
                             embeddingVector = listOf(1.0f, 2.0f, 3.0f),
-                            minSimilarity = 0.8f,
                             maxResults = 10,
                         )
                     coEvery { contentService.query(any(), any()) } returns queryResult

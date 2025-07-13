@@ -17,7 +17,6 @@ class SearchCommand(
     private val template by option(ArgType.String, fullName = "template", shortName = "t")
     private val embeddingVersion by option(ArgType.String, fullName = "embver").default("1")
     private val embeddingVectorJson by option(type = ArgType.String, fullName = "embedding", shortName = "e")
-    private val minSimilarity by option(type = ArgType.Double, fullName = "similarity", shortName = "s").default(0.8)
     private val maxResults by option(type = ArgType.Int, fullName = "results", shortName = "r").default(10)
 
     private val embeddingVector by lazy {
@@ -46,7 +45,6 @@ class SearchCommand(
                 QueryRequest(
                     embeddingVersion = embeddingVersion,
                     embeddingVector = embeddingVector,
-                    minSimilarity = minSimilarity.toFloat(),
                     maxResults = maxResults
                 )
             )

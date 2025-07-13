@@ -41,11 +41,7 @@ class ContentService(
                 )
             }
 
-            val queryResults =
-                vectorStore.query(
-                    request.embeddingVector.toFloatArray(),
-                    request.minSimilarity,
-                )
+            val queryResults = vectorStore.query(request.embeddingVector.toFloatArray())
 
             return QueryResult(
                 queryOnId = queryResults.queryOnId?.toString() ?: "",
