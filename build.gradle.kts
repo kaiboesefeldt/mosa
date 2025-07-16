@@ -52,6 +52,7 @@ dependencies {
 
     // ONNX and djl Runtime for local embeddings
     implementation("ai.djl:api:$djlVersion")
+    implementation("ai.djl:model-zoo:${djlVersion}")
     implementation("ai.djl.onnxruntime:onnxruntime-engine:$djlVersion")
     implementation("ai.djl.huggingface:tokenizers:$djlVersion")
 
