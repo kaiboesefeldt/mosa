@@ -1,17 +1,12 @@
 package straightway.mosa.content
 
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.runBlocking
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.junit.jupiter.api.Test
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
+import straightway.mosa.testdata.TestPublish
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
 import java.security.MessageDigest
-import java.util.Locale
 import kotlin.test.assertTrue
 
 class QualityTest {
@@ -31,31 +26,21 @@ class QualityTest {
         ) { MessageDigest.getInstance("SHA-256") }
     val gid = "gid"
 
-    data class TestPublish(
-        val topic: String,
-        val lang: Locale,
-        val text: String,
-    )
-
     val published: Map<String, TestPublish>
     val searchable: List<TestPublish>
 
     init {
-        val resourceUrl = javaClass.classLoader.getResource("testContent")
-        requireNotNull(resourceUrl) { "Resource directory not found!" }
-        val path = Paths.get(resourceUrl.toURI())
-        val mapper = jacksonObjectMapper()
-        var published = listOf<TestPublish>()
-        var searchable = listOf<TestPublish>()
-        processResourceFilesInPath(path) { fileContent ->
-            val publishObjects = mapper.readValue(fileContent, object : TypeReference<List<TestPublish>>() {})
-            searchable = searchable + publishObjects.take(10)
-            published = published + publishObjects.drop(10)
-        }
-        this.published = published.associate { it.text to it }
-        this.searchable = searchable
+        val allPublished = TestPublish.load()
+        val topics = allPublished.keys
+        searchable =
+            topics.flatMap { topic -> allPublished[topic]!!.take(10) }
+        published =
+            topics
+                .flatMap { topic -> allPublished[topic]!!.drop(10) }
+                .associate { it.text to it }
+
         runBlocking {
-            published.forEach {
+            published.values.forEach {
                 contentService.publish(gid, PublishRequest(it.text))
             }
         }
@@ -145,18 +130,4 @@ class QualityTest {
         assertTrue(0.65 < hitRate, "Hit rate too low")
         assertTrue(4 < firstOffTopicAvg, "First off-topic hit too early")
     }
-
-    private fun processResourceFilesInPath(
-        path: Path,
-        block: (String) -> Unit,
-    ): Unit =
-        Files.list(path).use { stream ->
-            stream
-                .filter { Files.isRegularFile(it) }
-                .forEach { file ->
-                    Files.newBufferedReader(file).use { reader ->
-                        block(reader.readText())
-                    }
-                }
-        }
 }

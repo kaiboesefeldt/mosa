@@ -8,6 +8,7 @@ import java.nio.file.Path
 
 class OnnxLocalRerankingService(
     modelPath: Path,
+    val chunkSize: Int = 1,
 ) : RerankingService,
     AutoCloseable {
     private val model: ZooModel<String, Float>
@@ -30,14 +31,15 @@ class OnnxLocalRerankingService(
     override suspend fun rank(
         query: String,
         documents: List<String>,
-    ): List<RerankingService.ScoredDocument> {
-        val pairs = documents.map { "$query [SEP] $it" }
-        val scores = predictor.batchPredict(pairs).toList()
-        return documents
-            .mapIndexed { idx, doc ->
-                RerankingService.ScoredDocument(document = doc, score = scores[idx])
-            }
-    }
+    ): List<RerankingService.ScoredDocument> =
+        documents.chunked(chunkSize).flatMap { chunk ->
+            val pairs = chunk.map { "$query [SEP] $it" }
+            val scores = predictor.batchPredict(pairs).toList()
+            chunk
+                .mapIndexed { idx, doc ->
+                    RerankingService.ScoredDocument(document = doc, score = scores[idx])
+                }
+        }
 
     override fun close() {
         predictor.close()
