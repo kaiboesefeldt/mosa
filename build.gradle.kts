@@ -21,7 +21,7 @@ dependencies {
     val jacksonVersion = "2.17.2"
     val kotlinLoggingVersion = "7.0.7"
     val logbackVersion = "1.5.18"
-    val djlVersion = "0.31.1"
+    val djlVersion = "0.33.0"
     val luceneVersion = "9.9.0"
     val mockkVersion = "1.14.4"
     val auth0JwtVersion = "4.5.0"
@@ -51,10 +51,11 @@ dependencies {
     implementation("org.apache.lucene:lucene-analysis-common:$luceneVersion")
 
     // ONNX and djl Runtime for local embeddings
-    implementation("ai.djl:api:$djlVersion")
-    implementation("ai.djl:model-zoo:${djlVersion}")
-    implementation("ai.djl.onnxruntime:onnxruntime-engine:$djlVersion")
-    implementation("ai.djl.huggingface:tokenizers:$djlVersion")
+    implementation(platform("ai.djl:bom:$djlVersion"))
+    implementation("ai.djl:api")
+    implementation("ai.djl:model-zoo")
+    implementation("ai.djl.onnxruntime:onnxruntime-engine")
+    implementation("ai.djl.huggingface:tokenizers")
 
     // JSON & HTTP Client (for Embedding APIs etc.)
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
