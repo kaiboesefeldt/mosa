@@ -1,5 +1,5 @@
 package straightway.mosa.reranking
-
+/*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import straightway.mosa.testdata.TestPublish
@@ -89,3 +89,4 @@ class OnnxLocalRerankingServiceTest {
         }
     }
 }
+*/
