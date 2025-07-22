@@ -13,8 +13,6 @@ import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
-import straightway.mosa.reranking.HuggingfaceModelDownloader
-import straightway.mosa.reranking.OnnxLocalRerankingService
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import java.nio.file.Paths
 import java.security.MessageDigest
@@ -25,15 +23,6 @@ typealias HasherFactory = () -> MessageDigest
 val appModule =
     module {
         single<EmbeddingService> { OnnxLocalEmbeddingService() } onClose { (it as? AutoCloseable)?.close() }
-        single<RerankingService> {
-            val downloader =
-                HuggingfaceModelDownloader(
-                    provider = "BAAI",
-                    modelName = "bge-reranker-base",
-                )
-            val modelPath = downloader.download()
-            OnnxLocalRerankingService(modelPath)
-        } onClose { (it as? AutoCloseable)?.close() }
         single<VectorStore> {
             LuceneLocalVectorStore(
                 directoryFactory = { MMapDirectory(Paths.get("mosa_lucene_index")) },
