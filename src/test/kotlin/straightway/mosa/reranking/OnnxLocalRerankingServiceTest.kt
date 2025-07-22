@@ -1,6 +1,6 @@
 package straightway.mosa.reranking
 /*
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import straightway.mosa.testdata.TestPublish
 import kotlin.test.AfterTest
@@ -24,7 +24,7 @@ class OnnxLocalRerankingServiceTest {
     @Test
     fun testRank() {
         val result =
-            runBlocking {
+            runTest {
                 sut.rank("Hallo Welt", listOf("Hello World")).also { println("rank: $it") }
             }.single()
 
@@ -49,7 +49,7 @@ class OnnxLocalRerankingServiceTest {
                 val selfScore =
                     1e5 * (
                         1.0f -
-                            runBlocking {
+                            runTest {
                                 sut.rank(queryDoc, listOf(queryDoc))
                             }.single().score
                     )
@@ -58,7 +58,7 @@ class OnnxLocalRerankingServiceTest {
                 val onTopicDocs = items.drop(1).map { it.text }
                 overallOnTopicDocs += onTopicDocs.size
                 val sameTopicRankings =
-                    runBlocking {
+                    runTest {
                         sut.rank(queryDoc, onTopicDocs)
                     }
                 falseOffTopics += sameTopicRankings.count { it.score <= thresshold }
@@ -69,7 +69,7 @@ class OnnxLocalRerankingServiceTest {
                         .flatMap { it.value.map { it.text } }
                 overallOffTopicDocs += offTopicDocs.size
                 val otherTopicRankings =
-                    runBlocking {
+                    runTest {
                         sut.rank(queryDoc, offTopicDocs)
                     }
                 falseOnTopics += otherTopicRankings.count { thresshold <= it.score }

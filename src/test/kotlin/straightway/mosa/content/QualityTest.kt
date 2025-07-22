@@ -1,6 +1,6 @@
 package straightway.mosa.content
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.junit.jupiter.api.Test
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
@@ -39,7 +39,7 @@ class QualityTest {
                 .flatMap { topic -> allPublished[topic]!!.drop(10) }
                 .associate { it.text to it }
 
-        runBlocking {
+        runTest {
             published.values.forEach {
                 contentService.publish(gid, PublishRequest(it.text))
             }
@@ -59,7 +59,7 @@ class QualityTest {
         val topicResults = mutableMapOf<String, TopicResult>()
         searchable.forEach { s ->
             val overallQueryResult = mutableListOf<QueryResult.Entry>()
-            runBlocking {
+            runTest {
                 val embeddingVector = embeddingService.embed(s.text)
                 val initialQueryResult =
                     contentService.query(
