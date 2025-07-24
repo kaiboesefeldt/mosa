@@ -1,5 +1,6 @@
 package straightway.mosa
 
+import java.time.Instant
 import java.util.UUID
 
 interface VectorStore {
@@ -15,6 +16,38 @@ interface VectorStore {
         val fields: Map<String, String>,
     )
 
+    data class Query(
+        val id: String? = null,
+        val vector: FloatArray? = null,
+        val fromTime: Instant? = null,
+        val toTime: Instant? = null,
+        val fields: Map<String, String> = emptyMap(),
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as Query
+
+            if (id != other.id) return false
+            if (!vector.contentEquals(other.vector)) return false
+            if (fromTime != other.fromTime) return false
+            if (toTime != other.toTime) return false
+            if (fields != other.fields) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = id?.hashCode() ?: 0
+            result = 31 * result + (vector?.contentHashCode() ?: 0)
+            result = 31 * result + (fromTime?.hashCode() ?: 0)
+            result = 31 * result + (toTime?.hashCode() ?: 0)
+            result = 31 * result + fields.hashCode()
+            return result
+        }
+    }
+
     interface Transaction {
         suspend fun add(
             id: String,
@@ -28,7 +61,7 @@ interface VectorStore {
 
     suspend fun writeAccess(transactionBlock: suspend Transaction.() -> Unit)
 
-    suspend fun query(vector: FloatArray): QueryResults
+    suspend fun query(query: Query): QueryResults
 
     suspend fun queryOn(queryOnId: UUID?): QueryResults
 }

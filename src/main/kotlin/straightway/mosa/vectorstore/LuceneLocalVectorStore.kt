@@ -8,6 +8,8 @@ import org.apache.lucene.document.Document
 import org.apache.lucene.document.DocumentStoredFieldVisitor
 import org.apache.lucene.document.Field
 import org.apache.lucene.document.KnnFloatVectorField
+import org.apache.lucene.document.LongPoint
+import org.apache.lucene.document.NumericDocValuesField
 import org.apache.lucene.document.StringField
 import org.apache.lucene.document.TextField
 import org.apache.lucene.index.DirectoryReader
@@ -17,10 +19,14 @@ import org.apache.lucene.index.IndexWriter
 import org.apache.lucene.index.IndexWriterConfig
 import org.apache.lucene.index.Term
 import org.apache.lucene.index.VectorSimilarityFunction
+import org.apache.lucene.search.BooleanClause
+import org.apache.lucene.search.BooleanQuery
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.search.KnnFloatVectorQuery
 import org.apache.lucene.search.Query
 import org.apache.lucene.search.ScoreDoc
+import org.apache.lucene.search.Sort
+import org.apache.lucene.search.SortField
 import org.apache.lucene.search.TermQuery
 import org.apache.lucene.search.TopDocs
 import org.apache.lucene.search.TotalHits
@@ -28,6 +34,8 @@ import org.apache.lucene.store.Directory
 import straightway.mosa.VectorStore
 import straightway.mosa.VectorStore.QueryResult
 import straightway.mosa.VectorStore.QueryResults
+import java.time.Clock
+import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -35,6 +43,7 @@ import java.util.concurrent.ConcurrentMap
 
 class LuceneLocalVectorStore(
     directoryFactory: () -> Directory,
+    private val clock: Clock,
     private val maxResults: Int,
     private val pageSize: Int,
     private val maxNotFinishedQueries: Int,
@@ -45,6 +54,7 @@ class LuceneLocalVectorStore(
         val after: ScoreDoc,
         val query: Query,
         val n: Int,
+        val sort: Sort?,
     )
 
     private inner class ReaderWriter : AutoCloseable {
@@ -119,6 +129,8 @@ class LuceneLocalVectorStore(
             val doc = Document()
             doc.add(StringField(ID_FIELD_NAME, id, Field.Store.YES))
             doc.add(TextField(TEXT_FIELD_NAME, text, Field.Store.YES))
+            doc.add(LongPoint(TIME_ADDED_FIELD_NAME, clock.instant().epochSecond))
+            doc.add(NumericDocValuesField(TIME_ADDED_FIELD_NAME, clock.instant().epochSecond))
             fields.forEach { (key, value) ->
                 doc.add(StringField(key, value, Field.Store.YES))
             }
@@ -164,19 +176,19 @@ class LuceneLocalVectorStore(
         }
     }
 
-    override suspend fun query(vector: FloatArray): QueryResults {
+    override suspend fun query(query: VectorStore.Query): QueryResults {
         checkClosed()
 
         return runCatching {
             access.read {
                 val searcher = IndexSearcher(this)
-                val knnQuery =
-                    KnnFloatVectorQuery(
-                        VECTOR_FIELD_NAME,
-                        vector,
-                        maxResults,
-                    )
-                val topDocs = searcher.search(knnQuery, pageSize)
+                val luceneQuery = createLuceneQuery(query)
+                val topDocs =
+                    if (query.vector === null) {
+                        searcher.search(luceneQuery, pageSize, SORT_BY_TIME_ADDED)
+                    } else {
+                        searcher.search(luceneQuery, pageSize)
+                    }
                 val resultsPage =
                     topDocs
                         .scoreDocs
@@ -185,13 +197,65 @@ class LuceneLocalVectorStore(
                     if (resultsPage.isNotFullPage() || topDocs.areResultsExhausted()) {
                         null
                     } else {
-                        createSearchOnId(topDocs, knnQuery)
+                        createSearchOnId(
+                            topDocs,
+                            luceneQuery,
+                            if (query.vector === null) SORT_BY_TIME_ADDED else null,
+                        )
                     }
 
                 QueryResults(resultsPage, searchOnId)
             }
         }.onFailure { if (it !is IndexNotFoundException) throw it }
             .getOrDefault(QueryResults(resultsPage = emptyList(), queryOnId = null))
+    }
+
+    private fun createLuceneQuery(query: VectorStore.Query): Query =
+        BooleanQuery
+            .Builder()
+            .addKnnQuery(query.vector)
+            .addTermQuery(ID_FIELD_NAME, query.id)
+            .addTimeRangeQuery(TIME_ADDED_FIELD_NAME, query.fromTime, query.toTime)
+            .apply { query.fields.forEach { key, value -> addTermQuery(key, value) } }
+            .build()
+
+    fun BooleanQuery.Builder.addKnnQuery(vector: FloatArray?) =
+        also {
+            if (vector !== null) {
+                add(
+                    KnnFloatVectorQuery(VECTOR_FIELD_NAME, vector, maxResults),
+                    BooleanClause.Occur.MUST,
+                )
+            }
+        }
+
+    fun BooleanQuery.Builder.addTermQuery(
+        fieldName: String,
+        value: String?,
+    ) = also {
+        if (value !== null) {
+            add(
+                TermQuery(Term(fieldName, value)),
+                BooleanClause.Occur.FILTER,
+            )
+        }
+    }
+
+    fun BooleanQuery.Builder.addTimeRangeQuery(
+        fieldName: String,
+        from: Instant?,
+        to: Instant?,
+    ) = also {
+        if (from !== null || to !== null) {
+            add(
+                LongPoint.newRangeQuery(
+                    fieldName,
+                    from?.epochSecond ?: Long.MIN_VALUE,
+                    to?.epochSecond ?: Long.MAX_VALUE,
+                ),
+                BooleanClause.Occur.FILTER,
+            )
+        }
     }
 
     override suspend fun queryOn(queryOnId: UUID?): QueryResults {
@@ -209,7 +273,11 @@ class LuceneLocalVectorStore(
             val searcher = IndexSearcher(this)
             val topDocs =
                 with(queryOnRecord) {
-                    searcher.searchAfter(after, query, n)
+                    if (sort === null) {
+                        searcher.searchAfter(after, query, n)
+                    } else {
+                        searcher.searchAfter(after, query, n, sort)
+                    }
                 }
 
             clearSearchOnFor(queryOnId)
@@ -226,6 +294,7 @@ class LuceneLocalVectorStore(
                     createSearchOnId(
                         topDocs,
                         queryOnRecord.query,
+                        queryOnRecord.sort,
                     )
                 }
 
@@ -247,9 +316,10 @@ class LuceneLocalVectorStore(
     private fun createSearchOnId(
         topDocs: TopDocs,
         query: Query,
+        sort: Sort?,
     ): UUID =
         UUID.randomUUID().also {
-            registerForSearchOn(it, query, topDocs.scoreDocs.last())
+            registerForSearchOn(it, query, topDocs.scoreDocs.last(), sort)
         }
 
     private fun ScoreDoc.toSearchResult(reader: DirectoryReader): QueryResult {
@@ -278,6 +348,7 @@ class LuceneLocalVectorStore(
         searchOnId: UUID,
         query: Query,
         after: ScoreDoc,
+        sort: Sort?,
     ) {
         removeSurplusSearchOnRecords()
         searchOnHistory.add(searchOnId)
@@ -287,6 +358,7 @@ class LuceneLocalVectorStore(
                 after = after,
                 query = query,
                 n = pageSize,
+                sort = sort,
             ),
         )
 
@@ -313,6 +385,14 @@ class LuceneLocalVectorStore(
         private const val ID_FIELD_NAME = "id"
         private const val TEXT_FIELD_NAME = "text"
         private const val VECTOR_FIELD_NAME = "vector"
-        private val SPECIAL_FIELDS = setOf(ID_FIELD_NAME, TEXT_FIELD_NAME, VECTOR_FIELD_NAME)
+        private const val TIME_ADDED_FIELD_NAME = "timeadded"
+        private val SPECIAL_FIELDS =
+            setOf(
+                ID_FIELD_NAME,
+                TEXT_FIELD_NAME,
+                VECTOR_FIELD_NAME,
+                TIME_ADDED_FIELD_NAME,
+            )
+        private val SORT_BY_TIME_ADDED = Sort(SortField(TIME_ADDED_FIELD_NAME, SortField.Type.LONG, true))
     }
 }

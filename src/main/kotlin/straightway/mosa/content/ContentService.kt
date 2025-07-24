@@ -26,7 +26,7 @@ class ContentService(
         userGID: String,
         request: ReplyRequest,
     ) = trace(userGID, request) {
-        writeContent(userGID, request.content, mapOf("parentId" to request.parentId))
+        writeContent(userGID, request.content, mapOf(PARENT_ID_KEY to request.parentId))
     }
 
     suspend fun query(
@@ -41,7 +41,7 @@ class ContentService(
                 )
             }
 
-            val queryResults = vectorStore.query(request.embeddingVector.toFloatArray())
+            val queryResults = vectorStore.query(VectorStore.Query(vector = request.embeddingVector.toFloatArray()))
 
             return QueryResult(
                 queryOnId = queryResults.queryOnId?.toString() ?: "",
@@ -75,6 +75,7 @@ class ContentService(
         val embeddingVector = embeddingService.embed(request.text)
         val id = request.text.hashId()
         vectorStore.writeAccess {
+            val ancestors = additionalFields[PARENT_ID_KEY]?.let { getAncestors(it) }
             add(
                 id = id,
                 text = request.text,
@@ -92,12 +93,22 @@ class ContentService(
         }
     }
 
+    private data class Ancestors(
+        val parentId: String,
+        val rootId: String,
+    )
+
+    private fun getAncestors(parentId: String): Ancestors {
+        // val parent = vectorStore.query()
+        return Ancestors(parentId, parentId)
+    }
+
     private fun VectorStore.QueryResult.toQueryResultEntry(): QueryResult.Entry =
         QueryResult.Entry(
             id = id,
             content = text,
             similarity = similarity,
-            parent = fields["parentId"],
+            parent = fields[PARENT_ID_KEY],
             authorGID = fields["authorGID"] ?: throw RuntimeException("No authorGID field set for vector store entry $id"),
             storedAt = fields["receivedAt"]?.toLong() ?: throw RuntimeException("No receivedAt field set for vector store entry $id"),
         )
@@ -124,6 +135,7 @@ class ContentService(
     private companion object {
         private val log = KotlinLogging.logger { }
         private const val MAX_LOG_LEN_FOR_REQUESTS = 100
+        private const val PARENT_ID_KEY = "parentId"
 
         private fun Any.logString(): String =
             toString().let {

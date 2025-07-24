@@ -7,6 +7,9 @@ import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.testdata.TestPublish
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import java.security.MessageDigest
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.measureTime
@@ -16,6 +19,10 @@ class QualityTest {
     val vectorStore =
         LuceneLocalVectorStore(
             directoryFactory = { ByteBuffersDirectory() },
+            Clock.fixed(
+                Instant.ofEpochSecond(170000000L),
+                ZoneId.of("UTC"),
+            ),
             maxResults = 1000,
             pageSize = 10,
             maxNotFinishedQueries = 10000,

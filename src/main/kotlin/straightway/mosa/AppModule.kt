@@ -23,9 +23,11 @@ typealias HasherFactory = () -> MessageDigest
 val appModule =
     module {
         single<EmbeddingService> { OnnxLocalEmbeddingService() } onClose { (it as? AutoCloseable)?.close() }
+        single<Clock> { Clock.systemUTC() }
         single<VectorStore> {
             LuceneLocalVectorStore(
                 directoryFactory = { MMapDirectory(Paths.get("mosa_lucene_index")) },
+                clock = get<Clock>(),
                 maxResults = 1000,
                 pageSize = 10,
                 maxNotFinishedQueries = 10000,
@@ -33,7 +35,6 @@ val appModule =
             )
         } onClose { (it as? AutoCloseable)?.close() }
         single<HasherFactory> { { MessageDigest.getInstance("SHA-256") } }
-        single<Clock> { Clock.systemUTC() }
         single<SignatureFactory> { TransientEd25519Factory() }
         single<Crypto> { CryptoEd25519() }
         single<TokenUtil> { Auth0TokenUtil(get(), get(), get(), get()) }

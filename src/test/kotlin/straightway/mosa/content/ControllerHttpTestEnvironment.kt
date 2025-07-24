@@ -74,6 +74,7 @@ class ControllerHttpTestEnvironment(
                 single<VectorStore> {
                     LuceneLocalVectorStore(
                         directoryFactory = { ByteBuffersDirectory() },
+                        clock = clock,
                         maxResults = 1000,
                         pageSize = 10,
                         maxNotFinishedQueries = 10000,
