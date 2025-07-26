@@ -3,49 +3,26 @@ package straightway.mosa.cli
 import kotlinx.cli.ArgType
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
-import kotlinx.cli.default
 import kotlinx.coroutines.runBlocking
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryResult
-import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import java.time.Instant
 
 @OptIn(ExperimentalCli::class)
 class SearchCommand(
     val restClient: () -> MosaRestClient,
 ) : Subcommand("search", "search for mosa content") {
-    private val template by option(ArgType.String, fullName = "template", shortName = "t")
-    private val embeddingVersion by option(ArgType.String, fullName = "embver").default("1")
-    private val embeddingVectorJson by option(type = ArgType.String, fullName = "embedding", shortName = "e")
-    private val maxResults by option(type = ArgType.Int, fullName = "results", shortName = "r").default(10)
-
-    private val embeddingVector by lazy {
-        if (embeddingVectorJson.isNullOrBlank()) {
-            OnnxLocalEmbeddingService().use {
-                runBlocking {
-                    it.embed(
-                        template
-                            ?: throw IllegalArgumentException("You must either specify --template or --embedding")
-                    )
-                }.toList()
-            }
-        } else {
-            embeddingVectorJson!!
-                .replace("[", "")
-                .replace("]", "")
-                .replace(",", " ")
-                .split(Regex("""\s+"""))
-                .map { it.toFloat() }
-        }
-    }
+    private val topic by option(type = ArgType.String, fullName = "topic", shortName = "t")
+    private val rootId by option(type = ArgType.String, fullName = "root", shortName = "r")
+    private val minTime by option(type = ArgType.String, fullName = "from", shortName = "f")
 
     override fun execute() {
         runBlocking {
             val response = restClient().search(
                 QueryRequest(
-                    embeddingVersion = embeddingVersion,
-                    embeddingVector = embeddingVector,
-                    maxResults = maxResults
+                    topic = topic,
+                    threadRootId = rootId,
+                    minTime = minTime?.let { Instant.parse(it) }
                 )
             )
             prettyPrint(response)

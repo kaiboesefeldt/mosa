@@ -1,7 +1,6 @@
 package straightway.mosa.cli
 
-import com.fasterxml.jackson.databind.SerializationFeature
-import java.util.TimeZone
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -11,8 +10,10 @@ import kotlinx.cli.ArgType
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.default
 import straightway.mosa.crypto.CryptoEd25519
+import straightway.mosa.jackson.InstantJacksonSerializers
 import java.net.URI
 import java.security.KeyPair
+import java.util.TimeZone
 
 @OptIn(ExperimentalCli::class)
 fun main(args: Array<String>) {
@@ -40,8 +41,8 @@ fun main(args: Array<String>) {
                 HttpClient(CIO) {
                     install(ContentNegotiation) {
                         jackson {
-                            enable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                            disable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS)
+                            registerModule(JavaTimeModule())
+                            registerModule(InstantJacksonSerializers.createModule())
                             setTimeZone(TimeZone.getTimeZone("UTC"))
                         }
                     }

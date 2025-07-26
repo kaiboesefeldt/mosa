@@ -34,14 +34,16 @@ class ContentService(
         request: QueryRequest,
     ): QueryResult =
         trace(userGID, request) {
-            // TODO: Check null vector
-            if (request.embeddingVector.size != embeddingService.dimension) {
-                throw BadRequestException(
-                    "Invalid embedding vector size (expected: ${embeddingService.dimension}, got: ${request.embeddingVector.size})",
+            if (request == nilQueryRequest) throw BadRequestException("no search criteria")
+            val topicEmbedding = request.topic?.let { embeddingService.embed(it) }
+            val queryResults =
+                vectorStore.query(
+                    VectorStore.Query(
+                        vector = topicEmbedding,
+                        fromTime = request.minTime,
+                        fields = request.threadRootId?.let { mapOf(ROOT_ID_KEY to it) } ?: emptyMap(),
+                    ),
                 )
-            }
-
-            val queryResults = vectorStore.query(VectorStore.Query(vector = request.embeddingVector.toFloatArray()))
 
             return QueryResult(
                 queryOnId = queryResults.queryOnId?.toString() ?: "",
@@ -75,7 +77,6 @@ class ContentService(
         val embeddingVector = embeddingService.embed(request.text)
         val id = request.text.hashId()
         vectorStore.writeAccess {
-            val ancestors = additionalFields[PARENT_ID_KEY]?.let { getAncestors(it) }
             add(
                 id = id,
                 text = request.text,
@@ -91,16 +92,6 @@ class ContentService(
                 vector = embeddingVector,
             )
         }
-    }
-
-    private data class Ancestors(
-        val parentId: String,
-        val rootId: String,
-    )
-
-    private fun getAncestors(parentId: String): Ancestors {
-        // val parent = vectorStore.query()
-        return Ancestors(parentId, parentId)
     }
 
     private fun VectorStore.QueryResult.toQueryResultEntry(): QueryResult.Entry =
@@ -136,6 +127,8 @@ class ContentService(
         private val log = KotlinLogging.logger { }
         private const val MAX_LOG_LEN_FOR_REQUESTS = 100
         private const val PARENT_ID_KEY = "parentId"
+        private const val ROOT_ID_KEY = "rootId"
+        private val nilQueryRequest = QueryRequest()
 
         private fun Any.logString(): String =
             toString().let {

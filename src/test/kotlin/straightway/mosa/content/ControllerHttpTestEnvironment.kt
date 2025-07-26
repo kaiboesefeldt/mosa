@@ -1,5 +1,6 @@
 package straightway.mosa.content
 
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.routing.routing
@@ -24,11 +25,13 @@ import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.installNetworkServerPlugins
+import straightway.mosa.jackson.InstantJacksonSerializers
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
+import java.util.TimeZone
 import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.days
 
@@ -105,7 +108,11 @@ class ControllerHttpTestEnvironment(
             client =
                 createClient {
                     install(ContentNegotiation) {
-                        jackson()
+                        jackson {
+                            registerModule(JavaTimeModule())
+                            registerModule(InstantJacksonSerializers.createModule())
+                            setTimeZone(TimeZone.getTimeZone("UTC"))
+                        }
                     }
                 }
             block()

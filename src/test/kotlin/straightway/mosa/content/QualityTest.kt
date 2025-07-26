@@ -46,7 +46,7 @@ class QualityTest {
         published =
             topics
                 .flatMap { topic -> allPublished[topic]!!.drop(10) }
-                .associate { it.text to it }
+                .associateBy { it.text }
 
         measureTime {
             runTest(timeout = 10.minutes) {
@@ -76,15 +76,10 @@ class QualityTest {
             searchable.forEach { s ->
                 val overallQueryResult = mutableListOf<QueryResult.Entry>()
                 runTest {
-                    val embeddingVector = embeddingService.embed(s.text)
                     val initialQueryResult =
                         contentService.query(
                             gid,
-                            QueryRequest(
-                                embeddingVersion = "1",
-                                embeddingVector = embeddingVector.toList(),
-                                maxResults = 10,
-                            ),
+                            QueryRequest(topic = s.text),
                         )
                     overallQueryResult.addAll(initialQueryResult.entries)
                     var searchOnId = initialQueryResult.queryOnId

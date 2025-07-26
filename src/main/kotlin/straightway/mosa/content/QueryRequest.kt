@@ -1,7 +1,9 @@
 package straightway.mosa.content
 
+import java.time.Instant
+
 data class QueryRequest(
-    val embeddingVersion: String,
-    val embeddingVector: List<Float>,
-    val maxResults: Int,
+    val topic: String? = null,
+    val minTime: Instant? = null,
+    val threadRootId: String? = null,
 )
