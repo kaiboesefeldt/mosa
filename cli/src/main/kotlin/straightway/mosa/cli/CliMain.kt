@@ -1,5 +1,7 @@
 package straightway.mosa.cli
 
+import com.fasterxml.jackson.databind.SerializationFeature
+import java.util.TimeZone
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -37,7 +39,11 @@ fun main(args: Array<String>) {
             httpClient =
                 HttpClient(CIO) {
                     install(ContentNegotiation) {
-                        jackson()
+                        jackson {
+                            enable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                            disable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS)
+                            setTimeZone(TimeZone.getTimeZone("UTC"))
+                        }
                     }
                 }
         )

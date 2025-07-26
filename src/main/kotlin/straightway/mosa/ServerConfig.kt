@@ -1,6 +1,7 @@
 package straightway.mosa
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.databind.SerializationFeature
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.Application
@@ -9,6 +10,7 @@ import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.bearer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import java.util.TimeZone
 
 fun Application.installNetworkServerPlugins(tokenUtil: TokenUtil) {
     install(Authentication.Companion) {
@@ -29,6 +31,9 @@ fun Application.installNetworkServerPlugins(tokenUtil: TokenUtil) {
     install(ContentNegotiation) {
         jackson {
             setSerializationInclusion(JsonInclude.Include.NON_NULL)
+            enable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            disable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS)
+            setTimeZone(TimeZone.getTimeZone("UTC"))
         }
     }
 }
