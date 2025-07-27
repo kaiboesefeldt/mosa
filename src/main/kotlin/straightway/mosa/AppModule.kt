@@ -39,7 +39,7 @@ val appModule =
         single<Crypto> { CryptoEd25519() }
         single<TokenUtil> { Auth0TokenUtil(get(), get(), get(), get()) }
 
-        single<ContentService> { ContentService(get(), get(), get()) }
+        single<ContentService> { ContentService(get(), get(), get(), get()) }
 
         single<PodCertificateService> { PodCertificateService(get()) }
 

@@ -89,7 +89,7 @@ class ControllerHttpTestEnvironment(
                 single<SignatureFactory> { signatureFactory }
                 single<Crypto> { crypto }
                 single<TokenUtil> { Auth0TokenUtil(get(), get(), get(), get()) }
-                single<ContentService> { ContentService(get(), get(), get()) }
+                single<ContentService> { ContentService(get(), get(), get(), get()) }
                 single<PodCertificateService> { podCertService }
                 additionalTestModules()
             }

@@ -16,13 +16,15 @@ import kotlin.time.measureTime
 
 class QualityTest {
     val embeddingService = OnnxLocalEmbeddingService()
+    val clock =
+        Clock.fixed(
+            Instant.ofEpochSecond(170000000L),
+            ZoneId.of("UTC"),
+        )
     val vectorStore =
         LuceneLocalVectorStore(
             directoryFactory = { ByteBuffersDirectory() },
-            Clock.fixed(
-                Instant.ofEpochSecond(170000000L),
-                ZoneId.of("UTC"),
-            ),
+            clock,
             maxResults = 1000,
             pageSize = 10,
             maxNotFinishedQueries = 10000,
@@ -32,7 +34,9 @@ class QualityTest {
         ContentService(
             embeddingService,
             vectorStore,
-        ) { MessageDigest.getInstance("SHA-256") }
+            { MessageDigest.getInstance("SHA-256") },
+            clock,
+        )
     val gid = "gid"
 
     val published: Map<String, TestPublish>

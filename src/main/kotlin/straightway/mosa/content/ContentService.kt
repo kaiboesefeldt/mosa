@@ -5,15 +5,16 @@ import io.ktor.server.plugins.BadRequestException
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import java.security.MessageDigest
+import java.time.Clock
 import java.util.UUID
 import kotlin.io.encoding.Base64
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 class ContentService(
     private val embeddingService: EmbeddingService,
     private val vectorStore: VectorStore,
     private val hasherFactory: () -> MessageDigest,
+    private val clock: Clock,
 ) {
     suspend fun publish(
         userGID: String,
@@ -26,7 +27,20 @@ class ContentService(
         userGID: String,
         request: ReplyRequest,
     ) = trace(userGID, request) {
-        writeContent(userGID, request.content, mapOf(PARENT_ID_KEY to request.parentId))
+        val parent =
+            vectorStore
+                .query(VectorStore.Query(id = request.parentId))
+                .resultsPage
+                .singleOrNull() ?: throw BadRequestException("Parent not found")
+        val rootId = parent.fields[ROOT_ID_KEY] ?: request.parentId
+        writeContent(
+            userGID,
+            request.content,
+            mapOf(
+                PARENT_ID_KEY to request.parentId,
+                ROOT_ID_KEY to rootId,
+            ),
+        )
     }
 
     suspend fun query(
@@ -83,11 +97,7 @@ class ContentService(
                 fields =
                     mapOf(
                         "authorGID" to userGID,
-                        "receivedAt" to
-                            Clock.System
-                                .now()
-                                .epochSeconds
-                                .toString(),
+                        "receivedAt" to clock.instant().epochSecond.toString(),
                     ) + additionalFields,
                 vector = embeddingVector,
             )

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
+import straightway.mosa.testutils.TestClock
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
@@ -21,7 +22,8 @@ class ContentServiceTest {
     private val vectorStore = mockk<VectorStore>()
     private val messageDigest = mockk<MessageDigest>()
     private val hasherFactory = mockk<() -> MessageDigest>()
-    private val sut = ContentService(embeddingService, vectorStore, hasherFactory)
+    private val clock = TestClock(Instant.ofEpochSecond(170000000))
+    private val sut = ContentService(embeddingService, vectorStore, hasherFactory, clock)
 
     private val testUserGID = "test-user-gid"
     private val testEmbedding = floatArrayOf(0.1f, 0.2f, 0.3f)
@@ -295,7 +297,7 @@ class ContentServiceTest {
     @Nested
     inner class Reply {
         @Test
-        fun `replies with parentId field set`() =
+        fun `replies with parentId and rootId field set for top level parent`() =
             runTest {
                 val publishRequest = PublishRequest("Reply text")
                 val request = ReplyRequest(publishRequest, "parent-123")
@@ -308,6 +310,19 @@ class ContentServiceTest {
                 coEvery { vectorStore.writeAccess(any()) } coAnswers {
                     firstArg<suspend VectorStore.Transaction.() -> Unit>()(transaction)
                 }
+                coEvery { vectorStore.query(VectorStore.Query(id = "parent-123")) } returns
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = "parent-123",
+                                    text = "any",
+                                    similarity = 1.0f,
+                                    fields = emptyMap(),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
 
                 sut.reply(testUserGID, request)
 
@@ -317,11 +332,59 @@ class ContentServiceTest {
                         id = "BQYHCA", // Base64 of testHash
                         text = "Reply text",
                         fields =
-                            match { fields ->
-                                fields["authorGID"] == testUserGID &&
-                                    fields.containsKey("receivedAt") &&
-                                    fields["parentId"] == "parent-123"
-                            },
+                            mapOf(
+                                "authorGID" to testUserGID,
+                                "receivedAt" to "170000000",
+                                "parentId" to "parent-123",
+                                "rootId" to "parent-123",
+                            ),
+                        vector = testEmbedding,
+                    )
+                }
+            }
+
+        @Test
+        fun `replies with parentId and rootId field set for parent being itself a reply`() =
+            runTest {
+                val publishRequest = PublishRequest("Reply text")
+                val request = ReplyRequest(publishRequest, "parent-123")
+                val testHash = byteArrayOf(5, 6, 7, 8)
+                val transaction = mockk<VectorStore.Transaction>(relaxed = true)
+
+                every { hasherFactory() } returns messageDigest
+                every { messageDigest.digest(any()) } returns testHash
+                coEvery { embeddingService.embed("Reply text") } returns testEmbedding
+                coEvery { vectorStore.writeAccess(any()) } coAnswers {
+                    firstArg<suspend VectorStore.Transaction.() -> Unit>()(transaction)
+                }
+                coEvery { vectorStore.query(VectorStore.Query(id = "parent-123")) } returns
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = "parent-123",
+                                    text = "any",
+                                    similarity = 1.0f,
+                                    fields = mapOf("rootId" to "root-123"),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+
+                sut.reply(testUserGID, request)
+
+                coVerify { embeddingService.embed("Reply text") }
+                coVerify {
+                    transaction.add(
+                        id = "BQYHCA", // Base64 of testHash
+                        text = "Reply text",
+                        fields =
+                            mapOf(
+                                "authorGID" to testUserGID,
+                                "receivedAt" to "170000000",
+                                "parentId" to "parent-123",
+                                "rootId" to "root-123",
+                            ),
                         vector = testEmbedding,
                     )
                 }
