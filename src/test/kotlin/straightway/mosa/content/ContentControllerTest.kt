@@ -159,10 +159,7 @@ class ContentControllerTest {
             with(test) {
                 env {
                     val request =
-                        QueryOnRequest(
-                            queryOnId = "queryOnId",
-                            maxResults = 10,
-                        )
+                        QueryOnRequest(queryOnId = "queryOnId")
                     coEvery { contentService.queryOn(any(), any()) } returns queryResult
 
                     val response =

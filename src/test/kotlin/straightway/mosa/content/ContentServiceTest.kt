@@ -333,7 +333,7 @@ class ContentServiceTest {
         @Test
         fun `queries on with valid UUID`() =
             runTest {
-                val request = QueryOnRequest("550e8400-e29b-41d4-a716-446655440000", 10)
+                val request = QueryOnRequest("550e8400-e29b-41d4-a716-446655440000")
                 val expectedUUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
                 coEvery { vectorStore.queryOn(expectedUUID) } returns createVectorStoreResults()
 
@@ -347,7 +347,7 @@ class ContentServiceTest {
         @Test
         fun `queries on with invalid UUID string`() =
             runTest {
-                val request = QueryOnRequest("invalid-uuid", 10)
+                val request = QueryOnRequest("invalid-uuid")
                 coEvery { vectorStore.queryOn(null) } returns createVectorStoreResults()
 
                 val result = sut.queryOn(testUserGID, request)
@@ -359,7 +359,7 @@ class ContentServiceTest {
         @Test
         fun `queries on with empty string`() =
             runTest {
-                val request = QueryOnRequest("", 10)
+                val request = QueryOnRequest("")
                 coEvery { vectorStore.queryOn(null) } returns createVectorStoreResults()
 
                 val result = sut.queryOn(testUserGID, request)
@@ -371,7 +371,7 @@ class ContentServiceTest {
         @Test
         fun `returns empty queryOnId when VectorStore returns null`() =
             runTest {
-                val request = QueryOnRequest("550e8400-e29b-41d4-a716-446655440000", 10)
+                val request = QueryOnRequest("550e8400-e29b-41d4-a716-446655440000")
                 val expectedUUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
                 coEvery { vectorStore.queryOn(expectedUUID) } returns createVectorStoreResults(queryOnId = null)
 
@@ -383,7 +383,7 @@ class ContentServiceTest {
         @Test
         fun `maps VectorStore entries to QueryResult entries correctly`() =
             runTest {
-                val request = QueryOnRequest("550e8400-e29b-41d4-a716-446655440000", 10)
+                val request = QueryOnRequest("550e8400-e29b-41d4-a716-446655440000")
                 val expectedUUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
                 coEvery { vectorStore.queryOn(expectedUUID) } returns
                     createVectorStoreResults(

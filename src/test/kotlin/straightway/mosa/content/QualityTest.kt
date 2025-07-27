@@ -87,10 +87,7 @@ class QualityTest {
                         val queryOnResult =
                             contentService.queryOn(
                                 gid,
-                                QueryOnRequest(
-                                    searchOnId,
-                                    maxResults = 10,
-                                ),
+                                QueryOnRequest(searchOnId),
                             )
                         overallQueryResult.addAll(queryOnResult.entries)
                         searchOnId = queryOnResult.queryOnId
