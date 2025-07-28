@@ -1,5 +1,7 @@
 package straightway.mosa.content
 
+import java.time.Instant
+
 data class QueryResult(
     val entries: List<Entry>,
     val queryOnId: String,
@@ -9,7 +11,7 @@ data class QueryResult(
         val content: String,
         val similarity: Float,
         val authorGID: String,
-        val storedAt: Long,
+        val storedAt: Instant,
         val parent: String? = null,
     )
 }

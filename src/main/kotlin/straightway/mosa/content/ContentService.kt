@@ -6,6 +6,7 @@ import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import java.security.MessageDigest
 import java.time.Clock
+import java.time.Instant
 import java.util.UUID
 import kotlin.io.encoding.Base64
 import kotlin.time.ExperimentalTime
@@ -111,7 +112,13 @@ class ContentService(
             similarity = similarity,
             parent = fields[PARENT_ID_KEY],
             authorGID = fields["authorGID"] ?: throw RuntimeException("No authorGID field set for vector store entry $id"),
-            storedAt = fields["receivedAt"]?.toLong() ?: throw RuntimeException("No receivedAt field set for vector store entry $id"),
+            storedAt =
+                Instant.ofEpochSecond(
+                    (
+                        fields["receivedAt"]
+                            ?: throw RuntimeException("No receivedAt field set for vector store entry $id")
+                    ).toLong(),
+                ),
         )
 
     private fun String.hashId(): String =

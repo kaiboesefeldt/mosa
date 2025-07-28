@@ -187,7 +187,7 @@ class ContentControllerTest {
                             content = "content",
                             similarity = 0.9f,
                             authorGID = "authorGID",
-                            storedAt = 170000000,
+                            storedAt = Instant.ofEpochSecond(170000000L),
                             parent = "parent",
                         ),
                     ),
