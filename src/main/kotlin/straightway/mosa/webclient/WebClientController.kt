@@ -5,14 +5,13 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import straightway.mosa.base.BaseController
-import java.io.File
 
 class WebClientController : BaseController() {
     override fun Route.register() {
         get("/") {
-            val htmlFile = File("build/resources/main/static/index.html")
-            if (htmlFile.exists()) {
-                call.respondText(htmlFile.readText(), ContentType.Text.Html)
+            val htmlResource = this::class.java.classLoader.getResource("static/index.html")
+            if (htmlResource != null) {
+                call.respondText(htmlResource.readText(), ContentType.Text.Html)
             } else {
                 val fallbackHtml =
                     """
@@ -34,9 +33,9 @@ class WebClientController : BaseController() {
         }
 
         get("/mosa-client.js") {
-            val jsFile = File("build/resources/main/static/mosa-client.js")
-            if (jsFile.exists()) {
-                call.respondText(jsFile.readText(), ContentType.Application.JavaScript)
+            val jsResource = this::class.java.classLoader.getResource("static/mosa-client.js")
+            if (jsResource != null) {
+                call.respondText(jsResource.readText(), ContentType.Application.JavaScript)
             } else {
                 call.respondText("console.log('Client not built');", ContentType.Application.JavaScript)
             }
