@@ -42,6 +42,7 @@ A federated social network that organizes content exclusively by **semantic topi
 ### Pod-to-Pod Communication
 
 * **Federation**: Pods provide a special endpoint to query their “recommended” pods, which may be accessed by other pods.
+  * Idea: Pods may add the group descriptions of other pods into their own vector store, with a special marker that this is a "foreign group definition". If this occurs in the results of a KNN search, this is transmitted as "recommendation" to the client. Of course, this has the challange of keeping the "foreign group definitions" up to date in case they change. This may be achieved with a time-to-live and regularly polling. 
 * **No Automatic Block-List Sharing**: Each pod remains sovereign in moderation decisions.
 
 ### Client Discovery
@@ -56,6 +57,7 @@ A federated social network that organizes content exclusively by **semantic topi
 ### Architecture-Based Moderation
 
 * **Decentralized Moderation**: Each pod moderates its own content.
+  * Idea: The pod maintains a list of exemplary unwanted (e.g. hat speech) and wanted or neutral posts and checks the vector similarity of a given post to this list. If unwanted exemplary posts are top-ranked, the user post may be rejected.
 * **Thematic Barriers**: Spam and off-topic posts are automatically routed into appropriate groups.
 * **Delayed Token Approval by Pods**: Makes spam attacks exponentially more expensive, because spammers would have to request approval for a big number of identities.
 * **User Choice**: Users decide on moderation standards by choosing pods.
