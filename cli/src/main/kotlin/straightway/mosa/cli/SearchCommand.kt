@@ -41,7 +41,7 @@ class SearchCommand(
                     ) + (if (it.parent === null) listOf() else listOf("parent: ${it.parent}")) + listOf(
                         "similarity: ${it.similarity}",
                         "author: ${it.authorGID}",
-                        "stored: ${Instant.ofEpochSecond(it.storedAt)}"
+                        "stored: ${it.storedAt}"
                     )
                     val resultContent = lines.joinToString("\n")
                     "Search result entry\n${resultContent.prependIndent("    ")}"
