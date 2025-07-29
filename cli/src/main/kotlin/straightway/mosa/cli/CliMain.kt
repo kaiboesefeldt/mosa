@@ -23,7 +23,7 @@ fun main(args: Array<String>) {
             type = ArgType.String,
             shortName = "k",
             fullName = "keypair",
-            description = "Base 64 URL encoding of the Ed25519 key pair to use for signing"
+            description = "Base 64 URL encoding of the Ed25519 key pair to use for signing",
         )
     val keyPair = keyPairParam?.keyPairFromBase64() ?: createTemporaryKeyPair()
     val pod by parser
@@ -46,7 +46,7 @@ fun main(args: Array<String>) {
                             setTimeZone(TimeZone.getTimeZone("UTC"))
                         }
                     }
-                }
+                },
         )
 
     parser.subcommands(PublishCommand { mosaRestClient() })

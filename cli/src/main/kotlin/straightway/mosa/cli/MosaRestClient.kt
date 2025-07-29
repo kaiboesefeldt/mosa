@@ -37,7 +37,7 @@ class MosaRestClient(
                 bearerAuth(jwt)
             }
         if (!response.status.isSuccess()) {
-            throw RuntimeException("Publish request ${publish} got an error response: $response")
+            throw RuntimeException("Publish request $publish got an error response: $response")
         }
     }
 
@@ -51,7 +51,7 @@ class MosaRestClient(
             }
 
         if (!response.status.isSuccess()) {
-            throw RuntimeException("Search request ${query} got an error response: $response")
+            throw RuntimeException("Search request $query got an error response: $response")
         }
 
         return response.body<QueryResult>()
@@ -65,7 +65,7 @@ class MosaRestClient(
             }
 
         if (!response.status.isSuccess()) {
-            throw RuntimeException("Authorization request ${request} got an error response: $response")
+            throw RuntimeException("Authorization request $request got an error response: $response")
         }
 
         return response.body<PodCertificate>()
@@ -73,16 +73,22 @@ class MosaRestClient(
 
     private suspend fun createJWT(): String {
         val hasher = MessageDigest.getInstance("SHA-256")
-        val publicKeyHash = hasher.digest(identityKeyPair.public.encoded.takeLast(32).toByteArray())
-        val gid = Base64.UrlSafe
-            .withPadding(Base64.PaddingOption.ABSENT)
-            .encode(publicKeyHash)
+        val publicKeyHash =
+            hasher.digest(
+                identityKeyPair.public.encoded
+                    .takeLast(32)
+                    .toByteArray(),
+            )
+        val gid =
+            Base64.UrlSafe
+                .withPadding(Base64.PaddingOption.ABSENT)
+                .encode(publicKeyHash)
         val podCert = approveGid(AuthenticationApprovalRequest(gid))
 
         val jwtBuilder = JwtBuilder(Clock.system(ZoneId.of("GMT")), 1.hours)
         return jwtBuilder.buildMisJwt(
             identityKeyPair,
-            podCert = podCert
+            podCert = podCert,
         )
     }
 }

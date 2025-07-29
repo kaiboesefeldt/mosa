@@ -18,13 +18,14 @@ class SearchCommand(
 
     override fun execute() {
         runBlocking {
-            val response = restClient().search(
-                QueryRequest(
-                    topic = topic,
-                    threadRootId = rootId,
-                    minTime = minTime?.let { Instant.parse(it) }
+            val response =
+                restClient().search(
+                    QueryRequest(
+                        topic = topic,
+                        threadRootId = rootId,
+                        minTime = minTime?.let { Instant.parse(it) },
+                    ),
                 )
-            )
             prettyPrint(response)
         }
     }
@@ -35,14 +36,16 @@ class SearchCommand(
                 "Empty"
             } else {
                 searchResult.entries.joinToString {
-                    val lines = listOf(
-                        "id: ${it.id}",
-                        "content:\n${it.content.trimIndent().prependIndent("    ")}"
-                    ) + (if (it.parent === null) listOf() else listOf("parent: ${it.parent}")) + listOf(
-                        "similarity: ${it.similarity}",
-                        "author: ${it.authorGID}",
-                        "stored: ${it.storedAt}"
-                    )
+                    val lines =
+                        listOf(
+                            "id: ${it.id}",
+                            "content:\n${it.content.trimIndent().prependIndent("    ")}",
+                        ) + (if (it.parent === null) listOf() else listOf("parent: ${it.parent}")) +
+                            listOf(
+                                "similarity: ${it.similarity}",
+                                "author: ${it.authorGID}",
+                                "stored: ${it.storedAt}",
+                            )
                     val resultContent = lines.joinToString("\n")
                     "Search result entry\n${resultContent.prependIndent("    ")}"
                 }
@@ -52,7 +55,7 @@ class SearchCommand(
                 |SearchResult
                 |${searchResultEntriesString.prependIndent("    ")}
                 |    ${if (searchResult.queryOnId.isBlank()) "" else "search on ID: ${searchResult.queryOnId}"}
-            """.trimMargin()
+            """.trimMargin(),
         )
     }
 }
