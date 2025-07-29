@@ -14,6 +14,7 @@ import straightway.mosa.content.ContentService
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
+import straightway.mosa.webclient.WebClientController
 import java.nio.file.Paths
 import java.security.MessageDigest
 import java.time.Clock
@@ -45,4 +46,5 @@ val appModule =
 
         single { ContentController(get()) } bind BaseController::class
         single { AuthenticationController(get()) } bind BaseController::class
+        single { WebClientController() } bind BaseController::class
     }
