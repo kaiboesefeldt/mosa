@@ -101,3 +101,13 @@ tasks.test {
     useJUnitPlatform()
 }
 
+val copyClientFiles = tasks.register<Copy>("copyClientFiles") {
+    dependsOn(":client:jsBrowserDistribution")
+    from("${project(":client").layout.buildDirectory.get()}/dist/js/productionExecutable")
+    into("${layout.buildDirectory.get()}/resources/main/static")
+}
+
+tasks.named("processResources") {
+    dependsOn(copyClientFiles)
+}
+

@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="client-0.1-SNAPSHOT">
+    <output-path>$PROJECT_DIR$/client/build/libs</output-path>
+    <root id="archive" name="client-0.1-SNAPSHOT.jar">
+      <element id="module-output" name="mosa.client.main" />
+    </root>
+  </artifact>
+</component>

@@ -51,3 +51,4 @@ kotlin-compiler*
 # Mosa
 mosa_lucene_index
 models
+kotlin-js-store
