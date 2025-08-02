@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <title>Mosa-SPA Mockup – v14 (kommentierte Fassung)</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+    <!--
+        ===================
+        = Anforderungen
+        ===================
+        # A. Grundlayout & Navigation
+        A1	Single-Page-App mit horizontalen Spalten (Columns), die nach rechts tiefer in den Diskurs führen.	<div class="column" data-depth="…"> – dynamisch erzeugt / entfernt.
+        A2	Topics-Spalte links, Root-Posts und rekursive Reply-Spalten rechts.	Spalten werden bei Interaktionen angelegt oder geleert.
+        A3	Breadcrumb-ähnliche Selektion: Pro Spalte genau eine markierte Karte („selected“).	selected[depth] Hash → CSS .selected.
+        A4	Sticky Pinning: Die markierte Karte jeder Spalte wird oben angeheftet.	.pinned {position: sticky; top: 0}
+        A5	Glattes Umsortieren: Neue Auswahl gleitet hoch; bisherige pinned-Karte gleitet sanft nach unten (FLIP + slide-down).	JS FLIP-Berechnung + .slide-down Klasse.
+        A6	Spalten-Reset: Beim Öffnen einer tieferen Ebene werden alle Spalten rechts davon entfernt/geleert.	clearDeeper(depth) Hilfsfunktion.
+
+        # B. Topics
+        B1	10 ausführliche Topics (langer Beschreibungstext).	Array topics[] → Karten-Generierung.
+        B2	Karten-Darstellung mit: – Text, – Statuszeile „Pods	Posts
+        B3	Topic-Suche / Quick-Add: Eingabe im Header-Suchfeld → Enter fügt neues Topic oben ein.	Adds Card mit prepend true.
+
+        # C. Root-Posts
+        C1	Pro Topic 3 – 11 Root-Posts, je eigene Karte.	Zufalls­generator.
+        C2	Inhalt: 100 – 500 Zeichen Lorem-Snippet, Status­zeile wie Topics.
+        C3	Reply-Button (↩) in jeder Root-Post-Karte, öffnet Reply-Modal.
+        C4	Posts ohne Replies sind zulässig und anklickbar; wählen sie aus, wird rechte Spalte leer angezeigt.
+
+        # D. Replies
+        D1	Rekursive Darstellung identisch zu Root-Posts (Karte, Status, Reply-Button).
+        D2	Jede Ebene erzeugt 0 – 5 Replies; Wahrscheinlichkeit für weitere Tiefe 50 %.
+        D3	Neues Reply erscheint am Ende der nächsten Spalte, Spalte scrollt zum Eintrag, Karte wird markiert & gepinnt, tiefere Spalten werden geleert.
+
+        # E. Beitrag verfassen
+        E1	Globaler FAB (＋) rechts unten für neuen Root-Post (Modal).
+        E2	Reply-Modal (wiederverwendet für Antworten) mit Textarea, Abbrechen/Veröffentlichen-Buttons.
+
+        # F. Animation & Interaktion
+        F1	FLIP-Animation für Karten-Reihenfolge beim Pinnen (alle Karten gleiten).
+        F2	Pulse-Highlight beim Anpinnen einer Karte (CSS @keyframes pulse).
+        F3	Hover-Shadow Effekt auf Karten, FAB-Rotation beim Hover.
+
+        # G. Style & Branding
+        G1	Pastell-Beige Grundfarbwelt (--bg, --card, --border).
+        G2	Akzentfarbe Pastellgrün (--accent) für Highlights & Buttons.
+        G3	Vintage-Comic-Schildkröte als MOSA-Logo (SVG, pastellgrün).
+
+        # H. Technische Hilfen
+        H1	Sticky Header mit Logo & Suchfeld.
+        H2	Smooth horizontal / vertical scroll (scroll-behavior:smooth).
+        H3	Strukturierte JS-State-Verwaltung (selected, pinned, replyTarget).
+    -->
+
+    <!--
+      ===================
+      = Globales Styling =
+      ===================
+      Der gesamte CSS-Block ist bewusst weiterhin inline,
+      um das Beispiel als reine HTML-Datei lauffähig zu halten.
+    -->
+    <style>
+        /* ---------- 1. Basis-Layout ---------- */
+        * { box-sizing:border-box; font-family:Arial,Helvetica,sans-serif }
+        html,body { margin:0; height:100% }
+
+        header {
+          position:sticky; top:0; z-index:5;
+          display:flex; align-items:center; gap:12px;
+          padding:8px 12px; border-bottom:1px solid #ddd;
+          background:#fff;
+        }
+        #search { flex:1; padding:8px 12px; font-size:16px }
+
+        /* ---------- 2. Spalten-Layout ---------- */
+        #columns {
+          display:flex; overflow-x:auto;
+          height:calc(100vh - 60px);   /* 60 px ≈ Headerhöhe */
+        }
+        .column {
+          flex:0 0 360px;
+          border-right:1px solid #ddd;
+          padding:10px;
+          overflow-y:auto;
+          scroll-behavior:smooth;
+        }
+
+        /* ---------- 3. Karten (Posts) ---------- */
+        .card {
+          position:relative;
+          background:#fff; border:1px solid #ccc; border-radius:6px;
+          padding:10px 10px 52px;      /* Platz für Statuszeile + Button */
+          margin-bottom:12px;
+          cursor:pointer;
+          transition:box-shadow .15s;
+        }
+        .card:hover        { box-shadow:0 2px 6px rgba(0,0,0,.15) }
+        .card.selected     { border-color:#1976d2; box-shadow:0 0 0 2px #1976d2 inset }
+        .card.pinned       { position:sticky; top:0; z-index:2; background:#fffffc; }
+
+        .post-body { font-size:14px; line-height:1.4; margin-bottom:8px; color:#333 }
+
+        .status-line {
+          position:absolute; bottom:6px; left:10px;
+          width:calc(100% - 70px);      /* Platz für Reply-Button */
+          font-size:12px; color:#555;
+          display:flex; justify-content:space-between;
+        }
+
+        .reply-btn {
+          position:absolute; bottom:6px; right:10px;
+          padding:2px 6px;
+          font-size:13px; border:none; border-radius:4px;
+          background:#1976d2; color:#fff; cursor:pointer;
+        }
+        .reply-btn:hover { background:#1456a3 }
+
+        .favorite {
+          position:absolute; top:8px; right:8px;
+          font-size:18px; color:#bbb; cursor:pointer;
+        }
+        .favorite.fav { color:#f5b400 }
+
+        /* ---------- 4. Floating-Action-Button ---------- */
+        #fab {
+          position:fixed; bottom:24px; right:24px;
+          width:56px; height:56px; border:none; border-radius:50%;
+          font-size:32px; background:#1976d2; color:#fff; cursor:pointer;
+          box-shadow:0 2px 6px rgba(0,0,0,.3);
+        }
+
+        /* ---------- 5. Modal Overlay ---------- */
+        #overlay {
+          display:none; position:fixed; inset:0;
+          background:rgba(0,0,0,.4); z-index:10;
+          align-items:center; justify-content:center;
+        }
+        #modal {
+          display:flex; flex-direction:column; gap:12px;
+          width:90%; max-width:500px; padding:20px;
+          background:#fff; border-radius:6px;
+        }
+        #modal textarea { width:100%; height:120px; padding:8px }
+
+        .btn-row   { display:flex; justify-content:flex-end; gap:10px }
+        button.btn { padding:6px 14px; border:none; border-radius:4px; cursor:pointer }
+        button.primary   { background:#1976d2; color:#fff }
+        button.secondary { background:#eee }
+
+/* === MOSA enhancements === */
+:root {
+  --bg:#fdfaf5;
+  --card:#fffdf9;
+  --border:#e2dcd2;
+  --accent:#9ac99a;
+}
+body{background:var(--bg);}
+header{background:var(--bg);}
+.card{background:var(--card);border-color:var(--border);transition:transform .25s ease;}
+.card.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset;}
+.status-line{color:var(--accent);}
+.card.pinned{animation:pulse 0.8s ease-out 1;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 var(--accent);}70%{box-shadow:0 0 0 12px rgba(154,201,154,0);}100%{box-shadow:0 0 0 0 rgba(154,201,154,0);}}
+#fab{background:var(--accent);color:#fff;transition:transform .3s;}
+#fab:hover{transform:rotate(135deg);}
+.slide-down{animation:slide-down .25s ease-out;}
+@keyframes slide-down{from{transform:translateY(-100%);}to{transform:translateY(0);}}
+#logo{width:36px;height:24px;flex:none;}
+
+    </style>
+</head>
+
+<body>
+<!-- ======= Kopfzeile / Suche ======= -->
+<header>
+    <svg id="logo" viewBox="0 0 64 32" aria-label="MOSA Logo" role="img"><path d="M8 16c0-4 4-8 12-8s12 4 12 8-4 8-12 8-12-4-12-8z" fill="var(--accent)"/><circle cx="20" cy="14" r="2" fill="#fff"/></svg>
+    <input id="search" type="text"
+           placeholder="Neues Thema oder Suchbegriff eingeben …" />
+</header>
+
+<!-- ======= Dynamische Spalten-Container ======= -->
+<main id="columns">
+    <!-- Themen-Spalte (Depth 0) wird beim Start befüllt -->
+    <div class="column" id="topicsColumn" data-depth="0"></div>
+</main>
+
+<!-- Floating-Action-Button zum Erstellen eines Root-Posts -->
+<button id="fab" title="Neuen Root-Post verfassen">＋</button>
+
+<!-- Modal-Dialog für neue Posts / Replies -->
+<div id="overlay">
+    <div id="modal">
+        <h3 id="modalTitle">Neuer Beitrag</h3>
+        <textarea id="postText" placeholder="Dein Text …"></textarea>
+        <div class="btn-row">
+            <button class="btn secondary" id="cancelBtn">Abbrechen</button>
+            <button class="btn primary"   id="publishBtn">Veröffentlichen</button>
+        </div>
+    </div>
+</div>
+
+<!--
+  =========================================
+  = JavaScript-Logik (Client-seitig) ======
+  =========================================
+-->
+<script>
+    /* --------------------------------------------------------------------
+       0. Hilfsfunktionen & Konstanten
+    -------------------------------------------------------------------- */
+
+    /** Blindtext für Beispiel-Posts */
+    const lorem =
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
+      "Sed non risus. Suspendisse lectus tortor, dignissim sit amet.";
+
+    /** Zufallszahl 1 … n */
+    const rnd = n => Math.floor(Math.random() * n) + 1;
+
+    /**
+     * Erzeugt einen Blindtext-Snippet fester Länge (500 ± 100 Zeichen).
+     * @param {string} prefix – Wird dem Text vorangestellt (z. B. „Reply …“)
+     * @returns {string} Snippet-Text
+     */
+    function snippet(prefix = "") {
+      const len = rnd(400) + 100;
+      let txt = "";
+      while (txt.length < len) txt += " " + lorem;
+      return (prefix + " " + txt).substring(0, len);
+    }
+
+    /** Vordefinierte Beispiel-Themen (Depth 0) */
+    const longTopics = [
+      "Die Herausforderungen und Chancen, die Städte weltweit …",
+      "Politische, juristische und wirtschaftliche Auswirkungen …",
+      "Praxisberichte zum Einsatz der Programmiersprache Rust …",
+      "Evaluierung von Open-Source-Alternativen zu Cloud-Plattformen …",
+      "Aktuelle psychologische Studien zur Wirkung intensiver …",
+      "Technologische Fortschritte bei lasergetriebenen Fusionsreaktoren …",
+      "Historische Analysen von Handelsrouten der Seidenstraße …",
+      "Nachhaltige Landwirtschaft: Methoden und Fallstudien …",
+      "Auswirkungen von KI auf kreative Branchen und Urheberrechte …",
+      "Interdisziplinäre Ansätze in der Krebstherapieforschung …"
+    ];
+
+    /* --------------------------------------------------------------------
+       1. DOM-Referenzen
+    -------------------------------------------------------------------- */
+    const columns     = document.getElementById("columns");
+    const overlay     = document.getElementById("overlay");
+    const modalTitle  = document.getElementById("modalTitle");
+    const postText    = document.getElementById("postText");
+
+    /** Aktuelles Reply-Ziel (depth & Spalte); null = Root-Post */
+    let replyTarget = null;
+
+    /** Gemerkte Karten (pro depth) */
+    const pinned   = {};
+    const selected = {};
+
+    /* --------------------------------------------------------------------
+       2. UI-Utility-Funktionen
+    -------------------------------------------------------------------- */
+
+    /**
+     * Entfernt alle Spalten tiefer als `depth`
+     * (wird benutzt, wenn man nach links navigiert).
+     * @param {number} depth – maximale Tiefe, die erhalten bleibt
+     */
+    function clearDeeper(depth) {
+      Array.from(columns.querySelectorAll(".column")).forEach(col => {
+        if (parseInt(col.dataset.depth) > depth) {
+          delete selected[col.dataset.depth];
+          delete pinned[col.dataset.depth];
+          col.remove();
+        }
+      });
+    }
+
+    /**
+     * Setzt eine Karte als „pinned“ (sticky-Header) in ihrer Spalte.
+     * @param {number} depth – Spaltentiefe
+     * @param {HTMLElement} card – Karten-Element
+     */
+    function pinCard(depth, card) {
+      if (pinned[depth]) pinned[depth].classList.remove("pinned");
+      pinned[depth] = card;
+      card.classList.add("pinned");
+
+      /* Karte im DOM ganz nach oben schieben */
+      const col = columns.querySelector(`.column[data-depth="${depth}"]`);
+      if (col && card.parentNode === col) {
+        col.insertBefore(card, col.firstChild);
+      }
+    }
+
+    /**
+     * Markiert eine Karte als ausgewählt
+     * (visuelles Feedback + Pinning).
+     * @param {number} depth
+     * @param {HTMLElement} card
+     */
+    function select(depth, card) {
+      if (selected[depth]) selected[depth].classList.remove("selected");
+      selected[depth] = card;
+      card.classList.add("selected");
+      pinCard(depth, card);
+    }
+
+    /** Baut die Statuszeile „Pods / Posts / Neu“ */
+    const statusLine = () => {
+      const s = document.createElement("div");
+      s.className = "status-line";
+      s.textContent = `Pods: ${rnd(5)} · Posts: ${rnd(200)} · Neu: ${rnd(15)}`;
+      return s;
+    };
+
+    /**
+     * Erstellt einen „Reply“-Button für eine Karte.
+     * Öffnet das Modal und merkt die Ziel-Spalte.
+     * @param {number} depth – Spaltentiefe der *aktuellen* Karte
+     */
+    function replyBtn(depth) {
+      const b = document.createElement("button");
+      b.className = "reply-btn";
+      b.textContent = "↩";
+      b.onclick = e => {
+        e.stopPropagation();
+        replyTarget = { depth: depth + 1 };
+        modalTitle.textContent = "Antwort verfassen";
+        postText.value = "";
+        overlay.style.display = "flex";
+      };
+      return b;
+    }
+
+    /**
+     * Stellt sicher, dass es eine Spalte für `depth` gibt
+     * und leert sie optional.
+     * @param {number} depth – gewünschte Spaltentiefe
+     * @param {boolean} reset – true = Inhalt löschen
+     * @returns {HTMLElement} Spalten-Element
+     */
+    function ensureCol(depth, reset = true) {
+      let col = columns.querySelector(`.column[data-depth="${depth}"]`);
+      if (!col) {
+        col = document.createElement("div");
+        col.className = "column";
+        col.dataset.depth = depth;
+        columns.appendChild(col);
+      }
+      if (reset) col.innerHTML = "";
+      clearDeeper(depth);
+      columns.scrollLeft = columns.scrollWidth;
+      return col;
+    }
+
+    /**
+     * Fügt ein neues Themen-Kärtchen in die Spalte 0 ein.
+     * @param {string} text – Themenbeschreibung
+     * @param {boolean} prepend – true = oben einfügen
+     */
+    function addTopicCard(text, prepend = false) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `<div class="post-body"><strong>${text}</strong></div>`;
+
+      /* Favoriten-Stern */
+      const fav = document.createElement("span");
+      fav.className = "favorite";
+      fav.textContent = "☆";
+      fav.onclick = e => {
+        e.stopPropagation();
+        fav.classList.toggle("fav");
+        fav.textContent = fav.classList.contains("fav") ? "★" : "☆";
+      };
+      card.appendChild(fav);
+
+      card.appendChild(statusLine());
+      card.onclick = () => openRoots(card, text);
+
+      const topicsCol = document.getElementById("topicsColumn");
+      if (prepend && topicsCol.children.length) {
+        topicsCol.insertBefore(card, topicsCol.firstChild);
+      } else {
+        topicsCol.appendChild(card);
+      }
+    }
+
+    /**
+     * Gemeinsamer Klick-Handler, um tieferliegende Spalten
+     * zu leeren oder aufzubauen.
+     * @param {HTMLElement} card – geklickte Karte
+     * @param {number} depth – Zieltiefe für neue Spalte
+     * @param {Function|null} openCb – Callback, der Inhalte lädt
+     */
+    function handleCardClick(card, depth, openCb) {
+      select(depth - 1, card);
+      if (openCb) openCb();            // Inhalte laden
+      else ensureCol(depth, true);     // leere Spalte anlegen
+    }
+
+    /* --------------------------------------------------------------------
+       3. Navigations-Funktionen (Themen → Roots → Replies)
+    -------------------------------------------------------------------- */
+
+    /**
+     * Öffnet Root-Posts zu einem Thema (Depth 1).
+     * @param {HTMLElement} topicCard
+     * @param {string} topicText
+     */
+    function openRoots(topicCard, topicText) {
+      select(0, topicCard);
+
+      const col = ensureCol(1, true);
+      const count = rnd(8) + 3;
+
+      for (let i = 1; i <= count; i++) {
+        const root = document.createElement("div");
+        root.className = "card";
+        root.innerHTML = `<div class="post-body">${snippet()}</div>`;
+        root.appendChild(statusLine());
+        root.appendChild(replyBtn(1));
+
+        const hasReplies = Math.random() < 0.7;
+        root.onclick = e => {
+          e.stopPropagation();
+          if (hasReplies) {
+            openReplies(root, i, topicText, 2);
+          } else {
+            handleCardClick(root, 2, null);
+          }
+        };
+        col.appendChild(root);
+      }
+      col.scrollTop = 0;
+    }
+
+    /**
+     * Öffnet (rekursiv) Replies zu einer Karte.
+     * @param {HTMLElement} parentCard – Root oder Reply, von dem aus verzweigt wird
+     * @param {number} index          – laufende Nummer im Beispiel
+     * @param {string} topicText      – Thema (nur für Demo)
+     * @param {number} depth          – Ziel-Spaltentiefe
+     */
+    function openReplies(parentCard, index, topicText, depth) {
+      handleCardClick(parentCard, depth, () => {});
+
+      const col = ensureCol(depth, true);
+      const cnt = Math.floor(Math.random()*6);  // 0 … 5 Replies              // 0 … 5 Replies
+
+      for (let i = 1; i <= cnt; i++) {
+        const rep = document.createElement("div");
+        rep.className = "card";
+        rep.innerHTML =
+          `<div class="post-body">${snippet(`Reply ${i} zu #${index}:`)}</div>`;
+        rep.appendChild(statusLine());
+        rep.appendChild(replyBtn(depth));
+
+        const hasReplies = Math.random() < 0.5;
+        rep.onclick = e => {
+          e.stopPropagation();
+          if (hasReplies) {
+            openReplies(rep, i, topicText, depth + 1);
+          } else {
+            handleCardClick(rep, depth + 1, null);
+          }
+        };
+        col.appendChild(rep);
+      }
+      col.scrollTop = 0;
+    }
+
+    /* --------------------------------------------------------------------
+       4. Initialisierung & Event-Listener
+    -------------------------------------------------------------------- */
+
+    /* Start-Themen anlegen */
+    longTopics.forEach(t => addTopicCard(t));
+
+    /* Suche: ENTER fügt neues Thema ein */
+    document.getElementById("search").addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        const v = e.target.value.trim();
+        if (v) {
+          addTopicCard(v, true);
+          e.target.value = "";
+        }
+      }
+    });
+
+    /* Floating-Action-Button: neuer Root-Post */
+    document.getElementById("fab").onclick = () => {
+      replyTarget = null;
+      modalTitle.textContent = "Neuen Root-Post schreiben";
+      postText.value = "";
+      overlay.style.display = "flex";
+    };
+
+    /* Modal-Buttons */
+    document.getElementById("cancelBtn").onclick = () => (overlay.style.display = "none");
+
+    document.getElementById("publishBtn").onclick = () => {
+      overlay.style.display = "none";
+
+      const txt = postText.value.trim() || snippet("(neu)");
+      if (replyTarget) {
+        /* -------------- Als Reply veröffentlichen -------------- */
+        const col = ensureCol(replyTarget.depth, false);
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `<div class="post-body">${txt}</div>`;
+        card.appendChild(statusLine());
+        card.appendChild(replyBtn(replyTarget.depth));
+        col.appendChild(card);
+        col.scrollTop = col.scrollHeight;
+        select(replyTarget.depth, card);
+        clearDeeper(replyTarget.depth);
+      } else if (selected[0]) {
+        /* -------------- Neuer Root-Post zum ausgewählten Thema -------------- */
+        openRoots(selected[0], "(Dein Thema)");
+      }
+    };
+
+/* --- Enhanced pinCard with FLIP, slide-down & pulse --- */
+function pinCard(depth, card) {
+  const col = document.querySelector(`.column[data-depth="${depth}"]`);
+  if (!col) return;
+  const prev = pinned[depth];
+  const firstTop = card.getBoundingClientRect().top;
+  if (prev) prev.classList.remove('pinned');
+  pinned[depth] = card;
+  card.classList.add('pinned');
+  if (card.parentNode === col) {
+    col.insertBefore(card, col.firstChild);
+  }
+  const lastTop = card.getBoundingClientRect().top;
+  const dy = firstTop - lastTop;
+  if (dy) {
+    card.style.transform = `translateY(${dy}px)`;
+    requestAnimationFrame(() => {
+      card.style.transition = 'transform .25s ease-out';
+      card.style.transform = '';
+    });
+  }
+  if (prev && prev !== card) {
+    prev.classList.add('slide-down');
+    setTimeout(() => prev.classList.remove('slide-down'), 300);
+  }
+}
+
+</script>
+</body>
+</html>
