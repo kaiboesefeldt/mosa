@@ -513,10 +513,12 @@
     /**
      * Baut die Statuszeile für verschiedene Kartentypen
      * @param {string} type - "topic", "post", oder "reply"
+     * @returns {object} - {element: HTMLElement, hasReplies: boolean}
      */
     const statusLine = (type = "topic") => {
       const s = document.createElement("div");
       s.className = "status-line";
+      let hasReplies = true;
 
       if (type === "topic") {
         // Topics: "Pods: X · Posts: Y · Neu: Z"
@@ -526,12 +528,14 @@
         s.textContent = `Pods: ${pods} · Posts: ${posts} · Neu: ${neu}`;
       } else {
         // Root-Posts und Replies: "Antworten: X · Neu: Y"
-        const antworten = rnd(50);
+        // 30% Chance für 0 Antworten
+        const antworten = Math.random() < 0.3 ? 0 : rnd(50);
         const neu = rnd(15);
         s.textContent = `Antworten: ${antworten} · Neu: ${neu}`;
+        hasReplies = antworten > 0;
       }
 
-      return s;
+      return { element: s, hasReplies };
     };
 
     /**
@@ -601,7 +605,7 @@
       };
       card.appendChild(fav);
 
-      card.appendChild(statusLine("topic")); // Topics zeigen "Pods · Posts · Neu"
+      card.appendChild(statusLine("topic").element); // Topics zeigen "Pods · Posts · Neu"
       card.onclick = () => openRoots(card, text);
 
       const topicsCol = document.getElementById("topicsColumn");
@@ -661,11 +665,13 @@
         }
 
         root.appendChild(postBody);
-        root.appendChild(statusLine("post")); // Root-Posts zeigen "Antworten · Neu"
+
+        const statusInfo = statusLine("post");
+        root.appendChild(statusInfo.element);
         root.appendChild(replyBtn(1));
 
-        // Erster Post mit benutzerdefiniertem Text hat keine Replies
-        const hasReplies = (i === 1 && firstPostText) ? false : Math.random() < 0.7;
+        // Erster Post mit benutzerdefiniertem Text hat keine Replies, sonst basiert es auf Statuszeile
+        const hasReplies = (i === 1 && firstPostText) ? false : statusInfo.hasReplies;
 
         root.onclick = e => {
           e.stopPropagation();
@@ -723,10 +729,11 @@
         postBody.textContent = snippet(`Reply ${i} zu #${index}:`);
         rep.appendChild(postBody);
 
-        rep.appendChild(statusLine(true)); // Replies zeigen "Antworten"
+        const statusInfo = statusLine("reply");
+        rep.appendChild(statusInfo.element);
         rep.appendChild(replyBtn(depth));
 
-        const hasReplies = Math.random() < 0.5;
+        const hasReplies = statusInfo.hasReplies;
         rep.onclick = e => {
           e.stopPropagation();
           if (hasReplies) {
@@ -789,8 +796,20 @@
         postBody.textContent = txt;
         card.appendChild(postBody);
 
-        card.appendChild(statusLine(true)); // Neue Replies zeigen "Antworten"
+        const statusInfo = statusLine("reply");
+        card.appendChild(statusInfo.element); // Neue Replies zeigen "Antworten · Neu"
         card.appendChild(replyBtn(replyTarget.depth));
+
+        // Click-Verhalten basierend auf Antworten-Anzahl
+        const hasReplies = statusInfo.hasReplies;
+        card.onclick = e => {
+          e.stopPropagation();
+          if (hasReplies) {
+            openReplies(card, 1, "Neue Antwort", replyTarget.depth + 1);
+          } else {
+            handleCardClick(card, replyTarget.depth + 1, null);
+          }
+        };
         col.appendChild(card);
         col.scrollTop = col.scrollHeight;
         select(replyTarget.depth, card);
