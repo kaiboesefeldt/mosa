@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8"/>
-    <title>Mosa-SPA Mockup – v14 (kommentierte Fassung)</title>
+    <title>Mosa-SPA Mockup – v14 (bereinigte Fassung)</title>
     <meta content="width=device-width,initial-scale=1" name="viewport"/>
 
     <!--
@@ -12,7 +12,7 @@
         # A. Grundlayout & Navigation
         A1	Single-Page-App mit horizontalen Spalten (Columns), die nach rechts tiefer in den Diskurs führen.	<div class="column" data-depth="…"> – dynamisch erzeugt / entfernt.
         A2	Topics-Spalte links, Root-Posts und rekursive Reply-Spalten rechts.	Spalten werden bei Interaktionen angelegt oder geleert.
-        A3	Breadcrumb-ähnliche Selektion: Pro Spalte genau eine markierte Karte („selected“).	selected[depth] Hash → CSS .selected.
+        A3	Breadcrumb-ähnliche Selektion: Pro Spalte genau eine markierte Karte („selected").	selected[depth] Hash → CSS .selected.
         A4	Sticky Pinning: Die markierte Karte jeder Spalte wird oben angeheftet.	.pinned {position: sticky; top: 0}
         A5	Glattes Umsortieren: Neue Auswahl gleitet hoch; bisherige pinned-Karte gleitet sanft nach unten (FLIP + slide-down).	JS FLIP-Berechnung + .slide-down Klasse.
         A6	Spalten-Reset: Beim Öffnen einer tieferen Ebene werden alle Spalten rechts davon entfernt/geleert.	clearDeeper(depth) Hilfsfunktion.
@@ -61,113 +61,244 @@
       um das Beispiel als reine HTML-Datei lauffähig zu halten.
     -->
     <style>
-        /* ---------- 1. Basis-Layout ---------- */
-        * { box-sizing:border-box; font-family:Arial,Helvetica,sans-serif }
-        html,body { margin:0; height:100% }
+        /* ---------- 1. CSS-Variablen ---------- */
+        :root {
+            --bg: #fdfaf5;
+            --card: #fffdf9;
+            --border: #e2dcd2;
+            --accent: #9ac99a;
+        }
+
+        /* ---------- 2. Basis-Layout ---------- */
+        * {
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        html, body {
+            margin: 0;
+            height: 100%;
+        }
+
+        body {
+            background: var(--bg);
+        }
 
         header {
-          position:sticky; top:0; z-index:5;
-          display:flex; align-items:center; gap:12px;
-          padding:8px 12px; border-bottom:1px solid #ddd;
-          background:#fff;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            border-bottom: 1px solid #ddd;
+            background: var(--bg);
         }
-        #search { flex:1; padding:8px 12px; font-size:16px }
 
-        /* ---------- 2. Spalten-Layout ---------- */
+        #search {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 16px;
+        }
+
+        /* ---------- 3. Spalten-Layout ---------- */
         #columns {
-          display:flex; overflow-x:auto;
-          height:calc(100vh - 60px);   /* 60 px ≈ Headerhöhe */
+            display: flex;
+            overflow-x: auto;
+            height: calc(100vh - 60px);   /* 60 px ≈ Headerhöhe */
         }
+
         .column {
-          flex:0 0 360px;
-          border-right:1px solid #ddd;
-          padding:10px;
-          overflow-y:auto;
-          scroll-behavior:smooth;
+            flex: 0 0 360px;
+            border-right: 1px solid #ddd;
+            padding: 10px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
         }
 
-        /* ---------- 3. Karten (Posts) ---------- */
+        /* ---------- 4. Karten (Posts) ---------- */
         .card {
-          position:relative;
-          background:#fff; border:1px solid #ccc; border-radius:6px;
-          padding:10px 10px 52px;      /* Platz für Statuszeile + Button */
-          margin-bottom:12px;
-          cursor:pointer;
-          transition:box-shadow .15s;
+            position: relative;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 10px 52px;      /* Platz für Statuszeile + Button */
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: box-shadow .15s, transform .25s ease;
         }
-        .card:hover        { box-shadow:0 2px 6px rgba(0,0,0,.15) }
-        .card.selected     { border-color:#1976d2; box-shadow:0 0 0 2px #1976d2 inset }
-        .card.pinned       { position:sticky; top:0; z-index:2; background:#fffffc; }
 
-        .post-body { font-size:14px; line-height:1.4; margin-bottom:8px; color:#333 }
+        .card:hover {
+            box-shadow: 0 2px 6px rgba(0,0,0,.15);
+        }
+
+        .card.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent) inset;
+        }
+
+        .card.pinned {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #fffffc;
+            animation: pulse 0.8s ease-out 1;
+        }
+
+        .post-body {
+            font-size: 14px;
+            line-height: 1.4;
+            margin-bottom: 8px;
+            color: #333;
+        }
 
         .status-line {
-          position:absolute; bottom:6px; left:10px;
-          width:calc(100% - 70px);      /* Platz für Reply-Button */
-          font-size:12px; color:#555;
-          display:flex; justify-content:space-between;
+            position: absolute;
+            bottom: 6px;
+            left: 10px;
+            width: calc(100% - 70px);      /* Platz für Reply-Button */
+            font-size: 12px;
+            color: var(--accent);
+            display: flex;
+            justify-content: space-between;
         }
 
         .reply-btn {
-          position:absolute; bottom:6px; right:10px;
-          padding:2px 6px;
-          font-size:13px; border:none; border-radius:4px;
-          background:#1976d2; color:#fff; cursor:pointer;
+            position: absolute;
+            bottom: 6px;
+            right: 10px;
+            padding: 2px 6px;
+            font-size: 13px;
+            border: none;
+            border-radius: 4px;
+            background: #1976d2;
+            color: #fff;
+            cursor: pointer;
         }
-        .reply-btn:hover { background:#1456a3 }
+
+        .reply-btn:hover {
+            background: #1456a3;
+        }
 
         .favorite {
-          position:absolute; top:8px; right:8px;
-          font-size:18px; color:#bbb; cursor:pointer;
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 18px;
+            color: #bbb;
+            cursor: pointer;
         }
-        .favorite.fav { color:#f5b400 }
 
-        /* ---------- 4. Floating-Action-Button ---------- */
+        .favorite.fav {
+            color: #f5b400;
+        }
+
+        /* ---------- 5. Floating-Action-Button ---------- */
         #fab {
-          position:fixed; bottom:24px; right:24px;
-          width:56px; height:56px; border:none; border-radius:50%;
-          font-size:32px; background:#1976d2; color:#fff; cursor:pointer;
-          box-shadow:0 2px 6px rgba(0,0,0,.3);
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            border: none;
+            border-radius: 50%;
+            font-size: 32px;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,.3);
+            transition: transform .3s;
         }
 
-        /* ---------- 5. Modal Overlay ---------- */
+        #fab:hover {
+            transform: rotate(135deg);
+        }
+
+        /* ---------- 6. Modal Overlay ---------- */
         #overlay {
-          display:none; position:fixed; inset:0;
-          background:rgba(0,0,0,.4); z-index:10;
-          align-items:center; justify-content:center;
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.4);
+            z-index: 10;
+            align-items: center;
+            justify-content: center;
         }
+
         #modal {
-          display:flex; flex-direction:column; gap:12px;
-          width:90%; max-width:500px; padding:20px;
-          background:#fff; border-radius:6px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 90%;
+            max-width: 500px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 6px;
         }
-        #modal textarea { width:100%; height:120px; padding:8px }
 
-        .btn-row   { display:flex; justify-content:flex-end; gap:10px }
-        button.btn { padding:6px 14px; border:none; border-radius:4px; cursor:pointer }
-        button.primary   { background:#1976d2; color:#fff }
-        button.secondary { background:#eee }
+        #modal textarea {
+            width: 100%;
+            height: 120px;
+            padding: 8px;
+        }
 
-/* === MOSA enhancements === */
-:root {
-  --bg:#fdfaf5;
-  --card:#fffdf9;
-  --border:#e2dcd2;
-  --accent:#9ac99a;
-}
-body{background:var(--bg);}
-header{background:var(--bg);}
-.card{background:var(--card);border-color:var(--border);transition:transform .25s ease;}
-.card.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset;}
-.status-line{color:var(--accent);}
-.card.pinned{animation:pulse 0.8s ease-out 1;}
-@keyframes pulse{0%{box-shadow:0 0 0 0 var(--accent);}70%{box-shadow:0 0 0 12px rgba(154,201,154,0);}100%{box-shadow:0 0 0 0 rgba(154,201,154,0);}}
-#fab{background:var(--accent);color:#fff;transition:transform .3s;}
-#fab:hover{transform:rotate(135deg);}
-.slide-down{animation:slide-down .25s ease-out;}
-@keyframes slide-down{from{transform:translateY(-100%);}to{transform:translateY(0);}}
-#logo{width:36px;height:24px;flex:none;}
+        .btn-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
 
+        button.btn {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button.primary {
+            background: #1976d2;
+            color: #fff;
+        }
+
+        button.secondary {
+            background: #eee;
+        }
+
+        /* ---------- 7. Animationen ---------- */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 var(--accent); }
+            70% { box-shadow: 0 0 0 12px rgba(154,201,154,0); }
+            100% { box-shadow: 0 0 0 0 rgba(154,201,154,0); }
+        }
+
+        .slide-down {
+            animation: slide-down .25s ease-out;
+        }
+
+        @keyframes slide-down {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+
+        #logo {
+            width: 36px;
+            height: 24px;
+            flex: none;
+        }
+
+        /* ---------- 8. Screen Reader Accessibility ---------- */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            white-space: nowrap;
+            border: 0;
+        }
     </style>
 </head>
 
@@ -176,7 +307,10 @@ header{background:var(--bg);}
 <header>
     <img alt="Mosa Logo"
          src="data:image/png;base64,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"/>
-    <input id="search" placeholder="Neues Thema oder Suchbegriff eingeben …"
+    <label for="search" class="sr-only">Suchfeld</label>
+    <input id="search"
+           aria-label="Neues Thema oder Suchbegriff eingeben"
+           placeholder="Neues Thema oder Suchbegriff eingeben …"
            type="text"/>
 </header>
 
@@ -187,13 +321,16 @@ header{background:var(--bg);}
 </main>
 
 <!-- Floating-Action-Button zum Erstellen eines Root-Posts -->
-<button id="fab" title="Neuen Root-Post verfassen">＋</button>
+<button id="fab" aria-label="Neuen Root-Post verfassen" title="Neuen Root-Post verfassen">＋</button>
 
 <!-- Modal-Dialog für neue Posts / Replies -->
 <div id="overlay">
     <div id="modal">
         <h3 id="modalTitle">Neuer Beitrag</h3>
-        <textarea id="postText" placeholder="Dein Text …"></textarea>
+        <label for="postText" class="sr-only">Beitragstext</label>
+        <textarea id="postText"
+                  aria-label="Dein Text"
+                  placeholder="Dein Text …"></textarea>
         <div class="btn-row">
             <button class="btn secondary" id="cancelBtn">Abbrechen</button>
             <button class="btn primary" id="publishBtn">Veröffentlichen</button>
@@ -221,14 +358,15 @@ header{background:var(--bg);}
 
     /**
      * Erzeugt einen Blindtext-Snippet fester Länge (500 ± 100 Zeichen).
-     * @param {string} prefix – Wird dem Text vorangestellt (z. B. „Reply …“)
+     * @param {string} prefix – Wird dem Text vorangestellt (z. B. „Reply …")
      * @returns {string} Snippet-Text
      */
     function snippet(prefix = "") {
       const len = rnd(400) + 100;
       let txt = "";
       while (txt.length < len) txt += " " + lorem;
-      return (prefix + " " + txt).substring(0, len);
+      const fullText = prefix + " " + txt;
+      return fullText.substring(0, len);
     }
 
     /** Vordefinierte Beispiel-Themen (Depth 0) */
@@ -280,19 +418,41 @@ header{background:var(--bg);}
     }
 
     /**
-     * Setzt eine Karte als „pinned“ (sticky-Header) in ihrer Spalte.
+     * Setzt eine Karte als „pinned" (sticky-Header) in ihrer Spalte
+     * mit FLIP-Animation, slide-down & pulse.
      * @param {number} depth – Spaltentiefe
      * @param {HTMLElement} card – Karten-Element
      */
     function pinCard(depth, card) {
-      if (pinned[depth]) pinned[depth].classList.remove("pinned");
-      pinned[depth] = card;
-      card.classList.add("pinned");
+      const col = document.querySelector(`.column[data-depth="${depth}"]`);
+      if (!col) return;
 
-      /* Karte im DOM ganz nach oben schieben */
-      const col = columns.querySelector(`.column[data-depth="${depth}"]`);
-      if (col && card.parentNode === col) {
+      const prev = pinned[depth];
+      const firstTop = card.getBoundingClientRect().top;
+
+      if (prev) prev.classList.remove('pinned');
+
+      pinned[depth] = card;
+      card.classList.add('pinned');
+
+      if (card.parentNode === col) {
         col.insertBefore(card, col.firstChild);
+      }
+
+      const lastTop = card.getBoundingClientRect().top;
+      const dy = firstTop - lastTop;
+
+      if (dy) {
+        card.style.transform = `translateY(${dy}px)`;
+        requestAnimationFrame(() => {
+          card.style.transition = 'transform .25s ease-out';
+          card.style.transform = '';
+        });
+      }
+
+      if (prev && prev !== card) {
+        prev.classList.add('slide-down');
+        setTimeout(() => prev.classList.remove('slide-down'), 300);
       }
     }
 
@@ -309,16 +469,19 @@ header{background:var(--bg);}
       pinCard(depth, card);
     }
 
-    /** Baut die Statuszeile „Pods / Posts / Neu“ */
+    /** Baut die Statuszeile „Pods / Posts / Neu" */
     const statusLine = () => {
       const s = document.createElement("div");
       s.className = "status-line";
-      s.textContent = `Pods: ${rnd(5)} · Posts: ${rnd(200)} · Neu: ${rnd(15)}`;
+      const pods = rnd(5);
+      const posts = rnd(200);
+      const neu = rnd(15);
+      s.textContent = `Pods: ${pods} · Posts: ${posts} · Neu: ${neu}`;
       return s;
     };
 
     /**
-     * Erstellt einen „Reply“-Button für eine Karte.
+     * Erstellt einen „Reply"-Button für eine Karte.
      * Öffnet das Modal und merkt die Ziel-Spalte.
      * @param {number} depth – Spaltentiefe der *aktuellen* Karte
      */
@@ -365,7 +528,13 @@ header{background:var(--bg);}
     function addTopicCard(text, prepend = false) {
       const card = document.createElement("div");
       card.className = "card";
-      card.innerHTML = `<div class="post-body"><strong>${text}</strong></div>`;
+
+      const postBody = document.createElement("div");
+      postBody.className = "post-body";
+      const strong = document.createElement("strong");
+      strong.textContent = text;
+      postBody.appendChild(strong);
+      card.appendChild(postBody);
 
       /* Favoriten-Stern */
       const fav = document.createElement("span");
@@ -420,7 +589,12 @@ header{background:var(--bg);}
       for (let i = 1; i <= count; i++) {
         const root = document.createElement("div");
         root.className = "card";
-        root.innerHTML = `<div class="post-body">${snippet()}</div>`;
+
+        const postBody = document.createElement("div");
+        postBody.className = "post-body";
+        postBody.textContent = snippet();
+        root.appendChild(postBody);
+
         root.appendChild(statusLine());
         root.appendChild(replyBtn(1));
 
@@ -449,13 +623,17 @@ header{background:var(--bg);}
       handleCardClick(parentCard, depth, () => {});
 
       const col = ensureCol(depth, true);
-      const cnt = Math.floor(Math.random()*6);  // 0 … 5 Replies              // 0 … 5 Replies
+      const cnt = Math.floor(Math.random()*6);  // 0 … 5 Replies
 
       for (let i = 1; i <= cnt; i++) {
         const rep = document.createElement("div");
         rep.className = "card";
-        rep.innerHTML =
-          `<div class="post-body">${snippet(`Reply ${i} zu #${index}:`)}</div>`;
+
+        const postBody = document.createElement("div");
+        postBody.className = "post-body";
+        postBody.textContent = snippet(`Reply ${i} zu #${index}:`);
+        rep.appendChild(postBody);
+
         rep.appendChild(statusLine());
         rep.appendChild(replyBtn(depth));
 
@@ -511,7 +689,12 @@ header{background:var(--bg);}
         const col = ensureCol(replyTarget.depth, false);
         const card = document.createElement("div");
         card.className = "card";
-        card.innerHTML = `<div class="post-body">${txt}</div>`;
+
+        const postBody = document.createElement("div");
+        postBody.className = "post-body";
+        postBody.textContent = txt;
+        card.appendChild(postBody);
+
         card.appendChild(statusLine());
         card.appendChild(replyBtn(replyTarget.depth));
         col.appendChild(card);
@@ -523,33 +706,6 @@ header{background:var(--bg);}
         openRoots(selected[0], "(Dein Thema)");
       }
     };
-
-/* --- Enhanced pinCard with FLIP, slide-down & pulse --- */
-function pinCard(depth, card) {
-  const col = document.querySelector(`.column[data-depth="${depth}"]`);
-  if (!col) return;
-  const prev = pinned[depth];
-  const firstTop = card.getBoundingClientRect().top;
-  if (prev) prev.classList.remove('pinned');
-  pinned[depth] = card;
-  card.classList.add('pinned');
-  if (card.parentNode === col) {
-    col.insertBefore(card, col.firstChild);
-  }
-  const lastTop = card.getBoundingClientRect().top;
-  const dy = firstTop - lastTop;
-  if (dy) {
-    card.style.transform = `translateY(${dy}px)`;
-    requestAnimationFrame(() => {
-      card.style.transition = 'transform .25s ease-out';
-      card.style.transform = '';
-    });
-  }
-  if (prev && prev !== card) {
-    prev.classList.add('slide-down');
-    setTimeout(() => prev.classList.remove('slide-down'), 300);
-  }
-}
 
 </script>
 </body>
