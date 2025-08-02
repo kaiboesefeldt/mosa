@@ -36,6 +36,9 @@
         # E. Beitrag verfassen
         E1	Globaler FAB (＋) rechts unten für neuen Root-Post (Modal).
         E2	Reply-Modal (wiederverwendet für Antworten) mit Textarea, Abbrechen/Veröffentlichen-Buttons.
+        E3	Neuer Beitrag via FAB erstellt automatisch neues Topic (linke Spalte) mit Beitragstext.
+        E4	Gleichzeitig erscheint der Beitrag in zweiter Spalte zusammen mit zufälligen weiteren Posts.
+        E5	Der neue Hauptbeitrag hat keine Antworten (nicht anklickbar für tiefere Ebenen).
 
         # F. Animation & Interaktion
         F1	FLIP-Animation für Karten-Reihenfolge beim Pinnen (alle Karten gleiten).
@@ -579,8 +582,9 @@
      * Öffnet Root-Posts zu einem Thema (Depth 1).
      * @param {HTMLElement} topicCard
      * @param {string} topicText
+     * @param {string|null} firstPostText - Optional: Text für ersten Post
      */
-    function openRoots(topicCard, topicText) {
+    function openRoots(topicCard, topicText, firstPostText = null) {
       select(0, topicCard);
 
       const col = ensureCol(1, true);
@@ -592,13 +596,21 @@
 
         const postBody = document.createElement("div");
         postBody.className = "post-body";
-        postBody.textContent = snippet();
-        root.appendChild(postBody);
 
+        // Erster Post bekommt benutzerdefinierten Text wenn vorhanden
+        if (i === 1 && firstPostText) {
+          postBody.textContent = firstPostText;
+        } else {
+          postBody.textContent = snippet();
+        }
+
+        root.appendChild(postBody);
         root.appendChild(statusLine());
         root.appendChild(replyBtn(1));
 
-        const hasReplies = Math.random() < 0.7;
+        // Erster Post mit benutzerdefiniertem Text hat keine Replies
+        const hasReplies = (i === 1 && firstPostText) ? false : Math.random() < 0.7;
+
         root.onclick = e => {
           e.stopPropagation();
           if (hasReplies) {
@@ -610,6 +622,23 @@
         col.appendChild(root);
       }
       col.scrollTop = 0;
+    }
+
+    /**
+     * Erstellt ein neues Topic und öffnet gleichzeitig Root-Posts
+     * mit dem angegebenen Text als ersten Beitrag.
+     * @param {string} postText - Text für das neue Topic und den ersten Beitrag
+     */
+    function createNewTopicWithPost(postText) {
+      // Neues Topic hinzufügen (oben in der Liste)
+      addTopicCard(postText, true);
+
+      // Das neue Topic ist jetzt das erste Element
+      const topicsCol = document.getElementById("topicsColumn");
+      const newTopicCard = topicsCol.firstElementChild;
+
+      // Root-Posts öffnen mit dem Beitragstext als ersten Post
+      openRoots(newTopicCard, postText, postText);
     }
 
     /**
@@ -684,6 +713,7 @@
       overlay.style.display = "none";
 
       const txt = postText.value.trim() || snippet("(neu)");
+
       if (replyTarget) {
         /* -------------- Als Reply veröffentlichen -------------- */
         const col = ensureCol(replyTarget.depth, false);
@@ -701,9 +731,9 @@
         col.scrollTop = col.scrollHeight;
         select(replyTarget.depth, card);
         clearDeeper(replyTarget.depth);
-      } else if (selected[0]) {
-        /* -------------- Neuer Root-Post zum ausgewählten Thema -------------- */
-        openRoots(selected[0], "(Dein Thema)");
+      } else {
+        /* -------------- Neues Topic mit Root-Post erstellen -------------- */
+        createNewTopicWithPost(txt);
       }
     };
 
