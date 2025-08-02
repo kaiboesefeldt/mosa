@@ -504,7 +504,9 @@
      * @param {HTMLElement} card
      */
     function select(depth, card) {
-      if (selected[depth]) selected[depth].classList.remove("selected");
+      if (selected[depth]) {
+        selected[depth].classList.remove("selected");
+      }
       selected[depth] = card;
       card.classList.add("selected");
       pinCard(depth, card);
@@ -513,9 +515,10 @@
     /**
      * Baut die Statuszeile für verschiedene Kartentypen
      * @param {string} type - "topic", "post", oder "reply"
+     * @param {number|null} count - Spezifische Anzahl für Posts/Antworten
      * @returns {object} - {element: HTMLElement, hasReplies: boolean}
      */
-    const statusLine = (type = "topic") => {
+    const statusLine = (type = "topic", count = null) => {
       const s = document.createElement("div");
       s.className = "status-line";
       let hasReplies = true;
@@ -523,14 +526,13 @@
       if (type === "topic") {
         // Topics: "Pods: X · Posts: Y · Neu: Z"
         const pods = rnd(5);
-        const posts = rnd(200);
-        const neu = rnd(15);
+        const posts = count !== null ? count : rnd(200);
+        const neu = posts > 0 ? rnd(Math.min(posts, 15)) : 0; // Neu darf nicht größer als Posts sein
         s.textContent = `Pods: ${pods} · Posts: ${posts} · Neu: ${neu}`;
       } else {
         // Root-Posts und Replies: "Antworten: X · Neu: Y"
-        // 30% Chance für 0 Antworten
-        const antworten = Math.random() < 0.3 ? 0 : rnd(50);
-        const neu = rnd(15);
+        const antworten = count !== null ? count : rnd(50);
+        const neu = antworten > 0 ? rnd(Math.min(antworten, 15)) : 0; // Neu darf nicht größer als Antworten sein
         s.textContent = `Antworten: ${antworten} · Neu: ${neu}`;
         hasReplies = antworten > 0;
       }
@@ -549,6 +551,14 @@
       b.textContent = "↩";
       b.onclick = e => {
         e.stopPropagation();
+
+        // Die Karte, die den Reply-Button enthält, selektieren
+        const card = e.target.closest('.card');
+        if (card) {
+          select(depth, card);
+          clearDeeper(depth);
+        }
+
         replyTarget = { depth: depth + 1 };
         modalTitle.textContent = "Antwort verfassen";
         postText.value = "";
@@ -605,7 +615,10 @@
       };
       card.appendChild(fav);
 
-      card.appendChild(statusLine("topic").element); // Topics zeigen "Pods · Posts · Neu"
+      // Zuerst Anzahl der Root-Posts bestimmen, dann Statuszeile erstellen
+      const rootPostCount = rnd(8) + 3;
+      card.dataset.rootPostCount = rootPostCount; // Speichern für späteren Abruf
+      card.appendChild(statusLine("topic", rootPostCount).element);
       card.onclick = () => openRoots(card, text);
 
       const topicsCol = document.getElementById("topicsColumn");
@@ -644,7 +657,9 @@
       select(0, topicCard);
 
       const col = ensureCol(1, true);
-      const count = rnd(8) + 3;
+
+      // Gespeicherte Anzahl aus dem Topic-Card lesen
+      const count = parseInt(topicCard.dataset.rootPostCount) || (rnd(8) + 3);
 
       for (let i = 1; i <= count; i++) {
         const root = document.createElement("div");
@@ -666,21 +681,36 @@
 
         root.appendChild(postBody);
 
-        const statusInfo = statusLine("post");
+        // Erster Post (neuer Post) hat immer 0 Antworten, andere bekommen zufällige Anzahl
+        let replyCount;
+        if (i === 1 && firstPostText) {
+          replyCount = 0; // Neue Posts haben keine Antworten
+        } else {
+          replyCount = Math.random() < 0.3 ? 0 : Math.floor(Math.random() * 6);
+        }
+
+        const statusInfo = statusLine("post", replyCount);
         root.appendChild(statusInfo.element);
         root.appendChild(replyBtn(1));
 
-        // Erster Post mit benutzerdefiniertem Text hat keine Replies, sonst basiert es auf Statuszeile
-        const hasReplies = (i === 1 && firstPostText) ? false : statusInfo.hasReplies;
+        const hasReplies = replyCount > 0;
 
-        root.onclick = e => {
+        // Reply-Count als data-attribute speichern für späteren Abruf
+        root.dataset.replyCount = replyCount;
+
+        // Click-Handler für Root-Posts
+        root.addEventListener('click', function(e) {
           e.stopPropagation();
+          // Karte IMMER selektieren und tiefere Spalten entfernen
+          select(1, root);
+          clearDeeper(1);
+
+          // Nur bei vorhandenen Replies eine neue Spalte öffnen
           if (hasReplies) {
             openReplies(root, i, topicText, 2);
-          } else {
-            handleCardClick(root, 2, null);
           }
-        };
+        });
+
         col.appendChild(root);
       }
       col.scrollTop = 0;
@@ -693,15 +723,47 @@
      * @param {string} authorName - Name des Autors
      */
     function createNewTopicWithPost(postText, authorName) {
-      // Neues Topic hinzufügen (oben in der Liste)
-      addTopicCard(postText, true);
+      // Anzahl der zusätzlichen Root-Posts bestimmen (der neue Post ist bereits einer)
+      const additionalPosts = rnd(8) + 2; // 3-10 zusätzliche Posts
+      const totalPosts = additionalPosts + 1; // +1 für den neuen Post
 
-      // Das neue Topic ist jetzt das erste Element
+      // Neues Topic hinzufügen mit korrekter Post-Anzahl
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const postBody = document.createElement("div");
+      postBody.className = "post-body";
+      const strong = document.createElement("strong");
+      strong.textContent = postText;
+      postBody.appendChild(strong);
+      card.appendChild(postBody);
+
+      /* Favoriten-Stern */
+      const fav = document.createElement("span");
+      fav.className = "favorite";
+      fav.textContent = "☆";
+      fav.onclick = e => {
+        e.stopPropagation();
+        fav.classList.toggle("fav");
+        fav.textContent = fav.classList.contains("fav") ? "★" : "☆";
+      };
+      card.appendChild(fav);
+
+      // Korrekte Anzahl speichern und Statuszeile erstellen
+      card.dataset.rootPostCount = totalPosts;
+      card.appendChild(statusLine("topic", totalPosts).element);
+      card.onclick = () => openRoots(card, postText);
+
+      // Topic oben in die Liste einfügen
       const topicsCol = document.getElementById("topicsColumn");
-      const newTopicCard = topicsCol.firstElementChild;
+      if (topicsCol.children.length) {
+        topicsCol.insertBefore(card, topicsCol.firstChild);
+      } else {
+        topicsCol.appendChild(card);
+      }
 
       // Root-Posts öffnen mit dem Beitragstext als ersten Post
-      openRoots(newTopicCard, postText, postText, authorName);
+      openRoots(card, postText, postText, authorName);
     }
 
     /**
@@ -712,10 +774,10 @@
      * @param {number} depth          – Ziel-Spaltentiefe
      */
     function openReplies(parentCard, index, topicText, depth) {
-      handleCardClick(parentCard, depth, () => {});
-
       const col = ensureCol(depth, true);
-      const cnt = Math.floor(Math.random()*6);  // 0 … 5 Replies
+
+      // Anzahl der Replies aus dem data-attribute des Parent-Cards lesen
+      const cnt = parseInt(parentCard.dataset.replyCount) || 0;
 
       for (let i = 1; i <= cnt; i++) {
         const rep = document.createElement("div");
@@ -729,19 +791,29 @@
         postBody.textContent = snippet(`Reply ${i} zu #${index}:`);
         rep.appendChild(postBody);
 
-        const statusInfo = statusLine("reply");
+        // Anzahl der potentiellen Sub-Replies bestimmen (50% Chance für 0)
+        const subReplyCount = Math.random() < 0.5 ? 0 : Math.floor(Math.random() * 6);
+        const statusInfo = statusLine("reply", subReplyCount);
         rep.appendChild(statusInfo.element);
         rep.appendChild(replyBtn(depth));
 
-        const hasReplies = statusInfo.hasReplies;
-        rep.onclick = e => {
+        // Sub-Reply-Count als data-attribute speichern
+        rep.dataset.replyCount = subReplyCount;
+        const hasReplies = subReplyCount > 0;
+
+        // Click-Handler für Replies
+        rep.addEventListener('click', function(e) {
           e.stopPropagation();
+          // Karte IMMER selektieren und tiefere Spalten entfernen
+          select(depth, rep);
+          clearDeeper(depth);
+
+          // Nur bei vorhandenen Sub-Replies eine neue Spalte öffnen
           if (hasReplies) {
             openReplies(rep, i, topicText, depth + 1);
-          } else {
-            handleCardClick(rep, depth + 1, null);
           }
-        };
+        });
+
         col.appendChild(rep);
       }
       col.scrollTop = 0;
@@ -796,18 +868,25 @@
         postBody.textContent = txt;
         card.appendChild(postBody);
 
-        const statusInfo = statusLine("reply");
-        card.appendChild(statusInfo.element); // Neue Replies zeigen "Antworten · Neu"
+        // Neue Replies haben immer 0 Antworten
+        const replyCount = 0;
+        const statusInfo = statusLine("reply", replyCount);
+        card.appendChild(statusInfo.element);
         card.appendChild(replyBtn(replyTarget.depth));
 
-        // Click-Verhalten basierend auf Antworten-Anzahl
-        const hasReplies = statusInfo.hasReplies;
+        // Reply-Count als data-attribute speichern
+        card.dataset.replyCount = replyCount;
+
+        // Click-Verhalten für neue Replies
         card.onclick = e => {
           e.stopPropagation();
+          // Karte immer selektieren und tiefere Spalten entfernen
+          select(replyTarget.depth, card);
+          clearDeeper(replyTarget.depth);
+
+          // Nur bei vorhandenen Antworten eine neue Spalte öffnen (bei neuen Replies immer 0)
           if (hasReplies) {
             openReplies(card, 1, "Neue Antwort", replyTarget.depth + 1);
-          } else {
-            handleCardClick(card, replyTarget.depth + 1, null);
           }
         };
         col.appendChild(card);
