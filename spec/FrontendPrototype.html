@@ -156,6 +156,15 @@
             color: #333;
         }
 
+        .post-author {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--accent);
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+        }
+
         .status-line {
             position: absolute;
             bottom: 6px;
@@ -386,6 +395,35 @@
       "Interdisziplinäre Ansätze in der Krebstherapieforschung …"
     ];
 
+    /** Liste möglicher Autoren-Namen */
+    const authorNames = [
+      "Anna Weber", "Max Schmidt", "Sarah Johnson", "David Chen",
+      "Maria González", "Tom Anderson", "Lisa Müller", "Chris Taylor",
+      "Nina Rossi", "Alex Kim", "Emma Brown", "Lucas Dubois",
+      "Zara Patel", "Jonas Berg", "Sofia Larsson", "Ben Wilson",
+      "Mia Fischer", "Ryan O'Connor", "Lea Kowalski", "Sam Rivera"
+    ];
+
+    /**
+     * Wählt zufällig einen Autoren-Namen aus.
+     * @returns {string} Zufälliger Autoren-Name
+     */
+    function getRandomAuthor() {
+      return authorNames[Math.floor(Math.random() * authorNames.length)];
+    }
+
+    /**
+     * Erstellt ein Autoren-Element für Posts.
+     * @param {string} authorName - Name des Autors
+     * @returns {HTMLElement} Autoren-Element
+     */
+    function createAuthorElement(authorName) {
+      const authorDiv = document.createElement("div");
+      authorDiv.className = "post-author";
+      authorDiv.textContent = authorName;
+      return authorDiv;
+    }
+
     /* --------------------------------------------------------------------
        1. DOM-Referenzen
     -------------------------------------------------------------------- */
@@ -472,14 +510,19 @@
       pinCard(depth, card);
     }
 
-    /** Baut die Statuszeile „Pods / Posts / Neu" */
-    const statusLine = () => {
+    /**
+     * Baut die Statuszeile „Pods / Posts / Neu" oder „Pods / Antworten / Neu"
+     * @param {boolean} isPost - true für Posts/Replies, false für Topics
+     */
+    const statusLine = (isPost = false) => {
       const s = document.createElement("div");
       s.className = "status-line";
       const pods = rnd(5);
-      const posts = rnd(200);
+      const count = rnd(200);
       const neu = rnd(15);
-      s.textContent = `Pods: ${pods} · Posts: ${posts} · Neu: ${neu}`;
+
+      const middleLabel = isPost ? "Antworten" : "Posts";
+      s.textContent = `Pods: ${pods} · ${middleLabel}: ${count} · Neu: ${neu}`;
       return s;
     };
 
@@ -550,7 +593,7 @@
       };
       card.appendChild(fav);
 
-      card.appendChild(statusLine());
+      card.appendChild(statusLine(false)); // Topics zeigen "Posts"
       card.onclick = () => openRoots(card, text);
 
       const topicsCol = document.getElementById("topicsColumn");
@@ -583,8 +626,9 @@
      * @param {HTMLElement} topicCard
      * @param {string} topicText
      * @param {string|null} firstPostText - Optional: Text für ersten Post
+     * @param {string|null} firstPostAuthor - Optional: Autor für ersten Post
      */
-    function openRoots(topicCard, topicText, firstPostText = null) {
+    function openRoots(topicCard, topicText, firstPostText = null, firstPostAuthor = null) {
       select(0, topicCard);
 
       const col = ensureCol(1, true);
@@ -593,6 +637,10 @@
       for (let i = 1; i <= count; i++) {
         const root = document.createElement("div");
         root.className = "card";
+
+        // Autor hinzufügen
+        const author = (i === 1 && firstPostAuthor) ? firstPostAuthor : getRandomAuthor();
+        root.appendChild(createAuthorElement(author));
 
         const postBody = document.createElement("div");
         postBody.className = "post-body";
@@ -605,7 +653,7 @@
         }
 
         root.appendChild(postBody);
-        root.appendChild(statusLine());
+        root.appendChild(statusLine(true)); // Root-Posts zeigen "Antworten"
         root.appendChild(replyBtn(1));
 
         // Erster Post mit benutzerdefiniertem Text hat keine Replies
@@ -628,8 +676,9 @@
      * Erstellt ein neues Topic und öffnet gleichzeitig Root-Posts
      * mit dem angegebenen Text als ersten Beitrag.
      * @param {string} postText - Text für das neue Topic und den ersten Beitrag
+     * @param {string} authorName - Name des Autors
      */
-    function createNewTopicWithPost(postText) {
+    function createNewTopicWithPost(postText, authorName) {
       // Neues Topic hinzufügen (oben in der Liste)
       addTopicCard(postText, true);
 
@@ -638,7 +687,7 @@
       const newTopicCard = topicsCol.firstElementChild;
 
       // Root-Posts öffnen mit dem Beitragstext als ersten Post
-      openRoots(newTopicCard, postText, postText);
+      openRoots(newTopicCard, postText, postText, authorName);
     }
 
     /**
@@ -658,12 +707,15 @@
         const rep = document.createElement("div");
         rep.className = "card";
 
+        // Autor hinzufügen
+        rep.appendChild(createAuthorElement(getRandomAuthor()));
+
         const postBody = document.createElement("div");
         postBody.className = "post-body";
         postBody.textContent = snippet(`Reply ${i} zu #${index}:`);
         rep.appendChild(postBody);
 
-        rep.appendChild(statusLine());
+        rep.appendChild(statusLine(true)); // Replies zeigen "Antworten"
         rep.appendChild(replyBtn(depth));
 
         const hasReplies = Math.random() < 0.5;
@@ -713,6 +765,7 @@
       overlay.style.display = "none";
 
       const txt = postText.value.trim() || snippet("(neu)");
+      const author = getRandomAuthor();
 
       if (replyTarget) {
         /* -------------- Als Reply veröffentlichen -------------- */
@@ -720,12 +773,15 @@
         const card = document.createElement("div");
         card.className = "card";
 
+        // Autor hinzufügen
+        card.appendChild(createAuthorElement(author));
+
         const postBody = document.createElement("div");
         postBody.className = "post-body";
         postBody.textContent = txt;
         card.appendChild(postBody);
 
-        card.appendChild(statusLine());
+        card.appendChild(statusLine(true)); // Neue Replies zeigen "Antworten"
         card.appendChild(replyBtn(replyTarget.depth));
         col.appendChild(card);
         col.scrollTop = col.scrollHeight;
@@ -733,7 +789,7 @@
         clearDeeper(replyTarget.depth);
       } else {
         /* -------------- Neues Topic mit Root-Post erstellen -------------- */
-        createNewTopicWithPost(txt);
+        createNewTopicWithPost(txt, author);
       }
     };
 
