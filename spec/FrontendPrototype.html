@@ -511,18 +511,26 @@
     }
 
     /**
-     * Baut die Statuszeile „Pods / Posts / Neu" oder „Pods / Antworten / Neu"
-     * @param {boolean} isPost - true für Posts/Replies, false für Topics
+     * Baut die Statuszeile für verschiedene Kartentypen
+     * @param {string} type - "topic", "post", oder "reply"
      */
-    const statusLine = (isPost = false) => {
+    const statusLine = (type = "topic") => {
       const s = document.createElement("div");
       s.className = "status-line";
-      const pods = rnd(5);
-      const count = rnd(200);
-      const neu = rnd(15);
 
-      const middleLabel = isPost ? "Antworten" : "Posts";
-      s.textContent = `Pods: ${pods} · ${middleLabel}: ${count} · Neu: ${neu}`;
+      if (type === "topic") {
+        // Topics: "Pods: X · Posts: Y · Neu: Z"
+        const pods = rnd(5);
+        const posts = rnd(200);
+        const neu = rnd(15);
+        s.textContent = `Pods: ${pods} · Posts: ${posts} · Neu: ${neu}`;
+      } else {
+        // Root-Posts und Replies: "Antworten: X · Neu: Y"
+        const antworten = rnd(50);
+        const neu = rnd(15);
+        s.textContent = `Antworten: ${antworten} · Neu: ${neu}`;
+      }
+
       return s;
     };
 
@@ -593,7 +601,7 @@
       };
       card.appendChild(fav);
 
-      card.appendChild(statusLine(false)); // Topics zeigen "Posts"
+      card.appendChild(statusLine("topic")); // Topics zeigen "Pods · Posts · Neu"
       card.onclick = () => openRoots(card, text);
 
       const topicsCol = document.getElementById("topicsColumn");
@@ -653,7 +661,7 @@
         }
 
         root.appendChild(postBody);
-        root.appendChild(statusLine(true)); // Root-Posts zeigen "Antworten"
+        root.appendChild(statusLine("post")); // Root-Posts zeigen "Antworten · Neu"
         root.appendChild(replyBtn(1));
 
         // Erster Post mit benutzerdefiniertem Text hat keine Replies
