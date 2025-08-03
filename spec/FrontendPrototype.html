@@ -688,6 +688,8 @@
         modalTitle.textContent = "Antwort verfassen";
         postText.value = "";
         overlay.style.display = "flex";
+        // Fokus auf das Eingabefeld setzen
+        setTimeout(() => postText.focus(), 100);
 
         console.log("Modal opened, replyTarget still:", replyTarget);
       };
@@ -983,10 +985,26 @@
       modalTitle.textContent = "Neuen Root-Post schreiben";
       postText.value = "";
       overlay.style.display = "flex";
+      // Fokus auf das Eingabefeld setzen
+      setTimeout(() => postText.focus(), 100);
     };
 
     /* Modal-Buttons */
     document.getElementById("cancelBtn").onclick = () => (overlay.style.display = "none");
+
+    /* Tastatur-Shortcuts für das Textfeld */
+    postText.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        if (e.ctrlKey || e.shiftKey) {
+          // Ctrl+Enter oder Shift+Enter: Zeilenumbruch (Standard-Verhalten)
+          return;
+        } else {
+          // Enter allein: Veröffentlichen
+          e.preventDefault();
+          document.getElementById("publishBtn").click();
+        }
+      }
+    });
 
     document.getElementById("publishBtn").onclick = () => {
       overlay.style.display = "none";
