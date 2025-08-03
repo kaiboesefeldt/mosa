@@ -206,6 +206,52 @@
             color: #f5b400;
         }
 
+        .refresh-btn {
+            position: absolute;
+            bottom: 6px;
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: none;
+            font-size: 14px;
+            color: #888;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+
+        /* Refresh-Button bei Topics - ganz rechts */
+        .refresh-btn.topic {
+            right: 10px;
+        }
+
+        /* Refresh-Button bei Posts/Replies - links vom Reply-Button */
+        .refresh-btn.post {
+            right: 40px;
+        }
+
+        .refresh-btn:hover {
+            background: var(--border);
+            color: var(--accent);
+        }
+
+        .refresh-btn.loading {
+            cursor: not-allowed;
+            color: var(--accent);
+        }
+
+        .refresh-btn.loading .refresh-icon {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
         /* ---------- 5. Floating-Action-Button ---------- */
         #fab {
             position: fixed;
@@ -424,6 +470,45 @@
       return authorDiv;
     }
 
+    /**
+     * Erstellt einen Refresh-Button für eine Karte.
+     * @param {string} type - "topic" oder "post" für unterschiedliche Positionierung
+     * @returns {HTMLElement} Refresh-Button-Element
+     */
+    function createRefreshButton(type = "post") {
+      const refreshBtn = document.createElement("button");
+      refreshBtn.className = `refresh-btn ${type}`;
+      refreshBtn.title = "Aktualisieren";
+
+      const icon = document.createElement("span");
+      icon.className = "refresh-icon";
+      icon.textContent = "↻";
+      refreshBtn.appendChild(icon);
+
+      refreshBtn.onclick = e => {
+        e.stopPropagation();
+        startRefresh(refreshBtn);
+      };
+
+      return refreshBtn;
+    }
+
+    /**
+     * Startet den Refresh-Prozess für einen Button.
+     * @param {HTMLElement} refreshBtn - Der Refresh-Button
+     */
+    function startRefresh(refreshBtn) {
+      // Button deaktivieren und Spinner anzeigen
+      refreshBtn.classList.add("loading");
+      refreshBtn.disabled = true;
+
+      // Nach 5 Sekunden wieder aktivieren
+      setTimeout(() => {
+        refreshBtn.classList.remove("loading");
+        refreshBtn.disabled = false;
+      }, 5000);
+    }
+
     /* --------------------------------------------------------------------
        1. DOM-Referenzen
     -------------------------------------------------------------------- */
@@ -615,6 +700,9 @@
       };
       card.appendChild(fav);
 
+      // Refresh-Button hinzufügen (für Topics ganz rechts)
+      card.appendChild(createRefreshButton("topic"));
+
       // Zuerst Anzahl der Root-Posts bestimmen, dann Statuszeile erstellen
       const rootPostCount = rnd(8) + 3;
       card.dataset.rootPostCount = rootPostCount; // Speichern für späteren Abruf
@@ -680,6 +768,9 @@
         }
 
         root.appendChild(postBody);
+
+        // Refresh-Button hinzufügen (links vom Reply-Button)
+        root.appendChild(createRefreshButton("post"));
 
         // Erster Post (neuer Post) hat immer 0 Antworten, andere bekommen zufällige Anzahl
         let replyCount;
@@ -749,6 +840,9 @@
       };
       card.appendChild(fav);
 
+      // Refresh-Button hinzufügen (für Topics ganz rechts)
+      card.appendChild(createRefreshButton("topic"));
+
       // Korrekte Anzahl speichern und Statuszeile erstellen
       card.dataset.rootPostCount = totalPosts;
       card.appendChild(statusLine("topic", totalPosts).element);
@@ -790,6 +884,9 @@
         postBody.className = "post-body";
         postBody.textContent = snippet(`Reply ${i} zu #${index}:`);
         rep.appendChild(postBody);
+
+        // Refresh-Button hinzufügen
+        rep.appendChild(createRefreshButton());
 
         // Anzahl der potentiellen Sub-Replies bestimmen (50% Chance für 0)
         const subReplyCount = Math.random() < 0.5 ? 0 : Math.floor(Math.random() * 6);
@@ -867,6 +964,9 @@
         postBody.className = "post-body";
         postBody.textContent = txt;
         card.appendChild(postBody);
+
+        // Refresh-Button hinzufügen
+        card.appendChild(createRefreshButton());
 
         // Neue Replies haben immer 0 Antworten
         const replyCount = 0;
