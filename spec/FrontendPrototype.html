@@ -1010,7 +1010,7 @@
       overlay.style.display = "none";
 
       const txt = postText.value.trim() || snippet("(neu)");
-      const author = getRandomAuthor();
+      const author = currentUser;
 
       if (replyTarget) {
         /* -------------- Als Reply veröffentlichen -------------- */
