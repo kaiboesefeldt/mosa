@@ -2,67 +2,9 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8"/>
-    <title>Mosa-SPA Mockup – v14 (bereinigte Fassung)</title>
+    <title>Mosa-SPA Simplified – 3-Column Design</title>
     <meta content="width=device-width,initial-scale=1" name="viewport"/>
 
-    <!--
-        ===================
-        = Anforderungen
-        ===================
-        # A. Grundlayout & Navigation
-        A1	Single-Page-App mit horizontalen Spalten (Columns), die nach rechts tiefer in den Diskurs führen.	<div class="column" data-depth="…"> – dynamisch erzeugt / entfernt.
-        A2	Topics-Spalte links, Root-Posts und rekursive Reply-Spalten rechts.	Spalten werden bei Interaktionen angelegt oder geleert.
-        A3	Breadcrumb-ähnliche Selektion: Pro Spalte genau eine markierte Karte („selected").	selected[depth] Hash → CSS .selected.
-        A4	Sticky Pinning: Die markierte Karte jeder Spalte wird oben angeheftet.	.pinned {position: sticky; top: 0}
-        A5	Glattes Umsortieren: Neue Auswahl gleitet hoch; bisherige pinned-Karte gleitet sanft nach unten (FLIP + slide-down).	JS FLIP-Berechnung + .slide-down Klasse.
-        A6	Spalten-Reset: Beim Öffnen einer tieferen Ebene werden alle Spalten rechts davon entfernt/geleert.	clearDeeper(depth) Hilfsfunktion.
-
-        # B. Topics
-        B1	10 ausführliche Topics (langer Beschreibungstext).	Array topics[] → Karten-Generierung.
-        B2	Karten-Darstellung mit: – Text, – Statuszeile „Pods	Posts
-        B3	Topic-Suche / Quick-Add: Eingabe im Header-Suchfeld → Enter fügt neues Topic oben ein.	Adds Card mit prepend true.
-
-        # C. Root-Posts
-        C1	Pro Topic 3 – 11 Root-Posts, je eigene Karte.	Zufalls­generator.
-        C2	Inhalt: 100 – 500 Zeichen Lorem-Snippet, Status­zeile wie Topics.
-        C3	Reply-Button (↩) in jeder Root-Post-Karte, öffnet Reply-Modal.
-        C4	Posts ohne Replies sind zulässig und anklickbar; wählen sie aus, wird rechte Spalte leer angezeigt.
-
-        # D. Replies
-        D1	Rekursive Darstellung identisch zu Root-Posts (Karte, Status, Reply-Button).
-        D2	Jede Ebene erzeugt 0 – 5 Replies; Wahrscheinlichkeit für weitere Tiefe 50 %.
-        D3	Neues Reply erscheint am Ende der nächsten Spalte, Spalte scrollt zum Eintrag, Karte wird markiert & gepinnt, tiefere Spalten werden geleert.
-
-        # E. Beitrag verfassen
-        E1	Globaler FAB (＋) rechts unten für neuen Root-Post (Modal).
-        E2	Reply-Modal (wiederverwendet für Antworten) mit Textarea, Abbrechen/Veröffentlichen-Buttons.
-        E3	Neuer Beitrag via FAB erstellt automatisch neues Topic (linke Spalte) mit Beitragstext.
-        E4	Gleichzeitig erscheint der Beitrag in zweiter Spalte zusammen mit zufälligen weiteren Posts.
-        E5	Der neue Hauptbeitrag hat keine Antworten (nicht anklickbar für tiefere Ebenen).
-
-        # F. Animation & Interaktion
-        F1	FLIP-Animation für Karten-Reihenfolge beim Pinnen (alle Karten gleiten).
-        F2	Pulse-Highlight beim Anpinnen einer Karte (CSS @keyframes pulse).
-        F3	Hover-Shadow Effekt auf Karten, FAB-Rotation beim Hover.
-
-        # G. Style & Branding
-        G1	Pastell-Beige Grundfarbwelt (--bg, --card, --border).
-        G2	Akzentfarbe Pastellgrün (--accent) für Highlights & Buttons.
-        G3	Vintage-Comic-Schildkröte als MOSA-Logo (SVG, pastellgrün).
-
-        # H. Technische Hilfen
-        H1	Sticky Header mit Logo & Suchfeld.
-        H2	Smooth horizontal / vertical scroll (scroll-behavior:smooth).
-        H3	Strukturierte JS-State-Verwaltung (selected, pinned, replyTarget).
-    -->
-
-    <!--
-      ===================
-      = Globales Styling =
-      ===================
-      Der gesamte CSS-Block ist bewusst weiterhin inline,
-      um das Beispiel als reine HTML-Datei lauffähig zu halten.
-    -->
     <style>
         /* ---------- 1. CSS-Variablen ---------- */
         :root {
@@ -70,6 +12,7 @@
             --card: #fffdf9;
             --border: #e2dcd2;
             --accent: #9ac99a;
+            --new-indicator: #ff6b6b;
         }
 
         /* ---------- 2. Basis-Layout ---------- */
@@ -130,13 +73,13 @@
         #columns {
             display: flex;
             overflow-x: auto;
-            height: calc(100vh - 60px);   /* 60 px ≈ Headerhöhe */
+            height: calc(100vh - 60px);
         }
 
         .column {
             flex: 0 0 360px;
             border-right: 1px solid #ddd;
-            padding: 10px;
+            padding: 8px;
             overflow-y: auto;
             scroll-behavior: smooth;
         }
@@ -147,8 +90,8 @@
             background: var(--card);
             border: 1px solid var(--border);
             border-radius: 6px;
-            padding: 10px 10px 52px;      /* Platz für Statuszeile + Button */
-            margin-bottom: 12px;
+            padding: 8px;
+            margin-bottom: 8px;
             cursor: pointer;
             transition: box-shadow .15s, transform .25s ease;
         }
@@ -158,22 +101,78 @@
         }
 
         .card.selected {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 2px var(--accent) inset;
+            border: 2px solid var(--accent);
+            box-shadow: 0 0 0 1px rgba(154, 201, 154, 0.3);
+            background: rgba(154, 201, 154, 0.05);
         }
 
         .card.pinned {
             position: sticky;
             top: 0;
-            z-index: 2;
-            background: #fffffc;
-            animation: pulse 0.8s ease-out 1;
+            z-index: 3;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #bbf7d0 100%);
+            border: 2px solid rgba(34, 197, 94, 0.4);
+            box-shadow:
+                0 8px 32px rgba(34, 197, 94, 0.15),
+                0 4px 16px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9),
+                inset 0 -1px 0 rgba(34, 197, 94, 0.1);
+            margin-bottom: 16px;
+            transform: scale(0.98);
+            opacity: 0.95;
+            cursor: default;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(8px);
+            overflow: visible; /* Wichtig für die Button-Leisten */
+        }
+
+        .card.pinned:hover {
+            transform: scale(1);
+            opacity: 1;
+            box-shadow:
+                0 12px 40px rgba(34, 197, 94, 0.2),
+                0 6px 20px rgba(0, 0, 0, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 1),
+                inset 0 -1px 0 rgba(34, 197, 94, 0.2);
+        }
+
+        .card.pinned::after {
+            content: "";
+            position: absolute;
+            bottom: -8px;
+            left: 12px;
+            right: 12px;
+            height: 3px;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(34, 197, 94, 0.3) 20%,
+                rgba(34, 197, 94, 0.8) 50%,
+                rgba(34, 197, 94, 0.3) 80%,
+                transparent 100%);
+            border-radius: 2px;
+            box-shadow: 0 1px 3px rgba(34, 197, 94, 0.3);
+        }
+
+        .card.pinned .post-body {
+            color: #166534;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+        }
+
+        .card.pinned .post-author {
+            color: #15803d;
+            font-weight: 700;
+        }
+
+        .card.pinned .status-line {
+            opacity: 0.8;
+            color: #166534;
         }
 
         .post-body {
             font-size: 14px;
             line-height: 1.4;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             color: #333;
         }
 
@@ -181,96 +180,284 @@
             font-size: 12px;
             font-weight: bold;
             color: var(--accent);
-            margin-bottom: 6px;
-            padding-bottom: 4px;
+            margin-bottom: 4px;
+            padding-bottom: 3px;
             border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .status-line {
             position: absolute;
             bottom: 6px;
-            left: 10px;
-            width: calc(100% - 70px);      /* Platz für Reply-Button */
+            left: 8px;
+            width: calc(100% - 16px);
             font-size: 12px;
             color: var(--accent);
             display: flex;
-            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Neue Bömmel-Indikatoren */
+        .new-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--new-indicator);
+            display: inline-block;
+            animation: pulse-glow 2s infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.3); }
+        }
+
+        /* Spezielle Styling für Topic-Karten */
+        .card.topic {
+            position: relative;
+        }
+
+        .card.topic .post-author {
+            padding-right: 32px; /* Platz für den Favoriten-Stern */
+        }
+
+        .card.topic .favorite {
+            opacity: 1;
+            visibility: visible;
+            position: absolute;
+            top: 6px; /* Angepasst für bessere Ausrichtung zur Kopfzeile */
+            right: 8px;
+            font-size: 18px; /* Etwas kleiner für bessere Proportionen */
+            color: #bbb;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 4;
+            line-height: 1; /* Verhindert zusätzlichen Zeilenabstand */
+        }
+
+        .card.topic .favorite.fav {
+            color: #f5b400;
+        }
+
+        .card.topic .post-body {
+            padding-right: 0px; /* Kein extra Platz mehr nötig */
+        }
+
+        /* Angeheftete Karten Button-Leiste */
+        .pinned-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 0;
+            background: transparent;
+            border-radius: 0;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+
+        .card.pinned:hover .pinned-actions {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .pinned-action-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(25, 118, 210, 0.9);
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .pinned-action-btn:hover {
+            background: rgba(20, 86, 163, 0.95);
+            transform: scale(1.1);
+        }
+
+        .pinned-action-btn.loading {
+            background: rgba(102, 102, 102, 0.9);
+        }
+
+        .pinned-action-btn.loading .action-icon {
+            animation: spin 1s linear infinite;
+        }
+
+        .pinned-action-btn.add-btn {
+            background: rgba(34, 197, 94, 0.9);
+        }
+
+        .pinned-action-btn.add-btn:hover {
+            background: rgba(22, 163, 74, 0.95);
+        }
+
+        .pinned-action-btn.magnet-btn-pinned {
+            background: rgba(154, 201, 154, 0.9);
+        }
+
+        .pinned-action-btn.magnet-btn-pinned:hover {
+            background: rgba(124, 172, 124, 0.95);
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .card .reply-btn,
+        .card .favorite,
+        .card .magnet-btn {
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 4;
+        }
+
+        .card:hover .reply-btn,
+        .card:hover .favorite,
+        .card:hover .magnet-btn {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .card.pinned .reply-btn,
+        .card.pinned .favorite,
+        .card.pinned .magnet-btn {
+            display: none;
         }
 
         .reply-btn {
             position: absolute;
-            bottom: 6px;
-            right: 10px;
-            padding: 2px 6px;
-            font-size: 13px;
+            bottom: 8px;
+            right: 8px;
+            width: 32px;
+            height: 32px;
             border: none;
-            border-radius: 4px;
-            background: #1976d2;
+            border-radius: 50%;
+            background: rgba(25, 118, 210, 0.9);
             color: #fff;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
         .reply-btn:hover {
-            background: #1456a3;
+            background: rgba(20, 86, 163, 0.95);
+            transform: scale(1.1);
+        }
+
+        .magnet-btn {
+            position: absolute;
+            bottom: 8px;
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(154, 201, 154, 0.9);
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .magnet-btn:hover {
+            background: rgba(124, 172, 124, 0.95);
+            transform: scale(1.1);
+        }
+
+        /* Positionierung für Posts (unten rechts) */
+        .column[data-depth="1"] .card .magnet-btn {
+            right: 8px;
+        }
+
+        /* Horizontale Button-Leiste für Replies */
+        .column[data-depth="2"] .card .reply-actions {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            display: flex;
+            gap: 6px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 4;
+        }
+
+        .column[data-depth="2"] .card:hover .reply-actions {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .column[data-depth="2"] .card .reply-actions .magnet-btn,
+        .column[data-depth="2"] .card .reply-actions .reply-btn {
+            position: static;
+            opacity: 1;
+            visibility: visible;
         }
 
         .favorite {
             position: absolute;
             top: 8px;
             right: 8px;
-            font-size: 18px;
-            color: #bbb;
+            font-size: 20px;
+            color: rgba(187, 187, 187, 0.9);
             cursor: pointer;
+            transition: all 0.2s ease;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            z-index: 4;
         }
 
         .favorite.fav {
-            color: #f5b400;
+            color: rgba(245, 180, 0, 0.95);
         }
 
-        .refresh-btn {
-            position: absolute;
-            bottom: 6px;
-            width: 20px;
-            height: 20px;
-            border: none;
-            background: none;
-            font-size: 14px;
-            color: #888;
+        /* Referenz-Styling */
+        .reply-reference {
+            background: #f0f8ff;
+            border-left: 3px solid var(--accent);
+            padding: 4px 6px;
+            margin: 4px 0;
+            font-size: 12px;
+            color: #666;
+            border-radius: 0 4px 4px 0;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: all 0.2s ease;
+            transition: background-color 0.2s ease;
         }
 
-        /* Refresh-Button bei Topics - ganz rechts */
-        .refresh-btn.topic {
-            right: 10px;
+        .reply-reference:hover {
+            background: #e6f3ff;
         }
 
-        /* Refresh-Button bei Posts/Replies - links vom Reply-Button */
-        .refresh-btn.post {
-            right: 40px;
-        }
-
-        .refresh-btn:hover {
-            background: var(--border);
+        .reply-reference::before {
+            content: "↳ ";
             color: var(--accent);
-        }
-
-        .refresh-btn.loading {
-            cursor: not-allowed;
-            color: var(--accent);
-        }
-
-        .refresh-btn.loading .refresh-icon {
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            font-weight: bold;
         }
 
         /* ---------- 5. Floating-Action-Button ---------- */
@@ -400,7 +587,7 @@
 
 <!-- ======= Dynamische Spalten-Container ======= -->
 <main id="columns">
-    <!-- Themen-Spalte (Depth 0) wird beim Start befüllt -->
+    <!-- Themen-Spalte (Depth 0) -->
     <div class="column" data-depth="0" id="topicsColumn"></div>
 </main>
 
@@ -411,6 +598,7 @@
 <div id="overlay">
     <div id="modal">
         <h3 id="modalTitle">Neuer Beitrag</h3>
+        <div id="replyReference" style="display: none;"></div>
         <label for="postText" class="sr-only">Beitragstext</label>
         <textarea id="postText"
                   aria-label="Dein Text"
@@ -422,32 +610,19 @@
     </div>
 </div>
 
-<!--
-  =========================================
-  = JavaScript-Logik (Client-seitig) ======
-  =========================================
--->
 <script>
     /* --------------------------------------------------------------------
        0. Hilfsfunktionen & Konstanten
     -------------------------------------------------------------------- */
 
-    /** Aktueller Benutzer */
     const currentUser = "Max Schmidt";
 
-    /** Blindtext für Beispiel-Posts */
     const lorem =
       "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
       "Sed non risus. Suspendisse lectus tortor, dignissim sit amet.";
 
-    /** Zufallszahl 1 … n */
     const rnd = n => Math.floor(Math.random() * n) + 1;
 
-    /**
-     * Erzeugt einen Blindtext-Snippet fester Länge (500 ± 100 Zeichen).
-     * @param {string} prefix – Wird dem Text vorangestellt (z. B. „Reply …")
-     * @returns {string} Snippet-Text
-     */
     function snippet(prefix = "") {
       const len = rnd(400) + 100;
       let txt = "";
@@ -456,21 +631,19 @@
       return fullText.substring(0, len);
     }
 
-    /** Vordefinierte Beispiel-Themen (Depth 0) */
     const longTopics = [
-      "Die Herausforderungen und Chancen, die Städte weltweit …",
-      "Politische, juristische und wirtschaftliche Auswirkungen …",
-      "Praxisberichte zum Einsatz der Programmiersprache Rust …",
-      "Evaluierung von Open-Source-Alternativen zu Cloud-Plattformen …",
-      "Aktuelle psychologische Studien zur Wirkung intensiver …",
-      "Technologische Fortschritte bei lasergetriebenen Fusionsreaktoren …",
-      "Historische Analysen von Handelsrouten der Seidenstraße …",
-      "Nachhaltige Landwirtschaft: Methoden und Fallstudien …",
-      "Auswirkungen von KI auf kreative Branchen und Urheberrechte …",
-      "Interdisziplinäre Ansätze in der Krebstherapieforschung …"
+      "Die Herausforderungen und Chancen, die Städte weltweit im Rahmen der fortschreitenden Urbanisierung und des Klimawandels bewältigen müssen",
+      "Politische, juristische und wirtschaftliche Auswirkungen der neuen EU-Datenschutzrichtlinien auf mittelständische Unternehmen in Deutschland",
+      "Praxisberichte zum Einsatz der Programmiersprache Rust in kritischen Systemen und Performance-kritischen Anwendungen verschiedener Branchen",
+      "Evaluierung von Open-Source-Alternativen zu proprietären Cloud-Plattformen unter Berücksichtigung von Sicherheit, Skalierbarkeit und Kosten",
+      "Aktuelle psychologische Studien zur Wirkung intensiver Nutzung sozialer Medien auf die mentale Gesundheit von Jugendlichen und jungen Erwachsenen",
+      "Technologische Fortschritte bei lasergetriebenen Fusionsreaktoren und deren potenzielle Bedeutung für die globale Energiewende",
+      "Historische Analysen von Handelsrouten der Seidenstraße und deren Einfluss auf kulturellen und technologischen Austausch zwischen Ost und West",
+      "Nachhaltige Landwirtschaft: Moderne Methoden und internationale Fallstudien zur Reduzierung des ökologischen Fußabdrucks in der Nahrungsmittelproduktion",
+      "Auswirkungen von Künstlicher Intelligenz auf kreative Branchen, Arbeitsplätze und rechtliche Fragen des Urheberrechts im digitalen Zeitalter",
+      "Interdisziplinäre Ansätze in der Krebstherapieforschung: Kombinationen aus Immuntherapie, Nanotechnologie und personalisierten Behandlungskonzepten"
     ];
 
-    /** Liste möglicher Autoren-Namen */
     const authorNames = [
       "Anna Weber", "Max Schmidt", "Sarah Johnson", "David Chen",
       "Maria González", "Tom Anderson", "Lisa Müller", "Chris Taylor",
@@ -479,59 +652,115 @@
       "Mia Fischer", "Ryan O'Connor", "Lea Kowalski", "Sam Rivera"
     ];
 
-    /**
-     * Wählt zufällig einen Autoren-Namen aus.
-     * @returns {string} Zufälliger Autoren-Name
-     */
     function getRandomAuthor() {
       return authorNames[Math.floor(Math.random() * authorNames.length)];
     }
 
-    /**
-     * Erstellt ein Autoren-Element für Posts.
-     * @param {string} authorName - Name des Autors
-     * @returns {HTMLElement} Autoren-Element
-     */
-    function createAuthorElement(authorName) {
+    function createAuthorElement(authorName, hasNew = false) {
       const authorDiv = document.createElement("div");
       authorDiv.className = "post-author";
-      authorDiv.textContent = authorName;
+
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = authorName;
+      authorDiv.appendChild(nameSpan);
+
+      if (hasNew) {
+        const indicator = document.createElement("div");
+        indicator.className = "new-indicator";
+        authorDiv.appendChild(indicator);
+      }
+
       return authorDiv;
     }
 
-    /**
-     * Erstellt einen Refresh-Button für eine Karte.
-     * @param {string} type - "topic" oder "post" für unterschiedliche Positionierung
-     * @returns {HTMLElement} Refresh-Button-Element
-     */
-    function createRefreshButton(type = "post") {
-      const refreshBtn = document.createElement("button");
-      refreshBtn.className = `refresh-btn ${type}`;
-      refreshBtn.title = "Aktualisieren";
+    function createPinnedActions(columnType) {
+      const actionsDiv = document.createElement("div");
+      actionsDiv.className = "pinned-actions";
 
-      const icon = document.createElement("span");
-      icon.className = "refresh-icon";
-      icon.textContent = "↻";
-      refreshBtn.appendChild(icon);
+      // Reload-Button für alle Spalten
+      const reloadBtn = document.createElement("button");
+      reloadBtn.className = "pinned-action-btn reload-btn";
+      reloadBtn.title = "Aktualisieren";
 
-      refreshBtn.onclick = e => {
+      const reloadIcon = document.createElement("span");
+      reloadIcon.className = "action-icon";
+      reloadIcon.textContent = "↻";
+      reloadBtn.appendChild(reloadIcon);
+
+      reloadBtn.onclick = e => {
         e.stopPropagation();
-        startRefresh(refreshBtn);
+        startRefresh(reloadBtn);
       };
 
-      return refreshBtn;
+      actionsDiv.appendChild(reloadBtn);
+
+      // Magnet-Button nur für Replies-Spalte (da dort ein Post angepinnt ist)
+      if (columnType === 'replies') {
+        const magnetBtn = document.createElement("button");
+        magnetBtn.className = "pinned-action-btn magnet-btn-pinned";
+        magnetBtn.title = "Sammlungs-Topic erstellen";
+
+        const magnetIcon = document.createElement("span");
+        magnetIcon.className = "action-icon";
+        magnetIcon.textContent = "🧲";
+        magnetBtn.appendChild(magnetIcon);
+
+        magnetBtn.onclick = e => {
+          e.stopPropagation();
+
+          // Content aus der angehefteten Karte extrahieren
+          const pinnedCard = e.target.closest('.card.pinned');
+          if (pinnedCard) {
+            const postBody = pinnedCard.querySelector('.post-body');
+            if (postBody) {
+              const contentText = postBody.textContent.trim();
+              createNewTopicFromContent(contentText, currentUser);
+            }
+          }
+        };
+
+        actionsDiv.appendChild(magnetBtn);
+      }
+
+      // Add-Button nur für Replies-Spalte
+      if (columnType === 'replies') {
+        const addBtn = document.createElement("button");
+        addBtn.className = "pinned-action-btn add-btn";
+        addBtn.title = "Antwort hinzufügen";
+
+        const addIcon = document.createElement("span");
+        addIcon.className = "action-icon";
+        addIcon.textContent = "+";
+        addBtn.appendChild(addIcon);
+
+        addBtn.onclick = e => {
+          e.stopPropagation();
+
+          // Neuen Reply-Dialog ohne Referenz öffnen
+          replyTarget = {
+            depth: 2, // Immer in der Replies-Spalte
+            parentCard: null, // Kein spezifischer Parent
+            isReplyToReply: false, // Kein Reply auf einen spezifischen Reply
+            referencedReply: null // Keine Referenz
+          };
+
+          modalTitle.textContent = "Neue Antwort";
+          replyReference.style.display = "none"; // Keine Referenz anzeigen
+          postText.value = "";
+          overlay.style.display = "flex";
+          setTimeout(() => postText.focus(), 100);
+        };
+
+        actionsDiv.appendChild(addBtn);
+      }
+
+      return actionsDiv;
     }
 
-    /**
-     * Startet den Refresh-Prozess für einen Button.
-     * @param {HTMLElement} refreshBtn - Der Refresh-Button
-     */
     function startRefresh(refreshBtn) {
-      // Button deaktivieren und Spinner anzeigen
       refreshBtn.classList.add("loading");
       refreshBtn.disabled = true;
 
-      // Nach 5 Sekunden wieder aktivieren
       setTimeout(() => {
         refreshBtn.classList.remove("loading");
         refreshBtn.disabled = false;
@@ -541,168 +770,129 @@
     /* --------------------------------------------------------------------
        1. DOM-Referenzen
     -------------------------------------------------------------------- */
-    const columns     = document.getElementById("columns");
-    const overlay     = document.getElementById("overlay");
-    const modalTitle  = document.getElementById("modalTitle");
-    const postText    = document.getElementById("postText");
+    const columns = document.getElementById("columns");
+    const overlay = document.getElementById("overlay");
+    const modalTitle = document.getElementById("modalTitle");
+    const postText = document.getElementById("postText");
+    const replyReference = document.getElementById("replyReference");
 
-    /** Aktuelles Reply-Ziel (depth & Spalte); null = Root-Post */
     let replyTarget = null;
-
-    /** Gemerkte Karten (pro depth) */
-    const pinned   = {};
-    const selected = {};
 
     /* --------------------------------------------------------------------
        2. UI-Utility-Funktionen
     -------------------------------------------------------------------- */
 
-    /**
-     * Entfernt alle Spalten tiefer als `depth`
-     * (wird benutzt, wenn man nach links navigiert).
-     * @param {number} depth – maximale Tiefe, die erhalten bleibt
-     */
     function clearDeeper(depth) {
       Array.from(columns.querySelectorAll(".column")).forEach(col => {
         if (parseInt(col.dataset.depth) > depth) {
-          delete selected[col.dataset.depth];
-          delete pinned[col.dataset.depth];
           col.remove();
         }
       });
     }
 
-    /**
-     * Setzt eine Karte als „pinned" (sticky-Header) in ihrer Spalte
-     * mit FLIP-Animation, slide-down & pulse.
-     * @param {number} depth – Spaltentiefe
-     * @param {HTMLElement} card – Karten-Element
-     */
-    function pinCard(depth, card) {
-      const col = document.querySelector(`.column[data-depth="${depth}"]`);
-      if (!col) return;
-
-      const prev = pinned[depth];
-      const firstTop = card.getBoundingClientRect().top;
-
-      if (prev) prev.classList.remove('pinned');
-
-      pinned[depth] = card;
-      card.classList.add('pinned');
-
-      if (card.parentNode === col) {
-        col.insertBefore(card, col.firstChild);
-      }
-
-      const lastTop = card.getBoundingClientRect().top;
-      const dy = firstTop - lastTop;
-
-      if (dy) {
-        card.style.transform = `translateY(${dy}px)`;
-        requestAnimationFrame(() => {
-          card.style.transition = 'transform .25s ease-out';
-          card.style.transform = '';
+    function select(depth, card) {
+      // Entferne "selected" von allen Karten in derselben Spalte
+      const column = columns.querySelector(`.column[data-depth="${depth}"]`);
+      if (column) {
+        column.querySelectorAll('.card.selected').forEach(selectedCard => {
+          selectedCard.classList.remove('selected');
         });
       }
 
-      if (prev && prev !== card) {
-        prev.classList.add('slide-down');
-        setTimeout(() => prev.classList.remove('slide-down'), 300);
+      // Füge "selected" zur geklickten Karte hinzu (aber nicht zu angehefteten Karten)
+      if (card && !card.classList.contains('pinned')) {
+        card.classList.add('selected');
       }
     }
 
-    /**
-     * Markiert eine Karte als ausgewählt
-     * (visuelles Feedback + Pinning).
-     * @param {number} depth
-     * @param {HTMLElement} card
-     */
-    function select(depth, card) {
-      if (selected[depth]) {
-        selected[depth].classList.remove("selected");
-      }
-      selected[depth] = card;
-      card.classList.add("selected");
-      pinCard(depth, card);
+    function magnetBtn(contentText) {
+      const b = document.createElement("button");
+      b.className = "magnet-btn";
+      b.innerHTML = "🧲";
+      b.title = "Sammlungs-Topic erstellen";
+
+      b.onclick = e => {
+        e.stopPropagation();
+        createNewTopicFromContent(contentText, currentUser);
+      };
+      return b;
     }
 
-    /**
-     * Baut die Statuszeile für verschiedene Kartentypen
-     * @param {string} type - "topic", "post", oder "reply"
-     * @param {number|null} count - Spezifische Anzahl für Posts/Antworten
-     * @returns {object} - {element: HTMLElement, hasReplies: boolean}
-     */
-    const statusLine = (type = "topic", count = null) => {
-      const s = document.createElement("div");
-      s.className = "status-line";
-      let hasReplies = true;
+    function createNewTopicFromContent(contentText, authorName = "Max Schmidt") {
+      const card = document.createElement("div");
+      card.className = "card topic";
 
-      if (type === "topic") {
-        // Topics: "Pods: X · Posts: Y · Neu: Z"
-        const pods = rnd(5);
-        const posts = count !== null ? count : rnd(200);
-        const neu = posts > 0 ? rnd(Math.min(posts, 15)) : 0; // Neu darf nicht größer als Posts sein
-        s.textContent = `Pods: ${pods} · Posts: ${posts} · Neu: ${neu}`;
+      // Titelzeile mit Benutzername
+      card.appendChild(createAuthorElement(authorName, false));
+
+      const postBody = document.createElement("div");
+      postBody.className = "post-body";
+      const topicText = "Passend zu " + contentText;
+      postBody.textContent = topicText;
+      card.appendChild(postBody);
+
+      const fav = document.createElement("span");
+      fav.className = "favorite";
+      fav.textContent = "☆";
+      fav.onclick = e => {
+        e.stopPropagation();
+        fav.classList.toggle("fav");
+        fav.textContent = fav.classList.contains("fav") ? "★" : "☆";
+      };
+      card.appendChild(fav);
+
+      card.onclick = () => openPosts(card, topicText);
+
+      const topicsCol = document.getElementById("topicsColumn");
+      if (topicsCol.children.length > 1) {
+        // Füge nach der angehefteten Header-Karte ein (children[1])
+        topicsCol.insertBefore(card, topicsCol.children[1]);
       } else {
-        // Root-Posts und Replies: "Antworten: X · Neu: Y"
-        const antworten = count !== null ? count : rnd(50);
-        const neu = antworten > 0 ? rnd(Math.min(antworten, 15)) : 0; // Neu darf nicht größer als Antworten sein
-        s.textContent = `Antworten: ${antworten} · Neu: ${neu}`;
-        hasReplies = antworten > 0;
+        topicsCol.appendChild(card);
       }
 
-      return { element: s, hasReplies };
-    };
+      // Automatisch das neue Topic öffnen, aber ohne den ursprünglichen Content als ersten Post
+      openPosts(card, topicText);
+    }
 
-    /**
-     * Erstellt einen „Reply"-Button für eine Karte.
-     * Öffnet das Modal und merkt die Ziel-Spalte.
-     * @param {number} depth – Spaltentiefe der *aktuellen* Karte
-     */
-    function replyBtn(depth) {
+    function replyBtn(depth, isReplyToReply = false, referencedReply = null) {
       const b = document.createElement("button");
       b.className = "reply-btn";
-      b.textContent = "↩";
+      b.innerHTML = "↩";
+      b.title = isReplyToReply ? "Auf diese Antwort antworten" : "Antworten";
+
       b.onclick = e => {
         e.stopPropagation();
 
-        console.log("=== REPLY BUTTON CLICKED ===");
-        console.log("Depth:", depth);
-
-        // Die Karte, die den Reply-Button enthält, selektieren
         const card = e.target.closest('.card');
         if (card) {
           select(depth, card);
           clearDeeper(depth);
         }
 
-        // WICHTIG: Reply-Target explizit setzen
         replyTarget = {
-          depth: depth + 1,
-          parentCard: card
+          depth: depth === 0 ? 1 : 2, // Topics -> Posts, Posts/Replies -> Replies
+          parentCard: card,
+          isReplyToReply: isReplyToReply,
+          referencedReply: referencedReply
         };
 
-        console.log("replyTarget set to:", replyTarget);
-        console.log("replyTarget.depth:", replyTarget.depth);
+        modalTitle.textContent = isReplyToReply ? "Auf Antwort antworten" : "Antwort verfassen";
 
-        modalTitle.textContent = "Antwort verfassen";
+        if (isReplyToReply && referencedReply) {
+          replyReference.style.display = "block";
+          replyReference.innerHTML = `<div class="reply-reference">Antwort auf: "${referencedReply.substring(0, 80)}..."</div>`;
+        } else {
+          replyReference.style.display = "none";
+        }
+
         postText.value = "";
         overlay.style.display = "flex";
-        // Fokus auf das Eingabefeld setzen
         setTimeout(() => postText.focus(), 100);
-
-        console.log("Modal opened, replyTarget still:", replyTarget);
       };
       return b;
     }
 
-    /**
-     * Stellt sicher, dass es eine Spalte für `depth` gibt
-     * und leert sie optional.
-     * @param {number} depth – gewünschte Spaltentiefe
-     * @param {boolean} reset – true = Inhalt löschen
-     * @returns {HTMLElement} Spalten-Element
-     */
     function ensureCol(depth, reset = true) {
       let col = columns.querySelector(`.column[data-depth="${depth}"]`);
       if (!col) {
@@ -714,26 +904,41 @@
       if (reset) col.innerHTML = "";
       clearDeeper(depth);
       columns.scrollLeft = columns.scrollWidth;
+
+      // Topics-Spalte bekommt angeheftete Header-Karte
+      if (depth === 0 && reset) {
+        const pinnedHeader = document.createElement("div");
+        pinnedHeader.className = "card pinned";
+
+        const headerBody = document.createElement("div");
+        headerBody.className = "post-body";
+        const strong = document.createElement("strong");
+        strong.textContent = "Topics";
+        headerBody.appendChild(strong);
+        pinnedHeader.appendChild(headerBody);
+
+        col.appendChild(pinnedHeader);
+
+        // Button-Leiste NACH dem Hinzufügen zur Spalte hinzufügen
+        pinnedHeader.appendChild(createPinnedActions('topics'));
+      }
+
       return col;
     }
 
-    /**
-     * Fügt ein neues Themen-Kärtchen in die Spalte 0 ein.
-     * @param {string} text – Themenbeschreibung
-     * @param {boolean} prepend – true = oben einfügen
-     */
-    function addTopicCard(text, prepend = false) {
+    function addTopicCard(text, prepend = false, source = null) {
       const card = document.createElement("div");
-      card.className = "card";
+      card.className = "card topic";
+
+      // Titelzeile mit Quelle
+      const sourceText = source || "pod://climate-research.org"; // Default Pod-URL für Demo
+      card.appendChild(createAuthorElement(sourceText, Math.random() < 0.3));
 
       const postBody = document.createElement("div");
       postBody.className = "post-body";
-      const strong = document.createElement("strong");
-      strong.textContent = text;
-      postBody.appendChild(strong);
+      postBody.textContent = text; // Vollständiger Text
       card.appendChild(postBody);
 
-      /* Favoriten-Stern */
       const fav = document.createElement("span");
       fav.className = "favorite";
       fav.textContent = "☆";
@@ -744,136 +949,207 @@
       };
       card.appendChild(fav);
 
-      // Refresh-Button hinzufügen (für Topics ganz rechts)
-      card.appendChild(createRefreshButton("topic"));
-
-      // Zuerst Anzahl der Root-Posts bestimmen, dann Statuszeile erstellen
-      const rootPostCount = rnd(8) + 3;
-      card.dataset.rootPostCount = rootPostCount; // Speichern für späteren Abruf
-      card.appendChild(statusLine("topic", rootPostCount).element);
-      card.onclick = () => openRoots(card, text);
+      // Kein Refresh-Button für normale Topic-Karten
+      card.onclick = () => openPosts(card, text);
 
       const topicsCol = document.getElementById("topicsColumn");
-      if (prepend && topicsCol.children.length) {
-        topicsCol.insertBefore(card, topicsCol.firstChild);
+      if (prepend && topicsCol.children.length > 1) {
+        // Füge nach der angehefteten Header-Karte ein (children[1])
+        topicsCol.insertBefore(card, topicsCol.children[1]);
       } else {
         topicsCol.appendChild(card);
       }
     }
 
-    /**
-     * Gemeinsamer Klick-Handler, um tieferliegende Spalten
-     * zu leeren oder aufzubauen.
-     * @param {HTMLElement} card – geklickte Karte
-     * @param {number} depth – Zieltiefe für neue Spalte
-     * @param {Function|null} openCb – Callback, der Inhalte lädt
-     */
-    function handleCardClick(card, depth, openCb) {
-      select(depth - 1, card);
-      if (openCb) openCb();            // Inhalte laden
-      else ensureCol(depth, true);     // leere Spalte anlegen
-    }
-
     /* --------------------------------------------------------------------
-       3. Navigations-Funktionen (Themen → Roots → Replies)
+       3. Navigations-Funktionen
     -------------------------------------------------------------------- */
 
-    /**
-     * Öffnet Root-Posts zu einem Thema (Depth 1).
-     * @param {HTMLElement} topicCard
-     * @param {string} topicText
-     * @param {string|null} firstPostText - Optional: Text für ersten Post
-     * @param {string|null} firstPostAuthor - Optional: Autor für ersten Post
-     */
-    function openRoots(topicCard, topicText, firstPostText = null, firstPostAuthor = null) {
+    function openPosts(topicCard, topicText, firstPostText = null, firstPostAuthor = null) {
       select(0, topicCard);
 
       const col = ensureCol(1, true);
 
-      // Gespeicherte Anzahl aus dem Topic-Card lesen
-      const count = parseInt(topicCard.dataset.rootPostCount) || (rnd(8) + 3);
+      // Topic-Karte als fancy Header oben anpinnen
+      const pinnedTopic = topicCard.cloneNode(true);
+      pinnedTopic.classList.add('pinned');
+      pinnedTopic.classList.remove('selected', 'topic');
+
+      // Nicht mehr klickbar machen
+      pinnedTopic.onclick = null;
+      pinnedTopic.style.cursor = 'default';
+
+      col.appendChild(pinnedTopic);
+
+      // Button-Leiste NACH dem Hinzufügen zur Spalte hinzufügen
+      pinnedTopic.appendChild(createPinnedActions('posts'));
+
+      const count = rnd(8) + 3;
 
       for (let i = 1; i <= count; i++) {
-        const root = document.createElement("div");
-        root.className = "card";
+        const post = document.createElement("div");
+        post.className = "card";
 
-        // Autor hinzufügen
         const author = (i === 1 && firstPostAuthor) ? firstPostAuthor : getRandomAuthor();
-        root.appendChild(createAuthorElement(author));
+        const hasNew = Math.random() < 0.4;
+        post.appendChild(createAuthorElement(author, hasNew));
 
         const postBody = document.createElement("div");
         postBody.className = "post-body";
 
-        // Erster Post bekommt benutzerdefinierten Text wenn vorhanden
         if (i === 1 && firstPostText) {
           postBody.textContent = firstPostText;
         } else {
           postBody.textContent = snippet();
         }
 
-        root.appendChild(postBody);
+        post.appendChild(postBody);
 
-        // Refresh-Button hinzufügen (links vom Reply-Button)
-        root.appendChild(createRefreshButton("post"));
+        // Magnet-Button für Posts hinzufügen
+        post.appendChild(magnetBtn(postBody.textContent));
 
-        // Erster Post (neuer Post) hat immer 0 Antworten, andere bekommen zufällige Anzahl
-        let replyCount;
-        if (i === 1 && firstPostText) {
-          replyCount = 0; // Neue Posts haben keine Antworten
-        } else {
-          replyCount = Math.random() < 0.3 ? 0 : Math.floor(Math.random() * 6);
-        }
-
-        const statusInfo = statusLine("post", replyCount);
-        root.appendChild(statusInfo.element);
-        root.appendChild(replyBtn(1));
-
-        const hasReplies = replyCount > 0;
-
-        // Reply-Count als data-attribute speichern für späteren Abruf
-        root.dataset.replyCount = replyCount;
-
-        // Click-Handler für Root-Posts
-        root.addEventListener('click', function(e) {
+        post.addEventListener('click', function(e) {
           e.stopPropagation();
-          // Karte IMMER selektieren und tiefere Spalten entfernen
-          select(1, root);
-          clearDeeper(1);
-
-          // Nur bei vorhandenen Replies eine neue Spalte öffnen
-          if (hasReplies) {
-            openReplies(root, i, topicText, 2);
-          }
+          openRepliesFixed(post, postBody.textContent);
         });
 
-        col.appendChild(root);
+        col.appendChild(post);
       }
       col.scrollTop = 0;
     }
 
-    /**
-     * Erstellt ein neues Topic und öffnet gleichzeitig Root-Posts
-     * mit dem angegebenen Text als ersten Beitrag.
-     * @param {string} postText - Text für das neue Topic und den ersten Beitrag
-     * @param {string} authorName - Name des Autors (optional, Default: "Max Schmidt")
-     */
-    function createNewTopicWithPost(postText, authorName = "Max Schmidt") {
-      // Anzahl der zusätzlichen Root-Posts bestimmen (der neue Post ist bereits einer)
-      const additionalPosts = rnd(8) + 2; // 3-10 zusätzliche Posts
-      const totalPosts = additionalPosts + 1; // +1 für den neuen Post
+    // Richtige Implementierung für Replies
+    function openRepliesFixed(postCard, postText) {
+      select(1, postCard);
+      const col = ensureCol(2, true);
 
-      // Neues Topic hinzufügen mit korrekter Post-Anzahl
+      // Post-Karte als angehefteten Header verwenden
+      const pinnedPost = document.createElement("div");
+      pinnedPost.className = "card pinned";
+
+      // Inhalt von der ursprünglichen Post-Karte kopieren (ohne Probleme)
+      const originalAuthor = postCard.querySelector('.post-author');
+      const originalBody = postCard.querySelector('.post-body');
+
+      if (originalAuthor) {
+        pinnedPost.appendChild(originalAuthor.cloneNode(true));
+      }
+      if (originalBody) {
+        pinnedPost.appendChild(originalBody.cloneNode(true));
+      }
+
+      col.appendChild(pinnedPost);
+
+      // Button-Leiste hinzufügen
+      const actions = createPinnedActions('replies');
+      pinnedPost.appendChild(actions);
+
+      // Reply-Karten erstellen
+      const cnt = rnd(8) + 2;
+      for (let i = 1; i <= cnt; i++) {
+        const reply = document.createElement("div");
+        reply.className = "card";
+
+        const hasNew = Math.random() < 0.2;
+        reply.appendChild(createAuthorElement(getRandomAuthor(), hasNew));
+
+        const replyBody = document.createElement("div");
+        replyBody.className = "post-body";
+        replyBody.textContent = snippet(`Antwort ${i}:`);
+        reply.appendChild(replyBody);
+
+        // Button-Leiste für Replies erstellen
+        const replyActions = document.createElement("div");
+        replyActions.className = "reply-actions";
+
+        // Magnet-Button hinzufügen (erster in der Leiste)
+        replyActions.appendChild(magnetBtn(replyBody.textContent));
+
+        // Reply-Button hinzufügen (zweiter in der Leiste)
+        replyActions.appendChild(replyBtn(2, true, replyBody.textContent));
+
+        reply.appendChild(replyActions);
+
+        // Click-Handler für Selektion hinzufügen
+        reply.addEventListener('click', function(e) {
+          e.stopPropagation();
+          select(2, reply);
+        });
+
+        col.appendChild(reply);
+      }
+
+      col.scrollTop = 0;
+      return true;
+    }
+
+    function testReplies() {
+      return true;
+    }
+
+    function openReplies(postCard, postText) {
+      select(1, postCard);
+
+      const col = ensureCol(2, true);
+
+      // Post-Karte als fancy Header oben anpinnen
+      const pinnedPost = postCard.cloneNode(true);
+      pinnedPost.classList.add('pinned');
+      pinnedPost.classList.remove('selected');
+
+      // Interaktive Elemente entfernen
+      const refreshBtn = pinnedPost.querySelector('.refresh-btn');
+      if (refreshBtn) refreshBtn.remove();
+      const replyButton = pinnedPost.querySelector('.reply-btn');
+      if (replyButton) replyButton.remove();
+
+      // Nicht mehr klickbar machen
+      pinnedPost.onclick = null;
+      pinnedPost.style.cursor = 'default';
+
+      col.appendChild(pinnedPost);
+
+      const cnt = rnd(8) + 2;
+
+      for (let i = 1; i <= cnt; i++) {
+        const reply = document.createElement("div");
+        reply.className = "card";
+
+        const hasNew = Math.random() < 0.2;
+        reply.appendChild(createAuthorElement(getRandomAuthor(), hasNew));
+
+        const replyBody = document.createElement("div");
+        replyBody.className = "post-body";
+        replyBody.textContent = snippet(`Antwort ${i}:`);
+        reply.appendChild(replyBody);
+
+        // Nur Reply-Button für Replies, kein Refresh-Button
+        reply.appendChild(replyBtn(2, true, replyBody.textContent));
+
+        // Click-Handler für Selektion hinzufügen
+        reply.addEventListener('click', function(e) {
+          e.stopPropagation();
+          select(2, reply);
+        });
+
+        col.appendChild(reply);
+      }
+      col.scrollTop = 0;
+    }
+
+    function createNewTopicWithPost(postText, authorName = "Max Schmidt") {
       const card = document.createElement("div");
-      card.className = "card";
+      card.className = "card topic";
+
+      // Titelzeile mit Benutzername für selbst erstellte Topics
+      card.appendChild(createAuthorElement(authorName, false));
 
       const postBody = document.createElement("div");
       postBody.className = "post-body";
-      const strong = document.createElement("strong");
-      strong.textContent = postText;
-      postBody.appendChild(strong);
+      const topicText = "Passend zu " + postText;
+      postBody.textContent = topicText;
       card.appendChild(postBody);
 
-      /* Favoriten-Stern */
       const fav = document.createElement("span");
       fav.className = "favorite";
       fav.textContent = "☆";
@@ -884,122 +1160,69 @@
       };
       card.appendChild(fav);
 
-      // Refresh-Button hinzufügen (für Topics ganz rechts)
-      card.appendChild(createRefreshButton("topic"));
+      // Kein Refresh-Button für normale Topic-Karten
+      card.onclick = () => openPosts(card, topicText);
 
-      // Korrekte Anzahl speichern und Statuszeile erstellen
-      card.dataset.rootPostCount = totalPosts;
-      card.appendChild(statusLine("topic", totalPosts).element);
-      card.onclick = () => openRoots(card, postText);
-
-      // Topic oben in die Liste einfügen
       const topicsCol = document.getElementById("topicsColumn");
-      if (topicsCol.children.length) {
-        topicsCol.insertBefore(card, topicsCol.firstChild);
+      if (topicsCol.children.length > 1) {
+        // Füge nach der angehefteten Header-Karte ein (children[1])
+        topicsCol.insertBefore(card, topicsCol.children[1]);
       } else {
         topicsCol.appendChild(card);
       }
 
-      // Root-Posts öffnen mit dem Beitragstext als ersten Post
-      openRoots(card, postText, postText, authorName);
-    }
-
-    /**
-     * Öffnet (rekursiv) Replies zu einer Karte.
-     * @param {HTMLElement} parentCard – Root oder Reply, von dem aus verzweigt wird
-     * @param {number} index          – laufende Nummer im Beispiel
-     * @param {string} topicText      – Thema (nur für Demo)
-     * @param {number} depth          – Ziel-Spaltentiefe
-     */
-    function openReplies(parentCard, index, topicText, depth) {
-      const col = ensureCol(depth, true);
-
-      // Anzahl der Replies aus dem data-attribute des Parent-Cards lesen
-      const cnt = parseInt(parentCard.dataset.replyCount) || 0;
-
-      for (let i = 1; i <= cnt; i++) {
-        const rep = document.createElement("div");
-        rep.className = "card";
-
-        // Autor hinzufügen
-        rep.appendChild(createAuthorElement(getRandomAuthor()));
-
-        const postBody = document.createElement("div");
-        postBody.className = "post-body";
-        postBody.textContent = snippet(`Reply ${i} zu #${index}:`);
-        rep.appendChild(postBody);
-
-        // Refresh-Button hinzufügen
-        rep.appendChild(createRefreshButton());
-
-        // Anzahl der potentiellen Sub-Replies bestimmen (50% Chance für 0)
-        const subReplyCount = Math.random() < 0.5 ? 0 : Math.floor(Math.random() * 6);
-        const statusInfo = statusLine("reply", subReplyCount);
-        rep.appendChild(statusInfo.element);
-        rep.appendChild(replyBtn(depth));
-
-        // Sub-Reply-Count als data-attribute speichern
-        rep.dataset.replyCount = subReplyCount;
-        const hasReplies = subReplyCount > 0;
-
-        // Click-Handler für Replies
-        rep.addEventListener('click', function(e) {
-          e.stopPropagation();
-          // Karte IMMER selektieren und tiefere Spalten entfernen
-          select(depth, rep);
-          clearDeeper(depth);
-
-          // Nur bei vorhandenen Sub-Replies eine neue Spalte öffnen
-          if (hasReplies) {
-            openReplies(rep, i, topicText, depth + 1);
-          }
-        });
-
-        col.appendChild(rep);
-      }
-      col.scrollTop = 0;
+      openPosts(card, topicText, postText, authorName);
     }
 
     /* --------------------------------------------------------------------
        4. Initialisierung & Event-Listener
     -------------------------------------------------------------------- */
 
-    /* Start-Themen anlegen */
-    longTopics.forEach(t => addTopicCard(t));
+    // Initialisiere Topics-Spalte mit angehefteter Header-Karte
+    const topicsCol = ensureCol(0, true);
 
-    /* Suche: ENTER fügt neues Thema ein */
+    const podSources = [
+      "pod://climate-research.org",
+      "pod://tech-innovations.net",
+      "pod://psychology-studies.edu",
+      "pod://energy-future.com",
+      "pod://historical-analysis.org",
+      "pod://sustainable-farming.coop",
+      "pod://ai-creative-impact.io",
+      "pod://cancer-research.med"
+    ];
+
+    longTopics.forEach((topic, index) => {
+      const podSource = podSources[index % podSources.length];
+      addTopicCard(topic, false, podSource);
+    });
+
     document.getElementById("search").addEventListener("keydown", e => {
       if (e.key === "Enter") {
         const v = e.target.value.trim();
         if (v) {
-          // Nur neues Topic erstellen, KEINE Root-Posts öffnen
-          addTopicCard(v, true);
+          addTopicCard(v, true, currentUser); // Benutzername für neue Topics aus der Suche
           e.target.value = "";
         }
       }
     });
 
-    /* Floating-Action-Button: neuer Root-Post */
     document.getElementById("fab").onclick = () => {
       replyTarget = null;
       modalTitle.textContent = "Neuen Root-Post schreiben";
+      replyReference.style.display = "none";
       postText.value = "";
       overlay.style.display = "flex";
-      // Fokus auf das Eingabefeld setzen
       setTimeout(() => postText.focus(), 100);
     };
 
-    /* Modal-Buttons */
     document.getElementById("cancelBtn").onclick = () => (overlay.style.display = "none");
 
-    /* Tastatur-Shortcuts für das Textfeld */
     postText.addEventListener("keydown", e => {
       if (e.key === "Enter") {
         if (e.ctrlKey || e.shiftKey) {
-          // Ctrl+Enter oder Shift+Enter: Zeilenumbruch (Standard-Verhalten)
           return;
         } else {
-          // Enter allein: Veröffentlichen
           e.preventDefault();
           document.getElementById("publishBtn").click();
         }
@@ -1013,49 +1236,53 @@
       const author = currentUser;
 
       if (replyTarget) {
-        /* -------------- Als Reply veröffentlichen -------------- */
         const col = ensureCol(replyTarget.depth, false);
         const card = document.createElement("div");
         card.className = "card";
 
-        // Autor hinzufügen
-        card.appendChild(createAuthorElement(author));
+        card.appendChild(createAuthorElement(author, false));
 
-        const postBody = document.createElement("div");
-        postBody.className = "post-body";
-        postBody.textContent = txt;
-        card.appendChild(postBody);
+        const replyBody = document.createElement("div");
+        replyBody.className = "post-body";
 
-        // Refresh-Button hinzufügen
-        card.appendChild(createRefreshButton());
+        if (replyTarget.isReplyToReply && replyTarget.referencedReply) {
+          const reference = document.createElement("div");
+          reference.className = "reply-reference";
+          reference.textContent = `${replyTarget.referencedReply.substring(0, 80)}...`;
+          card.appendChild(reference);
+        }
 
-        // Neue Replies haben immer 0 Antworten
-        const replyCount = 0;
-        const statusInfo = statusLine("reply", replyCount);
-        card.appendChild(statusInfo.element);
-        card.appendChild(replyBtn(replyTarget.depth));
+        replyBody.textContent = txt;
+        card.appendChild(replyBody);
 
-        // Reply-Count als data-attribute speichern
-        card.dataset.replyCount = replyCount;
+        // Unterscheidung zwischen Posts (depth 1) und Replies (depth 2)
+        if (replyTarget.depth === 2) {
+          // Reply: Button-Leiste verwenden
+          const replyActions = document.createElement("div");
+          replyActions.className = "reply-actions";
 
-        // Click-Verhalten für neue Replies
-        card.onclick = e => {
+          replyActions.appendChild(magnetBtn(replyBody.textContent));
+          replyActions.appendChild(replyBtn(2, true, replyBody.textContent));
+
+          card.appendChild(replyActions);
+        } else {
+          // Post: Einzelner Magnet-Button
+          card.appendChild(magnetBtn(replyBody.textContent));
+        }
+
+        // Click-Handler für Selektion hinzufügen
+        card.addEventListener('click', function(e) {
           e.stopPropagation();
-          // Karte immer selektieren und tiefere Spalten entfernen
           select(replyTarget.depth, card);
-          clearDeeper(replyTarget.depth);
+        });
 
-          // Nur bei vorhandenen Antworten eine neue Spalte öffnen (bei neuen Replies immer 0)
-          if (hasReplies) {
-            openReplies(card, 1, "Neue Antwort", replyTarget.depth + 1);
-          }
-        };
         col.appendChild(card);
+
+        // Scroll zum Ende der Spalte, damit der neue Reply sichtbar ist
         col.scrollTop = col.scrollHeight;
+
         select(replyTarget.depth, card);
-        clearDeeper(replyTarget.depth);
       } else {
-        /* -------------- Neues Topic mit Root-Post erstellen -------------- */
         createNewTopicWithPost(txt, author);
       }
     };
