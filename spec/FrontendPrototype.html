@@ -438,6 +438,31 @@
             right: 8px;
         }
 
+        /* Horizontale Button-Leiste für Posts */
+        .column[data-depth="1"] .card .post-actions {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            display: flex;
+            gap: 6px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 4;
+        }
+
+        .column[data-depth="1"] .card:hover .post-actions {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .column[data-depth="1"] .card .post-actions .magnet-btn,
+        .column[data-depth="1"] .card .post-actions .delete-btn {
+            position: static;
+            opacity: 1;
+            visibility: visible;
+        }
+
         /* Horizontale Button-Leiste für Replies */
         .column[data-depth="2"] .card .reply-actions {
             position: absolute;
@@ -457,7 +482,8 @@
         }
 
         .column[data-depth="2"] .card .reply-actions .magnet-btn,
-        .column[data-depth="2"] .card .reply-actions .reply-btn {
+        .column[data-depth="2"] .card .reply-actions .reply-btn,
+        .column[data-depth="2"] .card .reply-actions .delete-btn {
             position: static;
             opacity: 1;
             visibility: visible;
@@ -928,21 +954,27 @@
       }
     }
 
-    function deleteBtn(topicCard) {
+    function deleteBtn(card) {
       const b = document.createElement("button");
       b.className = "delete-btn";
       b.innerHTML = "🗑";
-      b.title = "Topic löschen";
+      b.title = "Löschen";
 
       b.onclick = e => {
         e.stopPropagation();
 
-        // Topic-Karte entfernen
-        if (topicCard && topicCard.parentNode) {
-          topicCard.parentNode.removeChild(topicCard);
+        // Karte entfernen
+        if (card && card.parentNode) {
+          card.parentNode.removeChild(card);
         }
       };
       return b;
+    }
+
+    function isCurrentUser(authorElement) {
+      if (!authorElement) return false;
+      const authorText = authorElement.textContent.trim();
+      return authorText === currentUser;
     }
 
     function magnetBtn(contentText) {
@@ -1149,7 +1181,8 @@
 
         const author = (i === 1 && firstPostAuthor) ? firstPostAuthor : getRandomAuthor();
         const hasNew = Math.random() < 0.4;
-        post.appendChild(createAuthorElement(author, hasNew));
+        const authorElement = createAuthorElement(author, hasNew);
+        post.appendChild(authorElement);
 
         const postBody = document.createElement("div");
         postBody.className = "post-body";
@@ -1162,8 +1195,19 @@
 
         post.appendChild(postBody);
 
-        // Magnet-Button für Posts hinzufügen
-        post.appendChild(magnetBtn(postBody.textContent));
+        // Button-Leiste für Posts erstellen
+        const postActions = document.createElement("div");
+        postActions.className = "post-actions";
+
+        // Magnet-Button hinzufügen
+        postActions.appendChild(magnetBtn(postBody.textContent));
+
+        // Delete-Button nur für eigene Posts hinzufügen
+        if (isCurrentUser(authorElement)) {
+          postActions.appendChild(deleteBtn(post));
+        }
+
+        post.appendChild(postActions);
 
         post.addEventListener('click', function(e) {
           e.stopPropagation();
@@ -1208,7 +1252,8 @@
         reply.className = "card";
 
         const hasNew = Math.random() < 0.2;
-        reply.appendChild(createAuthorElement(getRandomAuthor(), hasNew));
+        const authorElement = createAuthorElement(getRandomAuthor(), hasNew);
+        reply.appendChild(authorElement);
 
         const replyBody = document.createElement("div");
         replyBody.className = "post-body";
@@ -1224,6 +1269,11 @@
 
         // Reply-Button hinzufügen (zweiter in der Leiste)
         replyActions.appendChild(replyBtn(2, true, replyBody.textContent));
+
+        // Delete-Button nur für eigene Replies hinzufügen
+        if (isCurrentUser(authorElement)) {
+          replyActions.appendChild(deleteBtn(reply));
+        }
 
         reply.appendChild(replyActions);
 
@@ -1406,7 +1456,8 @@
         const card = document.createElement("div");
         card.className = "card";
 
-        card.appendChild(createAuthorElement(author, false));
+        const authorElement = createAuthorElement(author, false);
+        card.appendChild(authorElement);
 
         const replyBody = document.createElement("div");
         replyBody.className = "post-body";
@@ -1430,10 +1481,25 @@
           replyActions.appendChild(magnetBtn(replyBody.textContent));
           replyActions.appendChild(replyBtn(2, true, replyBody.textContent));
 
+          // Delete-Button für eigene Replies hinzufügen
+          if (isCurrentUser(authorElement)) {
+            replyActions.appendChild(deleteBtn(card));
+          }
+
           card.appendChild(replyActions);
         } else {
-          // Post: Einzelner Magnet-Button
-          card.appendChild(magnetBtn(replyBody.textContent));
+          // Post: Button-Leiste verwenden
+          const postActions = document.createElement("div");
+          postActions.className = "post-actions";
+
+          postActions.appendChild(magnetBtn(replyBody.textContent));
+
+          // Delete-Button für eigene Posts hinzufügen
+          if (isCurrentUser(authorElement)) {
+            postActions.appendChild(deleteBtn(card));
+          }
+
+          card.appendChild(postActions);
         }
 
         // Click-Handler für Selektion hinzufügen
