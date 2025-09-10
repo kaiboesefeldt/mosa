@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.2.0"
-    id("org.jmailen.kotlinter") version "5.1.1"
+    kotlin("jvm")
+    id("org.jmailen.kotlinter")
     application
 }
 
@@ -19,7 +19,7 @@ dependencies {
     val auth0JwtVersion = "4.5.0"
     val jacksonVersion = "2.17.2"
 
-    implementation(project(":"))
+    implementation(project(":server"))
 
     implementation("org.jetbrains.kotlinx:kotlinx-cli:$kotlinxCliVersion")
 

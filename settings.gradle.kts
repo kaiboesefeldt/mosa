@@ -1,3 +1,5 @@
 rootProject.name = "mosa"
-include("cli")
+include("server")
 include("client")
+include("shared")
+include("cli")
