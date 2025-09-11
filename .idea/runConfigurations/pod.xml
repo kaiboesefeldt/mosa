@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="pod" type="JetRunConfigurationType">
     <option name="MAIN_CLASS_NAME" value="straightway.mosa.MainKt" />
-    <module name="mosa.main" />
+    <module name="mosa.server.main" />
     <shortenClasspath name="NONE" />
     <method v="2">
       <option name="Make" enabled="true" />
