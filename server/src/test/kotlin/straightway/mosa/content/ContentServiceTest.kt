@@ -178,7 +178,7 @@ class ContentServiceTest {
                                 similarity = 0.9f,
                                 authorGID = "test-author",
                                 storedAt = Instant.ofEpochSecond(1609459200L),
-                                parent = null,
+                                rootId = null,
                             ),
                         ),
                     queryOnId = testQueryOnId.toString(),
@@ -207,7 +207,7 @@ class ContentServiceTest {
                                     similarity = 0.9f,
                                     authorGID = "test-author",
                                     storedAt = Instant.ofEpochSecond(1609459200L),
-                                    parent = null,
+                                    rootId = null,
                                 ),
                             ),
                         queryOnId = "",
@@ -225,7 +225,7 @@ class ContentServiceTest {
                             id = "entry-1",
                             text = "First entry",
                             similarity = 0.95f,
-                            fields = mapOf("authorGID" to "author-1", "receivedAt" to "1609459200", "parentId" to "parent-1"),
+                            fields = mapOf("authorGID" to "author-1", "receivedAt" to "1609459200", "rootId" to "root-1"),
                         ),
                         VectorStore.QueryResult(
                             id = "entry-2",
@@ -251,7 +251,7 @@ class ContentServiceTest {
                                     similarity = 0.95f,
                                     authorGID = "author-1",
                                     storedAt = Instant.ofEpochSecond(1609459200L),
-                                    parent = "parent-1",
+                                    rootId = "root-1",
                                 ),
                                 QueryResult.Entry(
                                     id = "entry-2",
@@ -259,7 +259,7 @@ class ContentServiceTest {
                                     similarity = 0.80f,
                                     authorGID = "author-2",
                                     storedAt = Instant.ofEpochSecond(1609459300L),
-                                    parent = null,
+                                    rootId = null,
                                 ),
                             ),
                         queryOnId = testQueryOnId.toString(),
@@ -305,46 +305,54 @@ class ContentServiceTest {
 
     @Nested
     inner class Reply {
-        private fun testReply(
-            parentId: String,
-            expectedRootId: String,
-            parentRootId: String? = null,
-        ) = runTest {
-            // Given
-            val content = "Reply text"
-            val testHash = byteArrayOf(5, 6, 7, 8)
-            setupEmbedding(content)
-            setupHasher(testHash)
-            setupWriteAccess()
-            coEvery { vectorStore.query(VectorStore.Query(id = parentId)) } returns
-                createParentQueryResult(parentId, parentRootId)
+        private fun testReplyToRoot(rootId: String) =
+            runTest {
+                // Given
+                val content = "Reply text"
+                val testHash = byteArrayOf(5, 6, 7, 8)
+                setupEmbedding(content)
+                setupHasher(testHash)
+                setupWriteAccess()
+                coEvery { vectorStore.query(VectorStore.Query(id = rootId)) } returns
+                    createParentQueryResult(rootId, null)
 
-            // When
-            sut.reply(testUserGID, ReplyRequest(PublishRequest(content), parentId))
+                // When
+                sut.reply(testUserGID, ReplyRequest(PublishRequest(content), rootId))
 
-            // Then
-            coVerify { embeddingService.embed(content) }
-            coVerify {
-                transaction.add(
-                    id = "BQYHCA", // Base64 of testHash
-                    text = content,
-                    fields =
-                        mapOf(
-                            "authorGID" to testUserGID,
-                            "receivedAt" to "170000000",
-                            "parentId" to parentId,
-                            "rootId" to expectedRootId,
-                        ),
-                    vector = testEmbedding,
-                )
+                // Then
+                coVerify { embeddingService.embed(content) }
+                coVerify {
+                    transaction.add(
+                        id = "BQYHCA", // Base64 of testHash
+                        text = content,
+                        fields =
+                            mapOf(
+                                "authorGID" to testUserGID,
+                                "receivedAt" to "170000000",
+                                "rootId" to rootId,
+                            ),
+                        vector = testEmbedding,
+                    )
+                }
             }
-        }
 
         @Test
-        fun `replies with parentId and rootId field set for top level parent`() = testReply("parent-123", "parent-123")
+        fun `replies with rootId field set for top level root`() = testReplyToRoot("root-123")
 
         @Test
-        fun `replies with parentId and rootId field set for parent being itself a reply`() = testReply("parent-123", "root-123", "root-123")
+        fun `throws BadRequest when replying to non-root`() =
+            runTest {
+                // Given: parent is itself a reply (has rootId)
+                val content = "Reply text"
+                val testHash = byteArrayOf(5, 6, 7, 8)
+                setupEmbedding(content)
+                setupHasher(testHash)
+                coEvery { vectorStore.query(VectorStore.Query(id = "child-123")) } returns
+                    createParentQueryResult("child-123", "root-123")
+
+                // Then
+                assertThrows<BadRequestException> { sut.reply(testUserGID, ReplyRequest(PublishRequest(content), "child-123")) }
+            }
     }
 
     @Nested
@@ -373,7 +381,7 @@ class ContentServiceTest {
                                     similarity = 0.9f,
                                     authorGID = "test-author",
                                     storedAt = Instant.ofEpochSecond(1609459200L),
-                                    parent = null,
+                                    rootId = null,
                                 ),
                             ),
                         queryOnId = expectedQueryOnId,
@@ -415,7 +423,7 @@ class ContentServiceTest {
                                     similarity = 0.9f,
                                     authorGID = "test-author",
                                     storedAt = Instant.ofEpochSecond(1609459200L),
-                                    parent = null,
+                                    rootId = null,
                                 ),
                             ),
                         queryOnId = "",
@@ -433,7 +441,7 @@ class ContentServiceTest {
                         id = "query-on-entry",
                         text = "QueryOn content",
                         similarity = 0.85f,
-                        fields = mapOf("authorGID" to "query-on-author", "receivedAt" to "1609459400", "parentId" to "query-on-parent"),
+                        fields = mapOf("authorGID" to "query-on-author", "receivedAt" to "1609459400", "rootId" to "query-on-root"),
                     )
                 coEvery { vectorStore.queryOn(uuid) } returns createVectorStoreResults(entries = listOf(vectorStoreEntry))
 
@@ -451,7 +459,7 @@ class ContentServiceTest {
                                     similarity = 0.85f,
                                     authorGID = "query-on-author",
                                     storedAt = Instant.ofEpochSecond(1609459400L),
-                                    parent = "query-on-parent",
+                                    rootId = "query-on-root",
                                 ),
                             ),
                         queryOnId = testQueryOnId.toString(),

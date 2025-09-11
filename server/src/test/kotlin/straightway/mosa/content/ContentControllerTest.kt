@@ -89,7 +89,7 @@ class ContentControllerTest {
                                 PublishRequest(
                                     text = "Text to publish",
                                 ),
-                            parentId = "01234567",
+                            rootId = "01234567",
                         )
                     coEvery { contentService.reply(env.gid, request) } just runs
 
@@ -188,7 +188,7 @@ class ContentControllerTest {
                             similarity = 0.9f,
                             authorGID = "authorGID",
                             storedAt = Instant.ofEpochSecond(170000000L),
-                            parent = "parent",
+                            rootId = "rootId",
                         ),
                     ),
             )

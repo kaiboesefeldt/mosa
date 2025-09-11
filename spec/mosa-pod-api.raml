@@ -53,11 +53,11 @@ types:
     type: object
     properties:
       content: PublishRequest
-      parentId: string
+      rootId: string
     example:
       content:
         text: 'I agree with your point.'
-      parentId: 'AxY0b1p3...'
+      rootId: 'R0oTId42'
 
   QueryRequest:
     type: object
@@ -94,14 +94,14 @@ types:
       storedAt:
         type: integer
         format: int64
-      parent?: string
+      rootId?: string
     example:
       id: 'AxY0b1p3...'
       content: 'A concise explanation of vector search.'
       similarity: 0.92
       authorGID: 'mZ0axz0t0z4IQsD4YBq1Hk3mQz0W9r1o'
       storedAt: 1700000000
-      parent: 'R0oTId42'
+      rootId: 'R0oTId42'
 
   QueryResult:
     type: object
@@ -221,7 +221,7 @@ securitySchemes:
       securedBy: [ bearerAuth ]
       displayName: Reply To Content
       description: |
-        Reply to an existing post or reply. The `parentId` must refer to an existing item.
+        Reply to an existing root post. The `rootId` must refer to an existing root post.
       body:
         application/json:
           type: ReplyRequest
@@ -229,7 +229,7 @@ securitySchemes:
         201:
           description: Created
         400:
-          description: Parent not found
+          description: Root not found or target is not a root post
         401:
           description: Missing or invalid bearer token
         422:
@@ -327,4 +327,3 @@ securitySchemes:
       responses:
         501:
           description: Not implemented
-

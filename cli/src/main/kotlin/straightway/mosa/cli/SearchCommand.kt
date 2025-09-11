@@ -40,7 +40,7 @@ class SearchCommand(
                         listOf(
                             "id: ${it.id}",
                             "content:\n${it.content.trimIndent().prependIndent("    ")}",
-                        ) + (if (it.parent === null) listOf() else listOf("parent: ${it.parent}")) +
+                        ) + (if (it.rootId === null) listOf() else listOf("rootId: ${it.rootId}")) +
                             listOf(
                                 "similarity: ${it.similarity}",
                                 "author: ${it.authorGID}",

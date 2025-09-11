@@ -28,18 +28,17 @@ class ContentService(
         userGID: String,
         request: ReplyRequest,
     ) = trace(userGID, request) {
-        val parent =
+        val root =
             vectorStore
-                .query(VectorStore.Query(id = request.parentId))
+                .query(VectorStore.Query(id = request.rootId))
                 .resultsPage
-                .singleOrNull() ?: throw BadRequestException("Parent not found")
-        val rootId = parent.fields[ROOT_ID_KEY] ?: request.parentId
+                .singleOrNull() ?: throw BadRequestException("Root not found")
+        if (root.fields[ROOT_ID_KEY] != null) throw BadRequestException("Replies must target root posts")
         writeContent(
             userGID,
             request.content,
             mapOf(
-                PARENT_ID_KEY to request.parentId,
-                ROOT_ID_KEY to rootId,
+                ROOT_ID_KEY to request.rootId,
             ),
         )
     }
@@ -110,7 +109,7 @@ class ContentService(
             id = id,
             content = text,
             similarity = similarity,
-            parent = fields[PARENT_ID_KEY],
+            rootId = fields[ROOT_ID_KEY],
             authorGID = fields["authorGID"] ?: throw RuntimeException("No authorGID field set for vector store entry $id"),
             storedAt =
                 Instant.ofEpochSecond(
@@ -143,7 +142,6 @@ class ContentService(
     private companion object {
         private val log = KotlinLogging.logger { }
         private const val MAX_LOG_LEN_FOR_REQUESTS = 100
-        private const val PARENT_ID_KEY = "parentId"
         private const val ROOT_ID_KEY = "rootId"
         private val nilQueryRequest = QueryRequest()
 

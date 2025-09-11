@@ -12,6 +12,6 @@ data class QueryResult(
         val similarity: Float,
         val authorGID: String,
         val storedAt: Instant,
-        val parent: String? = null,
+        val rootId: String? = null,
     )
 }
