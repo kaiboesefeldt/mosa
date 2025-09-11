@@ -1,0 +1,330 @@
+#%RAML 1.0
+title: Mosa Pod API
+version: v1
+baseUri: '{protocol}://{host}:{port}'
+protocols: [ HTTP ]
+mediaType: application/json
+
+documentation:
+  - title: Overview
+    content: |
+      The Mosa Pod provides a JSON HTTP API for publishing content, replying in threads,
+      and performing semantic or thread-based queries. Authentication uses MIS-JWT bearer tokens
+      except where explicitly noted. All versioned API routes live under the `/v1` prefix.
+
+      Notes
+      - Time fields use epoch seconds (integer) for `Instant` values.
+      - Pagination for queries uses `queryOnId` returned by `/v1/query` and consumed by `/v1/queryon`.
+      - Some endpoints are described but not yet implemented; they are clearly marked as UNIMPLEMENTED.
+
+types:
+  AuthenticationApprovalRequest:
+    type: object
+    properties:
+      gid:
+        type: string
+        description: MIS GID of the client identity to approve
+    example:
+      gid: 'mZ0axz0t0z4IQsD4YBq1Hk3mQz0W9r1o'   
+
+  PodCertificate:
+    type: object
+    properties:
+      gid: string
+      exp:
+        type: integer
+        format: int64
+        description: Expiration time (epoch seconds)
+      sig: string
+      inf?: string
+    example:
+      gid: 'mZ0axz0t0z4IQsD4YBq1Hk3mQz0W9r1o'
+      exp: 1700600000
+      sig: 'MEUCIC1...'
+
+  PublishRequest:
+    type: object
+    properties:
+      text: string
+    example:
+      text: 'Hello Mosa! This is my first post.'
+
+  ReplyRequest:
+    type: object
+    properties:
+      content: PublishRequest
+      parentId: string
+    example:
+      content:
+        text: 'I agree with your point.'
+      parentId: 'AxY0b1p3...'
+
+  QueryRequest:
+    type: object
+    properties:
+      topic?:
+        type: string
+        description: Text describing the semantic topic to search for
+      minTime?:
+        type: integer
+        format: int64
+        description: Only include results with storedAt >= this epoch second
+      threadRootId?:
+        type: string
+        description: Restrict results to a specific thread root
+    example:
+      topic: 'Functional programming for data processing'
+      minTime: 1700000000
+      threadRootId: 'R0oTId42'
+
+  QueryOnRequest:
+    type: object
+    properties:
+      queryOnId: string
+    example:
+      queryOnId: 'd4e7f6a0-9f9a-4f91-b3b0-9d3a2c2a6eab'
+
+  QueryResultEntry:
+    type: object
+    properties:
+      id: string
+      content: string
+      similarity: number
+      authorGID: string
+      storedAt:
+        type: integer
+        format: int64
+      parent?: string
+    example:
+      id: 'AxY0b1p3...'
+      content: 'A concise explanation of vector search.'
+      similarity: 0.92
+      authorGID: 'mZ0axz0t0z4IQsD4YBq1Hk3mQz0W9r1o'
+      storedAt: 1700000000
+      parent: 'R0oTId42'
+
+  QueryResult:
+    type: object
+    properties:
+      entries:
+        type: QueryResultEntry[]
+      queryOnId: string
+    example:
+      queryOnId: '6a7b5e3c-1234-5678-9abc-def012345678'
+      entries:
+        - id: 'AxY0b1p3...'
+          content: 'A concise explanation of vector search.'
+          similarity: 0.92
+          authorGID: 'mZ0axz0t0z4IQsD4YBq1Hk3mQz0W9r1o'
+          storedAt: 1700000000
+          parent: 'R0oTId42'
+
+traits:
+  rateLimited:
+    responses:
+      429:
+        description: Too Many Requests
+        headers:
+          Retry-After:
+            type: integer
+            description: Seconds to wait before retrying
+
+securitySchemes:
+  bearerAuth:
+    type: Pass Through
+    description: |
+      MIS-JWT Bearer token in Authorization header (format: `Bearer <token>`).
+      Token must include a `cert` claim with `gid` matching the approved identity.
+    describedBy:
+      headers:
+        Authorization:
+          type: string
+          required: true
+          description: 'Bearer <MIS-JWT>'
+
+/:
+  get:
+    displayName: Get Client Index
+    description: Serves the web client index page (HTML). Provided mainly for browser-based client usage.
+    responses:
+      200:
+        body:
+          text/html:
+            example: |
+              <!doctype html><html>...</html>
+      404:
+        description: Static client bundle not built or missing
+
+/mosa-client.js:
+  get:
+    displayName: Get Client Script
+    description: Serves the web client JavaScript bundle when available.
+    responses:
+      200:
+        body:
+          application/javascript:
+            example: |
+              console.log('Mosa client loaded');
+      200:
+        description: Fallback minimal JS if client bundle is not built
+        body:
+          application/javascript:
+            example: |
+              console.log('Client not built');
+      404:
+        description: Script not available
+
+/v1:
+  /approvegid:
+    post:
+      is: [ rateLimited ]
+      displayName: Request Identity Approval
+      description: |
+        Approve a MIS `gid` to obtain a Pod certificate. This endpoint is unauthenticated.
+      body:
+        application/json:
+          type: AuthenticationApprovalRequest
+      responses:
+        202:
+          body:
+            application/json:
+              type: PodCertificate
+        400:
+          description: Invalid request (e.g., malformed body)
+        5xx:
+          description: Server error
+
+  /publish:
+    post:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Publish Content
+      description: |
+        Publish a new root post. Returns 201 on success. Currently accepts any text; future moderation may reject off-topic content.
+        UNIMPLEMENTED ASPECT: Off-topic rejection with 422 as described in README is not yet implemented.
+      body:
+        application/json:
+          type: PublishRequest
+      responses:
+        201:
+          description: Created
+        401:
+          description: Missing or invalid bearer token
+        422:
+          description: UNIMPLEMENTED – would indicate off-topic content rejection in a future version
+        5xx:
+          description: Server error
+
+  /reply:
+    post:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Reply To Content
+      description: |
+        Reply to an existing post or reply. The `parentId` must refer to an existing item.
+      body:
+        application/json:
+          type: ReplyRequest
+      responses:
+        201:
+          description: Created
+        400:
+          description: Parent not found
+        401:
+          description: Missing or invalid bearer token
+        422:
+          description: UNIMPLEMENTED – would indicate off-topic content rejection in a future version
+        5xx:
+          description: Server error
+
+  /query:
+    post:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Query Content
+      description: |
+        Perform a semantic and/or thread/time constrained query. At least one of `topic`, `minTime`, `threadRootId` must be provided.
+      body:
+        application/json:
+          type: QueryRequest
+      responses:
+        200:
+          body:
+            application/json:
+              type: QueryResult
+        400:
+          description: No search criteria provided
+        401:
+          description: Missing or invalid bearer token
+        5xx:
+          description: Server error
+
+  /queryon:
+    post:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Continue Query
+      description: |
+        Continue a previous query using the `queryOnId` returned by `/v1/query`.
+        If `queryOnId` is empty or invalid, the server treats it as starting a new pagination cycle and returns the first page.
+      body:
+        application/json:
+          type: QueryOnRequest
+      responses:
+        200:
+          body:
+            application/json:
+              type: QueryResult
+        401:
+          description: Missing or invalid bearer token
+        5xx:
+          description: Server error
+
+  /vote:
+    post:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Vote On Content (UNIMPLEMENTED)
+      description: |
+        UNIMPLEMENTED – Planned endpoint to let users vote or react to content.
+        Exact request/response schema TBD.
+      body:
+        application/json:
+          example: |
+            { "UNIMPLEMENTED": true, "note": "Schema TBD" }
+      responses:
+        501:
+          description: Not implemented
+
+  /info:
+    get:
+      is: [ rateLimited ]
+      displayName: Pod Info (UNIMPLEMENTED)
+      description: |
+        UNIMPLEMENTED – Planned endpoint to return pod configuration info (e.g., API version).
+      responses:
+        501:
+          description: Not implemented
+
+  /topics:
+    get:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Supported Topics (UNIMPLEMENTED)
+      description: |
+        UNIMPLEMENTED – Planned endpoint to list supported topics as embedding vectors.
+      responses:
+        501:
+          description: Not implemented
+
+  /pods:
+    get:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Known Pods (UNIMPLEMENTED)
+      description: |
+        UNIMPLEMENTED – Planned endpoint to list known/recommended pods.
+      responses:
+        501:
+          description: Not implemented
+
