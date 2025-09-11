@@ -13,7 +13,7 @@ class TestClock(
     private var advancement: Duration = 0.seconds
 
     constructor(instant: Instant, zoneId: ZoneId = ZoneId.of("UTC")) :
-        this(Clock.fixed(instant, zoneId))
+        this(fixed(instant, zoneId))
 
     override fun getZone(): ZoneId = baseClock.zone
 
@@ -25,6 +25,7 @@ class TestClock(
         advancement += increment
     }
 
+    @Suppress("unused")
     fun reset() {
         advancement = 0.seconds
     }

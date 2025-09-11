@@ -27,7 +27,7 @@ abstract class TestEndpoint(
                     setBody("hello")
                     bearerAuth(env.bearerToken)
                 }
-            assertEquals(HttpStatusCode.Companion.BadRequest, response.status)
+            assertEquals(HttpStatusCode.BadRequest, response.status)
             serviceVerification()
         }
     }
@@ -37,7 +37,7 @@ abstract class TestEndpoint(
         setup()
         env {
             val response = client.post(endpoint)
-            assertEquals(HttpStatusCode.Companion.Unauthorized, response.status)
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
             serviceVerification()
         }
     }

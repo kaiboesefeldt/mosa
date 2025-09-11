@@ -57,7 +57,7 @@ class CryptoEd25519 : Crypto {
 
     override fun exportPrivateKeyPairToPem(keyPair: KeyPair): String {
         val pemBody =
-            Base64.Default
+            Base64
                 .encode(keyPair.private.encoded)
                 .chunked(64)
                 .joinToString("\n")
@@ -76,7 +76,7 @@ class CryptoEd25519 : Crypto {
                 .replace("-----END PRIVATE KEY-----", "")
                 .replace("\\s+".toRegex(), "")
 
-        val der = Base64.Default.decode(rawB64)
+        val der = Base64.decode(rawB64)
         return deserializePrivateKeyBytes(der)
     }
 

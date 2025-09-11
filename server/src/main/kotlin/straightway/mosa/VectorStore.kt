@@ -23,6 +23,7 @@ interface VectorStore {
         val toTime: Instant? = null,
         val fields: Map<String, String> = emptyMap(),
     ) {
+        @Suppress("IDENTITY_SENSITIVE_OPERATIONS_WITH_VALUE_TYPE")
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false

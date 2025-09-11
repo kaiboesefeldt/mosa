@@ -326,7 +326,7 @@ class JwtBuilderAndAuth0tokenUtilTest {
     }
 
     private fun ByteArray.toBase64() =
-        Base64.Default.UrlSafe
+        Base64.UrlSafe
             .withPadding(Base64.PaddingOption.ABSENT)
             .encode(this)
 
@@ -336,7 +336,7 @@ class JwtBuilderAndAuth0tokenUtilTest {
             .digest(this)
 
     private fun PublicKey.toBase64(): String =
-        Base64.Default.UrlSafe
+        Base64.UrlSafe
             .withPadding(Base64.PaddingOption.ABSENT)
             .encode(this.encoded.takeLast(32).toByteArray())
 
