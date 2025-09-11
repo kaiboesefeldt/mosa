@@ -12,7 +12,7 @@ repositories {
 
 kotlin {
     // Skeleton shared module; we'll add DTOs later
-    jvm()
+    jvm() 
     js(IR) {
         browser()
         nodejs()
@@ -21,6 +21,7 @@ kotlin {
         val commonMain by getting
         val commonTest by getting
     }
+    jvmToolchain(19)
 }
 
 kotlinter {

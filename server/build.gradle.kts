@@ -28,6 +28,8 @@ dependencies {
     val auth0JwtVersion = "4.5.0"
     val bouncyCastleVersion = "1.81"
 
+    implementation(project(":shared"))
+
     // Ktor Server
     implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-netty-jvm:$ktorVersion")
