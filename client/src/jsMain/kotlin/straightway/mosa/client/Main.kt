@@ -69,6 +69,24 @@ private fun generateAndShowEd25519() {
                         Private Key (PKCS#8, base64url):
                         $privB64
                     """.trimIndent()
+                    // Request cert from the same pod
+                    val podBase = (window.asDynamic().MOSA_POD_BASE as? String) ?: window.location.origin
+                    val reqInit = js("({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gid: gid }) })")
+                    val url = "$podBase/v1/approvegid"
+                    window.fetch(url, reqInit)
+                        .then { resp: dynamic ->
+                            if (resp.ok as Boolean) {
+                                resp.json().then { cert: dynamic ->
+                                    container.textContent += "\n\nZertifikat erhalten:\n" + JSON.stringify(cert, null, 2)
+                                }
+                            } else {
+                                container.textContent += "\n\nZertifikat-Anfrage fehlgeschlagen: ${resp.status} ${resp.statusText}"
+                            }
+                            null
+                        }
+                        .catch { err: dynamic ->
+                            container.textContent += "\n\nFehler bei Zertifikat-Anfrage: $err"
+                        }
                 }.catch { err: dynamic ->
                     container.textContent = "Fehler beim Export des privaten Schlüssels: $err"
                 }
