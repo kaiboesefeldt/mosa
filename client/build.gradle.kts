@@ -25,10 +25,10 @@ kotlin {
     }
     
     sourceSets {
+        val koinVersion = "4.1.1"
+        val kotlinxCoroutinesVersion = "1.10.2"
         jsMain {
             dependencies {
-                val koinVersion = "4.1.1"
-                val kotlinxCoroutinesVersion = "1.10.2"
                 implementation(kotlin("stdlib-js"))
                 implementation("io.insert-koin:koin-core:$koinVersion")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
@@ -37,6 +37,7 @@ kotlin {
         jsTest {
             dependencies {
                 implementation(kotlin("test"))
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test-js:$kotlinxCoroutinesVersion")
             }
         }
     }
