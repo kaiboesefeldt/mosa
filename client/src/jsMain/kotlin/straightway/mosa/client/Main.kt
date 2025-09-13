@@ -20,6 +20,8 @@ fun main() {
             showIdentity(identity)
             val cert = createCertificateFor(identity.gid)
             showCertificate(cert)
+            val jwt = buildMisJwt(identity, cert)
+            showJwt(jwt)
         }
     }
 }
@@ -53,6 +55,7 @@ private fun showIdentity(identity: Identity) {
     
         Private Key (PKCS#8, base64url):
         ${identity.priv.toBase64Url()}
+        
     """.trimIndent()
 }
 
@@ -66,7 +69,16 @@ private fun showCertificate(cert: PodCertificate) {
     keys.textContent += """
         
         Got cert: $cert
+        
     """.trimIndent()
 }
 
 private object KoinHolder : KoinComponent
+
+private fun showJwt(jwt: String) {
+    keys.textContent += """
+        
+        MIS-JWT:
+        $jwt
+    """.trimIndent()
+}
