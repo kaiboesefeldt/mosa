@@ -16,6 +16,11 @@ kotlin {
             webpackTask {
                 mainOutputFileName = "mosa-client.js"
             }
+            testTask {
+                useKarma {
+                    useFirefoxHeadless()
+                }
+            }
         }
     }
     
@@ -23,6 +28,11 @@ kotlin {
         jsMain {
             dependencies {
                 implementation(kotlin("stdlib-js"))
+            }
+        }
+        jsTest {
+            dependencies {
+                implementation(kotlin("test"))
             }
         }
     }
