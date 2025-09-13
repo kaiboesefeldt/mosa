@@ -5,10 +5,12 @@ import kotlinx.browser.window
 import kotlin.js.JSON
 import kotlin.js.json
 import org.w3c.dom.HTMLDivElement
+import org.koin.core.component.KoinComponent
 import straightway.mosa.client.Base64.toBase64Url
 
 fun main() {
     window.onload = {
+        ClientDI.start()
         renderSkeleton()
         generateAndShowEd25519()
     }
@@ -34,10 +36,8 @@ private fun generateAndShowEd25519() {
     val container = document.getElementById("keys") ?: return
     container.textContent = "Generiere Ed25519-Schlüsselpaar …"
 
-    val generator = IdentityGenerator()
-    generator
-        .generate()
-        .then { id ->
+    val generator = KoinHolder.getKoin().get<IdentityGenerator>()
+    generator.generate().then { id: Identity ->
             container.textContent = """
                 GID (base64url(sha256(pub))):
                 ${id.gid}
@@ -69,8 +69,9 @@ private fun generateAndShowEd25519() {
                     container.textContent += "\n\nFehler bei Zertifikat-Anfrage: $err"
                 }
             null
-        }
-        .catch { err: dynamic ->
+        }.catch { err: dynamic ->
             container.textContent = "Fehler bei der Schlüsselerzeugung: $err"
         }
 }
+
+private object KoinHolder : KoinComponent

@@ -28,6 +28,7 @@ kotlin {
         jsMain {
             dependencies {
                 implementation(kotlin("stdlib-js"))
+                implementation("io.insert-koin:koin-core:3.5.6")
             }
         }
         jsTest {
