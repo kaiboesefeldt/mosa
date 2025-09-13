@@ -10,7 +10,6 @@ import kotlin.test.assertTrue
 class IdentityTest {
     @Test
     fun `generate identity provides gid and keys`() = runTest {
-        val subtle = window.asDynamic().crypto?.subtle!!
         val id = IdentityGenerator().generate()
 
         // Ed25519 raw public key has 32 bytes
@@ -19,9 +18,5 @@ class IdentityTest {
         assertEquals(43, id.gid.length)
         // Private PKCS#8 must be non-empty
         assertTrue(id.priv.length > 0)
-    }
-
-    companion object {
-        private val testScope = MainScope()
     }
 }
