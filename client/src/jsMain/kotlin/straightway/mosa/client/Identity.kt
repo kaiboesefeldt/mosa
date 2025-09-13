@@ -3,20 +3,19 @@ package straightway.mosa.client
 import kotlinx.browser.window
 import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Uint8Array
+import straightway.mosa.client.Base64.toBase64Url
 import kotlin.js.Promise
 
 data class Identity(
     val gid: String,
-    val publicRaw: Uint8Array,
-    val publicB64: String,
-    val privatePkcs8: Uint8Array,
-    val privateB64: String,
+    val pub: Uint8Array,
+    val priv: Uint8Array,
 )
 
 class IdentityGenerator {
     fun generate(): Promise<Identity> {
         val subtle = window.asDynamic().crypto?.subtle
-        if (subtle == null) return Promise.reject(Throwable("WebCrypto nicht verfügbar"))
+            ?: return Promise.reject(Throwable("WebCrypto nicht verfügbar"))
 
         val alg = js("({ name: 'Ed25519' })")
         val usages = arrayOf("sign", "verify")
@@ -37,27 +36,11 @@ class IdentityGenerator {
                                     .digest("SHA-256", pubBuf)
                                     .unsafeCast<Promise<ArrayBuffer>>()
                                     .then { digBuf: ArrayBuffer ->
-                                        val gid = toBase64Url(Uint8Array(digBuf))
-                                        val pubB64 = toBase64Url(pubBytes)
-                                        val privB64 = toBase64Url(privBytes)
-                                        Identity(gid, pubBytes, pubB64, privBytes, privB64)
+                                        val gid = Uint8Array(digBuf).toBase64Url()
+                                        Identity(gid, pubBytes, privBytes)
                                     }
                             }
                     }
             }
-    }
-
-    private fun toBase64Url(bytes: Uint8Array): String {
-        val len = bytes.length
-        val sb = StringBuilder(len)
-        var i = 0
-        while (i < len) {
-            val v = (bytes.asDynamic()[i] as Int)
-            sb.append(v.toChar())
-            i++
-        }
-        val binary = sb.toString()
-        val b64 = window.btoa(binary)
-        return b64.replace('+', '-').replace('/', '_').trimEnd('=')
     }
 }

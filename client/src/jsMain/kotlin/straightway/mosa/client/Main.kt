@@ -5,6 +5,7 @@ import kotlinx.browser.window
 import kotlin.js.JSON
 import kotlin.js.json
 import org.w3c.dom.HTMLDivElement
+import straightway.mosa.client.Base64.toBase64Url
 
 fun main() {
     window.onload = {
@@ -42,10 +43,10 @@ private fun generateAndShowEd25519() {
                 ${id.gid}
 
                 Public Key (raw, base64url):
-                ${id.publicB64}
+                ${id.pub.toBase64Url()}
 
                 Private Key (PKCS#8, base64url):
-                ${id.privateB64}
+                ${id.priv.toBase64Url()}
             """.trimIndent()
 
             // Request cert from the same pod
