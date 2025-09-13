@@ -32,7 +32,7 @@ private fun renderSkeleton() {
     body.appendChild(heading)
 
     val desc = document.createElement("p")
-    desc.textContent = "Diese Seite erzeugt lokal im Browser ein Ed25519-Schlüsselpaar."
+    desc.textContent = "This page generates an Ed25519 key pair locally in the browser."
     body.appendChild(desc)
 
     val container = document.createElement("div") as HTMLDivElement
@@ -44,7 +44,7 @@ private fun renderSkeleton() {
 private val keys by lazy { document.getElementById("keys") ?: throw RuntimeException("Element `keys` not found") }
 
 private fun showIdentity(identity: Identity) {
-    keys.textContent = "Generiere Ed25519-Schlüsselpaar …"
+    keys.textContent = "Generating Ed25519 key pair …"
     keys.textContent = """
         GID (base64url(sha256(pub))):
         ${identity.gid}
