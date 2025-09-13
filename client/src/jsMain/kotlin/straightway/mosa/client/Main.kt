@@ -4,7 +4,6 @@ import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import kotlin.js.JSON
 import org.w3c.dom.HTMLDivElement
 import org.koin.core.component.KoinComponent
 import straightway.mosa.client.Base64.toBase64Url
@@ -57,18 +56,17 @@ private fun showIdentity(identity: Identity) {
     """.trimIndent()
 }
 
-private suspend fun createCertificateFor(gid: String): dynamic {
+private suspend fun createCertificateFor(gid: String): PodCertificate {
     val podHost = (window.asDynamic().MOSA_POD_BASE as? String) ?: ""
     val podAccess = KoinHolder.pod(podHost)
     return podAccess.approveGid(gid)
 }
 
-private fun showCertificate(cert: dynamic) {
-    keys.textContent += "\n\nGot cert:\n" + JSON.stringify(
-        cert,
-        null,
-        2
-    )
+private fun showCertificate(cert: PodCertificate) {
+    keys.textContent += """
+        
+        Got cert: $cert
+    """.trimIndent()
 }
 
 private object KoinHolder : KoinComponent

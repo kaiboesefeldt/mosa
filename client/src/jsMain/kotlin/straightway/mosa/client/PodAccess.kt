@@ -7,7 +7,7 @@ import org.w3c.fetch.RequestInit
 import kotlin.js.json
 
 class PodAccess(private val podBase: String) {
-    suspend fun approveGid(gid: String): dynamic {
+    suspend fun approveGid(gid: String): PodCertificate {
         val url = "$podBase/v1/approvegid"
         val request = RequestInit(
             method = "POST",
@@ -19,6 +19,7 @@ class PodAccess(private val podBase: String) {
         )
         val response = window.fetch(url, request).await()
         if (!response.ok) throw RuntimeException("Invalid response to $url with $gid: $response")
-        return response.json().await()
+        val obj = response.json().await()
+        return PodCertificate(obj)
     }
 }
