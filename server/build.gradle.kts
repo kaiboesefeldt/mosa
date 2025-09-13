@@ -16,7 +16,7 @@ repositories {
 
 dependencies {
     val ktorVersion = "3.2.0"
-    val koinVersion = "4.1.0"
+    val koinVersion = "4.1.1"
     val exposedVersion = "1.0.0-beta-2"
     val sqliteVersion = "3.46.0.0"
     val jacksonVersion = "2.17.2"

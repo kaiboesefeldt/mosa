@@ -12,6 +12,7 @@ object ClientDI {
                 modules(
                     module {
                         single { IdentityGenerator() }
+                        factory { PodAccess(it[0]) }
                     },
                 )
             }

@@ -2,17 +2,26 @@ package straightway.mosa.client
 
 import kotlinx.browser.document
 import kotlinx.browser.window
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import kotlin.js.JSON
-import kotlin.js.json
 import org.w3c.dom.HTMLDivElement
 import org.koin.core.component.KoinComponent
 import straightway.mosa.client.Base64.toBase64Url
+
+private val appScope = MainScope()
 
 fun main() {
     window.onload = {
         ClientDI.start()
         renderSkeleton()
-        generateAndShowEd25519()
+
+        appScope.launch {
+            val identity = KoinHolder.identityGenerator.generate()
+            showIdentity(identity)
+            val cert = createCertificateFor(identity.gid)
+            showCertificate(cert)
+        }
     }
 }
 
@@ -32,46 +41,34 @@ private fun renderSkeleton() {
     body.appendChild(container)
 }
 
-private fun generateAndShowEd25519() {
-    val container = document.getElementById("keys") ?: return
-    container.textContent = "Generiere Ed25519-Schlüsselpaar …"
+private val keys by lazy { document.getElementById("keys") ?: throw RuntimeException("Element `keys` not found") }
 
-    val generator = KoinHolder.getKoin().get<IdentityGenerator>()
-    generator.generate().then { id: Identity ->
-            container.textContent = """
-                GID (base64url(sha256(pub))):
-                ${id.gid}
+private fun showIdentity(identity: Identity) {
+    keys.textContent = "Generiere Ed25519-Schlüsselpaar …"
+    keys.textContent = """
+        GID (base64url(sha256(pub))):
+        ${identity.gid}
+    
+        Public Key (raw, base64url):
+        ${identity.pub.toBase64Url()}
+    
+        Private Key (PKCS#8, base64url):
+        ${identity.priv.toBase64Url()}
+    """.trimIndent()
+}
 
-                Public Key (raw, base64url):
-                ${id.pub.toBase64Url()}
+private suspend fun createCertificateFor(gid: String): dynamic {
+    val podHost = (window.asDynamic().MOSA_POD_BASE as? String) ?: ""
+    val podAccess = KoinHolder.pod(podHost)
+    return podAccess.approveGid(gid)
+}
 
-                Private Key (PKCS#8, base64url):
-                ${id.priv.toBase64Url()}
-            """.trimIndent()
-
-            // Request cert from the same pod
-            val podBase = (window.asDynamic().MOSA_POD_BASE as? String)
-            val url = podBase?.let { "$it/v1/approvegid" } ?: "/v1/approvegid"
-            val reqInit = js("({ method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8', 'Accept': 'application/json' } })")
-            reqInit.body = JSON.stringify(json("gid" to id.gid))
-            window.fetch(url, reqInit)
-                .then { resp: dynamic ->
-                    if (resp.ok as Boolean) {
-                        resp.json().then { cert: dynamic ->
-                            container.textContent += "\n\nZertifikat erhalten:\n" + JSON.stringify(cert, null, 2)
-                        }
-                    } else {
-                        container.textContent += "\n\nZertifikat-Anfrage fehlgeschlagen: ${resp.status} ${resp.statusText}"
-                    }
-                    null
-                }
-                .catch { err: dynamic ->
-                    container.textContent += "\n\nFehler bei Zertifikat-Anfrage: $err"
-                }
-            null
-        }.catch { err: dynamic ->
-            container.textContent = "Fehler bei der Schlüsselerzeugung: $err"
-        }
+private fun showCertificate(cert: dynamic) {
+    keys.textContent += "\n\nGot cert:\n" + JSON.stringify(
+        cert,
+        null,
+        2
+    )
 }
 
 private object KoinHolder : KoinComponent
