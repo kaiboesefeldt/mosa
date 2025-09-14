@@ -69,7 +69,7 @@ private fun showCertificate(cert: PodCertificate) {
     """.trimIndent()
 }
 
-private object KoinHolder : KoinComponent
+object KoinHolder : KoinComponent
 
 private fun showJwt(jwt: String) {
     keys.textContent += """

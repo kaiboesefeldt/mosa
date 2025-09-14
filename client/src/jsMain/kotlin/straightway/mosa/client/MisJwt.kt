@@ -1,9 +1,7 @@
 package straightway.mosa.client
 
-import kotlinx.browser.window
-import kotlinx.coroutines.await
-import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Uint8Array
+import org.koin.core.component.get
 import straightway.mosa.client.Base64.toBase64Url
 import kotlin.js.JSON
 import kotlin.js.json
@@ -31,12 +29,10 @@ suspend fun buildMisJwt(
     val signingInput = "$headerB64.$payloadB64"
     val signingBytes = textEncode(signingInput)
 
-    val subtle = window.asDynamic().crypto.subtle
     val signatureBuf =
-        subtle
+        KoinHolder
+            .get<SubtleCrypto>()
             .sign("Ed25519", identity.keyPair.privateKey, signingBytes)
-            .unsafeCast<kotlin.js.Promise<ArrayBuffer>>()
-            .await()
     val signatureB64 = Uint8Array(signatureBuf).toBase64Url()
 
     return "$headerB64.$payloadB64.$signatureB64"
