@@ -6,7 +6,6 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.HTMLDivElement
 import org.koin.core.component.KoinComponent
-import straightway.mosa.client.Base64.toBase64Url
 
 private val appScope = MainScope()
 
@@ -50,12 +49,9 @@ private fun showIdentity(identity: Identity) {
         GID (base64url(sha256(pub))):
         ${identity.gid}
     
-        Public Key (raw, base64url):
-        ${identity.pub.toBase64Url()}
-    
-        Private Key (PKCS#8, base64url):
-        ${identity.priv.toBase64Url()}
-        
+        Key Pair:
+        ${identity.keyPair}
+
     """.trimIndent()
 }
 

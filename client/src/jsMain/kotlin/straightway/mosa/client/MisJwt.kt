@@ -20,7 +20,7 @@ suspend fun buildMisJwt(
     val nowSeconds = kotlin.js.Date.now().toLong() / 1000L
 
     val payload = json(
-        "pub" to identity.pub.toBase64Url(),
+        "pub" to identity.keyPair.pubRaw().toBase64Url(),
         "cert" to cert.toJson(),
         "exp" to (nowSeconds + lifetimeSeconds).toInt(),
         "mvs" to "1",
@@ -32,22 +32,9 @@ suspend fun buildMisJwt(
     val signingBytes = textEncode(signingInput)
 
     val subtle = window.asDynamic().crypto.subtle
-    val pkcs8Copy = Uint8Array(identity.priv)
-    val privateKey =
-        subtle
-            .importKey(
-                "pkcs8",
-                pkcs8Copy.buffer,
-                json("name" to "Ed25519"),
-                false,
-                arrayOf("sign"),
-            )
-            .unsafeCast<kotlin.js.Promise<dynamic>>()
-            .await()
-
     val signatureBuf =
         subtle
-            .sign("Ed25519", privateKey, signingBytes)
+            .sign("Ed25519", identity.keyPair.privateKey, signingBytes)
             .unsafeCast<kotlin.js.Promise<ArrayBuffer>>()
             .await()
     val signatureB64 = Uint8Array(signatureBuf).toBase64Url()
