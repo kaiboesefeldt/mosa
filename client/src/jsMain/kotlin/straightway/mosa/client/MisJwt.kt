@@ -40,5 +40,3 @@ suspend fun buildMisJwt(
 
 private fun encodeJsonToBase64Url(obj: dynamic): String =
     textEncode(JSON.stringify(obj)).toBase64Url()
-
-private fun textEncode(s: String): Uint8Array = js("new TextEncoder().encode(s)") as Uint8Array
