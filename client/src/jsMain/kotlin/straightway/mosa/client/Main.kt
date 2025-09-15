@@ -6,6 +6,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.HTMLDivElement
 import org.koin.core.component.KoinComponent
+import straightway.mosa.auth.PodCertificate
 
 private val appScope = MainScope()
 

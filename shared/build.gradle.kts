@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform")
+    id("org.jetbrains.kotlin.plugin.serialization")
     id("org.jmailen.kotlinter")
 }
 
@@ -11,14 +12,18 @@ repositories {
 }
 
 kotlin {
-    // Skeleton shared module; we'll add DTOs later
+    val kotlinxSerializationVersion = "1.9.0"
     jvm() 
     js(IR) {
         browser()
         nodejs()
     }
     sourceSets {
-        val commonMain by getting
+        val commonMain by getting {
+            dependencies {
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
+            }
+        }
         val commonTest by getting
     }
     jvmToolchain(19)

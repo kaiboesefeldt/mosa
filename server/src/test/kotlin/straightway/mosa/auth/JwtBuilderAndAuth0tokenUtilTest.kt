@@ -345,5 +345,5 @@ class JwtBuilderAndAuth0tokenUtilTest {
             "gid" to gid,
             "exp" to exp,
             "sig" to sig,
-        ) + if (inf === null) emptyMap() else mapOf<String, Any>("inf" to inf)
+        ) + (inf?.let { mapOf<String, Any>("inf" to it) } ?: emptyMap())
 }

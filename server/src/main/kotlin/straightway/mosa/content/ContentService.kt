@@ -54,7 +54,7 @@ class ContentService(
                 vectorStore.query(
                     VectorStore.Query(
                         vector = topicEmbedding,
-                        fromTime = request.minTime,
+                        fromTime = request.minTime?.let { Instant.ofEpochSecond(it) },
                         fields = request.threadRootId?.let { mapOf(ROOT_ID_KEY to it) } ?: emptyMap(),
                     ),
                 )
@@ -112,12 +112,10 @@ class ContentService(
             rootId = fields[ROOT_ID_KEY],
             authorGID = fields["authorGID"] ?: throw RuntimeException("No authorGID field set for vector store entry $id"),
             storedAt =
-                Instant.ofEpochSecond(
-                    (
-                        fields["receivedAt"]
-                            ?: throw RuntimeException("No receivedAt field set for vector store entry $id")
-                    ).toLong(),
-                ),
+                (
+                    fields["receivedAt"]
+                        ?: throw RuntimeException("No receivedAt field set for vector store entry $id")
+                ).toLong(),
         )
 
     private fun String.hashId(): String =

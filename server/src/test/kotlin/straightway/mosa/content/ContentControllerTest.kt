@@ -14,7 +14,6 @@ import io.mockk.mockk
 import io.mockk.runs
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import java.time.Instant
 import kotlin.test.assertEquals
 
 class ContentControllerTest {
@@ -124,7 +123,7 @@ class ContentControllerTest {
                     val request =
                         QueryRequest(
                             topic = "Hello World",
-                            minTime = Instant.ofEpochSecond(1),
+                            minTime = 1L,
                             threadRootId = "12345",
                         )
                     coEvery { contentService.query(any(), any()) } returns queryResult
@@ -187,7 +186,7 @@ class ContentControllerTest {
                             content = "content",
                             similarity = 0.9f,
                             authorGID = "authorGID",
-                            storedAt = Instant.ofEpochSecond(170000000L),
+                            storedAt = 170000000L,
                             rootId = "rootId",
                         ),
                     ),

@@ -29,7 +29,7 @@ class ContentServiceTest {
     private val testUserGID = "test-user-gid"
     private val testEmbedding = floatArrayOf(0.1f, 0.2f, 0.3f)
     private val testQueryOnId = UUID.randomUUID()
-    private val testMinTime = Instant.ofEpochSecond(1234567890L)
+    private val testMinTime = 1234567890L
 
     private fun setupEmbedding(text: String) {
         coEvery { embeddingService.embed(text) } returns testEmbedding
@@ -97,7 +97,7 @@ class ContentServiceTest {
             runTest {
                 testQuery(
                     request = QueryRequest(minTime = testMinTime),
-                    expectedQuery = VectorStore.Query(vector = null, fromTime = testMinTime, fields = emptyMap()),
+                    expectedQuery = VectorStore.Query(vector = null, fromTime = Instant.ofEpochSecond(testMinTime), fields = emptyMap()),
                 )
             }
 
@@ -115,7 +115,12 @@ class ContentServiceTest {
             runTest {
                 testQuery(
                     request = QueryRequest(topic = "test topic", minTime = testMinTime),
-                    expectedQuery = VectorStore.Query(vector = testEmbedding, fromTime = testMinTime, fields = emptyMap()),
+                    expectedQuery =
+                        VectorStore.Query(
+                            vector = testEmbedding,
+                            fromTime = Instant.ofEpochSecond(testMinTime),
+                            fields = emptyMap(),
+                        ),
                     needsEmbedding = true,
                 )
             }
@@ -135,7 +140,13 @@ class ContentServiceTest {
             runTest {
                 testQuery(
                     request = QueryRequest(minTime = testMinTime, threadRootId = "root-123"),
-                    expectedQuery = VectorStore.Query(vector = null, fromTime = testMinTime, fields = mapOf("rootId" to "root-123")),
+                    expectedQuery =
+                        VectorStore.Query(
+                            vector = null,
+                            fromTime = Instant.ofEpochSecond(testMinTime),
+                            fields =
+                                mapOf("rootId" to "root-123"),
+                        ),
                 )
             }
 
@@ -147,7 +158,7 @@ class ContentServiceTest {
                     expectedQuery =
                         VectorStore.Query(
                             vector = testEmbedding,
-                            fromTime = testMinTime,
+                            fromTime = Instant.ofEpochSecond(testMinTime),
                             fields = mapOf("rootId" to "root-123"),
                         ),
                     needsEmbedding = true,
@@ -177,7 +188,7 @@ class ContentServiceTest {
                                 content = "test content",
                                 similarity = 0.9f,
                                 authorGID = "test-author",
-                                storedAt = Instant.ofEpochSecond(1609459200L),
+                                storedAt = 1609459200L,
                                 rootId = null,
                             ),
                         ),
@@ -206,7 +217,7 @@ class ContentServiceTest {
                                     content = "test content",
                                     similarity = 0.9f,
                                     authorGID = "test-author",
-                                    storedAt = Instant.ofEpochSecond(1609459200L),
+                                    storedAt = 1609459200L,
                                     rootId = null,
                                 ),
                             ),
@@ -250,7 +261,7 @@ class ContentServiceTest {
                                     content = "First entry",
                                     similarity = 0.95f,
                                     authorGID = "author-1",
-                                    storedAt = Instant.ofEpochSecond(1609459200L),
+                                    storedAt = 1609459200L,
                                     rootId = "root-1",
                                 ),
                                 QueryResult.Entry(
@@ -258,7 +269,7 @@ class ContentServiceTest {
                                     content = "Second entry",
                                     similarity = 0.80f,
                                     authorGID = "author-2",
-                                    storedAt = Instant.ofEpochSecond(1609459300L),
+                                    storedAt = 1609459300L,
                                     rootId = null,
                                 ),
                             ),
@@ -380,7 +391,7 @@ class ContentServiceTest {
                                     content = "test content",
                                     similarity = 0.9f,
                                     authorGID = "test-author",
-                                    storedAt = Instant.ofEpochSecond(1609459200L),
+                                    storedAt = 1609459200L,
                                     rootId = null,
                                 ),
                             ),
@@ -422,7 +433,7 @@ class ContentServiceTest {
                                     content = "test content",
                                     similarity = 0.9f,
                                     authorGID = "test-author",
-                                    storedAt = Instant.ofEpochSecond(1609459200L),
+                                    storedAt = 1609459200L,
                                     rootId = null,
                                 ),
                             ),
@@ -458,7 +469,7 @@ class ContentServiceTest {
                                     content = "QueryOn content",
                                     similarity = 0.85f,
                                     authorGID = "query-on-author",
-                                    storedAt = Instant.ofEpochSecond(1609459400L),
+                                    storedAt = 1609459400L,
                                     rootId = "query-on-root",
                                 ),
                             ),

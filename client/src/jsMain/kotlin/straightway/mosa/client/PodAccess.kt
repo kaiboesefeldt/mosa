@@ -1,25 +1,28 @@
 package straightway.mosa.client
 
-import kotlinx.browser.window
-import kotlinx.coroutines.await
-import org.w3c.fetch.Headers
-import org.w3c.fetch.RequestInit
-import kotlin.js.json
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import straightway.mosa.auth.AuthenticationApprovalRequest
+import straightway.mosa.auth.PodCertificate
 
-class PodAccess(private val podBase: String) {
+class PodAccess(
+    private val podBase: String,
+    private val httpClient: HttpClient,
+) {
     suspend fun approveGid(gid: String): PodCertificate {
         val url = "$podBase/v1/approvegid"
-        val request = RequestInit(
-            method = "POST",
-            headers = Headers().apply {
-                append("Content-Type", "application/json; charset=utf-8")
-                append("Accept", "application/json")
-            },
-            body = JSON.stringify(json("gid" to gid))
-        )
-        val response = window.fetch(url, request).await()
-        if (!response.ok) throw RuntimeException("Invalid response to $url with $gid: $response")
-        val obj = response.json().await()
-        return PodCertificate(obj)
+        val response =
+            httpClient.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(AuthenticationApprovalRequest(gid))
+            }
+        if (!response.status.value.toString().startsWith("2")) {
+            throw RuntimeException("Invalid response to $url with $gid: $response")
+        }
+        return response.body()
     }
 }

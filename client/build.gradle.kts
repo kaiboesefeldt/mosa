@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 group = "straightway.mosa"
@@ -27,11 +28,16 @@ kotlin {
     sourceSets {
         val koinVersion = "4.1.1"
         val kotlinxCoroutinesVersion = "1.10.2"
+        val ktorVersion = "3.2.0"
         jsMain {
             dependencies {
                 implementation(kotlin("stdlib-js"))
                 implementation("io.insert-koin:koin-core:$koinVersion")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
+                implementation("io.ktor:ktor-client-js:$ktorVersion")
+                implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
+                implementation(project(":shared"))
             }
         }
         jsTest {

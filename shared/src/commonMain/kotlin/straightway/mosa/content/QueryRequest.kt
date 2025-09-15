@@ -1,9 +1,11 @@
 package straightway.mosa.content
 
-import java.time.Instant
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class QueryRequest(
     val topic: String? = null,
-    val minTime: Instant? = null,
+    // epoch seconds; null means unset
+    val minTime: Long? = null,
     val threadRootId: String? = null,
 )

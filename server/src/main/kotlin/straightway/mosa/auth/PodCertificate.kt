@@ -1,18 +1,11 @@
 package straightway.mosa.auth
 
-data class PodCertificate(
-    val gid: String,
-    val exp: Long,
-    val sig: String,
-    val inf: String? = null,
-)
-
 fun PodCertificate.toMap(): Map<String, Any> =
     mapOf(
         "gid" to gid,
         "exp" to exp,
         "sig" to sig,
-    ) + if (inf === null) emptyMap() else mapOf<String, Any>("inf" to inf)
+    ) + (inf?.let { mapOf<String, Any>("inf" to it) } ?: emptyMap())
 
 fun Map<String, Any>.toPodCertificate(): PodCertificate? {
     return PodCertificate(

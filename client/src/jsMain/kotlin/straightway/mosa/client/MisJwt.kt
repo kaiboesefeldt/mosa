@@ -3,6 +3,7 @@ package straightway.mosa.client
 import org.khronos.webgl.Uint8Array
 import org.koin.core.component.get
 import straightway.mosa.client.Base64.toBase64Url
+import straightway.mosa.auth.PodCertificate
 import kotlin.js.JSON
 import kotlin.js.json
 
@@ -19,7 +20,13 @@ suspend fun buildMisJwt(
 
     val payload = json(
         "pub" to identity.keyPair.pubRaw().toBase64Url(),
-        "cert" to cert.toJson(),
+        "cert" to json(
+            "gid" to cert.gid,
+            "exp" to cert.exp.toInt(),
+            "sig" to cert.sig,
+        ).apply {
+            if (cert.inf != null) this["inf"] = cert.inf
+        },
         "exp" to (nowSeconds + lifetimeSeconds).toInt(),
         "mvs" to "1",
     )

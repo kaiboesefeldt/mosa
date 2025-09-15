@@ -23,7 +23,7 @@ class SearchCommand(
                     QueryRequest(
                         topic = topic,
                         threadRootId = rootId,
-                        minTime = minTime?.let { Instant.parse(it) },
+                        minTime = minTime?.let { Instant.parse(it).epochSecond },
                     ),
                 )
             prettyPrint(response)
@@ -44,7 +44,7 @@ class SearchCommand(
                             listOf(
                                 "similarity: ${it.similarity}",
                                 "author: ${it.authorGID}",
-                                "stored: ${it.storedAt}",
+                                "stored: ${Instant.ofEpochSecond(it.storedAt)}",
                             )
                     val resultContent = lines.joinToString("\n")
                     "Search result entry\n${resultContent.prependIndent("    ")}"
