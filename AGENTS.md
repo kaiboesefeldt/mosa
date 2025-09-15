@@ -26,6 +26,7 @@
 - Packages under `straightway.mosa.*`; production code in `src/main/kotlin`, tests mirror packages in `src/test/kotlin`.
 - Filenames match top-level class/object (e.g., `ContentService.kt`).
 - Make sure you don't introduce trailing spaces in lines, don't use tabs, don't have additional newlines at the end of files
+- If you introduce new libs, always make sure you use the most recent stable version, if possible.
 
 ## Testing Guidelines
 - Place tests under `src/test/kotlin/...`; name files `*Test.kt` (e.g., `ContentControllerTest.kt`).
