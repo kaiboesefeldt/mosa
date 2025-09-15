@@ -4,4 +4,3 @@ data class ReplyRequest(
     val content: PublishRequest,
     val rootId: String,
 )
-

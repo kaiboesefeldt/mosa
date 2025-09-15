@@ -15,4 +15,3 @@ data class QueryResult(
         val rootId: String? = null,
     )
 }
-

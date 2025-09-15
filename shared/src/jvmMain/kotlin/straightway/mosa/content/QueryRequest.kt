@@ -7,4 +7,3 @@ data class QueryRequest(
     val minTime: Instant? = null,
     val threadRootId: String? = null,
 )
-
