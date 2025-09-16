@@ -1,11 +1,17 @@
 package straightway.mosa.client
 
 import org.khronos.webgl.Uint8Array
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 class Base64Test {
+    @BeforeTest
+    fun installStacktraceMapper() {
+        ensureStacktraceMapperInstalled()
+    }
+
     @Test
     fun `encodes known bytes to base64url`() {
         val bytes = Uint8Array(intArrayOf(0xFF, 0xEE, 0xDD, 0xCC).map { it.toByte() }.toTypedArray())
@@ -24,4 +30,3 @@ class Base64Test {
         assertContentEquals(asArray, decArray)
     }
 }
-

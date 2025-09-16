@@ -1,5 +1,6 @@
 package straightway.mosa.client
 
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -9,6 +10,10 @@ import straightway.mosa.client.Base64.toBase64Url
 import straightway.mosa.auth.PodCertificate
 
 class MisJwtServiceTest {
+    @BeforeTest
+    fun installStacktraceMapper() {
+        ensureStacktraceMapperInstalled()
+    }
 
     private val sut = MisJwtService(
         object : TimeService {

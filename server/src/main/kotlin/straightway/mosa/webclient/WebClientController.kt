@@ -2,6 +2,7 @@ package straightway.mosa.webclient
 
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.header
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
@@ -44,7 +45,12 @@ class WebClientController : BaseController() {
         }
 
         get("/mosa-client.js.map") {
-            call.respondText(mapResource, ContentType.Application.Json)
+            val mapContent = mapResource
+            if (shouldServeSourceMaps() && mapContent != null) {
+                call.respondText(mapContent, ContentType.Application.Json)
+            } else {
+                call.respondText("", ContentType.Application.Json, HttpStatusCode.NotFound)
+            }
         }
     }
 
@@ -55,13 +61,13 @@ class WebClientController : BaseController() {
                 ?.readText()
                 ?: "console.log('Client not built');"
         }
-        private val mapResource: String by lazy {
+        private val mapResource: String? by lazy {
             WebClientController::class.java.classLoader
                 .getResource("static/mosa-client.js.map")
-                ?.takeIf { System.getenv("MOSA_SERVE_SOURCE_MAPS") == "true" }
                 ?.readText()
-                ?: "{}"
         }
+
+        private fun shouldServeSourceMaps() = System.getenv("MOSA_SERVE_SOURCE_MAPS")?.equals("true", ignoreCase = true) == true
 
         private fun String.injectMosaPodBase(base: String): String =
             run {

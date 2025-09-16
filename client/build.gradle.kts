@@ -12,12 +12,14 @@ repositories {
 
 kotlin {
     js {
+        compilerOptions {
+            sourceMap = true
+            sourceMapEmbedSources = org.jetbrains.kotlin.gradle.dsl.JsSourceMapEmbedMode.SOURCE_MAP_SOURCE_CONTENT_ALWAYS
+        }
         browser {
             binaries.executable()
             webpackTask {
                 mainOutputFileName = "mosa-client.js"
-                // Generate source maps to improve stack traces
-                this as org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
                 devtool = "source-map"
             }
             commonWebpackConfig {
@@ -26,11 +28,12 @@ kotlin {
             testTask {
                 useKarma {
                     useFirefoxHeadless()
+                    useConfigDirectory(project.projectDir.resolve("karma.config.d"))
                 }
             }
         }
     }
-    
+
     sourceSets {
         val koinVersion = "4.1.1"
         val kotlinxCoroutinesVersion = "1.10.2"
@@ -52,6 +55,7 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test-js:$kotlinxCoroutinesVersion")
+                implementation(npm("karma-source-map-support", "1.4.0"))
             }
         }
     }

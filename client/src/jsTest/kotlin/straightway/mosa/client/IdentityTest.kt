@@ -1,11 +1,17 @@
 package straightway.mosa.client
 
 import kotlinx.coroutines.test.runTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class IdentityTest {
+    @BeforeTest
+    fun installStacktraceMapper() {
+        ensureStacktraceMapperInstalled()
+    }
+
     @Test
     fun `generate identity provides gid and keys`() = runTest {
         ClientDI.start()
