@@ -1,10 +1,13 @@
-package straightway.mosa.client
+package straightway.mosa.client.identity
 
-import org.khronos.webgl.Uint8Array
-import straightway.mosa.client.Base64.toBase64Url
-import straightway.mosa.auth.PodCertificate
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.khronos.webgl.Uint8Array
+import straightway.mosa.auth.PodCertificate
+import straightway.mosa.client.aux.TimeService
+import straightway.mosa.client.browser.SubtleCrypto
+import straightway.mosa.client.util.textEncode
+import straightway.mosa.client.util.Base64.toBase64Url
 
 class MisJwtService(
     private val timeService: TimeService,

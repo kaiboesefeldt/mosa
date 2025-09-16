@@ -1,16 +1,9 @@
-package straightway.mosa.client
+package straightway.mosa.client.browser
 
 import kotlinx.coroutines.await
 import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Uint8Array
 import kotlin.js.Promise
-
-external interface CryptoKey
-
-external interface CryptoKeyPair {
-    val privateKey: CryptoKey
-    val publicKey: CryptoKey
-}
 
 class SubtleCrypto(private val wrapped: dynamic) {
     suspend fun sign(algo: String, privateKey: CryptoKey, signingBytes: Uint8Array): ArrayBuffer =

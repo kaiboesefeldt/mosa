@@ -1,6 +1,7 @@
-package straightway.mosa.client
+package straightway.mosa.client.util
 
 import org.khronos.webgl.Uint8Array
+import straightway.mosa.client.test.ensureStacktraceMapperInstalled
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -14,14 +15,17 @@ class Base64Test {
 
     @Test
     fun `encodes known bytes to base64url`() {
-        val bytes = Uint8Array(intArrayOf(0xFF, 0xEE, 0xDD, 0xCC).map { it.toByte() }.toTypedArray())
+        val bytes =
+            Uint8Array(intArrayOf(0xFF, 0xEE, 0xDD, 0xCC).map { it.toByte() }.toTypedArray())
         val encoded = Base64.run { bytes.toBase64Url() }
         assertEquals("_-7dzA", encoded)
     }
 
     @Test
     fun `roundtrip encode-decode`() {
-        val bytes = Uint8Array(intArrayOf(0, 1, 2, 3, 250, 251, 252, 253, 254, 255).map { it.toByte() }.toTypedArray())
+        val bytes =
+            Uint8Array(intArrayOf(0, 1, 2, 3, 250, 251, 252, 253, 254, 255).map { it.toByte() }
+                .toTypedArray())
         val encoded = Base64.run { bytes.toBase64Url() }
         val decoded = Base64.fromBase64Url(encoded)
         // Verify same content

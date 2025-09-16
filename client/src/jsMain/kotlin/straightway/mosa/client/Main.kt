@@ -6,47 +6,62 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.HTMLDivElement
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 import straightway.mosa.auth.PodCertificate
-
-private val appScope = MainScope()
+import straightway.mosa.client.AppModule
+import straightway.mosa.client.identity.Identity
+import straightway.mosa.client.identity.IdentityGenerator
+import straightway.mosa.client.identity.MisJwtService
+import straightway.mosa.client.pod.podAccess
 
 fun main() {
-    window.onload = {
-        ClientDI.start()
+    window.onload = { Main().run() }
+}
+
+class Main : KoinComponent {
+
+    private val appScope = MainScope()
+
+    fun run() {
+        AppModule.start()
+
         renderSkeleton()
 
         appScope.launch {
-            val identity = KoinHolder.identityGenerator.generate()
+            val identity = get<IdentityGenerator>().generate()
             showIdentity(identity)
+
             val cert = createCertificateFor(identity.gid)
             showCertificate(cert)
-            val jwt = KoinHolder.misJwtService.buildMisJwt(identity, cert)
+
+            val jwt = get<MisJwtService>().buildMisJwt(identity, cert)
             showJwt(jwt)
         }
     }
-}
 
-private fun renderSkeleton() {
-    val body = document.body ?: return
-    val heading = document.createElement("h1")
-    heading.textContent = "Mosa – Browser Identity"
-    body.appendChild(heading)
+    private fun renderSkeleton() {
+        val body = document.body ?: return
+        val heading = document.createElement("h1")
+        heading.textContent = "Mosa – Browser Identity"
+        body.appendChild(heading)
 
-    val desc = document.createElement("p")
-    desc.textContent = "This page generates an Ed25519 key pair locally in the browser."
-    body.appendChild(desc)
+        val desc = document.createElement("p")
+        desc.textContent = "This page generates an Ed25519 key pair locally in the browser."
+        body.appendChild(desc)
 
-    val container = document.createElement("div") as HTMLDivElement
-    container.id = "keys"
-    container.style.whiteSpace = "pre-wrap"
-    body.appendChild(container)
-}
+        val container = document.createElement("div") as HTMLDivElement
+        container.id = "keys"
+        container.style.whiteSpace = "pre-wrap"
+        body.appendChild(container)
+    }
 
-private val keys by lazy { document.getElementById("keys") ?: throw RuntimeException("Element `keys` not found") }
+    private val keys by lazy {
+        document.getElementById("keys") ?: throw RuntimeException("Element `keys` not found")
+    }
 
-private fun showIdentity(identity: Identity) {
-    keys.textContent = "Generating Ed25519 key pair …"
-    keys.textContent = """
+    private fun showIdentity(identity: Identity) {
+        keys.textContent = "Generating Ed25519 key pair …"
+        keys.textContent = """
         GID (base64url(sha256(pub))):
         ${identity.gid}
     
@@ -54,28 +69,27 @@ private fun showIdentity(identity: Identity) {
         ${JSON.stringify(identity.keyPair)}
 
     """.trimIndent()
-}
+    }
 
-private suspend fun createCertificateFor(gid: String): PodCertificate {
-    val podHost = (window.asDynamic().MOSA_POD_BASE as? String) ?: ""
-    val podAccess = KoinHolder.podAccess(podHost)
-    return podAccess.approveGid(gid)
-}
+    private suspend fun createCertificateFor(gid: String): PodCertificate {
+        val podHost = (window.asDynamic().MOSA_POD_BASE as? String) ?: ""
+        val podAccess = podAccess(podHost)
+        return podAccess.approveGid(gid)
+    }
 
-private fun showCertificate(cert: PodCertificate) {
-    keys.textContent += """
+    private fun showCertificate(cert: PodCertificate) {
+        keys.textContent += """
         
         Got cert: $cert
         
     """.trimIndent()
-}
+    }
 
-private object KoinHolder : KoinComponent
-
-private fun showJwt(jwt: String) {
-    keys.textContent += """
+    private fun showJwt(jwt: String) {
+        keys.textContent += """
         
         MIS-JWT:
         $jwt
     """.trimIndent()
+    }
 }

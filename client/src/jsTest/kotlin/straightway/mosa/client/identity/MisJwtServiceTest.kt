@@ -1,14 +1,19 @@
-package straightway.mosa.client
+package straightway.mosa.client.identity
 
+import kotlinx.coroutines.test.runTest
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
+import straightway.mosa.auth.PodCertificate
+import straightway.mosa.client.aux.TimeService
+import straightway.mosa.client.browser.SubtleCrypto
+import straightway.mosa.client.AppModule
+import straightway.mosa.client.test.ensureStacktraceMapperInstalled
+import straightway.mosa.client.util.Base64
+import straightway.mosa.client.util.Base64.toBase64Url
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlinx.coroutines.test.runTest
-import org.koin.core.component.KoinComponent
-import kotlin.js.JSON
-import straightway.mosa.client.Base64.toBase64Url
-import straightway.mosa.auth.PodCertificate
 
 class MisJwtServiceTest : KoinComponent {
     @BeforeTest
@@ -18,7 +23,7 @@ class MisJwtServiceTest : KoinComponent {
 
     @BeforeTest
     fun startDI() {
-        ClientDI.start()
+        AppModule.start()
     }
 
     private val sut by lazy {
@@ -26,16 +31,16 @@ class MisJwtServiceTest : KoinComponent {
             object : TimeService {
                 override val now = NOW
             },
-            cryptoExport,
-            subtleCrypto
+            get<CryptoExport>(),
+            get<SubtleCrypto>()
         )
     }
 
     @Test
     fun `buildMisJwt produces correct header and payload with inf`() = runTest {
         // Arrange: start DI and generate identity
-        ClientDI.start()
-        val identity = identityGenerator.generate()
+        AppModule.start()
+        val identity = this@MisJwtServiceTest.get<IdentityGenerator>().generate()
 
         val cert = PodCertificate(
             gid = identity.gid,
@@ -54,8 +59,8 @@ class MisJwtServiceTest : KoinComponent {
     @Test
     fun `buildMisJwt produces correct header and payload without inf`() = runTest {
         // Arrange: start DI and generate identity
-        ClientDI.start()
-        val identity = identityGenerator.generate()
+        AppModule.start()
+        val identity = this@MisJwtServiceTest.get<IdentityGenerator>().generate()
 
         val cert = PodCertificate(
             gid = identity.gid,
@@ -106,7 +111,7 @@ class MisJwtServiceTest : KoinComponent {
         assertTrue(header.kid === undef)
         // Note: do not rely on Object.keys in typed context; basic checks above suffice
 
-        val expectedPub = cryptoExport.pubRawOf(identity.keyPair).toBase64Url()
+        val expectedPub = get<CryptoExport>().pubRawOf(identity.keyPair).toBase64Url()
         assertEquals(expectedPub, payload.pub as String)
         assertEquals("1", payload.mvs as String)
         assertEquals(NOW + LIFETIME_SECONDS, (payload.exp as Number).toLong())

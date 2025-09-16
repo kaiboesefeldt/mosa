@@ -1,8 +1,9 @@
-package straightway.mosa.client
+package straightway.mosa.client.identity
 
 import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Uint8Array
-import straightway.mosa.client.Base64.toBase64Url
+import straightway.mosa.client.util.Base64.toBase64Url
+import straightway.mosa.client.browser.SubtleCrypto
 
 class IdentityGenerator(private val cryptoExport: CryptoExport, private val subtleCrypto: SubtleCrypto) {
 

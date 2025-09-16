@@ -1,7 +1,9 @@
-package straightway.mosa.client
+package straightway.mosa.client.identity
 
 import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Uint8Array
+import straightway.mosa.client.browser.CryptoKeyPair
+import straightway.mosa.client.browser.SubtleCrypto
 
 class CryptoExport(private val subtleCrypto: SubtleCrypto) {
 

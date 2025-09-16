@@ -1,4 +1,4 @@
-package straightway.mosa.client
+package straightway.mosa.client.util
 
 import org.khronos.webgl.Uint8Array
 

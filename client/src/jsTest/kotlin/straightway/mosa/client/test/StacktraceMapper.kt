@@ -1,4 +1,4 @@
-package straightway.mosa.client
+package straightway.mosa.client.test
 
 import kotlinx.browser.window
 import kotlin.js.JSON
