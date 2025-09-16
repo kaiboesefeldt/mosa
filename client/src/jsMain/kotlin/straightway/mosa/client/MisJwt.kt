@@ -4,32 +4,24 @@ import org.khronos.webgl.Uint8Array
 import org.koin.core.component.get
 import straightway.mosa.client.Base64.toBase64Url
 import straightway.mosa.auth.PodCertificate
-import kotlin.js.JSON
-import kotlin.js.json
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 suspend fun buildMisJwt(
     identity: Identity,
     cert: PodCertificate,
     lifetimeSeconds: Long = 24L * 60L * 60L,
 ): String {
-    val header = json(
-        "alg" to "ed25519",
-        "typ" to "JWT",
-    )
+    val header = JwtHeader(alg = "ed25519", typ = "JWT")
     val nowSeconds = kotlin.js.Date.now().toLong() / 1000L
 
-    val payload = json(
-        "pub" to identity.keyPair.pubRaw().toBase64Url(),
-        "cert" to json(
-            "gid" to cert.gid,
-            "exp" to cert.exp.toInt(),
-            "sig" to cert.sig,
-        ).apply {
-            if (cert.inf != null) this["inf"] = cert.inf
-        },
-        "exp" to (nowSeconds + lifetimeSeconds).toInt(),
-        "mvs" to "1",
-    )
+    val payload =
+        JwtPayload(
+            pub = identity.keyPair.pubRaw().toBase64Url(),
+            cert = cert,
+            exp = (nowSeconds + lifetimeSeconds).toInt(),
+            mvs = "1",
+        )
 
     val headerB64 = encodeJsonToBase64Url(header)
     val payloadB64 = encodeJsonToBase64Url(payload)
@@ -45,5 +37,21 @@ suspend fun buildMisJwt(
     return "$headerB64.$payloadB64.$signatureB64"
 }
 
-private fun encodeJsonToBase64Url(obj: dynamic): String =
-    textEncode(JSON.stringify(obj)).toBase64Url()
+@Serializable
+internal data class JwtHeader(
+    val alg: String,
+    val typ: String,
+)
+
+@Serializable
+internal data class JwtPayload(
+    val pub: String,
+    val cert: PodCertificate,
+    val exp: Int,
+    val mvs: String,
+)
+
+private val jsonCodec = Json { encodeDefaults = true }
+
+private fun encodeJsonToBase64Url(obj: JwtHeader): String = textEncode(jsonCodec.encodeToString(obj)).toBase64Url()
+private fun encodeJsonToBase64Url(obj: JwtPayload): String = textEncode(jsonCodec.encodeToString(obj)).toBase64Url()

@@ -8,7 +8,8 @@ import kotlin.test.assertTrue
 class IdentityTest {
     @Test
     fun `generate identity provides gid and keys`() = runTest {
-        val id = IdentityGenerator().generate()
+        ClientDI.start()
+        val id = KoinHolder.identityGenerator.generate()
 
         // Ed25519 raw public key has 32 bytes
         assertEquals(32, id.keyPair.pubRaw().length)

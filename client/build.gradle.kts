@@ -28,6 +28,7 @@ kotlin {
     sourceSets {
         val koinVersion = "4.1.1"
         val kotlinxCoroutinesVersion = "1.10.2"
+        val kotlinxSerializationJsonVersion = "1.9.0"
         val ktorVersion = "3.2.0"
         jsMain {
             dependencies {
@@ -38,6 +39,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
                 implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
                 implementation(project(":shared"))
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
             }
         }
         jsTest {
