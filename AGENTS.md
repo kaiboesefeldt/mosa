@@ -26,13 +26,14 @@
 - Packages under `straightway.mosa.*`; production code in `src/main/kotlin`, tests mirror packages in `src/test/kotlin`.
 - Filenames match top-level class/object (e.g., `ContentService.kt`).
 - Make sure you don't introduce trailing spaces in lines, don't use tabs, don't have additional newlines at the end of files
-- If you introduce new libs, always make sure you use the most recent stable version, if possible.
+- If you introduce new libs, always make sure you use the most recent stable version, if possible. Look up the most recent version using a web search!!
 
 ## Testing Guidelines
 - Place tests under `src/test/kotlin/...`; name files `*Test.kt` (e.g., `ContentControllerTest.kt`).
 - Prefer fast, deterministic unit tests; use MockK for collaborators; Ktor test host for endpoint tests.
 - No strict coverage gate today; keep service/controller logic covered and add regression tests for bugs.
 - Test data assets live in `src/test/resources/...`.
+- In KotlinJs tests, use `runTest`.
 
 ## API & Auth
 - All routes under `/v1`; bearer MIS-JWT required for most endpoints.
