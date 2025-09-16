@@ -16,6 +16,12 @@ kotlin {
             binaries.executable()
             webpackTask {
                 mainOutputFileName = "mosa-client.js"
+                // Generate source maps to improve stack traces
+                this as org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
+                devtool = "source-map"
+            }
+            commonWebpackConfig {
+                devtool = "source-map"
             }
             testTask {
                 useKarma {

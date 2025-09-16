@@ -40,29 +40,44 @@ class WebClientController : BaseController() {
         }
 
         get("/mosa-client.js") {
-            val jsResource = this::class.java.classLoader.getResource("static/mosa-client.js")
-            if (jsResource != null) {
-                call.respondText(jsResource.readText(), ContentType.Application.JavaScript)
-            } else {
-                call.respondText("console.log('Client not built');", ContentType.Application.JavaScript)
-            }
+            call.respondText(clientCodeJs, ContentType.Application.JavaScript)
         }
+
+        get("/mosa-client.js.map") {
+            call.respondText(mapResource, ContentType.Application.Json)
+        }
+    }
+
+    private companion object {
+        private val clientCodeJs: String by lazy {
+            WebClientController::class.java.classLoader
+                .getResource("static/mosa-client.js")
+                ?.readText()
+                ?: "console.log('Client not built');"
+        }
+        private val mapResource: String by lazy {
+            WebClientController::class.java.classLoader
+                .getResource("static/mosa-client.js.map")
+                ?.takeIf { System.getenv("MOSA_SERVE_SOURCE_MAPS") == "true" }
+                ?.readText()
+                ?: "{}"
+        }
+
+        private fun String.injectMosaPodBase(base: String): String =
+            run {
+                val marker = "</body>"
+                val script =
+                    """
+                    <script>
+                      window.MOSA_POD_BASE = "$base";
+                    </script>
+                    """.trimIndent()
+                val idx = indexOf(marker, ignoreCase = true)
+                if (idx >= 0) {
+                    substring(0, idx) + script + substring(idx)
+                } else {
+                    this + script
+                }
+            }
     }
 }
-
-private fun String.injectMosaPodBase(base: String): String =
-    run {
-        val marker = "</body>"
-        val script =
-            """
-            <script>
-              window.MOSA_POD_BASE = "$base";
-            </script>
-            """.trimIndent()
-        val idx = indexOf(marker, ignoreCase = true)
-        if (idx >= 0) {
-            substring(0, idx) + script + substring(idx)
-        } else {
-            this + script
-        }
-    }
