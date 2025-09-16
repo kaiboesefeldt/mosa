@@ -6,6 +6,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.HTMLDivElement
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 import straightway.mosa.auth.PodCertificate
 
 private val appScope = MainScope()
@@ -20,7 +21,7 @@ fun main() {
             showIdentity(identity)
             val cert = createCertificateFor(identity.gid)
             showCertificate(cert)
-            val jwt = buildMisJwt(identity, cert)
+            val jwt = KoinHolder.get<MisJwtService>().buildMisJwt(identity, cert)
             showJwt(jwt)
         }
     }

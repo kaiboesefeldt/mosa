@@ -15,6 +15,8 @@ object ClientDI {
             startKoin {
                 modules(
                     module {
+                        single { TimeService() }
+                        single { MisJwtService(get<TimeService>()) }
                         single { IdentityGenerator() }
                         single {
                             HttpClient {
