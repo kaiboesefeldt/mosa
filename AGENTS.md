@@ -35,6 +35,7 @@
 - No strict coverage gate today; keep service/controller logic covered and add regression tests for bugs.
 - Test data assets live in `src/test/resources/...`.
 - In KotlinJs tests, use `runTest`.
+- Strictly handle one minimal test case per test.
 
 ## API & Auth
 - All routes under `/v1`; bearer MIS-JWT required for most endpoints.
