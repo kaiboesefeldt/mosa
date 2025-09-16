@@ -27,6 +27,7 @@
 - Filenames match top-level class/object (e.g., `ContentService.kt`).
 - Make sure you don't introduce trailing spaces in lines, don't use tabs, don't have additional newlines at the end of files
 - If you introduce new libs, always make sure you use the most recent stable version, if possible. Look up the most recent version using a web search!!
+- Don't use code comments! Instead, write the code so expressive, that comments are not required, e.g. by naming of code entities and extracted functions, that are named to make the functionality clear. 
 
 ## Testing Guidelines
 - Place tests under `src/test/kotlin/...`; name files `*Test.kt` (e.g., `ContentControllerTest.kt`).
