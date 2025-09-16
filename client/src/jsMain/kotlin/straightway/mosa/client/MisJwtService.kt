@@ -1,13 +1,16 @@
 package straightway.mosa.client
 
 import org.khronos.webgl.Uint8Array
-import org.koin.core.component.get
 import straightway.mosa.client.Base64.toBase64Url
 import straightway.mosa.auth.PodCertificate
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-class MisJwtService(private val timeService: TimeService) {
+class MisJwtService(
+    private val timeService: TimeService,
+    private val crypto: Crypto,
+    private val subtleCrypto: SubtleCrypto
+) {
 
     suspend fun buildMisJwt(
         identity: Identity,
@@ -19,7 +22,7 @@ class MisJwtService(private val timeService: TimeService) {
 
         val payload =
             JwtPayload(
-                pub = identity.keyPair.pubRaw().toBase64Url(),
+                pub = crypto.pubRawOf(identity.keyPair).toBase64Url(),
                 cert = cert,
                 exp = (nowSeconds + lifetimeSeconds).toInt(),
                 mvs = "1",
@@ -30,10 +33,7 @@ class MisJwtService(private val timeService: TimeService) {
         val signingInput = "$headerB64.$payloadB64"
         val signingBytes = textEncode(signingInput)
 
-        val signatureBuf =
-            KoinHolder
-                .get<SubtleCrypto>()
-                .sign("Ed25519", identity.keyPair.privateKey, signingBytes)
+        val signatureBuf = subtleCrypto.sign("Ed25519", identity.keyPair.privateKey, signingBytes)
         val signatureB64 = Uint8Array(signatureBuf).toBase64Url()
 
         return "$headerB64.$payloadB64.$signatureB64"

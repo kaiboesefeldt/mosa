@@ -5,27 +5,37 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import org.koin.core.component.KoinComponent
 import kotlin.js.JSON
 import straightway.mosa.client.Base64.toBase64Url
 import straightway.mosa.auth.PodCertificate
 
-class MisJwtServiceTest {
+class MisJwtServiceTest : KoinComponent {
     @BeforeTest
     fun installStacktraceMapper() {
         ensureStacktraceMapperInstalled()
     }
 
-    private val sut = MisJwtService(
-        object : TimeService {
-            override val now = NOW
-        }
-    )
+    @BeforeTest
+    fun startDI() {
+        ClientDI.start()
+    }
+
+    private val sut by lazy {
+        MisJwtService(
+            object : TimeService {
+                override val now = NOW
+            },
+            crypto,
+            subtleCrypto
+        )
+    }
 
     @Test
     fun `buildMisJwt produces correct header and payload with inf`() = runTest {
         // Arrange: start DI and generate identity
         ClientDI.start()
-        val identity = KoinHolder.identityGenerator.generate()
+        val identity = identityGenerator.generate()
 
         val cert = PodCertificate(
             gid = identity.gid,
@@ -45,7 +55,7 @@ class MisJwtServiceTest {
     fun `buildMisJwt produces correct header and payload without inf`() = runTest {
         // Arrange: start DI and generate identity
         ClientDI.start()
-        val identity = KoinHolder.identityGenerator.generate()
+        val identity = identityGenerator.generate()
 
         val cert = PodCertificate(
             gid = identity.gid,
@@ -96,7 +106,7 @@ class MisJwtServiceTest {
         assertTrue(header.kid === undef)
         // Note: do not rely on Object.keys in typed context; basic checks above suffice
 
-        val expectedPub = identity.keyPair.pubRaw().toBase64Url()
+        val expectedPub = crypto.pubRawOf(identity.keyPair).toBase64Url()
         assertEquals(expectedPub, payload.pub as String)
         assertEquals("1", payload.mvs as String)
         assertEquals(NOW + LIFETIME_SECONDS, (payload.exp as Number).toLong())

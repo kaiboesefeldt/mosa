@@ -16,8 +16,8 @@ object ClientDI {
                 modules(
                     module {
                         single { TimeService() }
-                        single { MisJwtService(get<TimeService>()) }
-                        single { IdentityGenerator() }
+                        single { MisJwtService(get(), get(), get()) }
+                        single { IdentityGenerator(get(), get()) }
                         single {
                             HttpClient {
                                 install(ContentNegotiation) { json() }
@@ -29,6 +29,7 @@ object ClientDI {
                                 window.asDynamic().crypto?.subtle ?: error("WebCrypto not available")
                             )
                         }
+                        single { Crypto(get()) }
                     },
                 )
             }

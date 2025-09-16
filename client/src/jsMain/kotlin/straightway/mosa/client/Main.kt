@@ -6,7 +6,6 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.HTMLDivElement
 import org.koin.core.component.KoinComponent
-import org.koin.core.component.get
 import straightway.mosa.auth.PodCertificate
 
 private val appScope = MainScope()
@@ -21,7 +20,7 @@ fun main() {
             showIdentity(identity)
             val cert = createCertificateFor(identity.gid)
             showCertificate(cert)
-            val jwt = KoinHolder.get<MisJwtService>().buildMisJwt(identity, cert)
+            val jwt = KoinHolder.misJwtService.buildMisJwt(identity, cert)
             showJwt(jwt)
         }
     }
@@ -52,14 +51,14 @@ private fun showIdentity(identity: Identity) {
         ${identity.gid}
     
         Key Pair:
-        ${identity.keyPair}
+        ${JSON.stringify(identity.keyPair)}
 
     """.trimIndent()
 }
 
 private suspend fun createCertificateFor(gid: String): PodCertificate {
     val podHost = (window.asDynamic().MOSA_POD_BASE as? String) ?: ""
-    val podAccess = KoinHolder.pod(podHost)
+    val podAccess = KoinHolder.podAccess(podHost)
     return podAccess.approveGid(gid)
 }
 
@@ -71,7 +70,7 @@ private fun showCertificate(cert: PodCertificate) {
     """.trimIndent()
 }
 
-object KoinHolder : KoinComponent
+private object KoinHolder : KoinComponent
 
 private fun showJwt(jwt: String) {
     keys.textContent += """
