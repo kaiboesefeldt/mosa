@@ -23,8 +23,8 @@ class IdentityTest : KoinComponent {
     fun `generate identity provides gid and keys`() = runTest {
         val id = identityGenerator.generate()
 
-        assertEquals(32, crypto.pubRawOf(id.keyPair).length)
+        assertEquals(32, cryptoExport.pubRawOf(id.keyPair).length)
         assertEquals(43, id.gid.length)
-        assertTrue(crypto.privPkcs8Of(id.keyPair).length > 0)
+        assertTrue(cryptoExport.privPkcs8Of(id.keyPair).length > 0)
     }
 }

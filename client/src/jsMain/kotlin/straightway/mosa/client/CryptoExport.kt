@@ -3,7 +3,7 @@ package straightway.mosa.client
 import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Uint8Array
 
-class Crypto(private val subtleCrypto: SubtleCrypto) {
+class CryptoExport(private val subtleCrypto: SubtleCrypto) {
 
     suspend fun pubRawOf(keyPair: CryptoKeyPair): Uint8Array {
         val pubBuf: ArrayBuffer = subtleCrypto.exportKey("raw", keyPair.publicKey)

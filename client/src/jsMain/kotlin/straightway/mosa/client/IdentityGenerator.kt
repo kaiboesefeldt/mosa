@@ -4,7 +4,7 @@ import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Uint8Array
 import straightway.mosa.client.Base64.toBase64Url
 
-class IdentityGenerator(private val crypto: Crypto, private val subtleCrypto: SubtleCrypto) {
+class IdentityGenerator(private val cryptoExport: CryptoExport, private val subtleCrypto: SubtleCrypto) {
 
     suspend fun generate(): Identity {
         val alg = js("({ name: 'Ed25519' })")
@@ -12,7 +12,7 @@ class IdentityGenerator(private val crypto: Crypto, private val subtleCrypto: Su
 
         with(subtleCrypto) {
             val keyPair = generateKey(alg, true, usages)
-            val digBuf: ArrayBuffer = digest("SHA-256", crypto.pubRawOf(keyPair))
+            val digBuf: ArrayBuffer = digest("SHA-256", cryptoExport.pubRawOf(keyPair))
             val gid = Uint8Array(digBuf).toBase64Url()
             return Identity(gid, keyPair)
         }

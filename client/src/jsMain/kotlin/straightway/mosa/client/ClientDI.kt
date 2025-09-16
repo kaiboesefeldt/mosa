@@ -29,7 +29,7 @@ object ClientDI {
                                 window.asDynamic().crypto?.subtle ?: error("WebCrypto not available")
                             )
                         }
-                        single { Crypto(get()) }
+                        single { CryptoExport(get()) }
                     },
                 )
             }

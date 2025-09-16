@@ -11,4 +11,4 @@ val KoinComponent.identityGenerator get() = get<IdentityGenerator>()
 val KoinComponent.httpClient get() = get<HttpClient>()
 fun KoinComponent.podAccess(podHost: String) = get<PodAccess> { parametersOf(podHost) }
 val KoinComponent.subtleCrypto get() = get<SubtleCrypto>()
-val KoinComponent.crypto get() = get<Crypto>()
+val KoinComponent.cryptoExport get() = get<CryptoExport>()

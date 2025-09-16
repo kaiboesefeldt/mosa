@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
 
 class MisJwtService(
     private val timeService: TimeService,
-    private val crypto: Crypto,
+    private val cryptoExport: CryptoExport,
     private val subtleCrypto: SubtleCrypto
 ) {
 
@@ -22,7 +22,7 @@ class MisJwtService(
 
         val payload =
             JwtPayload(
-                pub = crypto.pubRawOf(identity.keyPair).toBase64Url(),
+                pub = cryptoExport.pubRawOf(identity.keyPair).toBase64Url(),
                 cert = cert,
                 exp = (nowSeconds + lifetimeSeconds).toInt(),
                 mvs = "1",

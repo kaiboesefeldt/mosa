@@ -26,7 +26,7 @@ class MisJwtServiceTest : KoinComponent {
             object : TimeService {
                 override val now = NOW
             },
-            crypto,
+            cryptoExport,
             subtleCrypto
         )
     }
@@ -106,7 +106,7 @@ class MisJwtServiceTest : KoinComponent {
         assertTrue(header.kid === undef)
         // Note: do not rely on Object.keys in typed context; basic checks above suffice
 
-        val expectedPub = crypto.pubRawOf(identity.keyPair).toBase64Url()
+        val expectedPub = cryptoExport.pubRawOf(identity.keyPair).toBase64Url()
         assertEquals(expectedPub, payload.pub as String)
         assertEquals("1", payload.mvs as String)
         assertEquals(NOW + LIFETIME_SECONDS, (payload.exp as Number).toLong())
