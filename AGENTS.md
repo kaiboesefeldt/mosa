@@ -1,52 +1,54 @@
-# Repository Guidelines
+# MOSA Agent Guide
 
-## Project Structure & Module Organization
-- Root server (Ktor, Koin): `src/main/kotlin`, resources in `src/main/resources`, tests in `src/test/kotlin`.
-- CLI tool (Kotlin/JVM): `cli/src/main/kotlin/straightway/mosa/cli`.
-- Web client (Kotlin/JS): `client/src/jsMain/kotlin`; built assets are copied to `build/resources/main/static`.
-- Models for local embeddings: `models/` (loaded by DJL/ONNX).
-- Vector index persists in `mosa_lucene_index/`.
+## Module Topology
+- `server/src/main/kotlin` – Ktor + Koin application entry point (`Main.kt`) with controllers, services, and DI wiring in `AppModule.kt`.
+- `client/src/jsMain/kotlin` – Kotlin/JS web client; Webpack output copied to `server/build/resources/main/static` via the `copyClientFiles` Gradle task.
+- `cli/src/main/kotlin/straightway/mosa/cli` – JVM CLI built on `kotlinx-cli`, reusing shared DTOs and crypto utilities.
+- `shared/src/commonMain/kotlin` – Multiplatform models for auth (`PodCertificate`, `AuthenticationApprovalRequest`) and content (`PublishRequest`, `QueryRequest`, etc.) consumed by server, client, and CLI.
+- `models/` – Local DJL/ONNX models loaded by `OnnxLocalEmbeddingService`; keep large files out of source control updates unless intentional.
+- `mosa_lucene_index/` – Lucene KNN index persisted on disk; delete to reset local state while developing.
 
-## Architecture Overview
-- Ktor + Netty (JVM 19), DI via Koin (`AppModule.kt`).
-- MIS-JWT bearer auth, Jackson JSON, controller routing through `BaseController`.
-- Embeddings via ONNX/DJL (`EmbeddingService`), Lucene KNN vector store (`VectorStore`).
+## Server (Ktor 3.2)
+- Netty engine with DI through Koin 4.1 (`AppModule.kt`); wiring registers `EmbeddingService`, `VectorStore`, crypto utilities, controllers, and the `PodCertificateService`.
+- `OnnxLocalEmbeddingService` (DJL 0.33 + ONNX Runtime) embeds text with vectors sized to the bundled models under `models/`.
+- `LuceneLocalVectorStore` persists content vectors in an `MMapDirectory` targeting `mosa_lucene_index`, supports paged KNN queries and thread filtering.
+- Authentication relies on MIS-JWT bearer tokens verified by `Auth0TokenUtil`, which checks Ed25519 signatures, pod certificates, and claim constraints.
+- `/v1/approvegid` (open) issues short-lived pod certificates; `/v1/publish`, `/v1/reply`, `/v1/query`, `/v1/queryon` require bearer auth and are handled in `ContentController`.
+- `WebClientController` serves the compiled SPA from classpath `static/`, injects `window.MOSA_POD_BASE`, and gates source-map serving behind `MOSA_SERVE_SOURCE_MAPS=true`.
+- Gradle `shadowJar` assembles an all-in-one server artifact (`mosa-server-all.jar`) and depends on copying the latest client bundle.
 
-## Build, Test, and Development Commands
-- Build all modules: `./gradlew build` — builds server, client bundle, and CLI.
-- Run server locally: `./gradlew run` — starts Ktor on `http://localhost:8080`.
-- Run CLI: `./gradlew :cli:run --args="--help"` (or `:cli:run --args="search --pod http://localhost:8080 --q 'text'"`).
-- Run tests: `./gradlew test` — JUnit 5 + kotlin-test + MockK; single test: `./gradlew test --tests "ClassName[.method]"`.
-- Verification/cleanup: `./gradlew check` and `./gradlew clean`.
-- Format/lint: `./gradlew formatKotlin` (auto-fix) and `./gradlew lintKotlin`.
+## CLI Tooling
+- Entry point `CliMain.kt` sets up `kotlinx-cli` subcommands: `push` (publish content), `search` (semantic query), `cert` (explicit certificate request), and `identity` (generate keys in PEM or Base64-URL).
+- `MosaRestClient` talks to pods via Ktor CIO HTTP client with Jackson, automatically obtains a pod certificate for the active key pair and builds MIS-JWTs with `JwtBuilder`.
+- Default pod endpoint is `http://localhost:8080`; override via `--pod`. Provide an Ed25519 key pair with `--keypair` (Base64-URL, no padding) or let the CLI mint an ephemeral identity.
 
-## Coding Style & Naming Conventions
-- Kotlin 2.x, ktlint via `org.jmailen.kotlinter` (auto-runs before compile).
-- Indentation/spaces follow ktlint defaults; avoid wildcard imports.
-- Packages under `straightway.mosa.*`; production code in `src/main/kotlin`, tests mirror packages in `src/test/kotlin`.
-- Filenames match top-level class/object (e.g., `ContentService.kt`).
-- Make sure you don't introduce trailing spaces in lines, don't use tabs, don't have additional newlines at the end of files
+## Web Client
+- Kotlin/JS IR application using Koin, Ktor HTTP client JS, coroutines, and shared DTOs. Entry point `straightway.mosa.client.Main` bootstraps DI defined in `AppModule.kt`.
+- Built assets live under `client/build/…`; `copyClientFiles` task lifts the production bundle into the server resources directory before `processResources`/`shadowJar`.
+- Static HTML template sits in `client/src/jsMain/resources/index.html`; the server injects runtime base URLs so Pod location remains configurable.
+
+## Build & Run
+- Build everything: `./gradlew build` (runs ktlint checks, compiles server, CLI, client bundle, and shared module).
+- Run server locally: `./gradlew :server:run` (Netty on `http://localhost:8080`). For a packaged jar use `./gradlew :server:shadowJar`.
+- Run CLI ad-hoc: `./gradlew :cli:run --args="search --pod http://localhost:8080 --topic 'query'"`.
+- Execute tests by module (`./gradlew :server:test`, `./gradlew :client:test`) or all at once with `./gradlew test`. Single test example: `./gradlew :server:test --tests straightway.mosa.SomeTest`.
+- Formatting/linting: `./gradlew :server:formatKotlin`, `./gradlew :server:lintKotlin` (repeat per module) or run across all via `./gradlew formatKotlin` / `./gradlew lintKotlin`.
+- Clean build outputs with `./gradlew clean`; reset vector index manually by removing `mosa_lucene_index/`.
+
+## Coding Standards
+- Kotlin 2.2, ktlint enforced via `org.jmailen.kotlinter`; avoid wildcard imports, keep indentation and spacing at defaults, and do not add trailing whitespace or superfluous EOF newlines.
+- Expressive naming over comments; prefer extracting helpers instead of annotating code. Maintain `straightway.mosa.*` packaging and align file names with their top-level declarations.
+- Tests live beside code in each module under `src/test/kotlin`. Keep them fast, deterministic, and focused—one scenario per test.
 - If you introduce new libs, always make sure you use the most recent stable version, if possible. Look up the most recent version using a web search!!
-- Don't use code comments! Instead, write the code so expressive, that comments are not required, e.g. by naming of code entities and extracted functions, that are named to make the functionality clear. 
+- Don't use code comments! Instead, write the code so expressive, that comments are not required, e.g. by naming of code entities and extracted functions, that are named to make the functionality clear.
 
 ## Testing Guidelines
-- Place tests under `src/test/kotlin/...`; name files `*Test.kt` (e.g., `ContentControllerTest.kt`).
 - Prefer fast, deterministic unit tests; use MockK for collaborators; Ktor test host for endpoint tests.
 - No strict coverage gate today; keep service/controller logic covered and add regression tests for bugs.
-- Test data assets live in `src/test/resources/...`.
 - In KotlinJs tests, use `runTest`.
 - Strictly handle one minimal test case per test.
 
-## API & Auth
-- All routes under `/v1`; bearer MIS-JWT required for most endpoints.
-- Unauthenticated: `POST /v1/approvegid` (request pod certificate for a GID).
-
-## Commit & Pull Request Guidelines
-- Commits: short, imperative summaries (e.g., "Add delete button", "Fix focus handling").
-- PRs: clear description, scope, and rationale; link issues; include screenshots for UI/client changes; note test coverage and manual steps.
-- Keep changes focused; separate refactors from behavior changes when possible.
-
-## Security & Configuration Tips
-- Authentication uses MIS-JWT; server decodes bearer tokens via `TokenUtil` and Ed25519 (BouncyCastle backend).
-- Local embedding model files in `models/`; Lucene index in `mosa_lucene_index/` (delete to reset state during dev).
-- Avoid committing secrets or key material; CLI provides `CreateIdentityCommand`, `GetCertCommand`, `PublishCommand`, and `SearchCommand`.
+## Security Notes
+- Ed25519 signing implemented through `TransientEd25519Factory`; keys are ephemeral in-memory unless you persist them explicitly.
+- `PodCertificateService` signs certificates using the server-held key, encoding fields as URL-safe Base64. Certificates expire after the configured duration (default 7 days via `AuthenticationController`).
+- Credential material or large models should never ship in commits. Use `.env`/runtime config for secrets and remember the CLI can mint identities locally.
