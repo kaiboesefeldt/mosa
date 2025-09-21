@@ -1,12 +1,11 @@
 package straightway.mosa.client
 
+import DeterministicNameGenerator
 import io.ktor.client.HttpClient
-import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.browser.window
 import org.koin.core.component.KoinComponent
-import org.koin.core.component.get
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
@@ -46,6 +45,7 @@ object AppModule : KoinComponent {
                             )
                         }
                         single { CryptoExport(get()) }
+                        single { DeterministicNameGenerator() }
                     },
                 )
             }
