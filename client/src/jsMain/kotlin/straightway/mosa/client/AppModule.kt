@@ -13,6 +13,7 @@ import straightway.mosa.client.aux.TimeService
 import straightway.mosa.client.browser.SubtleCrypto
 import straightway.mosa.client.identity.CryptoExport
 import straightway.mosa.client.identity.IdentityGenerator
+import straightway.mosa.client.identity.InternationalSurnameGenerator
 import straightway.mosa.client.identity.MisJwtService
 import straightway.mosa.client.pod.PodAccess
 
@@ -46,6 +47,7 @@ object AppModule : KoinComponent {
                         }
                         single { CryptoExport(get()) }
                         single { DeterministicNameGenerator() }
+                        single { InternationalSurnameGenerator() }
                     },
                 )
             }
