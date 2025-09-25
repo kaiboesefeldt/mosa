@@ -63,9 +63,7 @@ class Main : KoinComponent {
 
     private fun showIdentity(identity: Identity) {
         val nameGenerator = get<InternationalSurnameGenerator>()
-        val gidBytes = Base64.fromBase64Url(identity.gid).let {
-            ByteArray(it.length) { idx -> it[idx] }
-        }
+        val gidBytes = Base64.fromBase64Url(identity.gid)
         val generatedName = nameGenerator.generate(gidBytes)
         keys.textContent = "Generating Ed25519 key pair …"
         keys.textContent = """
@@ -102,13 +100,4 @@ class Main : KoinComponent {
         $jwt
     """.trimIndent()
     }
-
-    private fun byteArrayToInt(byteArray: ByteArray): Int {
-        var result = 0
-        for (i in byteArray.indices) {
-            result = result or ((byteArray[i].toInt() and 0xFF) shl (8 * (byteArray.size - 1 - i)))
-        }
-        return result
-    }
-
 }

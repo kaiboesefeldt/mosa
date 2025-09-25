@@ -1,6 +1,5 @@
 package straightway.mosa.client.util
 
-import org.khronos.webgl.Uint8Array
 import straightway.mosa.client.test.ensureStacktraceMapperInstalled
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -15,8 +14,7 @@ class Base64Test {
 
     @Test
     fun `encodes known bytes to base64url`() {
-        val bytes =
-            Uint8Array(intArrayOf(0xFF, 0xEE, 0xDD, 0xCC).map { it.toByte() }.toTypedArray())
+        val bytes = byteArrayOf(0xFF.toByte(), 0xEE.toByte(), 0xDD.toByte(), 0xCC.toByte())
         val encoded = Base64.run { bytes.toBase64Url() }
         assertEquals("_-7dzA", encoded)
     }
@@ -24,13 +22,11 @@ class Base64Test {
     @Test
     fun `roundtrip encode-decode`() {
         val bytes =
-            Uint8Array(intArrayOf(0, 1, 2, 3, 250, 251, 252, 253, 254, 255).map { it.toByte() }
-                .toTypedArray())
+            byteArrayOf(0.toByte(), 1.toByte(), 2.toByte(), 3.toByte(), 250.toByte(), 251.toByte(), 252.toByte(), 253.toByte(), 254.toByte(), 255.toByte())
         val encoded = Base64.run { bytes.toBase64Url() }
         val decoded = Base64.fromBase64Url(encoded)
-        // Verify same content
-        val asArray = (0 until bytes.length).map { bytes.asDynamic()[it] as Int }.toTypedArray()
-        val decArray = (0 until decoded.length).map { decoded.asDynamic()[it] as Int }.toTypedArray()
-        assertContentEquals(asArray, decArray)
+        assertContentEquals(bytes.asUnsignedInts(), decoded.asUnsignedInts())
     }
+
+    private fun ByteArray.asUnsignedInts(): List<Int> = map { it.toInt() and 0xFF }
 }

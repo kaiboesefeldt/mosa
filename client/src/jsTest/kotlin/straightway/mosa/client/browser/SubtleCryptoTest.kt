@@ -1,8 +1,10 @@
 package straightway.mosa.client.browser
 
 import kotlinx.coroutines.test.runTest
-import org.khronos.webgl.Uint8Array
+import org.khronos.webgl.Int8Array
+import org.khronos.webgl.ArrayBuffer
 import straightway.mosa.client.test.ensureStacktraceMapperInstalled
+import kotlin.also
 import kotlin.js.Promise
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -18,16 +20,16 @@ class SubtleCryptoTest {
 
     @Test
     fun `sign delegates to wrapped subtle crypto`() = runTest {
-        data class SignCall(val algo: String, val key: CryptoKey, val bytes: Uint8Array)
+        class SignCall(val algo: String, val key: CryptoKey, val bytes: ByteArray)
 
-        val signingBytes = createUint8Array(9, 8, 7)
-        val signResult = createUint8Array(1, 2, 3)
+        val signingBytes = createByteArray(9, 8, 7)
+        val signResult = createByteArray(1, 2, 3)
         val privateKey = createKey("signing-key")
         val signCalls = mutableListOf<SignCall>()
         val wrapped = js("({})")
-        wrapped.sign = { algo: String, key: CryptoKey, bytes: Uint8Array ->
+        wrapped.sign = { algo: String, key: CryptoKey, bytes: ByteArray ->
             signCalls += SignCall(algo, key, bytes)
-            resolved(signResult.buffer)
+            resolved(signResult.toArrayBuffer())
         }
         val sut = SubtleCrypto(wrapped)
 
@@ -37,7 +39,7 @@ class SubtleCryptoTest {
         assertEquals("Ed25519", call.algo)
         assertSame(privateKey, call.key)
         assertSame(signingBytes, call.bytes)
-        assertContentEquals(signResult.asIntList(), Uint8Array(outcome).asIntList())
+        assertContentEquals(signResult.asIntList(), outcome.asIntList())
     }
 
     @Test
@@ -45,12 +47,12 @@ class SubtleCryptoTest {
         data class ExportKeyCall(val format: String, val key: CryptoKey)
 
         val exportKey = createKey("export-key")
-        val exportResult = createUint8Array(7, 8, 9, 10)
+        val exportResult = createByteArray(7, 8, 9, 10)
         val exportCalls = mutableListOf<ExportKeyCall>()
         val wrapped = js("({})")
         wrapped.exportKey = { format: String, key: CryptoKey ->
             exportCalls += ExportKeyCall(format, key)
-            resolved(exportResult.buffer)
+            resolved(exportResult.toArrayBuffer())
         }
         val sut = SubtleCrypto(wrapped)
 
@@ -59,7 +61,7 @@ class SubtleCryptoTest {
         val call = exportCalls.single()
         assertEquals("raw", call.format)
         assertSame(exportKey, call.key)
-        assertContentEquals(exportResult.asIntList(), Uint8Array(outcome).asIntList())
+        assertContentEquals(exportResult.asIntList(), outcome.asIntList())
     }
 
     @Test
@@ -91,14 +93,14 @@ class SubtleCryptoTest {
 
     @Test
     fun `digest delegates to wrapped subtle crypto`() = runTest {
-        data class DigestCall(val algo: String, val data: Uint8Array)
-        val digestBytes = createUint8Array(3, 4, 5, 6)
-        val digestResult = createUint8Array(11, 12)
+        class DigestCall(val algo: String, val data: ByteArray)
+        val digestBytes = createByteArray(3, 4, 5, 6)
+        val digestResult = createByteArray(11, 12)
         val digestCalls = mutableListOf<DigestCall>()
         val wrapped = js("({})")
-        wrapped.digest = { algo: String, data: Uint8Array ->
+        wrapped.digest = { algo: String, data: ByteArray ->
             digestCalls += DigestCall(algo, data)
-            resolved(digestResult.buffer)
+            resolved(digestResult.toArrayBuffer())
         }
         val sut = SubtleCrypto(wrapped)
 
@@ -107,11 +109,11 @@ class SubtleCryptoTest {
         val call = digestCalls.single()
         assertEquals("SHA-512", call.algo)
         assertSame(digestBytes, call.data)
-        assertContentEquals(digestResult.asIntList(), Uint8Array(outcome).asIntList())
+        assertContentEquals(digestResult.asIntList(), outcome.asIntList())
     }
 
-    private fun createUint8Array(vararg ints: Int): Uint8Array =
-        Uint8Array(ints.map { it.toByte() }.toTypedArray())
+    private fun createByteArray(vararg ints: Int): ByteArray =
+        ints.map { it.toByte() }.toByteArray()
 
     private fun createKey(id: String): CryptoKey {
         val key = js("({})")
@@ -121,5 +123,8 @@ class SubtleCryptoTest {
 
     private fun <T> resolved(value: T): Promise<T> = Promise { resolve, _ -> resolve(value) }
 
-    private fun Uint8Array.asIntList(): List<Int> = (0 until length).map { asDynamic()[it] as Int }
+    private fun ByteArray.asIntList(): List<Int> = map { it.toInt() and 0xFF }
+
+    private fun ByteArray.toArrayBuffer(): ArrayBuffer =
+        ArrayBuffer(size).also { Int8Array(it).set(unsafeCast<Int8Array>()) }
 }

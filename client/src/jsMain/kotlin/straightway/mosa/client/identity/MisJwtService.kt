@@ -2,7 +2,6 @@ package straightway.mosa.client.identity
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.khronos.webgl.Uint8Array
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.client.aux.TimeService
 import straightway.mosa.client.browser.SubtleCrypto
@@ -36,8 +35,8 @@ class MisJwtService(
         val signingInput = "$headerB64.$payloadB64"
         val signingBytes = textEncode(signingInput)
 
-        val signatureBuf = subtleCrypto.sign("Ed25519", identity.keyPair.privateKey, signingBytes)
-        val signatureB64 = Uint8Array(signatureBuf).toBase64Url()
+        val signatureBytes = subtleCrypto.sign("Ed25519", identity.keyPair.privateKey, signingBytes)
+        val signatureB64 = signatureBytes.toBase64Url()
 
         return "$headerB64.$payloadB64.$signatureB64"
     }

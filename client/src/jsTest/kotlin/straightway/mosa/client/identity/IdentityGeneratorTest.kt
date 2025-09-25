@@ -26,8 +26,8 @@ class IdentityGeneratorTest : KoinComponent {
     fun `generate identity provides gid and keys`() = runTest {
         val id = this@IdentityGeneratorTest.get<IdentityGenerator>().generate()
 
-        assertEquals(32, this@IdentityGeneratorTest.get<CryptoExport>().pubRawOf(id.keyPair).length)
+        assertEquals(32, this@IdentityGeneratorTest.get<CryptoExport>().pubRawOf(id.keyPair).size)
         assertEquals(43, id.gid.length)
-        assertTrue(this@IdentityGeneratorTest.get<CryptoExport>().privPkcs8Of(id.keyPair).length > 0)
+        assertTrue(this@IdentityGeneratorTest.get<CryptoExport>().privPkcs8Of(id.keyPair).size > 0)
     }
 }
