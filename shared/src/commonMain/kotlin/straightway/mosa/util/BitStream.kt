@@ -2,12 +2,13 @@ package straightway.mosa.util
 
 import kotlin.experimental.and
 
-class BitStream(private val bytes: ByteArray) {
+class BitStream(
+    private val bytes: ByteArray,
+) {
     var byteIndex = 0
     var bitIndex = 0
 
-    fun getNext(numBits: Int): Int =
-        (1..numBits).fold(0) { acc, _ -> (acc shl 1) + getNextBit() }
+    fun getNext(numBits: Int): Int = (1..numBits).fold(0) { acc, _ -> (acc shl 1) + getNextBit() }
 
     fun getNextBit(): Int {
         val currByte = getCurrentByte()
