@@ -4,14 +4,13 @@ import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import org.khronos.webgl.get
 import org.w3c.dom.HTMLDivElement
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentityGenerator
-import straightway.mosa.client.identity.InternationalSurnameGenerator
+import straightway.mosa.client.identity.FictionalNameGenerator
 import straightway.mosa.client.identity.MisJwtService
 import straightway.mosa.client.pod.podAccess
 import straightway.mosa.client.util.Base64
@@ -62,7 +61,7 @@ class Main : KoinComponent {
     }
 
     private fun showIdentity(identity: Identity) {
-        val nameGenerator = get<InternationalSurnameGenerator>()
+        val nameGenerator = get<FictionalNameGenerator>()
         val gidBytes = Base64.fromBase64Url(identity.gid)
         val generatedName = nameGenerator.generate(gidBytes)
         keys.textContent = "Generating Ed25519 key pair …"
