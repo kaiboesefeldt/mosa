@@ -2,6 +2,10 @@
 package straightway.mosa.client.identity
 
 import straightway.mosa.util.BitStream
+import straightway.mosa.util.CombiningTextGenerator
+import straightway.mosa.util.FixedOptionsTextGenerator
+import straightway.mosa.util.RepeatingTextGenerator
+import straightway.mosa.util.SelectingTextGenerator
 
 class FictionalNameGenerator {
 
@@ -61,7 +65,8 @@ class FictionalNameGenerator {
         SelectingTextGenerator(
             5 to CombiningTextGenerator(shortVowelGenerator, shorteningConsonantGenerator),
             1 to CombiningTextGenerator(longVowelGenerator, nonShorteningConsonantGenerator),
-            2 to CombiningTextGenerator())
+            2 to CombiningTextGenerator()
+        )
 
     private val endSyllableGenerator = SelectingTextGenerator(
         5 to CombiningTextGenerator(shortVowelGenerator, endShorteningConsonantGenerator),
