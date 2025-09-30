@@ -71,7 +71,7 @@ class FictionalNameGenerator {
 
     private val sureNameGenerator = CombiningTextGenerator(
         initialSyllableGenerator,
-        RepeatingTextGenerator(middleSyllableGenerator, repetitions = { it.getNext(2) }),
+        RepeatingTextGenerator(middleSyllableGenerator, repetitions = { it.getNextAsInt(2) }),
         endSyllableGenerator
     )
 }

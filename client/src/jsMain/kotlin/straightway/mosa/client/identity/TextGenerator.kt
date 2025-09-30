@@ -10,7 +10,7 @@ fun bitsRequiredForMax(max: Int): Int = if (max == 1) 0 else Int.SIZE_BITS - max
 fun BitStream.getMax(max: Int): Int {
     val bitsRequired = bitsRequiredForMax(max)
     val maxBitMask = (1 shl bitsRequired) - 1
-    var result = getNext(bitsRequired)
+    var result = getNextAsInt(bitsRequired)
     while (max < result) {
         result = ((result shl 1) and maxBitMask) + getNextBit()
     }

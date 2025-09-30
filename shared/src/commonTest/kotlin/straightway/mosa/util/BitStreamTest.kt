@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 
 class BitStreamTest {
     @Test
-    fun readsLeastSignificantBitsFirst() {
+    fun `reads least significant bits first`() {
         val stream = BitStream(byteArrayOf(0xA3.toByte()))
 
         val bits = List(8) { stream.getNextBit() }
@@ -14,7 +14,7 @@ class BitStreamTest {
     }
 
     @Test
-    fun readsAcrossByteBoundaries() {
+    fun `reads across byte boundaries`() {
         val stream = BitStream(byteArrayOf(0xFF.toByte(), 0x01))
 
         val bits = List(9) { stream.getNextBit() }
@@ -24,21 +24,21 @@ class BitStreamTest {
     }
 
     @Test
-    fun aggregatesBitsIntoAnInt() {
+    fun `aggregates bits into an Int`() {
         val stream = BitStream(byteArrayOf(0x1E))
 
-        val value = stream.getNext(4)
+        val value = stream.getNextAsInt(4)
 
         assertEquals(7, value)
     }
 
     @Test
-    fun returnsZeroAfterExhaustingBytes() {
+    fun `returns zero after exhausting bytes`() {
         val stream = BitStream(byteArrayOf(0xFF.toByte()))
 
-        stream.getNext(8)
+        stream.getNextAsInt(8)
 
-        val trailingBits = stream.getNext(3)
+        val trailingBits = stream.getNextAsInt(3)
 
         assertEquals(0, trailingBits)
     }

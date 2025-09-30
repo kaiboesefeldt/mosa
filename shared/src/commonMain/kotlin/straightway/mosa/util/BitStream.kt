@@ -5,10 +5,10 @@ import kotlin.experimental.and
 class BitStream(
     private val bytes: ByteArray,
 ) {
-    var byteIndex = 0
-    var bitIndex = 0
+    private var byteIndex = 0
+    private var bitIndex = 0
 
-    fun getNext(numBits: Int): Int = (1..numBits).fold(0) { acc, _ -> (acc shl 1) + getNextBit() }
+    fun getNextAsInt(numBits: Int): Int = (1..numBits).fold(0) { acc, _ -> (acc shl 1) + getNextBit() }
 
     fun getNextBit(): Int {
         val currByte = getCurrentByte()
