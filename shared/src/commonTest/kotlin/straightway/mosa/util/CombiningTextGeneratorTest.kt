@@ -5,11 +5,21 @@ import kotlin.test.assertEquals
 
 class CombiningTextGeneratorTest {
     @Test
+    fun `numberOfPossibleOutputs is product of parts numberOfPossibleOutputs`() {
+        val generator = CombiningTextGenerator(
+            FakeTextGenerator(numberOfPossibleOutputs = 3),
+            FakeTextGenerator(numberOfPossibleOutputs = 2),
+            FakeTextGenerator(numberOfPossibleOutputs = 5),
+        )
+        assertEquals(30, generator.numberOfPossibleOutputs)
+    }
+
+    @Test
     fun `generate combines child outputs`() {
         val generator = CombiningTextGenerator(
-            TextGenerator { "alpha" },
-            TextGenerator { "beta" },
-            TextGenerator { "gamma" }
+            FixedOptionsTextGenerator("alpha"),
+            FixedOptionsTextGenerator("beta"),
+            FixedOptionsTextGenerator("gamma")
         )
 
         val result = generator.generate(BitStream(byteArrayOf()))
@@ -21,8 +31,8 @@ class CombiningTextGeneratorTest {
     fun `generate uses provided joiner`() {
         val generator = CombiningTextGenerator(
             joiner = { parts -> parts.joinToString("-") },
-            { "foo" },
-            { "bar" }
+            FixedOptionsTextGenerator("foo" ),
+            FixedOptionsTextGenerator("bar")
         )
 
         val result = generator.generate(BitStream(byteArrayOf()))
@@ -34,8 +44,8 @@ class CombiningTextGeneratorTest {
     fun `generate consumes shared bit stream for all parts`() {
         val generator = CombiningTextGenerator(
             parts = listOf(
-                TextGenerator { bits -> if (bits.getNextBit() == 0) "A" else "B" },
-                TextGenerator { bits -> if (bits.getNextBit() == 0) "C" else "D" }
+                FixedOptionsTextGenerator("A", "B"),
+                FixedOptionsTextGenerator("C", "D"),
             )
         )
         val bitStream = BitStream(byteArrayOf(0x01))

@@ -5,13 +5,22 @@ import kotlin.test.assertEquals
 
 class SelectingTextGeneratorTest {
     @Test
+    fun `numberOfPossibleOutputs is sum of options`() {
+        val generator = SelectingTextGenerator(
+            1 to FakeTextGenerator(numberOfPossibleOutputs = 3),
+            2 to FakeTextGenerator(numberOfPossibleOutputs = 2),
+        )
+        assertEquals(2 + 3, generator.numberOfPossibleOutputs)
+    }
+
+    @Test
     fun `generate selects option whose weight range covers selector`() {
         var firstCalls = 0
         var secondCalls = 0
         val generator = SelectingTextGenerator(
             listOf(
-                2 to TextGenerator { ++firstCalls; "first" },
-                3 to TextGenerator { ++secondCalls; "second" }
+                2 to FakeTextGenerator { ++firstCalls; "first" },
+                3 to FakeTextGenerator { ++secondCalls; "second" }
             )
         )
 
@@ -26,8 +35,8 @@ class SelectingTextGeneratorTest {
     fun `generate passes remaining bits to chosen generator`() {
         val generator = SelectingTextGenerator(
             listOf(
-                1 to TextGenerator { bits -> "x${bits.getNextBit()}" },
-                1 to TextGenerator { bits -> "y${bits.getNextBit()}" }
+                1 to FakeTextGenerator { bits -> "x${bits.getNextBit()}" },
+                1 to FakeTextGenerator { bits -> "y${bits.getNextBit()}" }
             )
         )
         val bitStream = BitStream(byteArrayOf(0x04))
@@ -42,7 +51,7 @@ class SelectingTextGeneratorTest {
     fun `generate with zero total weight returns first option without consuming bits`() {
         var calls = 0
         val generator = SelectingTextGenerator(
-            listOf(0 to TextGenerator { ++calls; "only" })
+            listOf(0 to FakeTextGenerator { ++calls; "only" })
         )
         val bitStream = BitStream(byteArrayOf(0xFF.toByte()))
 
@@ -60,9 +69,9 @@ class SelectingTextGeneratorTest {
         var thirdCalls = 0
         val generator = SelectingTextGenerator(
             listOf(
-                1 to TextGenerator { ++firstCalls; "first" },
-                1 to TextGenerator { ++secondCalls; "second" },
-                5 to TextGenerator { bits ->
+                1 to FakeTextGenerator { ++firstCalls; "first" },
+                1 to FakeTextGenerator { ++secondCalls; "second" },
+                5 to FakeTextGenerator { bits ->
                     ++thirdCalls
                     "third${bits.getNextBit()}"
                 }
@@ -82,8 +91,8 @@ class SelectingTextGeneratorTest {
     @Test
     fun `invoke vararg factory creates generator from weights`() {
         val generator = SelectingTextGenerator(
-            1 to TextGenerator { "first" },
-            1 to TextGenerator { "second" }
+            1 to FakeTextGenerator { "first" },
+            1 to FakeTextGenerator { "second" }
         )
 
         val result = generator.generate(BitStream(byteArrayOf(0x01)))

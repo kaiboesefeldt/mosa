@@ -5,6 +5,12 @@ import kotlin.test.assertEquals
 
 class FixedOptionsTextGeneratorTest {
     @Test
+    fun `numberOfPossibleOutputs is number of options`() {
+        val generator = FixedOptionsTextGenerator(listOf("alpha", "beta"))
+        assertEquals(2, generator.numberOfPossibleOutputs)
+    }
+
+    @Test
     fun `generate returns first option when stream selects index 0`() {
         val generator = FixedOptionsTextGenerator(listOf("alpha", "beta"))
         val bitStream = BitStream(byteArrayOf(0x00))

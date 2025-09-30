@@ -6,6 +6,11 @@ class CombiningTextGenerator(
         partOptions.joinToString("")
     }
 ) : TextGenerator {
+
+    override val numberOfPossibleOutputs: Int get() = parts.fold(1) { acc, gen ->
+        acc * gen.numberOfPossibleOutputs
+    }
+
     override fun generate(bits: BitStream): String {
         val partStrings = parts.map { it.generate(bits) }
         return joiner(partStrings)

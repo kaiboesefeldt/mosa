@@ -5,10 +5,19 @@ import kotlin.test.assertEquals
 
 class RepeatingTextGeneratorTest {
     @Test
+    fun `numberOfPossibleOutputs is toRepeat numberOfPossibleOutputs times repetitions`() {
+        val generator = RepeatingTextGenerator(
+            FakeTextGenerator(numberOfPossibleOutputs = 3),
+            repetitions = 2..3
+        )
+        assertEquals(2 * 3 + 3 * 3, generator.numberOfPossibleOutputs)
+    }
+
+    @Test
     fun `generate uses repetition count determined by stream`() {
         val generator = RepeatingTextGenerator(
-            toRepeat = { bits -> if (bits.getNextBit() == 0) "a" else "b" },
-            repetitions = { bits -> bits.getNextAsInt(2) + 1 }
+            toRepeat = FixedOptionsTextGenerator("a", "b" ),
+            repetitions = 1..4
         )
         val bitStream = BitStream(byteArrayOf(0x15))
 
@@ -22,11 +31,11 @@ class RepeatingTextGeneratorTest {
     fun `generate applies custom joiner`() {
         var callCount = 0
         val generator = RepeatingTextGenerator(
-            toRepeat = {
+            toRepeat = FakeTextGenerator {
                 val phrases = listOf("first", "second", "third")
                 phrases[callCount++]
             },
-            repetitions = { 2 },
+            repetitions = 2..2,
             joiner = { parts -> parts.joinToString(" | ") }
         )
 
@@ -40,8 +49,11 @@ class RepeatingTextGeneratorTest {
     fun `generate with zero repetitions skips inner generator`() {
         var calls = 0
         val generator = RepeatingTextGenerator(
-            toRepeat = { ++calls; "unused" },
-            repetitions = { 0 }
+            toRepeat = FakeTextGenerator {
+                ++calls
+                "unused"
+            },
+            repetitions = 0..0
         )
 
         val result = generator.generate(BitStream(byteArrayOf()))

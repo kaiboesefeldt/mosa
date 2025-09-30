@@ -1,5 +1,6 @@
 package straightway.mosa.util
 
-fun interface TextGenerator {
+interface TextGenerator {
+    val numberOfPossibleOutputs: Int
     fun generate(bits: BitStream): String
 }
