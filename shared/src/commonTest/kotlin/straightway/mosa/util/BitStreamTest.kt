@@ -42,4 +42,24 @@ class BitStreamTest {
 
         assertEquals(0, trailingBits)
     }
+
+    @Test
+    fun `initially returns 0 consumed bits`() {
+        val stream = BitStream(byteArrayOf(0xFF.toByte()))
+        assertEquals(0, stream.consumedBits)
+    }
+
+    @Test
+    fun `returns first consumed bit`() {
+        val stream = BitStream(byteArrayOf(0xFF.toByte()))
+        stream.getNextBit()
+        assertEquals(1, stream.consumedBits)
+    }
+
+    @Test
+    fun `returns number of consumed bits when crossing the byte border`() {
+        val stream = BitStream(byteArrayOf(0xFF.toByte()))
+        repeat(9) { stream.getNextBit() }
+        assertEquals(9, stream.consumedBits)
+    }
 }

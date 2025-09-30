@@ -8,7 +8,11 @@ class BitStream(
     private var byteIndex = 0
     private var bitIndex = 0
 
-    fun getNextAsInt(numBits: Int): Int = (1..numBits).fold(0) { acc, _ -> (acc shl 1) + getNextBit() }
+    val consumedBits: Int get() = bitIndex + byteIndex * 8
+
+    fun getNextAsInt(numBits: Int): Int = (1..numBits).fold(0) { acc, _ ->
+        (acc shl 1) + getNextBit()
+    }
 
     fun getNextBit(): Int {
         val currByte = getCurrentByte()
