@@ -39,8 +39,10 @@ class BitStream(
     }
 }
 
-fun bitsRequiredForMax(max: Int): Int = if (max == 1) 0 else Int.SIZE_BITS - max.countLeadingZeroBits()
+fun bitsRequiredForMax(max: Int): Int = Int.SIZE_BITS - max.countLeadingZeroBits()
+
 fun BitStream.getMax(max: Int): Int {
+    if (max < 0) throw RuntimeException("negative numbers not supported (got: $max)")
     val bitsRequired = bitsRequiredForMax(max)
     val maxBitMask = (1 shl bitsRequired) - 1
     var result = getNextAsInt(bitsRequired)
