@@ -8,6 +8,12 @@ class SelectingTextGenerator(
 
     override val numberOfPossibleOutputs: Int get() = options.sumOf { it.second.numberOfPossibleOutputs }
 
+    override val allPossibleOutputs: Sequence<String> get() = sequence {
+        options.forEach { option ->
+            option.second.allPossibleOutputs.forEach { yield(it) }
+        }
+    }
+
     override fun generate(bits: BitStream): String {
         val selector = bits.getMax(weightSums)
         var currSum = options.firstOrNull()?.first ?: 0

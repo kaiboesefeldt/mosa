@@ -11,6 +11,13 @@ class FixedOptionsTextGeneratorTest {
     }
 
     @Test
+    fun `allPossibleOutputs yields fixed options`() {
+        val textOptions = listOf("alpha", "beta")
+        val generator = FixedOptionsTextGenerator(textOptions)
+        assertEquals(textOptions, generator.allPossibleOutputs.toList())
+    }
+
+    @Test
     fun `generate returns first option when stream selects index 0`() {
         val generator = FixedOptionsTextGenerator(listOf("alpha", "beta"))
         val bitStream = BitStream(byteArrayOf(0x00))

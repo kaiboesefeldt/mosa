@@ -14,6 +14,18 @@ class RepeatingTextGeneratorTest {
     }
 
     @Test
+    fun `allPossibleOutputs yields repeated combinations`() {
+        val generator = RepeatingTextGenerator(
+            FixedOptionsTextGenerator("a", "b"),
+            repetitions = 2..3
+        )
+        assertEquals(
+            listOf("aa", "ab", "ba", "bb", "aaa", "aab", "aba", "abb", "baa", "bab", "bba", "bbb"),
+            generator.allPossibleOutputs.toList()
+        )
+    }
+
+    @Test
     fun `generate uses repetition count determined by stream`() {
         val generator = RepeatingTextGenerator(
             toRepeat = FixedOptionsTextGenerator("a", "b" ),

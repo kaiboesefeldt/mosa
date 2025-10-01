@@ -15,6 +15,19 @@ class CombiningTextGeneratorTest {
     }
 
     @Test
+    fun `allPossibleOutputs yields all combinations of parts`() {
+        val generator = CombiningTextGenerator(
+            FixedOptionsTextGenerator("a", "b"),
+            FixedOptionsTextGenerator("c"),
+            FixedOptionsTextGenerator("d", "e", "f"),
+        )
+        assertEquals(
+            listOf("acd", "ace", "acf", "bcd", "bce", "bcf"),
+            generator.allPossibleOutputs.toList()
+        )
+    }
+
+    @Test
     fun `generate combines child outputs`() {
         val generator = CombiningTextGenerator(
             FixedOptionsTextGenerator("alpha"),

@@ -14,6 +14,18 @@ class SelectingTextGeneratorTest {
     }
 
     @Test
+    fun `allPossibleOutputs yields union of all options`() {
+        val generator = SelectingTextGenerator(
+            1 to FixedOptionsTextGenerator("a", "b"),
+            2 to FixedOptionsTextGenerator("c", "d", "e"),
+        )
+        assertEquals(
+            listOf("a", "b", "c", "d", "e"),
+            generator.allPossibleOutputs.toList()
+        )
+    }
+
+        @Test
     fun `generate selects option whose weight range covers selector`() {
         var firstCalls = 0
         var secondCalls = 0
