@@ -48,12 +48,12 @@ class FixedOptionsTextGeneratorTest {
     @Test
     fun `generate ignores indices that exceed max`() {
         val generator = FixedOptionsTextGenerator(listOf("alpha", "beta", "gamma"))
-        val bitStream = BitStream(byteArrayOf(0x07))
+        val bitStream = BitStream(byteArrayOf(0x06))
 
         val result = generator.generate(bitStream)
 
-        assertEquals("gamma", result)
-        assertEquals(4, bitStream.consumedBits)
+        assertEquals("beta", result)
+        assertEquals(2, bitStream.consumedBits)
     }
 
     @Test
