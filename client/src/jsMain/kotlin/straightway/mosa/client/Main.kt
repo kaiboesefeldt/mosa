@@ -14,6 +14,7 @@ import straightway.mosa.client.identity.FictionalNameGenerator
 import straightway.mosa.client.identity.MisJwtService
 import straightway.mosa.client.pod.podAccess
 import straightway.mosa.client.util.Base64
+import straightway.mosa.util.BitStream
 
 fun main() {
     window.onload = { Main().run() }
@@ -63,19 +64,20 @@ class Main : KoinComponent {
     private fun showIdentity(identity: Identity) {
         val nameGenerator = get<FictionalNameGenerator>()
         val gidBytes = Base64.fromBase64Url(identity.gid)
-        val generatedName = nameGenerator.generate(gidBytes)
+        val bits = BitStream(gidBytes, checkConsumption = true)
+        val generatedName = nameGenerator.generate(bits)
         keys.textContent = "Generating Ed25519 key pair …"
         keys.textContent = """
-        GID (base64url(sha256(pub))):
-        ${identity.gid}
+            GID (base64url(sha256(pub))):
+            ${identity.gid}
+            
+            Name:
+            ${generatedName} out of ${nameGenerator.numberOfPossibleOutputs} (${bits.consumedBits} Bits of ${nameGenerator.bitConsumption})
         
-        Name:
-        ${generatedName}
+            Key Pair:
+            ${JSON.stringify(identity.keyPair)}
     
-        Key Pair:
-        ${JSON.stringify(identity.keyPair)}
-
-    """.trimIndent()
+        """.trimIndent()
     }
 
     private suspend fun createCertificateFor(gid: String): PodCertificate {

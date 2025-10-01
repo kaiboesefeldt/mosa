@@ -11,13 +11,16 @@ class CombiningTextGenerator(
         acc * gen.numberOfPossibleOutputs
     }
 
+    override val bitConsumption: IntRange get() =
+        parts.sumOf { it.bitConsumption.first }..parts.sumOf { it.bitConsumption.last }
+
     override val allPossibleOutputs: Sequence<String> get() = sequence {
         combinePartOutputs(parts).forEach { yield(joiner(it)) }
     }
 
-    override fun generate(bits: BitStream): String {
+    override fun generate(bits: BitStream) = bits.checkConsumption(bitConsumption, this::class.simpleName) {
         val partStrings = parts.map { it.generate(bits) }
-        return joiner(partStrings)
+        joiner(partStrings)
     }
 
     private fun combinePartOutputs(parts: List<TextGenerator>): Sequence<List<String>> =

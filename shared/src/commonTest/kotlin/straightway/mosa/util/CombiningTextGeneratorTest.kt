@@ -15,6 +15,16 @@ class CombiningTextGeneratorTest {
     }
 
     @Test
+    fun `bitConsumption yields sum of bit consumptions`() {
+        val generator = CombiningTextGenerator(
+            FakeTextGenerator(bitConsumption = 1..2),
+            FakeTextGenerator(bitConsumption = 2..2),
+            FakeTextGenerator(bitConsumption = 3..5),
+        )
+        assertEquals(6..9, generator.bitConsumption)
+    }
+
+    @Test
     fun `allPossibleOutputs yields all combinations of parts`() {
         val generator = CombiningTextGenerator(
             FixedOptionsTextGenerator("a", "b"),

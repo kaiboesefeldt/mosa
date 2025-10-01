@@ -18,6 +18,12 @@ class FixedOptionsTextGeneratorTest {
     }
 
     @Test
+    fun `bitConsumption is according to the list length`() {
+        val generator = FixedOptionsTextGenerator("a", "b", "c", "d", "e")
+        assertEquals(3..3, generator.bitConsumption)
+    }
+
+    @Test
     fun `generate returns first option when stream selects index 0`() {
         val generator = FixedOptionsTextGenerator(listOf("alpha", "beta"))
         val bitStream = BitStream(byteArrayOf(0x00))

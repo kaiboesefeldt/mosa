@@ -4,6 +4,7 @@ import kotlin.experimental.and
 
 class BitStream(
     private val bytes: ByteArray,
+    val checkConsumption: Boolean = false,
 ) {
     private var byteIndex = 0
     private var bitIndex = 0
@@ -51,3 +52,20 @@ fun BitStream.getMax(max: Int): Int {
     }
     return result
 }
+
+fun <T> BitStream.checkConsumption(
+    validRange: IntRange,
+    hint: String? = null,
+    block: () -> T
+): T =
+    if (checkConsumption) {
+        val consumptionBefore = consumedBits
+        val result = runCatching(block)
+        val consumption = consumedBits - consumptionBefore
+        if (consumption !in validRange)
+            throw RuntimeException(
+                "Bit consumption out of range. Expected: $validRange, " +
+                        "got: $consumption${hint?.let {", Hint: $it"}}"
+            )
+        result.getOrThrow()
+    } else block()

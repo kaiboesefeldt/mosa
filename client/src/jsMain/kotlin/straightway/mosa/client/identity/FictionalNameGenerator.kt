@@ -6,12 +6,16 @@ import straightway.mosa.util.CombiningTextGenerator
 import straightway.mosa.util.FixedOptionsTextGenerator
 import straightway.mosa.util.RepeatingTextGenerator
 import straightway.mosa.util.SelectingTextGenerator
+import straightway.mosa.util.TextGenerator
 
-class FictionalNameGenerator {
+class FictionalNameGenerator : TextGenerator {
 
-    fun generate(bytes: ByteArray): String {
-        val s = BitStream(bytes)
-        return sureNameGenerator.generate(s).let {
+    override val numberOfPossibleOutputs get() = sureNameGenerator.numberOfPossibleOutputs
+    override val allPossibleOutputs get() = sureNameGenerator.allPossibleOutputs
+    override val bitConsumption get() = sureNameGenerator.bitConsumption
+
+    override fun generate(bits: BitStream): String {
+        return sureNameGenerator.generate(bits).let {
             it[0].uppercase() + it.substring(1).lowercase()
         }
     }

@@ -12,6 +12,14 @@ class RepeatingTextGeneratorTest {
         )
         assertEquals(2 * 3 + 3 * 3, generator.numberOfPossibleOutputs)
     }
+    @Test
+    fun `bitConsumption yields bit consumption of repeated generator times repetitions`() {
+        val generator = RepeatingTextGenerator(
+            FakeTextGenerator(bitConsumption = 2..5),
+            3..7, // size: 4 = 3 bits
+        )
+        assertEquals(3 + 3*2..3 + 5*7, generator.bitConsumption)
+    }
 
     @Test
     fun `allPossibleOutputs yields repeated combinations`() {

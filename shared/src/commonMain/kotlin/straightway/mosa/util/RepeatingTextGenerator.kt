@@ -8,8 +8,16 @@ class RepeatingTextGenerator(
     }
 ) : TextGenerator {
 
-    override val numberOfPossibleOutputs: Long
-        get() = repetitions.fold(0L) { acc, it -> acc + it * toRepeat.numberOfPossibleOutputs }
+    private val repetitionRangeSize = repetitions.last - repetitions.first
+
+    override val numberOfPossibleOutputs: Long get() =
+        repetitions.fold(0L) { acc, it -> acc + it * toRepeat.numberOfPossibleOutputs }
+
+    override val bitConsumption: IntRange get() =
+        bitsRequiredForMax(repetitionRangeSize).let { rangeBits ->
+            rangeBits + repetitions.first * toRepeat.bitConsumption.first..
+                    rangeBits + repetitions.last * toRepeat.bitConsumption.last
+        }
 
     override val allPossibleOutputs: Sequence<String> get() = sequence {
         repetitions.forEach { reps ->
@@ -17,11 +25,10 @@ class RepeatingTextGenerator(
         }
     }
 
-    override fun generate(bits: BitStream): String {
-        val repetitionRangeSize = this@RepeatingTextGenerator.repetitions.last - this@RepeatingTextGenerator.repetitions.first
+    override fun generate(bits: BitStream) = bits.checkConsumption(bitConsumption, this::class.simpleName) {
         val repetitions = bits.getMax(repetitionRangeSize) + this@RepeatingTextGenerator.repetitions.first
         val parts = (1..repetitions).map { toRepeat.generate(bits) }
-        return joiner(parts)
+        joiner(parts)
     }
 
     private fun combinationsOf(reps: Int): Sequence<List<String>> =

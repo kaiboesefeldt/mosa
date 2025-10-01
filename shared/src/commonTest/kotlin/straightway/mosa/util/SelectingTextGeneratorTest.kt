@@ -14,6 +14,16 @@ class SelectingTextGeneratorTest {
     }
 
     @Test
+    fun `bitConsumption yields min and max of options bit consumptions with selector bits`() {
+        val generator = SelectingTextGenerator(
+            1 to FakeTextGenerator(bitConsumption = 1..2),
+            5 to FakeTextGenerator(bitConsumption = 2..2),
+            3 to FakeTextGenerator(bitConsumption = 3..5),
+        )
+        assertEquals(4 + 1..4 + 5, generator.bitConsumption)
+    }
+
+    @Test
     fun `allPossibleOutputs yields union of all options`() {
         val generator = SelectingTextGenerator(
             1 to FixedOptionsTextGenerator("a", "b"),
