@@ -6,7 +6,7 @@ class SelectingTextGenerator(
 
     private val weightSums = options.sumOf { it.first }
 
-    override val numberOfPossibleOutputs: Int get() = options.sumOf { it.second.numberOfPossibleOutputs }
+    override val numberOfPossibleOutputs: Long get() = options.sumOf { it.second.numberOfPossibleOutputs }
 
     override val allPossibleOutputs: Sequence<String> get() = sequence {
         options.forEach { option ->

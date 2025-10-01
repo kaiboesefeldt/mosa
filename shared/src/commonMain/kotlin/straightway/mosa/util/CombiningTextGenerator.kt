@@ -7,7 +7,7 @@ class CombiningTextGenerator(
     }
 ) : TextGenerator {
 
-    override val numberOfPossibleOutputs: Int get() = parts.fold(1) { acc, gen ->
+    override val numberOfPossibleOutputs: Long get() = parts.fold(1L) { acc, gen ->
         acc * gen.numberOfPossibleOutputs
     }
 

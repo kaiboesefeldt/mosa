@@ -1,7 +1,7 @@
 package straightway.mosa.util
 
 class FakeTextGenerator(
-    override val numberOfPossibleOutputs: Int = 0,
+    override val numberOfPossibleOutputs: Long = 0L,
     override val allPossibleOutputs: Sequence<String> = emptySequence(),
     val generator: (BitStream) -> String = { "" }
 ) : TextGenerator {

@@ -4,7 +4,7 @@ class FixedOptionsTextGenerator(
     val textOptions: List<String>
 ) : TextGenerator {
 
-    override val numberOfPossibleOutputs: Int = textOptions.size
+    override val numberOfPossibleOutputs: Long = textOptions.size.toLong()
 
     override val allPossibleOutputs: Sequence<String> get() = textOptions.asSequence()
 

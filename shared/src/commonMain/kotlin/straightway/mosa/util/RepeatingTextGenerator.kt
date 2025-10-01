@@ -8,8 +8,8 @@ class RepeatingTextGenerator(
     }
 ) : TextGenerator {
 
-    override val numberOfPossibleOutputs: Int
-        get() = repetitions.fold(0) { acc, it -> acc + it * toRepeat.numberOfPossibleOutputs }
+    override val numberOfPossibleOutputs: Long
+        get() = repetitions.fold(0L) { acc, it -> acc + it * toRepeat.numberOfPossibleOutputs }
 
     override val allPossibleOutputs: Sequence<String> get() = sequence {
         repetitions.forEach { reps ->
