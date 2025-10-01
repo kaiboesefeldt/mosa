@@ -15,7 +15,14 @@ kotlin {
     val kotlinxSerializationVersion = "1.9.0"
     jvm() 
     js(IR) {
-        browser()
+        browser {
+            testTask {
+                useKarma {
+                    useFirefoxHeadless()
+                    useConfigDirectory(project.projectDir.resolve("karma.config.d"))
+                }
+            }
+        }
         nodejs()
     }
     sourceSets {
