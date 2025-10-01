@@ -10,10 +10,10 @@ import org.koin.core.component.get
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentityGenerator
-import straightway.mosa.client.identity.FictionalNameGenerator
 import straightway.mosa.client.identity.MisJwtService
 import straightway.mosa.client.pod.podAccess
 import straightway.mosa.client.util.Base64
+import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.util.BitStream
 
 fun main() {

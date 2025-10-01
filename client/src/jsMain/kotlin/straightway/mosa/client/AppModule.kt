@@ -1,6 +1,5 @@
 package straightway.mosa.client
 
-import DeterministicNameGenerator
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
@@ -13,9 +12,9 @@ import straightway.mosa.client.aux.TimeService
 import straightway.mosa.client.browser.SubtleCrypto
 import straightway.mosa.client.identity.CryptoExport
 import straightway.mosa.client.identity.IdentityGenerator
-import straightway.mosa.client.identity.FictionalNameGenerator
 import straightway.mosa.client.identity.MisJwtService
 import straightway.mosa.client.pod.PodAccess
+import straightway.mosa.identity.FictionalNameGenerator
 
 object AppModule : KoinComponent {
     fun start() {
@@ -46,7 +45,6 @@ object AppModule : KoinComponent {
                             )
                         }
                         single { CryptoExport(get()) }
-                        single { DeterministicNameGenerator() }
                         single { FictionalNameGenerator() }
                     },
                 )
