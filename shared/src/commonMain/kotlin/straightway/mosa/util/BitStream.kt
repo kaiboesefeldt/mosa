@@ -45,12 +45,7 @@ fun bitsRequiredForMax(max: Int): Int = Int.SIZE_BITS - max.countLeadingZeroBits
 fun BitStream.getMax(max: Int): Int {
     if (max < 0) throw RuntimeException("negative numbers not supported (got: $max)")
     val bitsRequired = bitsRequiredForMax(max)
-    val maxBitMask = (1 shl bitsRequired) - 1
-    var result = getNextAsInt(bitsRequired)
-    while (max < result) {
-        result = ((result shl 1) and maxBitMask) + getNextBit()
-    }
-    return result
+    return getNextAsInt(bitsRequired) % (max + 1)
 }
 
 fun <T> BitStream.checkConsumption(
@@ -60,12 +55,12 @@ fun <T> BitStream.checkConsumption(
 ): T =
     if (checkConsumption) {
         val consumptionBefore = consumedBits
-        val result = runCatching(block)
+        val result = block()
         val consumption = consumedBits - consumptionBefore
         if (consumption !in validRange)
             throw RuntimeException(
-                "Bit consumption out of range. Expected: $validRange, " +
-                        "got: $consumption${hint?.let {", Hint: $it"}}"
+                "Bit consumption out of range (result=$result). Expected: $validRange, " +
+                        "got: $consumption${hint?.let {", Hint: $it"} ?: ""}"
             )
-        result.getOrThrow()
+        result
     } else block()

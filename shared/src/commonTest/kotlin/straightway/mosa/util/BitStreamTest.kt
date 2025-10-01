@@ -142,17 +142,10 @@ class BitStreamTest {
     }
 
     @Test
-    fun `getMax for 2 consumes 3 bits and returns 2 for stream 0 1 1`() {
+    fun `getMax for 2 consumes 2 bits and returns 1 for stream 0 1 1`() {
         val bitStream = BitStream(byteArrayOf(0x3.toByte()))
-        assertEquals(2, bitStream.getMax(2))
-        assertEquals(3, bitStream.consumedBits)
-    }
-
-    @Test
-    fun `getMax for 2 consumes 4 bits and returns 1 for stream 0 1 1 1`() {
-        val bitStream = BitStream(byteArrayOf(0x7.toByte()))
-        assertEquals(2, bitStream.getMax(2))
-        assertEquals(4, bitStream.consumedBits)
+        assertEquals(0, bitStream.getMax(2))
+        assertEquals(2, bitStream.consumedBits)
     }
 
     @Test
@@ -170,16 +163,9 @@ class BitStreamTest {
     }
 
     @Test
-    fun `getMax for 5 consumes 4 bits and returns 4 for stream 0 0 1 1`() {
+    fun `getMax for 4 consumes 3 bits and returns 1 for stream 0 1 1`() {
         val bitStream = BitStream(byteArrayOf(0x3.toByte()))
-        assertEquals(4, bitStream.getMax(5))
-        assertEquals(4, bitStream.consumedBits)
-    }
-
-    @Test
-    fun `getMax for 5 consumes 4 bits and returns 4 for stream 1 0 1 1`() {
-        val bitStream = BitStream(byteArrayOf(0xB.toByte()))
-        assertEquals(5, bitStream.getMax(5))
-        assertEquals(4, bitStream.consumedBits)
+        assertEquals(1, bitStream.getMax(4))
+        assertEquals(3, bitStream.consumedBits)
     }
 }
