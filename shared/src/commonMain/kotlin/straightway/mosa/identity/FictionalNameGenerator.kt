@@ -1,7 +1,5 @@
 package straightway.mosa.identity
 
-import straightway.mosa.util.BitStream
-import straightway.mosa.util.CombiningTextGenerator
 import straightway.mosa.util.TextGenerator
 import straightway.mosa.util.anyOf
 import straightway.mosa.util.combine
@@ -10,17 +8,13 @@ import straightway.mosa.util.div
 import straightway.mosa.util.flat
 import straightway.mosa.util.plus
 
-class FictionalNameGenerator : TextGenerator {
+class FictionalNameGenerator : TextGenerator.Base() {
 
-    override val numberOfPossibleOutputs get() = sureNameGenerator.numberOfPossibleOutputs
-    override val allPossibleOutputs get() = sureNameGenerator.allPossibleOutputs
-    override val bitConsumption get() = sureNameGenerator.bitConsumption
+    override val size get() = sureNameGenerator.size
+    override operator fun get(index: Long) = sureNameGenerator[index].firstLetterUpperCase()
 
-    override fun generate(bits: BitStream): String {
-        return sureNameGenerator.generate(bits).let {
-            it[0].uppercase() + it.substring(1).lowercase()
-        }
-    }
+    private fun String.firstLetterUpperCase(): String =
+        this[0].uppercase() + this.substring(1).lowercase()
 
     private val onset = anyOf("p", "b", "t", "d", "k", "g", "f", "s", "z", "h", "m", "n", "l", "r", "w")
     private val v = anyOf("a", "e", "i", "o", "u")
@@ -48,8 +42,5 @@ class FictionalNameGenerator : TextGenerator {
 
     private val sFinalSyl = cv + codac
 
-    private val sureNameGenerator = CombiningTextGenerator(
-        middleSyl,
-        sFinalSyl
-    )
+    private val sureNameGenerator = middleSyl + sFinalSyl
 }

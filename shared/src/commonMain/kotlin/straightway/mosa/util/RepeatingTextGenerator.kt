@@ -6,43 +6,31 @@ class RepeatingTextGenerator(
     val joiner: (partOptions: List<String>) -> String = { partOptions ->
         partOptions.joinToString("")
     }
-) : TextGenerator {
+) : TextGenerator.Base() {
 
-    private val repetitionRangeSize = repetitions.last - repetitions.first
+    override val size: Long get() =
+        repetitions.fold(0L) { acc, it -> acc + numberOfOptionForRepeats(it) }
 
-    override val numberOfPossibleOutputs: Long get() =
-        repetitions.fold(0L) { acc, it -> acc + it * toRepeat.numberOfPossibleOutputs }
-
-    override val bitConsumption: IntRange get() =
-        bitsRequiredForMax(repetitionRangeSize).let { rangeBits ->
-            rangeBits + repetitions.first * toRepeat.bitConsumption.first..
-                    rangeBits + repetitions.last * toRepeat.bitConsumption.last
+    override fun get(index: Long): String {
+        val toRepeatSize = toRepeat.size
+        var restIndex = index
+        for (currRepetitions in repetitions) {
+            val numberOfOptionsForCurrRepetition = numberOfOptionForRepeats(currRepetitions)
+            if (restIndex < numberOfOptionsForCurrRepetition) {
+                val gen = (1..currRepetitions).map {
+                    toRepeat[restIndex % toRepeatSize].also { restIndex /= toRepeatSize }
+                }
+                return joiner(gen)
+            }
+            restIndex -= numberOfOptionsForCurrRepetition
         }
 
-    override val allPossibleOutputs: Sequence<String> get() = sequence {
-        repetitions.forEach { reps ->
-            combinationsOf(reps).forEach { yield(joiner(it))}
-        }
-    }
-
-    override fun generate(bits: BitStream) = bits.checkConsumption(bitConsumption, this::class.simpleName) {
-        val repetitions = bits.getMax(repetitionRangeSize) + this@RepeatingTextGenerator.repetitions.first
-        val parts = (1..repetitions).map { toRepeat.generate(bits) }
-        joiner(parts)
+        throw IndexOutOfBoundsException()
     }
 
     fun joinBy(joiner: (partOptions: List<String>) -> String) = RepeatingTextGenerator(toRepeat, repetitions, joiner)
 
-    private fun combinationsOf(reps: Int): Sequence<List<String>> =
-        if (reps < 1) emptySequence()
-        else sequence {
-            toRepeat.allPossibleOutputs.forEach { firstRepOutput ->
-                val nextLowerCombinationsOfReps = combinationsOf(reps - 1)
-                if (nextLowerCombinationsOfReps.any()) {
-                    nextLowerCombinationsOfReps.forEach { restReps ->
-                        yield(listOf(firstRepOutput) + restReps)
-                    }
-                } else yield(listOf(firstRepOutput))
-            }
-        }
+    private fun numberOfOptionForRepeats(numberOfRepetition: Int): Long =
+        if (numberOfRepetition == 0) 0
+        else (1..numberOfRepetition).fold(1L) { acc, _ -> acc * toRepeat.size }
 }

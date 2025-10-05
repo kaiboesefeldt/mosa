@@ -2,80 +2,41 @@ package straightway.mosa.util
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class CombiningTextGeneratorTest {
     @Test
-    fun `numberOfPossibleOutputs is product of parts numberOfPossibleOutputs`() {
-        val generator = CombiningTextGenerator(
-            FakeTextGenerator(numberOfPossibleOutputs = 3),
-            FakeTextGenerator(numberOfPossibleOutputs = 2),
-            FakeTextGenerator(numberOfPossibleOutputs = 5),
-        )
-        assertEquals(30, generator.numberOfPossibleOutputs)
+    fun `size is product of parts sizes`() {
+        val generator = anyOf("1", "2", "3") + anyOf("1", "2") + anyOf("1", "2", "3", "4", "5")
+        assertEquals(3 * 2 * 5, generator.size)
     }
 
     @Test
-    fun `bitConsumption yields sum of bit consumptions`() {
-        val generator = CombiningTextGenerator(
-            FakeTextGenerator(bitConsumption = 1..2),
-            FakeTextGenerator(bitConsumption = 2..2),
-            FakeTextGenerator(bitConsumption = 3..5),
-        )
-        assertEquals(6..9, generator.bitConsumption)
-    }
-
-    @Test
-    fun `allPossibleOutputs yields all combinations of parts`() {
-        val generator = CombiningTextGenerator(
-            FixedOptionsTextGenerator("a", "b"),
-            FixedOptionsTextGenerator("c"),
-            FixedOptionsTextGenerator("d", "e", "f"),
-        )
+    fun `iterator yields all combinations of parts`() {
+        val generator = anyOf("a", "b") + "c" + anyOf("d", "e", "f")
         assertEquals(
-            listOf("acd", "ace", "acf", "bcd", "bce", "bcf"),
-            generator.allPossibleOutputs.toList()
+            listOf("acd", "bcd", "ace", "bce", "acf", "bcf"),
+            generator.toList()
         )
     }
 
     @Test
-    fun `generate combines child outputs`() {
-        val generator = CombiningTextGenerator(
-            FixedOptionsTextGenerator("alpha"),
-            FixedOptionsTextGenerator("beta"),
-            FixedOptionsTextGenerator("gamma")
-        )
-
-        val result = generator.generate(BitStream(byteArrayOf()))
-
-        assertEquals("alphabetagamma", result)
-    }
-
-    @Test
-    fun `generate uses provided joiner`() {
-        val generator = CombiningTextGenerator(
-            FixedOptionsTextGenerator("foo" ),
-            FixedOptionsTextGenerator("bar"),
-            joiner = { parts -> parts.joinToString("-") },
-        )
-
-        val result = generator.generate(BitStream(byteArrayOf()))
-
+    fun `get uses provided joiner`() {
+        val generator = (anyOf("foo" ) + "bar").joinBy { parts -> parts.joinToString("-") }
+        val result = generator.first()
         assertEquals("foo-bar", result)
     }
 
     @Test
-    fun `generate consumes shared bit stream for all parts`() {
-        val generator = CombiningTextGenerator(
-            parts = listOf(
-                FixedOptionsTextGenerator("A", "B"),
-                FixedOptionsTextGenerator("C", "D"),
-            )
-        )
-        val bitStream = BitStream(byteArrayOf(0x01))
+    fun `get gets item with index`() {
+        val generator = anyOf("1", "2") +anyOf("a", "b", "c")
+        val generated = (0L..5L).map { generator[it] }
+        assertEquals(listOf("1a", "2a", "1b", "2b", "1c", "2c"), generated)
+    }
 
-        val result = generator.generate(bitStream)
-
-        assertEquals("BC", result)
-        assertEquals(2, bitStream.consumedBits)
+    @Test
+    fun `get with exceeding index throws IndexOutOfBoundsException`() {
+        val generator = anyOf("1", "2") + anyOf("a", "b", "c")
+        assertFailsWith(IndexOutOfBoundsException::class) { generator[6] }
     }
 }

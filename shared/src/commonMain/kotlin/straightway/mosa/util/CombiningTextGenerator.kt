@@ -5,46 +5,21 @@ class CombiningTextGenerator(
     val joiner: (partOptions: List<String>) -> String = { partOptions ->
         partOptions.joinToString("")
     }
-) : TextGenerator {
+) : TextGenerator.Base() {
 
-    override val numberOfPossibleOutputs: Long get() = parts.fold(1L) { acc, gen ->
-        acc * gen.numberOfPossibleOutputs
+    override val size: Long get() = parts.fold(1L) { acc, gen ->
+        acc * gen.size
     }
 
-    override val bitConsumption: IntRange get() =
-        parts.sumOf { it.bitConsumption.first }..parts.sumOf { it.bitConsumption.last }
-
-    override val allPossibleOutputs: Sequence<String> get() = sequence {
-        combinePartOutputs(parts).forEach { yield(joiner(it)) }
-    }
-
-    override fun generate(bits: BitStream) = bits.checkConsumption(bitConsumption, this::class.simpleName) {
-        val partStrings = parts.map { it.generate(bits) }
-        joiner(partStrings)
+    override fun get(index: Long): String {
+        var restIndex = index
+        val partStrings = parts.map { part ->
+            val partSize = part.size
+            part[restIndex % partSize].also { restIndex /= partSize }
+        }
+        if (0L != restIndex) throw IndexOutOfBoundsException()
+        return joiner(partStrings)
     }
 
     fun joinBy(joiner: (partOptions: List<String>) -> String) = CombiningTextGenerator(parts, joiner)
-
-    private fun combinePartOutputs(parts: List<TextGenerator>): Sequence<List<String>> =
-        if (parts.isEmpty()) emptySequence()
-        else sequence {
-            val firstPart = parts.first()
-            val restParts = parts.drop(1)
-            firstPart.allPossibleOutputs.forEach { firstText ->
-                val restOutputs = combinePartOutputs(restParts).toList()
-                if (restOutputs.isEmpty()) yield(listOf(firstText))
-                else restOutputs.forEach { rest -> yield(listOf(firstText) + rest) }
-            }
-        }
-
-    companion object {
-        operator fun invoke(
-            vararg parts: TextGenerator
-        ) = CombiningTextGenerator(parts.toList())
-
-        operator fun invoke(
-            vararg parts: TextGenerator,
-            joiner: (partOptions: List<String>) -> String,
-        ) = CombiningTextGenerator(parts.toList(), joiner)
-    }
 }

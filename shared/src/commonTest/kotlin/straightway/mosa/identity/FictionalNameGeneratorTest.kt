@@ -1,17 +1,16 @@
 package straightway.mosa.identity
 
-import straightway.mosa.util.BitStream
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class FictionalNameGeneratorTest {
     @Test
-    fun `bit consumption test`() {
-        val rng = Random(12345)
+    fun `smoke test`() {
         val sut = FictionalNameGenerator()
-        repeat(1000) {
-            val bits = BitStream(rng.nextBytes(32), checkConsumption = true)
-            sut.generate(bits) // Must not throw
-        }
+        val rng = Random(12345)
+        val sampleIndices = (1..1000).map { rng.nextLong(sut.size) % sut.size }.distinct()
+        val sampleNames = sampleIndices.map { sut[it] }
+        assertEquals(sampleIndices.size, sampleNames.size)
     }
 }

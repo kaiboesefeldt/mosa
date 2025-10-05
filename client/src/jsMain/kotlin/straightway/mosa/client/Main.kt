@@ -64,15 +64,15 @@ class Main : KoinComponent {
     private fun showIdentity(identity: Identity) {
         val nameGenerator = get<FictionalNameGenerator>()
         val gidBytes = Base64.fromBase64Url(identity.gid)
-        val bits = BitStream(gidBytes, checkConsumption = true)
-        val generatedName = nameGenerator.generate(bits)
+        val bits = BitStream(gidBytes)
+        val generatedName = nameGenerator[bits.nextLong(nameGenerator.size + 1)]
         keys.textContent = "Generating Ed25519 key pair …"
         keys.textContent = """
             GID (base64url(sha256(pub))):
             ${identity.gid}
             
             Name:
-            ${generatedName} out of ${nameGenerator.numberOfPossibleOutputs} (${bits.consumedBits} Bits of ${nameGenerator.bitConsumption})
+            ${generatedName} out of ${nameGenerator.size} (${bits.consumedBits} Bits consumed)
         
             Key Pair:
             ${JSON.stringify(identity.keyPair)}

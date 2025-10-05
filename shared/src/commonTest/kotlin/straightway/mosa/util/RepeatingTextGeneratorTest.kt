@@ -2,83 +2,66 @@ package straightway.mosa.util
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class RepeatingTextGeneratorTest {
     @Test
-    fun `numberOfPossibleOutputs is toRepeat numberOfPossibleOutputs times repetitions`() {
-        val generator = RepeatingTextGenerator(
-            FakeTextGenerator(numberOfPossibleOutputs = 3),
-            repetitions = 2..3
-        )
-        assertEquals(2 * 3 + 3 * 3, generator.numberOfPossibleOutputs)
-    }
-    @Test
-    fun `bitConsumption yields bit consumption of repeated generator times repetitions`() {
-        val generator = RepeatingTextGenerator(
-            FakeTextGenerator(bitConsumption = 2..5),
-            3..7, // size: 4 = 3 bits
-        )
-        assertEquals(3 + 3*2..3 + 5*7, generator.bitConsumption)
+    fun `size is toRepeat size times repetitions`() {
+        val generator = (1..3) * anyOf("1", "2", "3", "4")
+        assertEquals(4 + 4 * 4 + 4 * 4 * 4, generator.size)
     }
 
     @Test
-    fun `allPossibleOutputs yields repeated combinations`() {
-        val generator = RepeatingTextGenerator(
-            FixedOptionsTextGenerator("a", "b"),
-            repetitions = 2..3
-        )
+    fun `iterator yields repeated combinations`() {
+        val generator = (2..3) * anyOf("a", "b")
         assertEquals(
-            listOf("aa", "ab", "ba", "bb", "aaa", "aab", "aba", "abb", "baa", "bab", "bba", "bbb"),
-            generator.allPossibleOutputs.toList()
+            listOf("aa", "ba", "ab", "bb", "aaa", "baa", "aba", "bba", "aab", "bab", "abb", "bbb"),
+            generator.toList()
         )
     }
 
     @Test
-    fun `generate uses repetition count determined by stream`() {
-        val generator = RepeatingTextGenerator(
-            toRepeat = FixedOptionsTextGenerator("a", "b" ),
-            repetitions = 1..4
-        )
-        val bitStream = BitStream(byteArrayOf(0x15))
-
-        val result = generator.generate(bitStream)
-
-        assertEquals("bab", result)
-        assertEquals(5, bitStream.consumedBits)
+    fun `get applies custom joiner`() {
+        val generator = (2 * anyOf("first", "second", "third")).joinBy { it.joinToString(" | ") }
+        val result = generator[1]
+        assertEquals("second | first", result)
     }
 
     @Test
-    fun `generate applies custom joiner`() {
-        var callCount = 0
-        val generator = RepeatingTextGenerator(
-            toRepeat = FakeTextGenerator {
-                val phrases = listOf("first", "second", "third")
-                phrases[callCount++]
-            },
-            repetitions = 2..2,
-            joiner = { parts -> parts.joinToString(" | ") }
-        )
+    fun `generate with zero repetitions has no values`() {
+        val generator = 0 * anyOf("a", "b")
 
-        val result = generator.generate(BitStream(byteArrayOf()))
-
-        assertEquals("first | second", result)
-        assertEquals(2, callCount)
+        assertEquals(0, generator.size)
+        assertEquals(emptyList(), generator.toList())
+        assertFailsWith(IndexOutOfBoundsException::class) { generator[0] }
     }
 
     @Test
-    fun `generate with zero repetitions skips inner generator`() {
-        var calls = 0
-        val generator = RepeatingTextGenerator(
-            toRepeat = FakeTextGenerator {
-                ++calls
-                "unused"
-            },
-            repetitions = 0..0
+    fun `generate with empty repetition range has no values`() {
+        val generator = (1..0) * anyOf("a", "b")
+
+        assertEquals(0, generator.size)
+        assertEquals(emptyList(), generator.toList())
+        assertFailsWith(IndexOutOfBoundsException::class) { generator[0] }
+    }
+
+    @Test
+    fun `get gets item with index`() {
+        val generator = (1..3) * anyOf("1", "2")
+        val generated = (0L..13L).map { generator[it] }
+        assertEquals(
+            listOf(
+                "1", "2", "11", "21", "12", "22",
+                "111", "211", "121", "221",
+                "112", "212", "122", "222",
+            ),
+            generated
         )
+    }
 
-        val result = generator.generate(BitStream(byteArrayOf()))
-
-        assertEquals("", result)
-        assertEquals(0, calls)
+    @Test
+    fun `get with exceeding index throws IndexOutOfBoundsException`() {
+        val generator = (1..3) * anyOf("1", "2")
+        assertFailsWith(IndexOutOfBoundsException::class) { generator[14] }
     }
 }

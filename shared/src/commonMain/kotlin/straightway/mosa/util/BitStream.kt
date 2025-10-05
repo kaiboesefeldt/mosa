@@ -3,17 +3,18 @@ package straightway.mosa.util
 import kotlin.experimental.and
 import kotlin.random.Random
 
-class BitStream(
-    private val bytes: ByteArray,
-    val checkConsumption: Boolean = false,
-) : Random() {
+class BitStream(private val bytes: ByteArray) : Random() {
     private var byteIndex = 0
     private var bitIndex = 0
 
     val consumedBits: Int get() = bitIndex + byteIndex * 8
 
     override fun nextBits(bitCount: Int): Int = (1..bitCount).fold(0) { acc, _ ->
-        (acc shl 1) + getNextBit()
+        (acc shl 1) + nextBit()
+    }
+
+    fun nextBitsLong(bitCount: Int): Long = (1..bitCount).fold(0L) { acc, _ ->
+        (acc shl 1) + nextBit()
     }
 
     override fun nextInt(until: Int): Int {
@@ -25,7 +26,16 @@ class BitStream(
 
     override fun nextInt(from: Int, until: Int): Int = from + nextInt(until - from)
 
-    fun getNextBit(): Int {
+    override fun nextLong(until: Long): Long {
+        val max = until - 1L
+        if (max < 0L) throw RuntimeException("negative numbers not supported (got: ${max})")
+        val bitsRequired = bitsRequiredForMax(max)
+        return nextBitsLong(bitsRequired) % until
+    }
+
+    override fun nextLong(from: Long, until: Long): Long = from + nextLong(until - from)
+
+    fun nextBit(): Int {
         val currByte = getCurrentByte()
         return currByte.getBit(bitIndex).also {
             ++bitIndex
@@ -51,22 +61,4 @@ class BitStream(
 }
 
 fun bitsRequiredForMax(max: Int): Int = Int.SIZE_BITS - max.countLeadingZeroBits()
-
-fun BitStream.getMax(max: Int): Int = nextInt(max + 1)
-
-fun <T> BitStream.checkConsumption(
-    validRange: IntRange,
-    hint: String? = null,
-    block: () -> T
-): T =
-    if (checkConsumption) {
-        val consumptionBefore = consumedBits
-        val result = block()
-        val consumption = consumedBits - consumptionBefore
-        if (consumption !in validRange)
-            throw RuntimeException(
-                "Bit consumption out of range (result=$result). Expected: $validRange, " +
-                        "got: $consumption${hint?.let {", Hint: $it"} ?: ""}"
-            )
-        result
-    } else block()
+fun bitsRequiredForMax(max: Long): Int = Long.SIZE_BITS - max.countLeadingZeroBits()
