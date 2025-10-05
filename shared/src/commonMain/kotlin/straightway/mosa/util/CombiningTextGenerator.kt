@@ -23,6 +23,8 @@ class CombiningTextGenerator(
         joiner(partStrings)
     }
 
+    fun joinBy(joiner: (partOptions: List<String>) -> String) = CombiningTextGenerator(parts, joiner)
+
     private fun combinePartOutputs(parts: List<TextGenerator>): Sequence<List<String>> =
         if (parts.isEmpty()) emptySequence()
         else sequence {
@@ -41,8 +43,8 @@ class CombiningTextGenerator(
         ) = CombiningTextGenerator(parts.toList())
 
         operator fun invoke(
+            vararg parts: TextGenerator,
             joiner: (partOptions: List<String>) -> String,
-            vararg parts: TextGenerator
         ) = CombiningTextGenerator(parts.toList(), joiner)
     }
 }

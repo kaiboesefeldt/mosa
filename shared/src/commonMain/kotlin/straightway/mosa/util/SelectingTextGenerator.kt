@@ -34,5 +34,7 @@ class SelectingTextGenerator(
     companion object {
         operator fun invoke(vararg options: Pair<Int, TextGenerator>) =
             SelectingTextGenerator(options.toList())
+        operator fun invoke(vararg options: TextGenerator) =
+            SelectingTextGenerator(options.map { it.numberOfPossibleOutputs.toInt() to it })
     }
 }

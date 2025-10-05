@@ -31,6 +31,8 @@ class RepeatingTextGenerator(
         joiner(parts)
     }
 
+    fun joinBy(joiner: (partOptions: List<String>) -> String) = RepeatingTextGenerator(toRepeat, repetitions, joiner)
+
     private fun combinationsOf(reps: Int): Sequence<List<String>> =
         if (reps < 1) emptySequence()
         else sequence {

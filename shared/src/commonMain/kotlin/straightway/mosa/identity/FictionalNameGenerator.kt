@@ -2,10 +2,13 @@ package straightway.mosa.identity
 
 import straightway.mosa.util.BitStream
 import straightway.mosa.util.CombiningTextGenerator
-import straightway.mosa.util.FixedOptionsTextGenerator
-import straightway.mosa.util.RepeatingTextGenerator
-import straightway.mosa.util.SelectingTextGenerator
 import straightway.mosa.util.TextGenerator
+import straightway.mosa.util.anyOf
+import straightway.mosa.util.combine
+import straightway.mosa.util.times
+import straightway.mosa.util.div
+import straightway.mosa.util.flat
+import straightway.mosa.util.plus
 
 class FictionalNameGenerator : TextGenerator {
 
@@ -19,82 +22,34 @@ class FictionalNameGenerator : TextGenerator {
         }
     }
 
-    private val shortVowels = setOf("a", "e", "i", "o", "u", "y")
-    private val longVowels = setOf("aa", "ai", "ee", "ei", "ie", "oo")
+    private val onset = anyOf("p", "b", "t", "d", "k", "g", "f", "s", "z", "h", "m", "n", "l", "r", "w")
+    private val v = anyOf("a", "e", "i", "o", "u")
+    private val vj = anyOf("a", "e")
+    private val vjOnset = anyOf("bj", "tj", "kj", "fj", "nj")
+    private val vw = anyOf("a", "o", "u")
+    private val vwOnset = anyOf("bw", "dw", "kw", "gw", "sw", "zw")
+    private val cv = flat(onset + v)
+    private val cjv = flat(vjOnset + vj)
+    private val cwv = flat(vwOnset + vw)
 
-    private val universalConsonants = setOf(
-        "b", "c", "d", "f", "g", "k", "l",
-        "m", "n", "p", "r", "s", "t", "v", "w"
-    )
+    private val codac = anyOf("n", "m", "r", "l", "s")
 
-    private val shorteningConsonants = setOf(
-        "ck", "ch", "dd", "ff", "gg", "kk", "ll", "mm", "nn", "pp", "rr", "rd", "rt", "ss", "sh", "st",
-        "tt", "x", "z"
-    )
-
-    private val initialConsonants = setOf(
-        "h", "j", "gh", "qu", "sp", "sk"
-    )
-
-    private val endShorteningConsonants = setOf(
-        "ck", "ch", "ll", "mm", "mp", "nn", "pp", "rr", "rd", "rg", "rk", "rs", "rt", "ss",
-        "sh", "sk", "st", "sp", "tt", "x", "z"
-    )
-
-    private val shortVowelGenerator = FixedOptionsTextGenerator(shortVowels.sorted())
-    private val longVowelGenerator = FixedOptionsTextGenerator(longVowels.sorted())
-
-    private val initialConsonantGenerator =
-        FixedOptionsTextGenerator((universalConsonants + initialConsonants).sorted())
-
-    private val nonShorteningConsonantGenerator =
-        FixedOptionsTextGenerator((universalConsonants).sorted())
-
-    private val shorteningConsonantGenerator =
-        FixedOptionsTextGenerator((universalConsonants + shorteningConsonants).sorted())
-
-    private val endUniversalConsonantGenerator =
-        FixedOptionsTextGenerator((universalConsonants).sorted())
-
-    private val endShorteningConsonantGenerator =
-        FixedOptionsTextGenerator((endShorteningConsonants + universalConsonants).sorted())
-
-    private val initialSyllableGenerator = SelectingTextGenerator(
-        1 to CombiningTextGenerator(
-            shortVowelGenerator,
-            shorteningConsonantGenerator
-        ),
-        1 to initialConsonantGenerator
-    )
-
-    private val middleSyllableGenerator =
-        SelectingTextGenerator(
-            5 to CombiningTextGenerator(
-                shortVowelGenerator,
-                shorteningConsonantGenerator
-            ),
-            1 to CombiningTextGenerator(
-                longVowelGenerator,
-                nonShorteningConsonantGenerator
-            ),
-            2 to CombiningTextGenerator()
+    private val middleSyl =
+        (
+            combine(cv, cv, cjv)
+                    / combine(cv, cjv)
+                    / combine(cv, cv, cwv)
+                    / combine(cv, cwv)
+                    / ((1..2) * cv)
+                    / cjv
+                / cwv
         )
 
-    private val endSyllableGenerator = SelectingTextGenerator(
-        5 to CombiningTextGenerator(
-            shortVowelGenerator,
-            endShorteningConsonantGenerator
-        ),
-        1 to CombiningTextGenerator(
-            longVowelGenerator,
-            endUniversalConsonantGenerator
-        ),
-        2 to shortVowelGenerator
-    )
+
+    private val sFinalSyl = cv + codac
 
     private val sureNameGenerator = CombiningTextGenerator(
-        initialSyllableGenerator,
-        RepeatingTextGenerator(middleSyllableGenerator, repetitions = 0..3),
-        endSyllableGenerator
+        middleSyl,
+        sFinalSyl
     )
 }

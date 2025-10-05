@@ -28,7 +28,7 @@ class BitStreamTest {
     fun `aggregates bits into an Int`() {
         val stream = BitStream(byteArrayOf(0x1E))
 
-        val value = stream.getNextAsInt(4)
+        val value = stream.nextBits(4)
 
         assertEquals(7, value)
     }
@@ -37,9 +37,9 @@ class BitStreamTest {
     fun `returns zero after exhausting bytes`() {
         val stream = BitStream(byteArrayOf(0xFF.toByte()))
 
-        stream.getNextAsInt(8)
+        stream.nextBits(8)
 
-        val trailingBits = stream.getNextAsInt(3)
+        val trailingBits = stream.nextBits(3)
 
         assertEquals(0, trailingBits)
     }

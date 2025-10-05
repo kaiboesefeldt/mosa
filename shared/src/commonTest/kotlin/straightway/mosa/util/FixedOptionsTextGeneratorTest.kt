@@ -24,6 +24,14 @@ class FixedOptionsTextGeneratorTest {
     }
 
     @Test
+    fun `bitConsumption edge case`() {
+        val generator = FixedOptionsTextGenerator(
+            "p", "b", "t", "d", "k", "g", "f", "s", "z", "h" , "m", "n", "l", "r", "w", "j"
+        )
+        assertEquals(4..4, generator.bitConsumption)
+    }
+
+    @Test
     fun `generate returns first option when stream selects index 0`() {
         val generator = FixedOptionsTextGenerator(listOf("alpha", "beta"))
         val bitStream = BitStream(byteArrayOf(0x00))

@@ -53,9 +53,9 @@ class CombiningTextGeneratorTest {
     @Test
     fun `generate uses provided joiner`() {
         val generator = CombiningTextGenerator(
-            joiner = { parts -> parts.joinToString("-") },
             FixedOptionsTextGenerator("foo" ),
-            FixedOptionsTextGenerator("bar")
+            FixedOptionsTextGenerator("bar"),
+            joiner = { parts -> parts.joinToString("-") },
         )
 
         val result = generator.generate(BitStream(byteArrayOf()))
