@@ -4,16 +4,16 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-class SelectingTextGeneratorTest {
+class SelectingGeneratorTest {
     @Test
     fun `numberOfPossibleOutputs is sum of options`() {
-        val generator = anyOf("1", "2", "3") / anyOf("1", "2")
+        val generator = anyOf(anyOf("1", "2", "3"), anyOf("1", "2"))
         assertEquals(2 + 3, generator.size)
     }
 
     @Test
     fun `iterator yields union of all options`() {
-        val generator = anyOf("a", "b") / anyOf("c", "d", "e")
+        val generator = anyOf(anyOf("a", "b"), anyOf("c", "d", "e"))
         assertEquals(
             listOf("a", "b", "c", "d", "e"),
             generator.toList()
@@ -21,17 +21,8 @@ class SelectingTextGeneratorTest {
     }
 
     @Test
-    fun `iterator with single option`() {
-        val generator = anyOf("a", "b") / "c"
-        assertEquals(
-            listOf("a", "b", "c"),
-            generator.toList()
-        )
-    }
-
-    @Test
     fun `get gets item with index`() {
-        val generator = anyOf("1", "2") / anyOf("a", "b", "c")
+        val generator = anyOf(anyOf("1", "2"), anyOf("a", "b", "c"))
         val generated = (0L..4L).map { generator[it] }
         assertEquals(
             listOf("1", "2", "a", "b", "c"),
@@ -41,7 +32,7 @@ class SelectingTextGeneratorTest {
 
     @Test
     fun `get with exceeding index throws IndexOutOfBoundsException`() {
-        val generator = anyOf("1", "2") / anyOf("a", "b", "c")
+        val generator = anyOf(anyOf("1", "2"), anyOf("a", "b", "c"))
         assertFailsWith(IndexOutOfBoundsException::class) { generator[5] }
     }
 }

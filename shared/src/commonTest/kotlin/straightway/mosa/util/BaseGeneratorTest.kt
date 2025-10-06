@@ -3,12 +3,12 @@ package straightway.mosa.util
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TextGeneratorTest {
+class BaseGeneratorTest {
 
     class DerivedTextGenerator(
         override val size: Long = items.size.toLong(),
         val items: List<String> = emptyList(),
-    ) : TextGenerator.Base() {
+    ) : BaseGenerator<String>() {
         override operator fun get(index: Long): String = items[index.toInt()]
     }
 

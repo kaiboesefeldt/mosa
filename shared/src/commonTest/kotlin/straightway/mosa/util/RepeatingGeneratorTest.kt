@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-class RepeatingTextGeneratorTest {
+class RepeatingGeneratorTest {
     @Test
     fun `size is toRepeat size times repetitions`() {
         val generator = (1..3) * anyOf("1", "2", "3", "4")
@@ -13,7 +13,7 @@ class RepeatingTextGeneratorTest {
 
     @Test
     fun `iterator yields repeated combinations`() {
-        val generator = (2..3) * anyOf("a", "b")
+        val generator = stringGen((2..3) * anyOf("a", "b"))
         assertEquals(
             listOf("aa", "ba", "ab", "bb", "aaa", "baa", "aba", "bba", "aab", "bab", "abb", "bbb"),
             generator.toList()
@@ -47,7 +47,7 @@ class RepeatingTextGeneratorTest {
 
     @Test
     fun `get gets item with index`() {
-        val generator = (1..3) * anyOf("1", "2")
+        val generator = stringGen((1..3) * anyOf("1", "2"))
         val generated = (0L..13L).map { generator[it] }
         assertEquals(
             listOf(

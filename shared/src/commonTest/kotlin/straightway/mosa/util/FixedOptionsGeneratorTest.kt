@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-class FixedOptionsTextGeneratorTest {
+class FixedOptionsGeneratorTest {
     @Test
     fun `numberOfPossibleOutputs is number of options`() {
         val generator = anyOf("alpha", "beta")
@@ -14,7 +14,7 @@ class FixedOptionsTextGeneratorTest {
     @Test
     fun `iterator yields fixed options`() {
         val textOptions = listOf("alpha", "beta")
-        val generator = FixedOptionsTextGenerator(textOptions)
+        val generator = FixedOptionsGenerator(textOptions)
         assertEquals(textOptions, generator.toList())
     }
 
