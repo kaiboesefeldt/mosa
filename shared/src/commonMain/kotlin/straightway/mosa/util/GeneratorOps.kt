@@ -29,3 +29,4 @@ fun <T> stringGen(
     truncated: CharSequence = "...",
     transform: ((T) -> CharSequence)? = null
 ) = gen.joinBy { it.joinToString(separator, prefix, postfix, limit, truncated, transform) }
+operator fun Generator<List<String>>.unaryPlus() = stringGen(this)
