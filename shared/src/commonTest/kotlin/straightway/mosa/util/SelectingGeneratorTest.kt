@@ -16,7 +16,7 @@ class SelectingGeneratorTest {
         val generator = anyOf(anyOf("a", "b"), anyOf("c", "d", "e"))
         assertEquals(
             listOf("a", "b", "c", "d", "e"),
-            generator.toList()
+            generator.toList(),
         )
     }
 
@@ -26,7 +26,7 @@ class SelectingGeneratorTest {
         val generated = (0L..4L).map { generator[it] }
         assertEquals(
             listOf("1", "2", "a", "b", "c"),
-            generated
+            generated,
         )
     }
 

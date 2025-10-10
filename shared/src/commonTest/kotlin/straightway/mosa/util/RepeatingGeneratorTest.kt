@@ -16,7 +16,7 @@ class RepeatingGeneratorTest {
         val generator = stringGen((2..3) * anyOf("a", "b"))
         assertEquals(
             listOf("aa", "ba", "ab", "bb", "aaa", "baa", "aba", "bba", "aab", "bab", "abb", "bbb"),
-            generator.toList()
+            generator.toList(),
         )
     }
 
@@ -51,11 +51,22 @@ class RepeatingGeneratorTest {
         val generated = (0L..13L).map { generator[it] }
         assertEquals(
             listOf(
-                "1", "2", "11", "21", "12", "22",
-                "111", "211", "121", "221",
-                "112", "212", "122", "222",
+                "1",
+                "2",
+                "11",
+                "21",
+                "12",
+                "22",
+                "111",
+                "211",
+                "121",
+                "221",
+                "112",
+                "212",
+                "122",
+                "222",
             ),
-            generated
+            generated,
         )
     }
 

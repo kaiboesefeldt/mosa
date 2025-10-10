@@ -3,16 +3,16 @@ package straightway.mosa.util
 class SelectingGenerator<T>(
     val options: List<Generator<T>>,
 ) : BaseGenerator<T>() {
+    override val size: Long
+        get() = options.sumOf { option -> option.size }
 
-    override val size: Long get() = options.sumOf { it.size }
     override operator fun get(index: Long): T {
-        var restIndex = index
-        for (option in options.map { it}) {
+        var remainingIndex = index
+        for (option in options) {
             val optionSize = option.size
-            if (restIndex < optionSize) return option[restIndex]
-            restIndex -= optionSize
+            if (remainingIndex < optionSize) return option[remainingIndex]
+            remainingIndex -= optionSize
         }
-
         throw IndexOutOfBoundsException()
     }
 }

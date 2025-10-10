@@ -1,3 +1,5 @@
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
 plugins {
     kotlin("jvm")
     id("org.jmailen.kotlinter")
@@ -41,6 +43,16 @@ dependencies {
 
 application {
     mainClass.set("straightway.mosa.cli.CliMainKt")
+}
+
+kotlin {
+    jvmToolchain(19)
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(19))
+    }
 }
 
 tasks.test {

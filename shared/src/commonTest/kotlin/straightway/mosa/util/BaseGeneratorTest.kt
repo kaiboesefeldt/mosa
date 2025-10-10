@@ -4,7 +4,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class BaseGeneratorTest {
-
     class DerivedTextGenerator(
         override val size: Long = items.size.toLong(),
         val items: List<String> = emptyList(),

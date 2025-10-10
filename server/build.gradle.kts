@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     kotlin("jvm")
     id("org.jmailen.kotlinter")
-    id("com.github.johnrengelman.shadow")
+    id("com.gradleup.shadow")
     application
 }
 
@@ -104,8 +104,9 @@ tasks.test {
     useJUnitPlatform()
 }
 
-// Pull the client bundle into server static resources
 val copyClientFiles = tasks.register<Copy>("copyClientFiles") {
+    group = "other"
+    description = "Pull the client bundle into server static resources"
     dependsOn(":client:jsBrowserDistribution")
     val clientBuildDir = project(":client").layout.buildDirectory.get().asFile
     val candidates = listOf(

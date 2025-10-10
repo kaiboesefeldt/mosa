@@ -4,9 +4,19 @@ import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import org.w3c.dom.HTMLDivElement
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
+import react.FC
+import react.Props
+import react.create
+import react.dom.client.Root
+import react.dom.client.createRoot
+import react.dom.html.ReactHTML.div
+import react.dom.html.ReactHTML.h1
+import react.dom.html.ReactHTML.p
+import react.useEffect
+import react.useRef
+import react.useState
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentityGenerator
@@ -15,90 +25,73 @@ import straightway.mosa.client.pod.podAccess
 import straightway.mosa.client.util.Base64
 import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.util.BitStream
+import web.dom.Element as WebElement
+import kotlin.js.unsafeCast
+
+private val appScope = MainScope()
 
 fun main() {
-    window.onload = { Main().run() }
+    AppModule.start()
+    val rootElement =
+        document.getElementById("root")?.unsafeCast<WebElement>() ?: error("Element `root` not found")
+    val root: Root = createRoot(rootElement)
+    root.render(IdentityApp.create())
 }
 
-class Main : KoinComponent {
+private val IdentityApp = FC<Props> {
+    val (keysText, setKeysText) = useState("Generating Ed25519 key pair …")
+    val effectRan = useRef(false)
 
-    private val appScope = MainScope()
-
-    fun run() {
-        AppModule.start()
-
-        renderSkeleton()
-
+    useEffect(emptyArray<Any>()) {
+        if (effectRan.current == true) return@useEffect
+        effectRan.current = true
         appScope.launch {
-            val identity = get<IdentityGenerator>().generate()
-            showIdentity(identity)
+            val identity = ClientInjector.get<IdentityGenerator>().generate()
+            setKeysText(identityDetails(identity))
 
             val cert = createCertificateFor(identity.gid)
-            showCertificate(cert)
+            setKeysText { current -> current + certificateDetails(cert) }
 
-            val jwt = get<MisJwtService>().buildMisJwt(identity, cert)
-            showJwt(jwt)
+            val jwt = ClientInjector.get<MisJwtService>().buildMisJwt(identity, cert)
+            setKeysText { current -> current + jwtDetails(jwt) }
         }
     }
 
-    private fun renderSkeleton() {
-        val body = document.body ?: return
-        val heading = document.createElement("h1")
-        heading.textContent = "Mosa – Browser Identity"
-        body.appendChild(heading)
-
-        val desc = document.createElement("p")
-        desc.textContent = "This page generates an Ed25519 key pair locally in the browser."
-        body.appendChild(desc)
-
-        val container = document.createElement("div") as HTMLDivElement
-        container.id = "keys"
-        container.style.whiteSpace = "pre-wrap"
-        body.appendChild(container)
-    }
-
-    private val keys by lazy {
-        document.getElementById("keys") ?: throw RuntimeException("Element `keys` not found")
-    }
-
-    private fun showIdentity(identity: Identity) {
-        val nameGenerator = get<FictionalNameGenerator>()
-        val gidBytes = Base64.fromBase64Url(identity.gid)
-        val bits = BitStream(gidBytes)
-        val generatedName = nameGenerator[bits.nextLong(nameGenerator.size + 1)]
-        keys.textContent = "Generating Ed25519 key pair …"
-        keys.textContent = """
-            GID (base64url(sha256(pub))):
-            ${identity.gid}
-            
-            Name:
-            ${generatedName} out of ${nameGenerator.size} (${bits.consumedBits} Bits consumed)
-        
-            Key Pair:
-            ${JSON.stringify(identity.keyPair)}
-    
-        """.trimIndent()
-    }
-
-    private suspend fun createCertificateFor(gid: String): PodCertificate {
-        val podHost = (window.asDynamic().MOSA_POD_BASE as? String) ?: ""
-        val podAccess = podAccess(podHost)
-        return podAccess.approveGid(gid)
-    }
-
-    private fun showCertificate(cert: PodCertificate) {
-        keys.textContent += """
-        
-        Got cert: $cert
-        
-    """.trimIndent()
-    }
-
-    private fun showJwt(jwt: String) {
-        keys.textContent += """
-        
-        MIS-JWT:
-        $jwt
-    """.trimIndent()
+    h1 { +"Mosa – Browser Identity" }
+    p { +"This page generates an Ed25519 key pair locally in the browser." }
+    div {
+        val attributes = this.unsafeCast<dynamic>()
+        attributes.id = "keys"
+        +keysText
     }
 }
+
+private object ClientInjector : KoinComponent
+
+private fun identityDetails(identity: Identity): String {
+    val nameGenerator = ClientInjector.get<FictionalNameGenerator>()
+    val gidBytes = Base64.fromBase64Url(identity.gid)
+    val bits = BitStream(gidBytes)
+    val generatedName = nameGenerator[bits.nextLong(nameGenerator.size + 1)]
+    return """
+        GID (base64url(sha256(pub))):
+        ${identity.gid}
+
+        Name:
+        ${generatedName} out of ${nameGenerator.size} (${bits.consumedBits} Bits consumed)
+
+        Key Pair:
+        ${JSON.stringify(identity.keyPair)}
+
+    """.trimIndent()
+}
+
+private suspend fun createCertificateFor(gid: String): PodCertificate {
+    val podHost = (window.asDynamic().MOSA_POD_BASE as? String) ?: ""
+    val podAccess = ClientInjector.podAccess(podHost)
+    return podAccess.approveGid(gid)
+}
+
+private fun certificateDetails(cert: PodCertificate): String = "\n\nGot cert: $cert\n\n"
+
+private fun jwtDetails(jwt: String): String = "\n\nMIS-JWT:\n$jwt"

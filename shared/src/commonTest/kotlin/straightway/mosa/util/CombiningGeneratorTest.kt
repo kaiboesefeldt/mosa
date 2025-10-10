@@ -16,13 +16,13 @@ class CombiningGeneratorTest {
         val generator = concat(anyOf("a", "b"), anyOf("c"), anyOf("d", "e", "f")).trans { it.joinToString("") }
         assertEquals(
             listOf("acd", "bcd", "ace", "bce", "acf", "bcf"),
-            generator.toList()
+            generator.toList(),
         )
     }
 
     @Test
     fun `get uses provided joiner`() {
-        val generator = stringGen(concat(anyOf("foo" ), anyOf("bar")), "-")
+        val generator = stringGen(concat(anyOf("foo"), anyOf("bar")), "-")
         val result = generator.first()
         assertEquals("foo-bar", result)
     }

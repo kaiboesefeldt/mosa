@@ -56,36 +56,28 @@ class BitStreamTest {
     }
 
     @Test
-    fun `bitsRequiredForMax 0 returns 0`() =
-        assertEquals(0, bitsRequiredForMax(0))
+    fun `bitsRequiredForMax 0 returns 0`() = assertEquals(0, bitsRequiredForMax(0))
 
     @Test
-    fun `bitsRequiredForMax 1 returns 1`() =
-        assertEquals(1, bitsRequiredForMax(1))
+    fun `bitsRequiredForMax 1 returns 1`() = assertEquals(1, bitsRequiredForMax(1))
 
     @Test
-    fun `bitsRequiredForMax 2 returns 2`() =
-        assertEquals(2, bitsRequiredForMax(2))
+    fun `bitsRequiredForMax 2 returns 2`() = assertEquals(2, bitsRequiredForMax(2))
 
     @Test
-    fun `bitsRequiredForMax 3 returns 2`() =
-        assertEquals(2, bitsRequiredForMax(3))
+    fun `bitsRequiredForMax 3 returns 2`() = assertEquals(2, bitsRequiredForMax(3))
 
     @Test
-    fun `bitsRequiredForMax 4 returns 3`() =
-        assertEquals(3, bitsRequiredForMax(4))
+    fun `bitsRequiredForMax 4 returns 3`() = assertEquals(3, bitsRequiredForMax(4))
 
     @Test
-    fun `bitsRequiredForMax 5 returns 3`() =
-        assertEquals(3, bitsRequiredForMax(5))
+    fun `bitsRequiredForMax 5 returns 3`() = assertEquals(3, bitsRequiredForMax(5))
 
     @Test
-    fun `bitsRequiredForMax -1 returns 32`() =
-        assertEquals(32, bitsRequiredForMax(-1))
+    fun `bitsRequiredForMax -1 returns 32`() = assertEquals(32, bitsRequiredForMax(-1))
 
     @Test
-    fun `bitsRequiredForMax -1L returns 32`() =
-        assertEquals(64, bitsRequiredForMax(-1L))
+    fun `bitsRequiredForMax -1L returns 32`() = assertEquals(64, bitsRequiredForMax(-1L))
 
     @Test
     fun `nextLong for negative zero throws`() {

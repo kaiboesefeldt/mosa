@@ -8,6 +8,7 @@ version = "0.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    maven("https://maven.pkg.jetbrains.space/public/p/kotlin-wrappers/maven")
 }
 
 kotlin {
@@ -39,6 +40,7 @@ kotlin {
         val kotlinxCoroutinesVersion = "1.10.2"
         val kotlinxSerializationJsonVersion = "1.9.0"
         val ktorVersion = "3.2.0"
+        val kotlinWrappersVersion = "2025.7.4-19.1.0"
         jsMain {
             dependencies {
                 implementation(kotlin("stdlib-js"))
@@ -49,6 +51,8 @@ kotlin {
                 implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
                 implementation(project(":shared"))
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
+                implementation("org.jetbrains.kotlin-wrappers:kotlin-react:$kotlinWrappersVersion")
+                implementation("org.jetbrains.kotlin-wrappers:kotlin-react-dom:$kotlinWrappersVersion")
             }
         }
         jsTest {
