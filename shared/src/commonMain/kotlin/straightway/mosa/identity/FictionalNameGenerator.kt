@@ -14,43 +14,34 @@ class FictionalNameGenerator : BaseGenerator<FictionalName>() {
 
     override operator fun get(index: Long): FictionalName = fullNameGenerator[index]
 
-    // Für chinesische Aussprache günstige Anlaute (kein 'v', 'r' bleibt nur als Silbenanfang optional im InitialSet? -> wir lassen 'r' hier weg)
-    private val initialSet = anyOf("ch", "b", "d", "f", "g", "h", "j", "k", "p", "t", "sh", "z", "zh")
-    private val onset = anyOf("b", "d", "f", "l", "m", "n", "w", "s") // Anfangskonsonanten für Innen-/Schlusssilben
+    // Robuste, einfache Anlaute (bewusst ohne zh/sh/ch/sch, r, v, p, j, q, x, c)
+    private val initialSet = anyOf("b", "d", "f", "g", "h", "k", "l", "m", "n", "s", "t", "w", "y", "z")
+    private val onset      = anyOf("b", "d", "f", "g", "h", "k", "l", "m", "n", "s", "t", "w", "y", "z")
 
-    // Vokale/Diphthonge – nur in Mandarin übliche/nahe Muster
+    // Nur einfache Vokale – keine Diphthonge -> verhindert VV-Sequenzen
     private val vowels = anyOf("a", "e", "i", "o", "u")
-    private val diphthongs = anyOf("ai", "ei", "ao", "ou") // kein "oi"/"au"
 
     private val consonantVowel = +concat(onset, vowels)
-    private val consonantDiphthong = +concat(onset, diphthongs)
 
-    // Coda nur mit n/ng/y (vermeidet -l/-r/-s/-g/-m/-x)
-    private val codaConsonants = anyOf("n", "ng", "y")
+    // Nachname: muss mit Konsonant beginnen (initialSet) und auf Konsonant enden (-n)
+    private val surnameInitialSyllable = +concat(initialSet, vowels)          // CV
+    private val surnameMiddleSyllable  = consonantVowel                       // CV
+    private val surnameFinalSyllable   = +concat(consonantVowel, anyOf("n"))  // CV + n  => ...-n
 
-    private val surnameInitialSyllable = +concat(initialSet, vowels)
-    private val surnameMiddleSyllable = anyOf(consonantVowel, consonantDiphthong)
-    private val givenMiddleSyllable = +((0..1) * anyOf(consonantVowel, consonantDiphthong))
+    // Vorname: (V)(CV){0..1} + CV  -> endet auf Vokal, aber ohne VV da Mittelsilbe CV ist
+    private val givenMiddleSyllable = +((0..1) * consonantVowel)
+    private val givenFinalSyllable  = consonantVowel
 
-    // Nachnamen-Ende: nur Silben, die auf Vokal/-n/-ng/-y enden
-    private val surnameFinalSyllable =
-        anyOf(
-            +concat(consonantVowel, codaConsonants), // z.B. "len", "sang", "wiy"
-            +concat(onset, anyOf("y")),              // z.B. "ly", "ny"
-            codaConsonants                           // z.B. "n", "ng", "y"
-        )
-    private val givenFinalSyllable = consonantVowel // Vokal-Ende ist für Rufnamen gut
-
-    // Addition so wählen, dass sie selbst leicht ist (keine problematischen Endungen/Buchstaben)
-    private val additionPrefix = anyOf("ya", "za", "lu", "ze", "sha", "zha", "cha")
-    private val additionSuffix = anyOf("y", "n", "ng") // vermeidet q/x/th/c; Endet weich
+    // Addition: nur einfache Präfixe; Suffix ausschließlich -n (verhindert Doppelvokal)
+    private val additionPrefix = anyOf("sa", "za", "la", "na", "ya", "wa")
+    private val additionSuffix = anyOf("n")
 
     private val surnameGenerator =
         (
                 +concat(
                     surnameInitialSyllable,
-                    +((0..1) * surnameMiddleSyllable),
-                    surnameFinalSyllable
+                    +((0..1) * surnameMiddleSyllable),  // 1–2 CV-Silben vor dem Abschluss
+                    surnameFinalSyllable                 // ...-n
                 )
                 ).trans {
                 FictionalName(sureName = it.firstLetterUpperCase())
@@ -59,9 +50,9 @@ class FictionalNameGenerator : BaseGenerator<FictionalName>() {
     private fun givenNameGenerator() =
         (
                 +concat(
-                    vowels,
-                    +((0..1) * givenMiddleSyllable),
-                    givenFinalSyllable
+                    vowels,                               // V
+                    +((0..1) * givenMiddleSyllable),      // (CV){0..1}
+                    givenFinalSyllable                    // CV
                 )
                 ).trans {
                 FictionalName(givenNames = listOf(it.firstLetterUpperCase()))
@@ -69,7 +60,7 @@ class FictionalNameGenerator : BaseGenerator<FictionalName>() {
 
     private val additionGenerator =
         (+concat(additionPrefix, additionSuffix)).trans {
-            FictionalName(addendum = it) // bleibt klein geschrieben, Apostroph wird extern formatiert
+            FictionalName(addendum = it) // bleibt kleingeschrieben; Apostroph wird extern formatiert
         }
 
     private val fullNameGenerator =
@@ -84,12 +75,12 @@ class FictionalNameGenerator : BaseGenerator<FictionalName>() {
             generatedParts.fold(FictionalName()) { accumulated, part ->
                 accumulated.copy(
                     givenNames = accumulated.givenNames + part.givenNames,
-                    sureName = accumulated.sureName + part.sureName,
-                    addendum =
+                    sureName   = accumulated.sureName + part.sureName,
+                    addendum   =
                         when {
                             accumulated.addendum == null -> part.addendum
-                            part.addendum == null -> accumulated.addendum
-                            else -> part.addendum + accumulated.addendum
+                            part.addendum == null        -> accumulated.addendum
+                            else                         -> part.addendum + accumulated.addendum
                         }
                 )
             }
