@@ -10,13 +10,13 @@ class CombiningGenerator<T>(
             }
 
     override fun get(index: Long): List<T> {
+        if (size <= index) throw IndexOutOfBoundsException()
         var remainingIndex = index
         val generatedParts =
             parts.map { part ->
                 val partSize = part.size
                 part[remainingIndex % partSize].also { remainingIndex /= partSize }
             }
-        if (remainingIndex != 0L) throw IndexOutOfBoundsException()
-        return generatedParts
+       return generatedParts
     }
 }

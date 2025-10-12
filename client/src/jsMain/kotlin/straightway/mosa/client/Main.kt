@@ -72,7 +72,7 @@ private fun identityDetails(identity: Identity): String {
     val nameGenerator = ClientInjector.get<FictionalNameGenerator>()
     val gidBytes = Base64.fromBase64Url(identity.gid)
     val bits = BitStream(gidBytes)
-    val generatedName = nameGenerator[bits.nextLong(nameGenerator.size + 1)]
+    val generatedName = nameGenerator.generate(bits)
     return """
         GID (base64url(sha256(pub))):
         ${identity.gid}
