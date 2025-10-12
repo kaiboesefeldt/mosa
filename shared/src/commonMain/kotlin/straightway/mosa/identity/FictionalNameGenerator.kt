@@ -4,10 +4,12 @@ import straightway.mosa.util.BitStream
 import straightway.mosa.util.Generator
 import straightway.mosa.util.anyOf
 import straightway.mosa.util.bitsRequiredForMax
+import straightway.mosa.util.combine
 import straightway.mosa.util.concat
 import straightway.mosa.util.times
 import straightway.mosa.util.trans
 import straightway.mosa.util.unaryPlus
+import kotlin.math.max
 
 class FictionalNameGenerator {
     val size: Double
@@ -26,53 +28,59 @@ class FictionalNameGenerator {
     }
 
     private val initialSet =
-        anyOf("sh", "ch", "b", "d", "f", "g", "h", "k", "l", "m", "n", "r", "s", "t", "w", "y", "z")
+        anyOf("sh", "ch", "b", "d", "f", "g", "h", "k", "l", "m", "n", "r", "s", "t", "w", "z")
     private val onset =
-        anyOf("sh", "ch", "b", "d", "f", "g", "h", "k", "l", "m", "n", "r", "s", "t", "w", "y", "z")
+        anyOf("b", "d", "f", "g", "k", "l", "m", "n", "r", "s", "t", "w", "z")
 
     private val vowels = anyOf("a", "e", "i", "o", "u")
+    private val givenNameEndVowels = anyOf("e", "i", "u", "y")
     private val safeDiph = anyOf("ai", "ei")
 
     private val consonantVowel = +concat(onset, vowels)
     private val consonantSafeDiph = +concat(onset, safeDiph)
+    private val consonantFinalGivenNameVowel = +concat(onset, givenNameEndVowels)
 
-    private val endCons = anyOf("n", "m", "l", "r", "s")
-
-    private val surnameInitialSyllable = +concat(initialSet, vowels)
-    private val surnameMiddleSyllable =
-        anyOf(consonantVowel, consonantSafeDiph)
-    private val surnameFinalSyllable =
-        +concat(anyOf(consonantVowel, consonantSafeDiph), endCons)
-
-    private val givenMiddleSyllable =
-        +((0..1) * anyOf(consonantVowel, consonantSafeDiph))
-    private val givenFinalSyllable =
-        consonantVowel
+    private val endCons = anyOf("n", "m", "l", "s")
 
     private val additionPrefix = +concat(onset, vowels)
     private val additionSuffix = endCons
 
-    private val surnameGenerator =
+    private fun surnameGenerator(syllableCount: Int) =
         (
+            anyOf(
                 +concat(
-                    surnameInitialSyllable,
-                    +((0..2) * surnameMiddleSyllable),
-                    surnameFinalSyllable
-                )
-                ).trans {
-                FictionalName(sureName = it.firstLetterUpperCase())
-            }
-
-    private fun givenNameGenerator() =
-        (
-                +concat(
+                    initialSet,
                     vowels,
-                    +((0..1) * givenMiddleSyllable),
-                    givenFinalSyllable
+                    anyOf(
+                        +combine(consonantSafeDiph, +((0..(syllableCount - 2)) * consonantVowel)),
+                        +((0..(syllableCount - 1)) * consonantVowel),
+                    ),
+                    endCons,
+                ),
+                +concat(
+                    initialSet,
+                    safeDiph,
+                    +((0..(syllableCount - 1)) * consonantVowel),
+                    endCons,
+                ),
+            )
+        ).trans { FictionalName(sureName = it.firstLetterUpperCase()) }
+
+    private fun givenNameGenerator(syllableCount: Int): Generator<FictionalName> =
+        (
+            listOf(consonantSafeDiph, consonantVowel) +
+            (2..max(1, syllableCount - 1)).flatMap { numSyllables ->
+                listOf(
+                    +combine(+((numSyllables - 1) * consonantVowel), consonantSafeDiph),
+                    +(numSyllables * consonantVowel),
                 )
-                ).trans {
+            }
+        ).let { it: List<Generator<String>> ->
+             val initSyllablesGen: Generator<String> = anyOf(*it.toTypedArray())
+            (+concat(initSyllablesGen, consonantFinalGivenNameVowel)).trans {
                 FictionalName(givenNames = listOf(it.firstLetterUpperCase()))
             }
+        }
 
     private val additionGenerator =
         (+concat(additionPrefix, additionSuffix)).trans {
@@ -80,10 +88,10 @@ class FictionalNameGenerator {
         }
 
     private val fullNameParts = listOf(
-        givenNameGenerator(),
-        givenNameGenerator(),
+        givenNameGenerator(syllableCount = 2),
+        givenNameGenerator(syllableCount = 3),
         additionGenerator,
-        surnameGenerator
+        surnameGenerator(syllableCount = 3),
     )
 
     private fun String.firstLetterUpperCase(): String =
