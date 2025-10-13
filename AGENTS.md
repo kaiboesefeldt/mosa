@@ -5,12 +5,12 @@
 - `client/src/jsMain/kotlin` – Kotlin/JS web client; Webpack output copied to `server/build/resources/main/static` via the `copyClientFiles` Gradle task.
 - `cli/src/main/kotlin/straightway/mosa/cli` – JVM CLI built on `kotlinx-cli`, reusing shared DTOs and crypto utilities.
 - `shared/src/commonMain/kotlin` – Multiplatform models for auth (`PodCertificate`, `AuthenticationApprovalRequest`) and content (`PublishRequest`, `QueryRequest`, etc.) consumed by server, client, and CLI.
-- `models/` – Local DJL/ONNX models loaded by `OnnxLocalEmbeddingService`; keep large files out of source control updates unless intentional.
+- `models/` – Optional DJL/ONNX assets; `OnnxLocalEmbeddingService` defaults to the Hugging Face `multilingual-e5-small-4096` model, but you can repoint it here; keep large files out of source control updates unless intentional.
 - `mosa_lucene_index/` – Lucene KNN index persisted on disk; delete to reset local state while developing.
 
 ## Server (Ktor 3.2)
 - Netty engine with DI through Koin 4.1 (`AppModule.kt`); wiring registers `EmbeddingService`, `VectorStore`, crypto utilities, controllers, and the `PodCertificateService`.
-- `OnnxLocalEmbeddingService` (DJL 0.33 + ONNX Runtime) embeds text with vectors sized to the bundled models under `models/`.
+- `OnnxLocalEmbeddingService` (DJL 0.33 + ONNX Runtime) embeds text using DJL's Hugging Face integration and the `efederici/multilingual-e5-small-4096` model, propagating its vector dimension into the Lucene store.
 - `LuceneLocalVectorStore` persists content vectors in an `MMapDirectory` targeting `mosa_lucene_index`, supports paged KNN queries and thread filtering.
 - Authentication relies on MIS-JWT bearer tokens verified by `Auth0TokenUtil`, which checks Ed25519 signatures, pod certificates, and claim constraints.
 - `/v1/approvegid` (open) issues short-lived pod certificates; `/v1/publish`, `/v1/reply`, `/v1/query`, `/v1/queryon` require bearer auth and are handled in `ContentController`.
@@ -24,6 +24,7 @@
 
 ## Web Client
 - Kotlin/JS IR application using Koin, Ktor HTTP client JS, coroutines, and shared DTOs. Entry point `straightway.mosa.client.Main` bootstraps DI defined in `AppModule.kt`.
+- UI renders a React-based identity generator that mints Ed25519 key pairs in-browser, requests pod certificates through `PodAccess`, and assembles MIS-JWTs with `MisJwtService` for display.
 - Built assets live under `client/build/…`; `copyClientFiles` task lifts the production bundle into the server resources directory before `processResources`/`shadowJar`.
 - Static HTML template sits in `client/src/jsMain/resources/index.html`; the server injects runtime base URLs so Pod location remains configurable.
 
@@ -41,6 +42,7 @@
 - Tests live beside code in each module under `src/test/kotlin`. Keep them fast, deterministic, and focused—one scenario per test.
 - If you introduce new libs, always make sure you use the most recent stable version, if possible. Look up the most recent version using a web search!!
 - Don't use code comments! Instead, write the code so expressive, that comments are not required, e.g. by naming of code entities and extracted functions, that are named to make the functionality clear.
+- If necessary, reflect any major changes in the software architecture or the code structure in this `AGENTS.MD` file.
 
 ## Testing Guidelines
 - Prefer fast, deterministic unit tests; use MockK for collaborators; Ktor test host for endpoint tests.
