@@ -49,6 +49,7 @@
 - No strict coverage gate today; keep service/controller logic covered and add regression tests for bugs.
 - In KotlinJs tests, use `runTest`.
 - Strictly handle one minimal test case per test.
+- Make sure, tests DON'T succeed, only because preconditions are NOT met (e.g. `val c = createComponent() ?: return@runTest)`.
 
 ## Security Notes
 - Ed25519 signing implemented through `TransientEd25519Factory`; keys are ephemeral in-memory unless you persist them explicitly.

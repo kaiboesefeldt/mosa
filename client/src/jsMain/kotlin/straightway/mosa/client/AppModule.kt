@@ -12,6 +12,10 @@ import straightway.mosa.client.aux.TimeService
 import straightway.mosa.client.browser.SubtleCrypto
 import straightway.mosa.client.identity.CryptoExport
 import straightway.mosa.client.identity.IdentityGenerator
+import straightway.mosa.client.identity.IdentityProvider
+import straightway.mosa.client.identity.IdentityRepository
+import straightway.mosa.client.identity.IdentityStore
+import straightway.mosa.client.identity.IndexedDbIdentityStore
 import straightway.mosa.client.identity.MisJwtService
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.identity.FictionalNameGenerator
@@ -32,6 +36,15 @@ object AppModule : KoinComponent {
                             )
                         }
                         single { IdentityGenerator(get(), get()) }
+                        single<IdentityProvider> { get<IdentityGenerator>() }
+                        single<IdentityStore> {
+                            IndexedDbIdentityStore(
+                                get(),
+                                get(),
+                                window.asDynamic().indexedDB
+                            )
+                        }
+                        single { IdentityRepository(get(), get<IdentityProvider>()) }
                         single {
                             HttpClient {
                                 install(ContentNegotiation) { json() }

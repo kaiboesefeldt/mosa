@@ -20,6 +20,18 @@ class SubtleCrypto(private val wrapped: dynamic) {
             .await()
             .toByteArray()
 
+    suspend fun importKey(
+        format: String,
+        keyData: ByteArray,
+        algorithm: dynamic,
+        exportable: Boolean,
+        usages: Array<String>,
+    ): CryptoKey =
+        wrapped
+            .importKey(format, keyData, algorithm, exportable, usages)
+            .unsafeCast<Promise<CryptoKey>>()
+            .await()
+
     suspend fun generateKey(algo: String, exportable: Boolean, usages: Array<String>): CryptoKeyPair =
         wrapped
             .generateKey(algo, exportable, usages)
