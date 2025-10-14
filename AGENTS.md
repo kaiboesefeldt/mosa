@@ -43,6 +43,11 @@
 - If you introduce new libs, always make sure you use the most recent stable version, if possible. Look up the most recent version using a web search!!
 - Don't use code comments! Instead, write the code so expressive, that comments are not required, e.g. by naming of code entities and extracted functions, that are named to make the functionality clear.
 - If necessary, reflect any major changes in the software architecture or the code structure in this `AGENTS.MD` file.
+- If applicable (you MUST check if test driven development is applicable), work test-driven, in very small increments, i.e.
+  1. FIRST write a minimal test, that tests the small functionality increment to develop
+  2. THEN write the minimum production code, that makes the test green
+  3. THEN, without changing the test, clean up the production code, make it nice and minimal8
+  4. THEN, without changing the production code, clean up the test code
 
 ## Testing Guidelines
 - Prefer fast, deterministic unit tests; use MockK for collaborators; Ktor test host for endpoint tests.
