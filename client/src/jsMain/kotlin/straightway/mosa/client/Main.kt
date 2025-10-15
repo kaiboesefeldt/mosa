@@ -12,9 +12,7 @@ import react.create
 import react.dom.client.Root
 import react.dom.client.createRoot
 import react.dom.html.ReactHTML.button
-import react.dom.html.ReactHTML.div
 import react.dom.html.ReactHTML.h1
-import react.dom.html.ReactHTML.p
 import react.useEffect
 import react.useRef
 import react.useState
@@ -40,7 +38,7 @@ fun main() {
 }
 
 private val IdentityApp = FC<Props> {
-    val (keysText, setKeysText) = useState("Loading identity …")
+    val (identityText, setIdentityText) = useState("...")
     val (isBusy, setBusy) = useState(false)
     val effectRan = useRef(false)
 
@@ -48,7 +46,6 @@ private val IdentityApp = FC<Props> {
         if (isBusy) return
         setBusy(true)
         appScope.launch {
-            setKeysText(if (regenerate) "Generating new identity …" else "Loading identity …")
             try {
                 val repository = ClientInjector.get<IdentityRepository>()
                 val misJwtService = ClientInjector.get<MisJwtService>()
@@ -56,21 +53,15 @@ private val IdentityApp = FC<Props> {
                     if (regenerate) repository.regenerate()
                     else repository.loadOrCreate()
 
-                var details = identityDetails(identity)
-                setKeysText(details)
-
+                val resolvedName = identityName(identity)
+                setIdentityText(resolvedName)
                 val cert = createCertificateFor(identity.gid)
-                details += certificateDetails(cert)
-                setKeysText(details)
-
-                val jwt = misJwtService.buildMisJwt(identity, cert)
-                details += jwtDetails(jwt)
-                setKeysText(details)
+                misJwtService.buildMisJwt(identity, cert)
             } catch (error: Throwable) {
                 val console = window.asDynamic().console
                 console?.error?.call(console, "Identity refresh failed", error)
                 val message = error.message ?: error::class.simpleName ?: "Unknown error"
-                setKeysText("Failed to prepare identity: $message")
+                setIdentityText("Failed to prepare identity: $message")
             } finally {
                 setBusy(false)
             }
@@ -83,38 +74,21 @@ private val IdentityApp = FC<Props> {
         refreshIdentity(false)
     }
 
-    h1 { +"Mosa – Browser Identity" }
-    p { +"This page keeps an Ed25519 key pair in the browser and reuses it across visits." }
+    h1 { +identityText }
     button {
         disabled = isBusy
         onClick = { refreshIdentity(true) }
         +"Generate new identity"
     }
-    div {
-        val attributes = this.unsafeCast<dynamic>()
-        attributes.id = "keys"
-        +keysText
-    }
 }
 
 private object ClientInjector : KoinComponent
 
-private fun identityDetails(identity: Identity): String {
+private fun identityName(identity: Identity): String {
     val nameGenerator = ClientInjector.get<FictionalNameGenerator>()
     val gidBytes = Base64.fromBase64Url(identity.gid)
     val bits = BitStream(gidBytes)
-    val generatedName = nameGenerator.generate(bits)
-    return """
-        GID (base64url(sha256(pub))):
-        ${identity.gid}
-
-        Name:
-        ${generatedName} out of ${nameGenerator.size} (${bits.consumedBits} Bits consumed)
-
-        Key Pair:
-        ${JSON.stringify(identity.keyPair)}
-
-    """.trimIndent()
+    return nameGenerator.generate(bits).toString()
 }
 
 private suspend fun createCertificateFor(gid: String): PodCertificate {
@@ -122,7 +96,3 @@ private suspend fun createCertificateFor(gid: String): PodCertificate {
     val podAccess = ClientInjector.podAccess(podHost)
     return podAccess.approveGid(gid)
 }
-
-private fun certificateDetails(cert: PodCertificate): String = "\n\nGot cert: $cert\n\n"
-
-private fun jwtDetails(jwt: String): String = "\n\nMIS-JWT:\n$jwt"
