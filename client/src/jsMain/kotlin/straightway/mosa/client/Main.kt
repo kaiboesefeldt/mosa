@@ -13,6 +13,8 @@ import react.dom.client.Root
 import react.dom.client.createRoot
 import react.dom.html.ReactHTML.button
 import react.dom.html.ReactHTML.h1
+import react.dom.html.ReactHTML.option
+import react.dom.html.ReactHTML.select
 import react.useEffect
 import react.useRef
 import react.useState
@@ -41,6 +43,9 @@ private val IdentityApp = FC<Props> {
     val (identityText, setIdentityText) = useState("...")
     val (isBusy, setBusy) = useState(false)
     val effectRan = useRef(false)
+    val defaultPod = (window.asDynamic().MOSA_POD_BASE as? String).orEmpty()
+    val pods = listOfNotNull(defaultPod.takeIf { it.isNotBlank() })
+    val (selectedPod, setSelectedPod) = useState(defaultPod)
 
     fun refreshIdentity(regenerate: Boolean) {
         if (isBusy) return
@@ -55,7 +60,8 @@ private val IdentityApp = FC<Props> {
 
                 val resolvedName = identityName(identity)
                 setIdentityText(resolvedName)
-                val cert = createCertificateFor(identity.gid)
+                val podForCertificate = selectedPod.ifBlank { defaultPod }
+                val cert = createCertificateFor(identity.gid, podForCertificate)
                 misJwtService.buildMisJwt(identity, cert)
             } catch (error: Throwable) {
                 val console = window.asDynamic().console
@@ -74,6 +80,27 @@ private val IdentityApp = FC<Props> {
         refreshIdentity(false)
     }
 
+    select {
+        value = selectedPod
+        disabled = pods.isEmpty()
+        onChange = { event ->
+            val nextValue = (event.target.asDynamic().value as? String).orEmpty()
+            setSelectedPod(nextValue)
+        }
+        if (pods.isEmpty()) {
+            option {
+                value = ""
+                +"No pod configured"
+            }
+        } else {
+            pods.forEach { pod ->
+                option {
+                    value = pod
+                    +pod
+                }
+            }
+        }
+    }
     h1 { +identityText }
     button {
         disabled = isBusy
@@ -91,8 +118,7 @@ private fun identityName(identity: Identity): String {
     return nameGenerator.generate(bits).toString()
 }
 
-private suspend fun createCertificateFor(gid: String): PodCertificate {
-    val podHost = (window.asDynamic().MOSA_POD_BASE as? String) ?: ""
+private suspend fun createCertificateFor(gid: String, podHost: String): PodCertificate {
     val podAccess = ClientInjector.podAccess(podHost)
     return podAccess.approveGid(gid)
 }
