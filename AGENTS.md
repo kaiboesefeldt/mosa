@@ -41,9 +41,12 @@
 - Expressive naming over comments; prefer extracting helpers instead of annotating code. Maintain `straightway.mosa.*` packaging and align file names with their top-level declarations.
 - Tests live beside code in each module under `src/test/kotlin`. Keep them fast, deterministic, and focused—one scenario per test.
 - If you introduce new libs, always make sure you use the most recent stable version, if possible. Look up the most recent version using a web search!!
-- Don't use code comments! Instead, write the code so expressive, that comments are not required, e.g. by naming of code entities and extracted functions, that are named to make the functionality clear.
+- Don't use code comments at all! Instead, write the code so expressive, that comments are not required, e.g. by naming of code entities and extracted functions, that are named to make the functionality clear.
 - If necessary, reflect any major changes in the software architecture or the code structure in this `AGENTS.MD` file.
-- If applicable (you MUST check if test driven development is applicable), work test-driven, in very small increments, i.e.
+- Clearly separate UI-related code from the rest.
+  1. Make the ui related code as small as possible.
+  2. Only make sure, ui-related code compiles, but don't write tests for this code. 
+- If you develop business logic, you MUST work test-driven, in very small increments, i.e.
   1. FIRST write a minimal test, that tests the small functionality increment to develop
   2. THEN write the minimum production code, that makes the test green
   3. THEN, without changing the test, clean up the production code, make it nice and minimal8
