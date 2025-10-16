@@ -60,6 +60,9 @@ kotlin {
                 implementation(kotlin("test"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test-js:$kotlinxCoroutinesVersion")
                 implementation(npm("karma-source-map-support", "1.4.0"))
+                implementation(npm("@testing-library/react", "16.3.0"))
+                implementation(npm("@testing-library/user-event", "14.6.1"))
+                implementation(npm("@testing-library/dom", "10.4.1"))
             }
         }
     }
