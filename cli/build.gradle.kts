@@ -1,4 +1,6 @@
 import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm")
@@ -43,6 +45,10 @@ dependencies {
 
 application {
     mainClass.set("straightway.mosa.cli.CliMainKt")
+}
+
+tasks.withType<KotlinCompile> {
+    dependsOn("formatKotlin")
 }
 
 kotlin {

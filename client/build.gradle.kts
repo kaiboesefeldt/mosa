@@ -1,3 +1,6 @@
+import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     kotlin("multiplatform")
     id("org.jetbrains.kotlin.plugin.serialization")
@@ -66,4 +69,8 @@ kotlin {
             }
         }
     }
+}
+
+tasks.withType<KotlinCompile> {
+    dependsOn("formatKotlin")
 }
