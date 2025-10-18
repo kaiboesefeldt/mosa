@@ -51,6 +51,8 @@
   2. THEN write the minimum production code, that makes the test green
   3. THEN, without changing the test, clean up the production code, make it nice and minimal8
   4. THEN, without changing the production code, clean up the test code
+- ALWAYS make sure, that your code compiles.
+- ALWAYS make sure, that all tests are green.
 
 ## Testing Guidelines
 - Prefer fast, deterministic unit tests; use MockK for collaborators; Ktor test host for endpoint tests.
