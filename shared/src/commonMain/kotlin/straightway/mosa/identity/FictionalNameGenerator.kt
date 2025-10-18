@@ -18,8 +18,7 @@ class FictionalNameGenerator {
     val bits: Int
         get() = fullNameParts.fold(0) { acc, i -> acc + bitsRequiredForMax(i.size) }
 
-    fun generate(bits: BitStream): FictionalName =
-        fullNameParts.fold(FictionalName()) { acc, i -> acc + i.generateFrom(bits) }
+    fun generate(bits: BitStream): FictionalName = fullNameParts.fold(FictionalName()) { acc, i -> acc + i.generateFrom(bits) }
 
     private fun Generator<FictionalName>.generateFrom(bits: BitStream): FictionalName {
         val requiredBits = bitsRequiredForMax(size)
@@ -69,14 +68,14 @@ class FictionalNameGenerator {
     private fun givenNameGenerator(syllableCount: Int): Generator<FictionalName> =
         (
             listOf(consonantSafeDiph, consonantVowel) +
-            (2..max(1, syllableCount - 1)).flatMap { numSyllables ->
-                listOf(
-                    +combine(+((numSyllables - 1) * consonantVowel), consonantSafeDiph),
-                    +(numSyllables * consonantVowel),
-                )
-            }
+                (2..max(1, syllableCount - 1)).flatMap { numSyllables ->
+                    listOf(
+                        +combine(+((numSyllables - 1) * consonantVowel), consonantSafeDiph),
+                        +(numSyllables * consonantVowel),
+                    )
+                }
         ).let { it: List<Generator<String>> ->
-             val initSyllablesGen: Generator<String> = anyOf(*it.toTypedArray())
+            val initSyllablesGen: Generator<String> = anyOf(*it.toTypedArray())
             (+concat(initSyllablesGen, consonantFinalGivenNameVowel)).trans {
                 FictionalName(givenNames = listOf(it.firstLetterUpperCase()))
             }
@@ -87,13 +86,13 @@ class FictionalNameGenerator {
             FictionalName(addendum = it)
         }
 
-    private val fullNameParts = listOf(
-        givenNameGenerator(syllableCount = 2),
-        givenNameGenerator(syllableCount = 3),
-        additionGenerator,
-        surnameGenerator(syllableCount = 3),
-    )
+    private val fullNameParts =
+        listOf(
+            givenNameGenerator(syllableCount = 2),
+            givenNameGenerator(syllableCount = 3),
+            additionGenerator,
+            surnameGenerator(syllableCount = 3),
+        )
 
-    private fun String.firstLetterUpperCase(): String =
-        this[0].uppercase() + substring(1).lowercase()
+    private fun String.firstLetterUpperCase(): String = this[0].uppercase() + substring(1).lowercase()
 }

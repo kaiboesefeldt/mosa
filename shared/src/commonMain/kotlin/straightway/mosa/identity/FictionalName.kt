@@ -7,9 +7,10 @@ data class FictionalName(
 ) {
     override fun toString() = givenNames.joinToString(" ") + (addendum?.let { " $it'" } ?: " ") + sureName
 
-    operator fun plus(other: FictionalName) = FictionalName(
-        givenNames = givenNames + other.givenNames,
-        sureName = listOf(sureName, other.sureName).filter { it.isNotBlank() }.joinToString(" "),
-        addendum = listOfNotNull(addendum, other.addendum).filter { it.isNotBlank() }.joinToString("-"),
-    )
+    operator fun plus(other: FictionalName) =
+        FictionalName(
+            givenNames = givenNames + other.givenNames,
+            sureName = listOf(sureName, other.sureName).filter { it.isNotBlank() }.joinToString(" "),
+            addendum = listOfNotNull(addendum, other.addendum).filter { it.isNotBlank() }.joinToString("-"),
+        )
 }

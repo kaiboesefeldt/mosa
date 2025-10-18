@@ -17,6 +17,6 @@ class CombiningGenerator<T>(
                 val partSize = part.size
                 part[remainingIndex % partSize].also { remainingIndex /= partSize }
             }
-       return generatedParts
+        return generatedParts
     }
 }
