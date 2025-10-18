@@ -19,7 +19,7 @@ class IdentityLandingViewTest {
     }
 
     @Test
-    fun disablesConnectButtonWhenBusy() = runTest {
+    fun `disabled content button when busy`() = runTest {
         renderIdentityLandingView {
             isBusy = true
         }
@@ -30,7 +30,7 @@ class IdentityLandingViewTest {
     }
 
     @Test
-    fun forwardsSelectedPodChanges() = runTest {
+    fun `forwards selected pod changes`() = runTest {
         var selectedPod: String? = null
         renderIdentityLandingView {
             pods = listOf("pod-a", "pod-b")
@@ -51,7 +51,7 @@ class IdentityLandingViewTest {
     }
 
     @Test
-    fun invokesConnectHandlerWhenInteractionFinishes() = runTest {
+    fun `invokes connect handler when interaction finishes`() = runTest {
         var handled = false
         renderIdentityLandingView {
             canConnect = true
