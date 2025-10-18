@@ -19,7 +19,7 @@ class IdentityLandingViewTest {
     }
 
     @Test
-    fun `disabled content button when busy`() = runTest {
+    fun `disabled connect button when busy`() = runTest {
         renderIdentityLandingView {
             isBusy = true
         }
