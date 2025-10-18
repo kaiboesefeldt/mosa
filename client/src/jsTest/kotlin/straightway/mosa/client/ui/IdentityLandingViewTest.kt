@@ -65,4 +65,19 @@ class IdentityLandingViewTest {
 
         assertTrue(handled)
     }
+
+    @Test
+    fun `invokes regeneration handler when user requests new identity`() = runTest {
+        var handled = false
+        renderIdentityLandingView {
+            onGenerateNew = { handled = true }
+        }
+
+        val regenerateButton = screen.getByRole("button", json("name" to "Generate new identity"))
+
+        val user = userEvent.setup()
+        user.click(regenerateButton).await()
+
+        assertTrue(handled)
+    }
 }
