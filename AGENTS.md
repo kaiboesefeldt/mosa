@@ -58,6 +58,7 @@
 - In KotlinJs tests, use `runTest`.
 - Strictly handle one minimal test case per test.
 - Make sure, tests DON'T succeed, only because preconditions are NOT met (e.g. `val c = createComponent() ?: return@runTest)`.
+- Name tests using kotlin's backtick notation, e.g. "fun `invokes connect handler when interaction finishes`()"
 
 ## Security Notes
 - Ed25519 signing implemented through `TransientEd25519Factory`; keys are ephemeral in-memory unless you persist them explicitly.
