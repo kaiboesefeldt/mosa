@@ -2,6 +2,9 @@ package straightway.mosa.content
 
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.request.header
+import io.ktor.http.HttpHeaders
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
@@ -113,6 +116,9 @@ class ControllerHttpTestEnvironment(
                             registerModule(InstantJacksonSerializers.createModule())
                             setTimeZone(TimeZone.getTimeZone("UTC"))
                         }
+                    }
+                    defaultRequest {
+                        header(HttpHeaders.XForwardedProto, "https")
                     }
                 }
             block()
