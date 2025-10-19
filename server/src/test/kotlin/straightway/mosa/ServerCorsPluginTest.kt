@@ -4,6 +4,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -15,6 +16,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import kotlin.test.Test
@@ -59,6 +61,34 @@ class ServerCorsPluginTest {
 
             val response =
                 client.delete("/v1/items") {
+                    header(HttpHeaders.XForwardedProto, "https")
+                    header(HttpHeaders.Authorization, "Bearer token")
+                }
+
+            assertEquals(HttpStatusCode.MethodNotAllowed, response.status)
+            assertFalse(handlerInvoked)
+            assertEquals("*", response.headers[HttpHeaders.AccessControlAllowOrigin])
+            assertEquals("Retry-After", response.headers[HttpHeaders.AccessControlExposeHeaders])
+        }
+    }
+
+    @Test
+    fun `rejects put requests`() {
+        var handlerInvoked = false
+
+        testApplication {
+            application {
+                install(createMosaApiCorsPlugin())
+                routing {
+                    put("/v1/items") {
+                        handlerInvoked = true
+                        call.respond(HttpStatusCode.OK)
+                    }
+                }
+            }
+
+            val response =
+                client.put("/v1/items") {
                     header(HttpHeaders.XForwardedProto, "https")
                     header(HttpHeaders.Authorization, "Bearer token")
                 }
