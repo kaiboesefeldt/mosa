@@ -31,7 +31,9 @@ fun Application.installNetworkServerPlugins(tokenUtil: TokenUtil) {
                 call.response.headers.append(HttpHeaders.AccessControlAllowOrigin, "*")
                 call.response.headers.append(HttpHeaders.AccessControlExposeHeaders, "Retry-After")
 
-                if (!call.request.path().startsWith("/v1/")) return@onCall
+                val path = call.request.path()
+
+                if (!path.startsWith("/v1/")) return@onCall
 
                 if (call.request.httpMethod == HttpMethod.Options) {
                     call.response.headers.append(HttpHeaders.AccessControlAllowMethods, allowedMethods)
@@ -41,23 +43,27 @@ fun Application.installNetworkServerPlugins(tokenUtil: TokenUtil) {
                     return@onCall
                 }
 
+                val isOpenEndpoint = path.equals("/v1/approvegid", ignoreCase = true)
+
                 if (call.request.httpMethod != HttpMethod.Post && call.request.httpMethod != HttpMethod.Get) {
                     call.respond(HttpStatusCode.MethodNotAllowed)
                     return@onCall
                 }
 
-                val scheme =
-                    call.request.headers[HttpHeaders.XForwardedProto]
-                        ?: call.request.local.scheme
-                if (!scheme.equals("https", ignoreCase = true)) {
-                    call.respond(HttpStatusCode.BadRequest)
-                    return@onCall
-                }
+                if (!isOpenEndpoint) {
+                    val scheme =
+                        call.request.headers[HttpHeaders.XForwardedProto]
+                            ?: call.request.local.scheme
+                    if (!scheme.equals("https", ignoreCase = true)) {
+                        call.respond(HttpStatusCode.BadRequest)
+                        return@onCall
+                    }
 
-                val authorizationHeader = call.request.headers[HttpHeaders.Authorization]
-                if (authorizationHeader.isNullOrBlank()) {
-                    call.respond(HttpStatusCode.Unauthorized)
-                    return@onCall
+                    val authorizationHeader = call.request.headers[HttpHeaders.Authorization]
+                    if (authorizationHeader.isNullOrBlank()) {
+                        call.respond(HttpStatusCode.Unauthorized)
+                        return@onCall
+                    }
                 }
             }
         },
