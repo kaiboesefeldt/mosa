@@ -8,6 +8,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationPlugin
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
@@ -51,49 +52,62 @@ fun Application.installNetworkServerPlugins(tokenUtil: TokenUtil) {
 
 fun createMosaApiCorsPlugin(): ApplicationPlugin<Unit> =
     createApplicationPlugin("MosaApiCors") {
-        val allowedMethods = "POST, GET, OPTIONS"
-        val allowedHeaders = "Authorization, Content-Type"
-        val maxAgeSeconds = "7200"
-
         onCall { call ->
-            call.response.headers.append(HttpHeaders.AccessControlAllowOrigin, "*")
-            call.response.headers.append(HttpHeaders.AccessControlExposeHeaders, "Retry-After")
+            call.appendCorsBaseHeaders()
 
             val path = call.request.path()
 
-            if (!path.startsWith("/v1/")) return@onCall
+            if (!path.startsWith(API_ROUTE_PREFIX)) return@onCall
 
-            if (call.request.httpMethod == HttpMethod.Options) {
-                call.response.headers.append(HttpHeaders.AccessControlAllowMethods, allowedMethods)
-                call.response.headers.append(HttpHeaders.AccessControlAllowHeaders, allowedHeaders)
-                call.response.headers.append(HttpHeaders.AccessControlMaxAge, maxAgeSeconds)
-                call.respond(HttpStatusCode.NoContent)
-                return@onCall
-            }
+            when (call.request.httpMethod) {
+                HttpMethod.Options -> handlePreflightRequest(call)
 
-            val isOpenEndpoint = path.equals("/v1/approvegid", ignoreCase = true)
-
-            if (call.request.httpMethod != HttpMethod.Post && call.request.httpMethod != HttpMethod.Get) {
-                call.respond(HttpStatusCode.MethodNotAllowed)
-                return@onCall
-            }
-
-            if (!isOpenEndpoint) {
-                val scheme =
-                    call.request.headers[HttpHeaders.XForwardedProto]
-                        ?: call.request.local.scheme
-                if (!scheme.equals("https", ignoreCase = true)) {
-                    call.respond(HttpStatusCode.BadRequest)
-                    return@onCall
+                HttpMethod.Post -> {
+                    if (path.equals(APPROVE_GID_ROUTE, ignoreCase = true)) return@onCall
+                    call.secureEndpointViolation()?.let { call.respond(it) }
                 }
 
-                val authorizationHeader = call.request.headers[HttpHeaders.Authorization]
-                if (authorizationHeader.isNullOrBlank()) {
-                    call.respond(HttpStatusCode.Unauthorized)
-                    return@onCall
-                }
+                HttpMethod.Get -> call.secureEndpointViolation()?.let { call.respond(it) }
+
+                else -> call.respond(HttpStatusCode.MethodNotAllowed)
             }
         }
     }
 
 private val log = KotlinLogging.logger {}
+
+private const val API_ROUTE_PREFIX = "/v1/"
+private const val APPROVE_GID_ROUTE = "/v1/approvegid"
+private const val ALLOWED_CORS_METHODS = "POST, GET, OPTIONS"
+private const val ALLOWED_CORS_HEADERS = "Authorization, Content-Type"
+private const val CORS_MAX_AGE_SECONDS = "7200"
+
+private fun ApplicationCall.appendCorsBaseHeaders() {
+    response.headers.append(HttpHeaders.AccessControlAllowOrigin, "*")
+    response.headers.append(HttpHeaders.AccessControlExposeHeaders, "Retry-After")
+}
+
+private suspend fun handlePreflightRequest(call: ApplicationCall) {
+    call.appendPreflightHeaders()
+    call.respond(HttpStatusCode.NoContent)
+}
+
+private fun ApplicationCall.appendPreflightHeaders() {
+    response.headers.append(HttpHeaders.AccessControlAllowMethods, ALLOWED_CORS_METHODS)
+    response.headers.append(HttpHeaders.AccessControlAllowHeaders, ALLOWED_CORS_HEADERS)
+    response.headers.append(HttpHeaders.AccessControlMaxAge, CORS_MAX_AGE_SECONDS)
+}
+
+private fun ApplicationCall.secureEndpointViolation(): HttpStatusCode? {
+    val scheme = request.headers[HttpHeaders.XForwardedProto] ?: request.local.scheme
+    if (!scheme.equals("https", ignoreCase = true)) {
+        return HttpStatusCode.BadRequest
+    }
+
+    val authorizationHeader = request.headers[HttpHeaders.Authorization]
+    if (authorizationHeader.isNullOrBlank()) {
+        return HttpStatusCode.Unauthorized
+    }
+
+    return null
+}

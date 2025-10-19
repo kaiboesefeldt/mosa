@@ -11,7 +11,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
@@ -164,7 +163,31 @@ class ServerCorsPluginTest {
     }
 
     @Test
-    fun `allows approve gid route without auth`() {
+    fun `allows POST approve gid route without auth`() {
+        var handlerInvoked = false
+
+        testApplication {
+            application {
+                install(createMosaApiCorsPlugin())
+                routing {
+                    post("/v1/APPROVEGID") {
+                        handlerInvoked = true
+                        call.respond(HttpStatusCode.OK)
+                    }
+                }
+            }
+
+            val response = client.post("/v1/APPROVEGID")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(handlerInvoked)
+            assertEquals("*", response.headers[HttpHeaders.AccessControlAllowOrigin])
+            assertEquals("Retry-After", response.headers[HttpHeaders.AccessControlExposeHeaders])
+        }
+    }
+
+    @Test
+    fun `doesn't allow GET approve gid route without auth`() {
         var handlerInvoked = false
 
         testApplication {
@@ -180,8 +203,8 @@ class ServerCorsPluginTest {
 
             val response = client.get("/v1/APPROVEGID")
 
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(handlerInvoked)
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertFalse(handlerInvoked)
             assertEquals("*", response.headers[HttpHeaders.AccessControlAllowOrigin])
             assertEquals("Retry-After", response.headers[HttpHeaders.AccessControlExposeHeaders])
         }
