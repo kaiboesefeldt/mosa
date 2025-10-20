@@ -49,11 +49,14 @@
   1. Make the ui related code as small as possible.
   2. Only make sure, ui-related code compiles, but don't write tests for this code. 
 - If you develop business logic, you MUST work test-driven, in very small increments, i.e.
-  1. FIRST write a minimal test, that tests the small functionality increment to develop
-  2. THEN write the minimum production code, that makes the test green
-  3. THEN, without changing the test, clean up the production code, make it nice and minimal8
+  1. FIRST write a MINMAL unit test, that tests the small functionality increment to develop
+  2. THEN write the MINIMAL production code, that makes the test green
+  3. THEN, without changing the test, clean up the production code, make it nice and minimal
   4. THEN, without changing the production code, clean up the test code
 - Final quality gate: ALWAYS make sure, `gradlew check` tuns successfully 
+- Strive for 100% test coverage, but:
+  1. Be aware, that test coverage measurements sometimes yields inaccurate results, e.g. for data classes or for classes annotated with `@Serializable`.
+  2. Notice, that coverage for KotlinJs code is currently not measured. 
 
 ## Testing Guidelines
 - Prefer fast, deterministic unit tests; use MockK for collaborators; Ktor test host for endpoint tests.
