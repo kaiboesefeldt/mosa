@@ -33,6 +33,7 @@
 - Run server locally: `./gradlew :server:run` (Netty on `http://localhost:8080`). For a packaged jar use `./gradlew :server:shadowJar`.
 - Run CLI ad-hoc: `./gradlew :cli:run --args="search --pod http://localhost:8080 --topic 'query'"`.
 - Execute tests by module (`./gradlew :server:test`, `./gradlew :client:test`) or all at once with `./gradlew test`. Single test example: `./gradlew :server:test --tests straightway.mosa.SomeTest`.
+- Run test with code coverage: `./gradlew -Pkover clean test koverXmlReport koverVerify --no-daemon --stacktrace --continue` (coverage report under `build/reports/kover/report.xml`)
 - Formatting/linting: `./gradlew :server:formatKotlin`, `./gradlew :server:lintKotlin` (repeat per module) or run across all via `./gradlew formatKotlin` / `./gradlew lintKotlin`.
 - Clean build outputs with `./gradlew clean`; reset vector index manually by removing `mosa_lucene_index/`.
   * If you make intermediate tests, you may exclude `straightway.mosa.content.QualityTest`, as it is long-running and only of relevance, if you change the embedding or the vector store properties.
