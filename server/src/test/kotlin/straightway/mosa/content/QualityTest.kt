@@ -15,14 +15,14 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.measureTime
 
 class QualityTest {
-    val embeddingService = OnnxLocalEmbeddingService()
+    val embeddingService = OnnxLocalEmbeddingService.create()
     val clock =
         Clock.fixed(
             Instant.ofEpochSecond(170000000L),
             ZoneId.of("UTC"),
         )
     val vectorStore =
-        LuceneLocalVectorStore(
+        LuceneLocalVectorStore.create(
             directoryFactory = { ByteBuffersDirectory() },
             clock,
             maxResults = 1000,

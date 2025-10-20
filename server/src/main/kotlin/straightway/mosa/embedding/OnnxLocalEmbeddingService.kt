@@ -3,21 +3,15 @@ package straightway.mosa.embedding
 import ai.djl.huggingface.translator.TextEmbeddingTranslatorFactory
 import ai.djl.repository.zoo.Criteria.builder
 import ai.djl.repository.zoo.ModelZoo
+import ai.djl.repository.zoo.ZooModel
 import kotlinx.coroutines.runBlocking
 import straightway.mosa.EmbeddingService
 
-class OnnxLocalEmbeddingService(
+class OnnxLocalEmbeddingService private constructor(
     modelUrl: String = "djl://ai.djl.huggingface.onnxruntime/efederici/multilingual-e5-small-4096",
 ) : EmbeddingService,
     AutoCloseable {
-    private val model =
-        ModelZoo.loadModel(
-            builder()
-                .setTypes(String::class.java, FloatArray::class.java)
-                .optModelUrls(modelUrl)
-                .optTranslatorFactory(TextEmbeddingTranslatorFactory())
-                .build(),
-        )
+    private val model = loadModel(modelUrl)
     private val predictor = model.newPredictor()
 
     override val dimension: Int by lazy { runBlocking { embed("determine embedding size").size } }
@@ -27,5 +21,25 @@ class OnnxLocalEmbeddingService(
     override fun close() {
         predictor.close()
         model.close()
+    }
+
+    fun interface Factory {
+        fun create(modelUrl: String): OnnxLocalEmbeddingService
+    }
+
+    companion object {
+        var embeddingServiceFactory: Factory? = null
+
+        fun create(modelUrl: String = "djl://ai.djl.huggingface.onnxruntime/efederici/multilingual-e5-small-4096") =
+            embeddingServiceFactory?.create(modelUrl) ?: OnnxLocalEmbeddingService(modelUrl)
+
+        private fun loadModel(modelUrl: String): ZooModel<String, FloatArray> =
+            ModelZoo.loadModel(
+                builder()
+                    .setTypes(String::class.java, FloatArray::class.java)
+                    .optModelUrls(modelUrl)
+                    .optTranslatorFactory(TextEmbeddingTranslatorFactory())
+                    .build(),
+            )
     }
 }

@@ -4,6 +4,7 @@ import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.routing.routing
+import org.koin.dsl.module
 import org.koin.ktor.ext.getKoin
 import org.koin.ktor.plugin.Koin
 import straightway.mosa.base.BaseController
@@ -13,7 +14,7 @@ suspend fun main() {
     val server =
         embeddedServer(Netty, port = 8080) {
             install(Koin) {
-                modules(appModule)
+                modules(module { configureMosaAppModule() })
             }
             installNetworkServerPlugins(getKoin().get())
             routing {

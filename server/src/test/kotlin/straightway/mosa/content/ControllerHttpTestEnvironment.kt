@@ -78,7 +78,7 @@ class ControllerHttpTestEnvironment(
         val testModule =
             module {
                 single<VectorStore> {
-                    LuceneLocalVectorStore(
+                    LuceneLocalVectorStore.create(
                         directoryFactory = { ByteBuffersDirectory() },
                         clock = clock,
                         maxResults = 1000,

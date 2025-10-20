@@ -26,7 +26,7 @@ class LuceneLocalVectorStoreTest {
         object : AutoCloseable {
             val testClock = TestClock(Instant.ofEpochSecond(170000000L))
             val sut =
-                LuceneLocalVectorStore(
+                LuceneLocalVectorStore.create(
                     directoryFactory = { ByteBuffersDirectory() },
                     clock = testClock,
                     maxResults = 10,
@@ -50,7 +50,7 @@ class LuceneLocalVectorStoreTest {
         @Test
         fun `non-positive maxNotFinishedQueries throws exception`() {
             assertThrows<RuntimeException> {
-                LuceneLocalVectorStore(
+                LuceneLocalVectorStore.create(
                     directoryFactory = { ByteBuffersDirectory() },
                     clock = mockk(),
                     maxResults = 10,

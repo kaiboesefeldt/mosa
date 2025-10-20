@@ -41,15 +41,14 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ConcurrentMap
 
-class LuceneLocalVectorStore(
+class LuceneLocalVectorStore private constructor(
     directoryFactory: () -> Directory,
     private val clock: Clock,
     private val maxResults: Int,
     private val pageSize: Int,
     private val maxNotFinishedQueries: Int,
     private val vectorSize: Int,
-) : VectorStore,
-    AutoCloseable {
+) : VectorStore {
     private data class QueryOnRecord(
         val after: ScoreDoc,
         val query: Query,
@@ -381,7 +380,44 @@ class LuceneLocalVectorStore(
         if (closed) throw RuntimeException("The vector store has already been closed")
     }
 
-    private companion object {
+    fun interface Factory {
+        fun create(
+            directoryFactory: () -> Directory,
+            clock: Clock,
+            maxResults: Int,
+            pageSize: Int,
+            maxNotFinishedQueries: Int,
+            vectorSize: Int,
+        ): LuceneLocalVectorStore
+    }
+
+    companion object {
+        var vectorStoreFactory: Factory? = null
+
+        fun create(
+            directoryFactory: () -> Directory,
+            clock: Clock,
+            maxResults: Int,
+            pageSize: Int,
+            maxNotFinishedQueries: Int,
+            vectorSize: Int,
+        ): VectorStore =
+            vectorStoreFactory?.create(
+                directoryFactory,
+                clock,
+                maxResults,
+                pageSize,
+                maxNotFinishedQueries,
+                vectorSize,
+            ) ?: LuceneLocalVectorStore(
+                directoryFactory,
+                clock,
+                maxResults,
+                pageSize,
+                maxNotFinishedQueries,
+                vectorSize,
+            )
+
         private const val ID_FIELD_NAME = "id"
         private const val TEXT_FIELD_NAME = "text"
         private const val VECTOR_FIELD_NAME = "vector"

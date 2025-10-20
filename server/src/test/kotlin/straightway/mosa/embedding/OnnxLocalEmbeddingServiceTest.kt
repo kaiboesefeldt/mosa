@@ -27,7 +27,7 @@ class OnnxLocalEmbeddingServiceTest {
                 val model = mockModel(predictor)
                 every { ModelZoo.loadModel(criteria) } returns model
 
-                val service = OnnxLocalEmbeddingService(modelUrl = "custom-model")
+                val service = OnnxLocalEmbeddingService.create(modelUrl = "custom-model")
 
                 // act
                 val result = service.embed("hello world")

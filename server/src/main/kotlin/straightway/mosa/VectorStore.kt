@@ -3,7 +3,7 @@ package straightway.mosa
 import java.time.Instant
 import java.util.UUID
 
-interface VectorStore {
+interface VectorStore : AutoCloseable {
     data class QueryResults(
         val resultsPage: List<QueryResult>,
         val queryOnId: UUID?,
