@@ -37,6 +37,7 @@
 - Formatting/linting: `./gradlew :server:formatKotlin`, `./gradlew :server:lintKotlin` (repeat per module) or run across all via `./gradlew formatKotlin` / `./gradlew lintKotlin`.
 - Clean build outputs with `./gradlew clean`; reset vector index manually by removing `mosa_lucene_index/`.
   * If you make intermediate tests, you may exclude `straightway.mosa.content.QualityTest`, as it is long-running and only of relevance, if you change the embedding or the vector store properties.
+- Gradle warnings can be safely ignored
 
 ## Coding Standards
 - Kotlin 2.2, ktlint enforced via `org.jmailen.kotlinter`; avoid wildcard imports, keep indentation and spacing at defaults, and do not add trailing whitespace or superfluous EOF newlines.
