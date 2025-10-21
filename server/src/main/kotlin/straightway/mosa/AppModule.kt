@@ -45,5 +45,7 @@ fun Module.configureMosaAppModule() {
 
     single { ContentController(get()) } bind BaseController::class
     single { AuthenticationController(get()) } bind BaseController::class
-    single { WebClientController() } bind BaseController::class
+    single {
+        WebClientController(serveSourceMaps = System.getenv("MOSA_SERVE_SOURCE_MAPS")?.equals("true", ignoreCase = true) == true)
+    } bind BaseController::class
 }

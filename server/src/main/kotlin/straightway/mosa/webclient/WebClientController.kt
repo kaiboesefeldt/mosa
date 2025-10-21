@@ -8,17 +8,19 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import straightway.mosa.base.BaseController
+import java.net.URL
 
-class WebClientController : BaseController() {
+class WebClientController(
+    val serveSourceMaps: Boolean = false,
+    private val getResourceUrl: (String) -> URL? = { WebClientController::class.java.classLoader.getResource(it) },
+) : BaseController() {
     override fun Route.register() {
         get("/") {
-            val htmlResource = this::class.java.classLoader.getResource("static/index.html")
-            val hostHeader = call.request.header(HttpHeaders.Host) ?: "localhost:8080"
-            val proto = call.request.header("X-Forwarded-Proto") ?: "http"
-            val base = "$proto://$hostHeader"
-            if (htmlResource != null) {
-                val html = htmlResource.readText()
-                val injected = html.injectMosaPodBase(base)
+            val htmlResourceUrl = getResourceUrl("static/index.html")
+            val hostHeader = call.request.header(HttpHeaders.Host) ?: "http://localhost:8080"
+            if (htmlResourceUrl != null) {
+                val html = htmlResourceUrl.readText()
+                val injected = html.injectMosaPodBase(hostHeader)
                 call.respondText(injected, ContentType.Text.Html)
             } else {
                 val fallbackHtml =
@@ -46,7 +48,7 @@ class WebClientController : BaseController() {
 
         get("/mosa-client.js.map") {
             val mapContent = mapResource
-            if (shouldServeSourceMaps() && mapContent != null) {
+            if (serveSourceMaps && mapContent != null) {
                 call.respondText(mapContent, ContentType.Application.Json)
             } else {
                 call.respondText("", ContentType.Application.Json, HttpStatusCode.NotFound)
@@ -54,36 +56,26 @@ class WebClientController : BaseController() {
         }
     }
 
+    private val clientCodeJs: String by lazy {
+        getResourceUrl("static/mosa-client.js")?.readText() ?: "console.log('Client not built');"
+    }
+
+    private val mapResource: String? by lazy {
+        getResourceUrl("static/mosa-client.js.map")?.readText()
+    }
+
     private companion object {
-        private val clientCodeJs: String by lazy {
-            WebClientController::class.java.classLoader
-                .getResource("static/mosa-client.js")
-                ?.readText()
-                ?: "console.log('Client not built');"
-        }
-        private val mapResource: String? by lazy {
-            WebClientController::class.java.classLoader
-                .getResource("static/mosa-client.js.map")
-                ?.readText()
-        }
-
-        private fun shouldServeSourceMaps() = System.getenv("MOSA_SERVE_SOURCE_MAPS")?.equals("true", ignoreCase = true) == true
-
         private fun String.injectMosaPodBase(base: String): String =
             run {
                 val marker = "</body>"
                 val script =
                     """
-                    <script>
-                      window.MOSA_POD_BASE = "$base";
-                    </script>
+                      <script>
+                        window.MOSA_POD_BASE = "$base";
+                      </script>
+                    $marker
                     """.trimIndent()
-                val idx = indexOf(marker, ignoreCase = true)
-                if (idx >= 0) {
-                    substring(0, idx) + script + substring(idx)
-                } else {
-                    this + script
-                }
+                replace(marker, script)
             }
     }
 }
