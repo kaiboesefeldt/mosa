@@ -10,6 +10,7 @@ import io.mockk.verify
 import org.apache.lucene.store.Directory
 import org.apache.lucene.store.MMapDirectory
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.koin.core.Koin
@@ -32,6 +33,7 @@ import java.nio.file.Paths
 import java.time.Clock
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
@@ -128,6 +130,13 @@ class AppModuleTest {
     }
 
     @Test
+    fun `provides environment variable store service singleton`() {
+        val store = koin.get<EnvironmentVariableStore>()
+        val (anyKey, anyValue) = System.getenv().toList().first()
+        assertEquals(anyValue, store.get(anyKey))
+    }
+
+    @Test
     fun `loads controllers bound to base controller`() {
         val controllerTypes = koin.getAll<BaseController>().map { it::class }.toSet()
         assertEquals(
@@ -141,6 +150,27 @@ class AppModuleTest {
         controllerTypes.forEach { controllerType ->
             assertDoesNotThrow { koin.get(controllerType) }
         }
+    }
+
+    @Test
+    fun `WebClientController does not serve source maps by default`() {
+        assertFalse(koin.get<WebClientController>().serveSourceMaps)
+    }
+
+    @Test
+    fun `WebClientController serves source maps if switched on`() {
+        koinApplication!!.close()
+        koinApplication =
+            koinApplication {
+                allowOverride(true)
+                modules(
+                    module { configureMosaAppModule() },
+                    module {
+                        single<EnvironmentVariableStore> { EnvironmentVariableStore { "TrUe" } }
+                    },
+                )
+            }
+        assertTrue(koin.get<WebClientController>().serveSourceMaps)
     }
 
     @Test
