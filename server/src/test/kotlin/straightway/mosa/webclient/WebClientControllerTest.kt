@@ -34,7 +34,7 @@ class WebClientControllerTest {
         fun `delivers landing page with status OK`() =
             with(test()) {
                 env {
-                    val response = client.get("/")
+                    val response = client.get("/") { headers.set(HttpHeaders.Host, "example.com") }
                     assertEquals(HttpStatusCode.OK, response.status)
                 }
             }
@@ -43,7 +43,7 @@ class WebClientControllerTest {
         fun `includes the client script`() =
             with(test()) {
                 env {
-                    val response = client.get("/")
+                    val response = client.get("/") { headers.set(HttpHeaders.Host, "example.com") }
                     assertContains(response.body<String>(), """<div id="root"></div>""")
                     assertContains(response.body<String>(), """<script src="/mosa-client.js"></script>""")
                 }
@@ -55,7 +55,8 @@ class WebClientControllerTest {
                 env {
                     val response =
                         client.get("/") {
-                            headers.set(HttpHeaders.Host, "https://example.com")
+                            headers.set(HttpHeaders.Host, "example.com")
+                            headers.set("X-Forwarded-Proto", "https")
                         }
                     assertContains(
                         response.body<String>(),
@@ -65,28 +66,23 @@ class WebClientControllerTest {
             }
 
         @Test
-        fun `adds fallback address of the pod if not provided by HTTP host header`() =
+        fun `returns 400 Bad Request if no host header present`() =
             with(test()) {
                 env {
                     val response =
                         client.get("/") {
                             headers.remove(HttpHeaders.Host)
                         }
-                    assertContains(
-                        response.body<String>(),
-                        Regex("""<script>\s*window\.MOSA_POD_BASE\s*=\s*"http://localhost:8080";\s*</script>\s*</body>"""),
-                    )
+                    assertEquals(HttpStatusCode.BadRequest, response.status)
                 }
             }
 
         @Test
-        fun `delivers error landing page if regular landing page resource is not available`() =
+        fun `return 500 Internal Error if regular landing page resource is not available`() =
             with(test(nullResourceUrl = true)) {
                 env {
                     val response = client.get("/")
-                    assertEquals(HttpStatusCode.OK, response.status)
-                    assertContains(response.body<String>(), """<h1>Mosa</h1>""")
-                    assertContains(response.body<String>(), """Client files not found.""")
+                    assertEquals(HttpStatusCode.InternalServerError, response.status)
                 }
             }
     }

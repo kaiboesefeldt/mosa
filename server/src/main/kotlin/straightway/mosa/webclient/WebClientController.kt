@@ -3,6 +3,7 @@ package straightway.mosa.webclient
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.request.header
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
@@ -16,30 +17,13 @@ class WebClientController(
 ) : BaseController() {
     override fun Route.register() {
         get("/") {
-            val htmlResourceUrl = getResourceUrl("static/index.html")
-            val hostHeader = call.request.header(HttpHeaders.Host) ?: "http://localhost:8080"
-            if (htmlResourceUrl != null) {
-                val html = htmlResourceUrl.readText()
-                val injected = html.injectMosaPodBase(hostHeader)
-                call.respondText(injected, ContentType.Text.Html)
-            } else {
-                val fallbackHtml =
-                    """
-                    <!DOCTYPE html>
-                    <html lang="en">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Mosa Client</title>
-                    </head>
-                    <body>
-                        <h1>Mosa</h1>
-                        <p>Client files not found. Run './gradlew build' to generate them.</p>
-                    </body>
-                    </html>
-                    """.trimIndent()
-                call.respondText(fallbackHtml, ContentType.Text.Html)
-            }
+            val htmlResourceUrl = getResourceUrl("static/index.html") ?: throw RuntimeException("internal resource not found")
+            val hostHeader = call.request.header(HttpHeaders.Host) ?: throw BadRequestException("No Host header")
+            val proto = call.request.header("X-Forwarded-Proto") ?: defaultProtoForHost(hostHeader)
+            val base = "$proto://$hostHeader"
+            val html = htmlResourceUrl.readText()
+            val injected = html.injectMosaPodBase(base)
+            call.respondText(injected, ContentType.Text.Html)
         }
 
         get("/mosa-client.js") {
@@ -55,6 +39,8 @@ class WebClientController(
             }
         }
     }
+
+    private fun defaultProtoForHost(host: String): String = if (host.startsWith("localhost", ignoreCase = true)) "http" else "https"
 
     private val clientCodeJs: String by lazy {
         getResourceUrl("static/mosa-client.js")?.readText() ?: "console.log('Client not built');"
