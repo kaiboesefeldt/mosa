@@ -12,6 +12,7 @@ import react.dom.html.ReactHTML.small
 external interface IdentityConnectedViewProps : Props {
     var identityName: String
     var misJwt: String
+    var queryPreview: String?
 }
 
 val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
@@ -22,5 +23,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     div {
         style = json("textAlign" to "center").unsafeCast<CSSProperties>()
         pre { +props.misJwt }
+    }
+    props.queryPreview?.let { preview ->
+        div {
+            style = json("textAlign" to "center").unsafeCast<CSSProperties>()
+            pre { +preview }
+        }
     }
 }

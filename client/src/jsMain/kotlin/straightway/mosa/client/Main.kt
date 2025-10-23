@@ -27,6 +27,7 @@ private val IdentityApp = FC<Props> {
             IdentityConnectedView {
                 identityName = screen.identityName
                 misJwt = screen.misJwt
+                queryPreview = screen.queryPreview
             }
 
         is IdentityScreen.Landing ->
