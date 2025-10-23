@@ -16,6 +16,7 @@ import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.bearer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.request.host
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
@@ -99,8 +100,7 @@ private fun ApplicationCall.appendPreflightHeaders() {
 }
 
 private fun ApplicationCall.secureEndpointViolation(): HttpStatusCode? {
-    val scheme = request.headers[HttpHeaders.XForwardedProto] ?: request.local.scheme
-    if (!scheme.equals("https", ignoreCase = true)) {
+    if (!isSecureOrLocalRequest()) {
         return HttpStatusCode.BadRequest
     }
 
@@ -110,4 +110,19 @@ private fun ApplicationCall.secureEndpointViolation(): HttpStatusCode? {
     }
 
     return null
+}
+
+private fun ApplicationCall.isSecureOrLocalRequest(): Boolean {
+    val forwardedProto = request.headers[HttpHeaders.XForwardedProto]
+    if (forwardedProto.equals("https", ignoreCase = true)) {
+        return true
+    }
+
+    if (request.local.scheme.equals("https", ignoreCase = true)) {
+        return true
+    }
+
+    val forwardedHost = request.headers[HttpHeaders.XForwardedHost]?.substringBefore(":")
+    val host = (forwardedHost ?: request.host()).lowercase()
+    return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }

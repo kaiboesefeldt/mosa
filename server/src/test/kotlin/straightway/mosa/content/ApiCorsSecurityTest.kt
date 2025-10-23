@@ -72,6 +72,7 @@ class ApiCorsSecurityTest {
                 client.request("/v1/publish") {
                     method = HttpMethod.Post
                     header(HttpHeaders.XForwardedProto, "http")
+                    header(HttpHeaders.Host, "example.com")
                     header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                     bearerAuth(this@ApiCorsSecurityTest.environment.bearerToken)
                     setBody("""{"text":"ignored"}""")

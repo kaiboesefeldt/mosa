@@ -120,6 +120,7 @@ class ServerCorsPluginTest {
             val response =
                 client.post("/v1/items") {
                     header(HttpHeaders.Authorization, "Bearer token")
+                    header(HttpHeaders.Host, "example.com")
                     header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                     setBody("{}")
                 }
@@ -203,7 +204,7 @@ class ServerCorsPluginTest {
 
             val response = client.get("/v1/APPROVEGID")
 
-            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
             assertFalse(handlerInvoked)
             assertEquals("*", response.headers[HttpHeaders.AccessControlAllowOrigin])
             assertEquals("Retry-After", response.headers[HttpHeaders.AccessControlExposeHeaders])
