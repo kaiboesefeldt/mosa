@@ -61,6 +61,7 @@ kotlin {
         jsTest {
             dependencies {
                 implementation(kotlin("test"))
+                implementation("io.ktor:ktor-client-mock:$ktorVersion")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test-js:$kotlinxCoroutinesVersion")
                 implementation(npm("karma-source-map-support", "1.4.0"))
                 implementation(npm("@testing-library/react", "16.3.0"))
