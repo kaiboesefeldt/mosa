@@ -27,7 +27,7 @@ class PodAccess(
                 contentType(ContentType.Application.Json)
                 setBody(AuthenticationApprovalRequest(gid))
             }
-        if (!response.status.value.toString().startsWith("2")) {
+        if (response.status.value !in 200..299) {
             throw RuntimeException("Invalid response to $url with $gid: $response")
         }
         return response.body()
