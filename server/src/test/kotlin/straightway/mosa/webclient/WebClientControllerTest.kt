@@ -142,4 +142,17 @@ class WebClientControllerTest {
                 }
             }
     }
+
+    @Nested
+    inner class Stylesheet {
+        @Test
+        fun `delivers global stylesheet`() =
+            with(test()) {
+                env {
+                    val response = client.get("/styles.css")
+                    assertEquals(HttpStatusCode.OK, response.status)
+                    assertContains(response.body<String>(), "--font-family")
+                }
+            }
+    }
 }

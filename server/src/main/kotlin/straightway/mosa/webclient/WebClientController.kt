@@ -38,6 +38,15 @@ class WebClientController(
                 call.respondText("", ContentType.Application.Json, HttpStatusCode.NotFound)
             }
         }
+
+        get("/styles.css") {
+            val css = styleResource
+            if (css != null) {
+                call.respondText(css, ContentType.Text.CSS)
+            } else {
+                call.respondText("", ContentType.Text.CSS, HttpStatusCode.NotFound)
+            }
+        }
     }
 
     private fun defaultProtoForHost(host: String): String = if (host.startsWith("localhost", ignoreCase = true)) "http" else "https"
@@ -48,6 +57,10 @@ class WebClientController(
 
     private val mapResource: String? by lazy {
         getResourceUrl("static/mosa-client.js.map")?.readText()
+    }
+
+    private val styleResource: String? by lazy {
+        getResourceUrl("static/styles.css")?.readText()
     }
 
     private companion object {

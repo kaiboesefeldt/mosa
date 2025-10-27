@@ -1,13 +1,11 @@
 package straightway.mosa.client.ui
 
-import kotlin.js.json
-import kotlin.js.unsafeCast
-import react.CSSProperties
 import react.FC
 import react.Props
 import react.dom.html.ReactHTML.div
 import react.dom.html.ReactHTML.pre
-import react.dom.html.ReactHTML.small
+import react.dom.html.ReactHTML.span
+import web.cssom.ClassName
 
 external interface IdentityConnectedViewProps : Props {
     var identityName: String
@@ -17,17 +15,37 @@ external interface IdentityConnectedViewProps : Props {
 
 val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     div {
-        style = json("textAlign" to "right").unsafeCast<CSSProperties>()
-        small { +props.identityName }
-    }
-    div {
-        style = json("textAlign" to "center").unsafeCast<CSSProperties>()
-        pre { +props.misJwt }
-    }
-    props.queryPreview?.let { preview ->
+        className = ClassName("connected-shell")
         div {
-            style = json("textAlign" to "center").unsafeCast<CSSProperties>()
-            pre { +preview }
+            className = ClassName("connected-shell__header")
+            +props.identityName
+        }
+        div {
+            className = ClassName("connected-shell__content")
+            div {
+                className = ClassName("connected-shell__section")
+                span {
+                    className = ClassName("connected-shell__section-title")
+                    +"Authentication token"
+                }
+                div {
+                    className = ClassName("connected-shell__snippet")
+                    pre { +props.misJwt }
+                }
+            }
+            props.queryPreview?.let { preview ->
+                div {
+                    className = ClassName("connected-shell__section")
+                    span {
+                        className = ClassName("connected-shell__section-title")
+                        +"Prototype query result"
+                    }
+                    div {
+                        className = ClassName("connected-shell__snippet")
+                        pre { +preview }
+                    }
+                }
+            }
         }
     }
 }
