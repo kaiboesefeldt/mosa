@@ -1,11 +1,14 @@
 package straightway.mosa.client.ui
 
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 import react.FC
 import react.Props
 import react.dom.html.ReactHTML.div
 import react.dom.html.ReactHTML.pre
 import react.dom.html.ReactHTML.span
 import web.cssom.ClassName
+import straightway.mosa.client.i18n.Translator
 
 external interface IdentityConnectedViewProps : Props {
     var identityName: String
@@ -14,6 +17,7 @@ external interface IdentityConnectedViewProps : Props {
 }
 
 val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
+    val translator = ConnectedViewInjector.get<Translator>()
     div {
         className = ClassName("connected-shell")
         div {
@@ -26,7 +30,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 className = ClassName("connected-shell__section")
                 span {
                     className = ClassName("connected-shell__section-title")
-                    +"Authentication token"
+                    +translator.translate("connected.authenticationTokenTitle")
                 }
                 div {
                     className = ClassName("connected-shell__snippet")
@@ -38,7 +42,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     className = ClassName("connected-shell__section")
                     span {
                         className = ClassName("connected-shell__section-title")
-                        +"Prototype query result"
+                        +translator.translate("connected.prototypeQueryResultTitle")
                     }
                     div {
                         className = ClassName("connected-shell__snippet")
@@ -49,3 +53,5 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 }
+
+private object ConnectedViewInjector : KoinComponent

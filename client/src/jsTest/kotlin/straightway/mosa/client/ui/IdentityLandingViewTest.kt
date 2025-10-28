@@ -1,12 +1,15 @@
 package straightway.mosa.client.ui
 
+import kotlin.js.json
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.await
 import kotlinx.coroutines.test.runTest
-import kotlin.js.json
+import org.koin.core.component.get
+import straightway.mosa.client.AppModule
+import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.fireEvent
 import straightway.mosa.client.testing.screen
@@ -24,7 +27,7 @@ class IdentityLandingViewTest {
             isBusy = true
         }
 
-        val connectButton = screen.getByRole("button", json("name" to "Connect"))
+        val connectButton = screen.getByRole("button", json("name" to text("button.connect.aria")))
 
         assertTrue(connectButton.asDynamic().disabled as Boolean)
     }
@@ -58,7 +61,7 @@ class IdentityLandingViewTest {
             onConnect = { handled = true }
         }
 
-        val connectButton = screen.getByRole("button", json("name" to "Connect"))
+        val connectButton = screen.getByRole("button", json("name" to text("button.connect.aria")))
 
         val user = userEvent.setup()
         user.click(connectButton).await()
@@ -73,11 +76,13 @@ class IdentityLandingViewTest {
             onGenerateNew = { handled = true }
         }
 
-        val regenerateButton = screen.getByRole("button", json("name" to "Generate new identity"))
+        val regenerateButton = screen.getByRole("button", json("name" to text("button.generateIdentity.aria")))
 
         val user = userEvent.setup()
         user.click(regenerateButton).await()
 
         assertTrue(handled)
     }
+
+    private fun text(key: String): String = AppModule.get<Translator>().translate(key)
 }

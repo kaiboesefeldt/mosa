@@ -9,6 +9,7 @@ import react.useEffect
 import react.useRef
 import react.useState
 import straightway.mosa.auth.PodCertificate
+import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentityRepository
 import straightway.mosa.client.identity.MisJwtService
@@ -39,10 +40,12 @@ sealed interface IdentityScreen {
     ) : IdentityScreen
 }
 
-private const val UNKNOWN_ERROR = "Unknown error"
-
 fun useIdentitySession(): IdentityScreen {
-    val (identityText, setIdentityText) = useState("...")
+    val translator = ClientInjector.get<Translator>()
+    val loadingText = translator.translate("identity.loading")
+    val unknownError = translator.translate("identity.unknownError")
+    val noPodSelected = translator.translate("landing.noPodSelected")
+    val (identityText, setIdentityText) = useState(loadingText)
     val (currentIdentity, setCurrentIdentity) = useState<Identity?>(null)
     val (misJwt, setMisJwt) = useState<String?>(null)
     val (isConnected, setConnected) = useState(false)
@@ -73,8 +76,11 @@ fun useIdentitySession(): IdentityScreen {
             } catch (error: Throwable) {
                 val console = window.asDynamic().console
                 console?.error?.call(console, "Identity refresh failed", error)
-                val message = error.message ?: error::class.simpleName ?: UNKNOWN_ERROR
-                setIdentityText("Failed to prepare identity: $message")
+                val message = error.message?.takeIf { it.isNotBlank() }
+                    ?: error::class.simpleName
+                    ?: unknownError
+                val failureText = translator.translate("identity.failedToPrepare", mapOf("message" to message))
+                setIdentityText(failureText)
                 setCurrentIdentity(null)
                 setMisJwt(null)
                 setConnected(false)
@@ -91,7 +97,7 @@ fun useIdentitySession(): IdentityScreen {
         val identity = currentIdentity ?: return
         val podForCertificate = podSelection.ifBlank { defaultPod }
         if (podForCertificate.isBlank()) {
-            setErrorText("No pod selected")
+            setErrorText(noPodSelected)
             return
         }
         setBusy(true)
@@ -101,15 +107,18 @@ fun useIdentitySession(): IdentityScreen {
                 val cert = createCertificateFor(identity.gid, podForCertificate)
                 val misJwtService = ClientInjector.get<MisJwtService>()
                 val jwt = misJwtService.buildMisJwt(identity, cert)
+                val previewTopic = "Anything"
                 val preview =
                     runCatching {
-                        fetchPrototypeQuery(podForCertificate, jwt)
+                        fetchPrototypeQuery(podForCertificate, jwt, previewTopic)
                     }.map {
-                        prototypePreviewOf(it)
+                        prototypePreviewOf(translator, previewTopic, it)
                     }.getOrElse { error ->
                         val console = window.asDynamic().console
                         console?.warn?.call(console, "Prototype query failed", error)
-                        error.message ?: error::class.simpleName ?: UNKNOWN_ERROR
+                        error.message?.takeIf { it.isNotBlank() }
+                            ?: error::class.simpleName
+                            ?: unknownError
                     }
                 setMisJwt(jwt)
                 setQueryPreview(preview)
@@ -118,7 +127,9 @@ fun useIdentitySession(): IdentityScreen {
             } catch (error: Throwable) {
                 val console = window.asDynamic().console
                 console?.error?.call(console, "Pod connection failed", error)
-                val message = error.message ?: error::class.simpleName ?: UNKNOWN_ERROR
+                val message = error.message?.takeIf { it.isNotBlank() }
+                    ?: error::class.simpleName
+                    ?: unknownError
                 setQueryPreview(null)
                 setErrorText(message)
             } finally {
@@ -175,15 +186,18 @@ private suspend fun createCertificateFor(gid: String, podHost: String): PodCerti
     return podAccess.approveGid(gid)
 }
 
-private suspend fun fetchPrototypeQuery(podHost: String, jwt: String): QueryResult {
+private suspend fun fetchPrototypeQuery(podHost: String, jwt: String, topic: String): QueryResult {
     val podAccess = ClientInjector.podAccess(podHost)
-    return podAccess.query(QueryRequest(topic = "Anything"), jwt)
+    return podAccess.query(QueryRequest(topic = topic), jwt)
 }
 
-private fun prototypePreviewOf(result: QueryResult): String {
-    if (result.entries.isEmpty()) return "Results for Anything: none"
+private fun prototypePreviewOf(translator: Translator, topic: String, result: QueryResult): String {
+    if (result.entries.isEmpty()) {
+        return translator.translate("preview.resultsEmpty", mapOf("topic" to topic))
+    }
+    val header = translator.translate("preview.resultsHeader", mapOf("topic" to topic))
     return buildString {
-        appendLine("Results for Anything:")
+        appendLine(header)
         result.entries.forEach { entry ->
             append("- ")
             append(entry.content)

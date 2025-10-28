@@ -1,5 +1,7 @@
 package straightway.mosa.client.ui
 
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 import react.FC
 import react.Props
 import react.dom.html.ReactHTML.button
@@ -12,6 +14,7 @@ import react.dom.html.ReactHTML.select
 import react.dom.html.ReactHTML.span
 import web.cssom.ClassName
 import web.dom.ElementId
+import straightway.mosa.client.i18n.Translator
 
 external interface IdentityLandingViewProps : Props {
     var identityName: String
@@ -26,6 +29,7 @@ external interface IdentityLandingViewProps : Props {
 }
 
 val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
+    val translator = LandingViewInjector.get<Translator>()
     div {
         className = ClassName("landing-overlay")
         div {
@@ -34,15 +38,15 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
                 className = ClassName("landing-dialog__header")
                 span {
                     className = ClassName("landing-dialog__eyebrow")
-                    +"Identity: ${props.identityName}"
+                    +translator.translate("identity.eyebrow", mapOf("identityName" to props.identityName))
                 }
                 h1 {
                     className = ClassName("landing-dialog__title")
-                    +"Connect to your MOSA pod"
+                    +translator.translate("landing.title")
                 }
                 p {
                     className = ClassName("landing-dialog__description")
-                    +"Link your freshly minted identity with a pod to start publishing and querying content."
+                    +translator.translate("landing.description")
                 }
             }
             div {
@@ -52,7 +56,7 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
                     label {
                         className = ClassName("form-label")
                         htmlFor = ElementId("pod-selection")
-                        +"Pod"
+                        +translator.translate("landing.podLabel")
                     }
                     select {
                         className = ClassName("form-select")
@@ -66,14 +70,14 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
                         if (props.pods.isEmpty()) {
                             option {
                                 value = ""
-                                +"No pod configured"
+                                +translator.translate("landing.noPodConfigured")
                             }
                         } else {
                             option {
                                 value = ""
                                 disabled = true
                                 hidden = props.selectedPod.isNotEmpty()
-                                +"Choose a pod"
+                                +translator.translate("landing.choosePod")
                             }
                             props.pods.forEach { pod ->
                                 option {
@@ -96,18 +100,28 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
                 button {
                     className = ClassName("button button--primary")
                     disabled = props.isBusy || !props.canConnect
-                    ariaLabel = "Connect"
+                    ariaLabel = translator.translate("button.connect.aria")
                     onClick = { props.onConnect() }
-                    +(if (props.isBusy) "Connecting..." else "Connect")
+                    +(if (props.isBusy) {
+                        translator.translate("button.connect.busy")
+                    } else {
+                        translator.translate("button.connect.label")
+                    })
                 }
                 button {
                     className = ClassName("button button--secondary")
                     disabled = props.isBusy
-                    ariaLabel = "Generate new identity"
+                    ariaLabel = translator.translate("button.generateIdentity.aria")
                     onClick = { props.onGenerateNew() }
-                    +(if (props.isBusy) "Please wait" else "Generate new identity")
+                    +(if (props.isBusy) {
+                        translator.translate("button.generateIdentity.busy")
+                    } else {
+                        translator.translate("button.generateIdentity.label")
+                    })
                 }
             }
         }
     }
 }
+
+private object LandingViewInjector : KoinComponent

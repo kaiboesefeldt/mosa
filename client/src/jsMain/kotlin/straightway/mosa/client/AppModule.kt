@@ -9,7 +9,9 @@ import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import straightway.mosa.client.aux.TimeService
+import straightway.mosa.client.browser.BrowserPrefs
 import straightway.mosa.client.browser.SubtleCrypto
+import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.CryptoExport
 import straightway.mosa.client.identity.IdentityGenerator
 import straightway.mosa.client.identity.IdentityProvider
@@ -59,6 +61,8 @@ object AppModule : KoinComponent {
                         }
                         single { CryptoExport(get()) }
                         single { FictionalNameGenerator() }
+                        single { BrowserPrefs() }
+                        single { Translator(get<BrowserPrefs>().languages) }
                     },
                 )
             }
