@@ -108,14 +108,15 @@ val copyClientFiles = tasks.register<Copy>("copyClientFiles") {
     group = "other"
     description = "Pull the client bundle into server static resources"
     dependsOn(":client:jsBrowserDistribution")
-    val clientBuildDir = project(":client").layout.buildDirectory.get().asFile
-    val candidates = listOf(
-        File(clientBuildDir, "distributions"),
-        File(clientBuildDir, "kotlin-webpack/js/productionExecutable"),
-        File(clientBuildDir, "processedResources/js/main"),
+    val clientLayout = project(":client").layout
+    val sourceDirectories = listOf(
+        clientLayout.buildDirectory.dir("distributions"),
+        clientLayout.buildDirectory.dir("kotlin-webpack/js/productionExecutable"),
+        clientLayout.buildDirectory.dir("processedResources/js/main"),
     )
-    from(candidates.filter { it.exists() })
-    into(File(layout.buildDirectory.get().asFile, "resources/main/static"))
+    sourceDirectories.forEach { from(it) }
+    into(layout.buildDirectory.dir("resources/main/static").get().asFile)
+    includeEmptyDirs = false
 }
 
 tasks.named("processResources") {
