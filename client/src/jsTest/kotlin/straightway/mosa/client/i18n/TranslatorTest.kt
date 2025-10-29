@@ -11,27 +11,27 @@ class TranslatorTest {
     fun `returns english text for english language`() {
         val translator = Translator(listOf(Locale("en")))
 
-        val translated = translator.translate("landing.title")
+        val translated = translator.translate("button.connect.busy")
 
-        assertEquals("Connect with your MOSA identity", translated)
+        assertEquals("Connecting...", translated)
     }
 
     @Test
     fun `returns german text for german language`() {
         val translator = Translator(listOf(Locale("de")))
 
-        val translated = translator.translate("landing.title")
+        val translated = translator.translate("button.connect.busy")
 
-        assertEquals("Verbinde deine MOSA-Identität", translated)
+        assertEquals("Verbindung wird hergestellt...", translated)
     }
 
     @Test
     fun `falls back to english when language is unknown`() {
         val translator = Translator(listOf(Locale("fr")))
 
-        val translated = translator.translate("landing.title")
+        val translated = translator.translate("button.connect.busy")
 
-        assertEquals("Connect with your MOSA identity", translated)
+        assertEquals("Connecting...", translated)
     }
 
     @Test
