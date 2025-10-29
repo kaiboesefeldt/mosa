@@ -13,7 +13,7 @@ class TranslatorTest {
 
         val translated = translator.translate("landing.title")
 
-        assertEquals("Connect to your MOSA pod", translated)
+        assertEquals("Connect with your MOSA identity", translated)
     }
 
     @Test
@@ -22,7 +22,7 @@ class TranslatorTest {
 
         val translated = translator.translate("landing.title")
 
-        assertEquals("Verbinde dich mit deinem MOSA-Pod", translated)
+        assertEquals("Verbinde deine MOSA-Identität", translated)
     }
 
     @Test
@@ -31,7 +31,7 @@ class TranslatorTest {
 
         val translated = translator.translate("landing.title")
 
-        assertEquals("Connect to your MOSA pod", translated)
+        assertEquals("Connect with your MOSA identity", translated)
     }
 
     @Test
@@ -48,8 +48,8 @@ class TranslatorTest {
     fun `applies template replacements`() {
         val translator = Translator(listOf(Locale("en")))
 
-        val translated = translator.translate("identity.eyebrow", mapOf("identityName" to "Alice"))
+        val translated = translator.translate("identity.failedToPrepare", mapOf("message" to "Boom"))
 
-        assertEquals("Identity: Alice", translated)
+        assertEquals("Failed to prepare identity: Boom", translated)
     }
 }

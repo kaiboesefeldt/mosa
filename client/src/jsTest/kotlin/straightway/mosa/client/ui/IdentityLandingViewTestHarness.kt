@@ -12,12 +12,9 @@ internal fun renderIdentityLandingView(
         IdentityLandingView.create {
             AppModule.start()
             identityName = "Default Identity"
-            pods = listOf("pod://default")
-            selectedPod = "pod://default"
             isBusy = false
             errorText = null
             canConnect = true
-            onSelectPod = {}
             onConnect = {}
             onGenerateNew = {}
             configure()

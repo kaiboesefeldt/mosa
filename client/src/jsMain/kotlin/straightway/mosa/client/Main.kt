@@ -33,12 +33,9 @@ private val IdentityApp = FC<Props> {
         is IdentityScreen.Landing ->
             IdentityLandingView {
                 identityName = screen.identityName
-                pods = screen.pods
-                selectedPod = screen.selectedPod
                 isBusy = screen.isBusy
                 errorText = screen.errorText
                 canConnect = screen.canConnect
-                onSelectPod = screen.onSelectPod
                 onConnect = screen.onConnect
                 onGenerateNew = screen.onGenerateNew
             }

@@ -23,12 +23,9 @@ import straightway.mosa.content.QueryResult
 sealed interface IdentityScreen {
     data class Landing(
         val identityName: String,
-        val pods: List<String>,
-        val selectedPod: String,
         val isBusy: Boolean,
         val errorText: String?,
         val canConnect: Boolean,
-        val onSelectPod: (String) -> Unit,
         val onConnect: () -> Unit,
         val onGenerateNew: () -> Unit,
     ) : IdentityScreen
@@ -44,7 +41,7 @@ fun useIdentitySession(): IdentityScreen {
     val translator = ClientInjector.get<Translator>()
     val loadingText = translator.translate("identity.loading")
     val unknownError = translator.translate("identity.unknownError")
-    val noPodSelected = translator.translate("landing.noPodSelected")
+    val missingPodMessage = translator.translate("landing.noPodConfigured")
     val (identityText, setIdentityText) = useState(loadingText)
     val (currentIdentity, setCurrentIdentity) = useState<Identity?>(null)
     val (misJwt, setMisJwt) = useState<String?>(null)
@@ -54,8 +51,6 @@ fun useIdentitySession(): IdentityScreen {
     val (queryPreview, setQueryPreview) = useState<String?>(null)
     val effectRan = useRef(false)
     val defaultPod = (window.asDynamic().MOSA_POD_BASE as? String).orEmpty()
-    val availablePods = listOfNotNull(defaultPod.takeIf { it.isNotBlank() })
-    val (podSelection, setPodSelection) = useState(defaultPod)
 
     fun refreshIdentity(regenerate: Boolean) {
         if (isBusy) return
@@ -95,9 +90,9 @@ fun useIdentitySession(): IdentityScreen {
     fun connectToPod() {
         if (isBusy) return
         val identity = currentIdentity ?: return
-        val podForCertificate = podSelection.ifBlank { defaultPod }
+        val podForCertificate = defaultPod
         if (podForCertificate.isBlank()) {
-            setErrorText(noPodSelected)
+            setErrorText(missingPodMessage)
             return
         }
         setBusy(true)
@@ -144,7 +139,12 @@ fun useIdentitySession(): IdentityScreen {
         refreshIdentity(false)
     }
 
-    val canConnect = currentIdentity != null && podSelection.ifBlank { defaultPod }.isNotBlank()
+    val canConnect = currentIdentity != null && defaultPod.isNotBlank()
+    val displayError = if (defaultPod.isBlank()) {
+        errorText ?: missingPodMessage
+    } else {
+        errorText
+    }
 
     return if (isConnected && misJwt != null) {
         IdentityScreen.Connected(
@@ -155,15 +155,9 @@ fun useIdentitySession(): IdentityScreen {
     } else {
         IdentityScreen.Landing(
             identityName = identityText,
-            pods = availablePods,
-            selectedPod = podSelection,
             isBusy = isBusy,
-            errorText = errorText,
+            errorText = displayError,
             canConnect = canConnect,
-            onSelectPod = { nextValue ->
-                setPodSelection(nextValue)
-                setErrorText(null)
-            },
             onConnect = { connectToPod() },
             onGenerateNew = { refreshIdentity(true) },
         )
