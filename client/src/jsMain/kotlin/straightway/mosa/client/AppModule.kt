@@ -8,6 +8,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
+import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.aux.TimeService
 import straightway.mosa.client.browser.BrowserPrefs
 import straightway.mosa.client.browser.SubtleCrypto
@@ -63,6 +64,7 @@ object AppModule : KoinComponent {
                         single { FictionalNameGenerator() }
                         single { BrowserPrefs() }
                         single { Translator(get<BrowserPrefs>().languages) }
+                        single { DiceBearAvatarGenerator() }
                     },
                 )
             }

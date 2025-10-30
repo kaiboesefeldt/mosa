@@ -101,6 +101,15 @@ button:disabled {
     text-align: center;
 }
 
+.landing-dialog__identity-avatar {
+    width: 140px;
+    height: 140px;
+    border-radius: 36px;
+    justify-self: center;
+    object-fit: cover;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+}
+
 .landing-dialog__identity-heading {
     display: inline-block;
     font-size: 0.9rem;

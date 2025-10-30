@@ -7,6 +7,7 @@ import react.Props
 import react.dom.html.ReactHTML.button
 import react.dom.html.ReactHTML.div
 import react.dom.html.ReactHTML.h1
+import react.dom.html.ReactHTML.img
 import react.dom.html.ReactHTML.p
 import react.dom.html.ReactHTML.span
 import web.cssom.ClassName
@@ -14,6 +15,7 @@ import straightway.mosa.client.i18n.Translator
 
 external interface IdentityLandingViewProps : Props {
     var identityName: String
+    var identityAvatar: String?
     var isBusy: Boolean
     var errorText: String?
     var canConnect: Boolean
@@ -46,6 +48,15 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
                 }
                 p {
                     className = ClassName("landing-dialog__identity-value")
+                    props.identityAvatar?.let { avatarUri ->
+                        div {
+                            img {
+                                className = ClassName("landing-dialog__identity-avatar")
+                                src = avatarUri
+                                alt = props.identityName
+                            }
+                        }
+                    }
                     +props.identityName
                 }
             }

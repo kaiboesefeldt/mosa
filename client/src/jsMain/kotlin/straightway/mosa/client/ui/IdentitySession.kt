@@ -9,6 +9,7 @@ import react.useEffect
 import react.useRef
 import react.useState
 import straightway.mosa.auth.PodCertificate
+import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentityRepository
@@ -23,6 +24,7 @@ import straightway.mosa.content.QueryResult
 sealed interface IdentityScreen {
     data class Landing(
         val identityName: String,
+        val identityAvatar: String?,
         val isBusy: Boolean,
         val errorText: String?,
         val canConnect: Boolean,
@@ -43,6 +45,7 @@ fun useIdentitySession(): IdentityScreen {
     val unknownError = translator.translate("identity.unknownError")
     val missingPodMessage = translator.translate("landing.noPodConfigured")
     val (identityText, setIdentityText) = useState(loadingText)
+    val (identityAvatar, setIdentityAvatar) = useState<String?>(null)
     val (currentIdentity, setCurrentIdentity) = useState<Identity?>(null)
     val (misJwt, setMisJwt) = useState<String?>(null)
     val (isConnected, setConnected) = useState(false)
@@ -51,10 +54,12 @@ fun useIdentitySession(): IdentityScreen {
     val (queryPreview, setQueryPreview) = useState<String?>(null)
     val effectRan = useRef(false)
     val defaultPod = (window.asDynamic().MOSA_POD_BASE as? String).orEmpty()
+    val avatarGenerator = ClientInjector.get<DiceBearAvatarGenerator>()
 
     fun refreshIdentity(regenerate: Boolean) {
         if (isBusy) return
         setBusy(true)
+        setIdentityAvatar(null)
         sessionScope.launch {
             try {
                 val repository = ClientInjector.get<IdentityRepository>()
@@ -64,6 +69,7 @@ fun useIdentitySession(): IdentityScreen {
                 val resolvedName = identityName(identity)
                 setIdentityText(resolvedName)
                 setCurrentIdentity(identity)
+                setIdentityAvatar(avatarGenerator.dataUri(identity.gid))
                 setMisJwt(null)
                 setConnected(false)
                 setQueryPreview(null)
@@ -77,6 +83,7 @@ fun useIdentitySession(): IdentityScreen {
                 val failureText = translator.translate("identity.failedToPrepare", mapOf("message" to message))
                 setIdentityText(failureText)
                 setCurrentIdentity(null)
+                setIdentityAvatar(null)
                 setMisJwt(null)
                 setConnected(false)
                 setQueryPreview(null)
@@ -155,6 +162,7 @@ fun useIdentitySession(): IdentityScreen {
     } else {
         IdentityScreen.Landing(
             identityName = identityText,
+            identityAvatar = identityAvatar,
             isBusy = isBusy,
             errorText = displayError,
             canConnect = canConnect,

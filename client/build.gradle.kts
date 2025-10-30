@@ -56,6 +56,8 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-react:$kotlinWrappersVersion")
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-react-dom:$kotlinWrappersVersion")
+                implementation(npm("@dicebear/core", "9.2.4"))
+                implementation(npm("@dicebear/adventurer-neutral", "9.2.4"))
             }
         }
         jsTest {
