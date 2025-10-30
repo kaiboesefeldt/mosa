@@ -11,27 +11,27 @@ class TranslatorTest {
     fun `returns english text for english language`() {
         val translator = Translator(listOf(Locale("en")))
 
-        val translated = translator.translate("button.connect.busy")
+        val translated = translator.translate("button.connect.label")
 
-        assertEquals("Connecting...", translated)
+        assertEquals("Let's go!", translated)
     }
 
     @Test
     fun `returns german text for german language`() {
         val translator = Translator(listOf(Locale("de")))
 
-        val translated = translator.translate("button.connect.busy")
+        val translated = translator.translate("button.connect.label")
 
-        assertEquals("Verbindung wird hergestellt...", translated)
+        assertEquals("Los geht's!", translated)
     }
 
     @Test
     fun `falls back to english when language is unknown`() {
         val translator = Translator(listOf(Locale("fr")))
 
-        val translated = translator.translate("button.connect.busy")
+        val translated = translator.translate("button.connect.label")
 
-        assertEquals("Connecting...", translated)
+        assertEquals("Let's go!", translated)
     }
 
     @Test

@@ -4,18 +4,87 @@ class IdentityRepository(
     private val store: IdentityStore,
     private val generator: IdentityProvider,
 ) {
-    suspend fun loadOrCreate(): Identity {
-        val stored = store.load()
-        if (stored != null) return stored
+    suspend fun loadOrCreate(): IdentitySelection {
+        val stored = store.loadState()
+        if (stored != null) return stored.toSelection()
 
         val generated = generator.generate()
-        store.store(generated)
-        return generated
+        val initial = IdentityStoreState(listOf(generated), 0)
+        store.storeState(initial)
+        return initial.toSelection()
     }
 
-    suspend fun regenerate(): Identity {
-        val generated = generator.generate()
-        store.store(generated)
-        return generated
+    suspend fun movePrevious(): IdentitySelection? {
+        val current = store.loadState() ?: return null
+        if (!current.hasPrevious()) return null
+        val updated = current.withActiveIndex(current.activeIndex - 1)
+        store.storeState(updated)
+        return updated.toSelection()
+    }
+
+    suspend fun moveNext(): IdentitySelection {
+        val current = store.loadState()
+        val updated =
+            when {
+                current == null -> {
+                    val generated = generator.generate()
+                    IdentityStoreState(listOf(generated), 0)
+                }
+                current.hasNext() -> current.withActiveIndex(current.activeIndex + 1)
+                else -> {
+                    val generated = generator.generate()
+                    current.append(generated)
+                }
+            }
+        store.storeState(updated)
+        return updated.toSelection()
+    }
+
+    suspend fun deleteCurrent(): IdentitySelection {
+        val current = store.loadState()
+        val updated =
+            if (current == null || current.identities.size == 1) {
+                val generated = generator.generate()
+                IdentityStoreState(listOf(generated), 0)
+            } else {
+                val remaining = current.identities.toMutableList()
+                remaining.removeAt(current.activeIndex)
+                val nextIndex = current.activeIndex.coerceAtMost(remaining.lastIndex)
+                IdentityStoreState(remaining.toList(), nextIndex)
+            }
+        store.storeState(updated)
+        return updated.toSelection()
+    }
+
+    suspend fun select(index: Int): IdentitySelection? {
+        val current = store.loadState() ?: return null
+        if (index !in current.identities.indices) return current.toSelection()
+        if (index == current.activeIndex) return current.toSelection()
+        val updated = current.withActiveIndex(index)
+        store.storeState(updated)
+        return updated.toSelection()
     }
 }
+
+data class IdentitySelection(
+    val identity: Identity,
+    val index: Int,
+    val total: Int,
+) {
+    val hasPrevious: Boolean
+        get() = index > 0
+
+    val hasNext: Boolean
+        get() = index + 1 < total
+}
+
+private fun IdentityStoreState.toSelection(): IdentitySelection =
+    IdentitySelection(
+        identity = current(),
+        index = activeIndex,
+        total = identities.size,
+    )
+
+private fun IdentityStoreState.hasPrevious(): Boolean = activeIndex > 0
+
+private fun IdentityStoreState.hasNext(): Boolean = activeIndex < identities.lastIndex

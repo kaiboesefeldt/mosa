@@ -16,19 +16,19 @@ class IndexedDbIdentityStore(
     private val cryptoExport: CryptoExport,
     private val indexedDb: dynamic,
 ) : IdentityStore {
-    override suspend fun load(): Identity? =
+    override suspend fun loadState(): IdentityStoreState? =
         runCatching { loadInternal() }
             .getOrElse {
                 logWarning("IndexedDB identity load failed", it)
                 null
             }
 
-    override suspend fun store(identity: Identity) {
-        runCatching { storeInternal(identity) }
+    override suspend fun storeState(state: IdentityStoreState) {
+        runCatching { storeInternal(state) }
             .onFailure { logWarning("IndexedDB identity store failed", it) }
     }
 
-    private suspend fun loadInternal(): Identity? {
+    private suspend fun loadInternal(): IdentityStoreState? {
         val database = openDatabase() ?: return null
         try {
             val transaction = database.transaction(arrayOf(objectStoreName), "readonly")
@@ -36,37 +36,26 @@ class IndexedDbIdentityStore(
             val record = awaitRequest(store.get(singletonKey))
             awaitTransaction(transaction)
             if (isNullish(record)) return null
-            val stored = record
-
-            val gid = stored.gid as? String ?: return null
-            val publicKeyField = stored.publicKey as? String ?: return null
-            val privateKeyField = stored.privateKey as? String ?: return null
-            val publicKeyBytes = Base64.fromBase64Url(publicKeyField)
-            val privateKeyBytes = Base64.fromBase64Url(privateKeyField)
-            val algorithm = js("({ name: 'Ed25519' })")
-
-            val publicKey = subtleCrypto.importKey("raw", publicKeyBytes, algorithm, true, arrayOf("verify"))
-            val privateKey = subtleCrypto.importKey("pkcs8", privateKeyBytes, algorithm, true, arrayOf("sign"))
-            val keyPair =
-                json(
-                    "publicKey" to publicKey,
-                    "privateKey" to privateKey,
-                ).unsafeCast<CryptoKeyPair>()
-
-            return Identity(gid, keyPair)
+            return parseRecord(record)
         } finally {
             database.close()
         }
     }
 
-    private suspend fun storeInternal(identity: Identity) {
-        val publicKey = cryptoExport.pubRawOf(identity.keyPair)
-        val privateKey = cryptoExport.privPkcs8Of(identity.keyPair)
-        val payload =
+    private suspend fun storeInternal(state: IdentityStoreState) {
+        val entries = state.identities.map { identity ->
+            val publicKey = cryptoExport.pubRawOf(identity.keyPair)
+            val privateKey = cryptoExport.privPkcs8Of(identity.keyPair)
             json(
                 "gid" to identity.gid,
                 "publicKey" to publicKey.toBase64Url(),
                 "privateKey" to privateKey.toBase64Url(),
+            )
+        }.toTypedArray()
+        val payload =
+            json(
+                "activeIndex" to state.activeIndex,
+                "identities" to entries,
             )
 
         val database = openDatabase() ?: return
@@ -110,10 +99,58 @@ class IndexedDbIdentityStore(
     private fun isNullish(value: dynamic): Boolean =
         value == null || jsTypeOf(value) == "undefined"
 
+    private suspend fun parseRecord(record: dynamic): IdentityStoreState? {
+        val identitiesField = record.identities
+        if (isNullish(identitiesField)) return null
+        val parsed = parseIdentitiesArray(identitiesField) ?: return null
+        val indexValue = record.activeIndex
+        val resolvedIndex =
+            when (indexValue) {
+                is Number -> indexValue.toInt()
+                else -> 0
+            }.coerceIn(0, parsed.lastIndex)
+        return IdentityStoreState(parsed, resolvedIndex)
+    }
+
+    private suspend fun parseIdentitiesArray(field: dynamic): List<Identity>? {
+        val length =
+            when (val lengthValue = field.length) {
+                is Number -> lengthValue.toInt()
+                else -> return null
+            }
+        if (length <= 0) return null
+        val identities = mutableListOf<Identity>()
+        for (index in 0 until length) {
+            val entry = field[index]
+            val parsed = parseIdentity(entry) ?: return null
+            identities.add(parsed)
+        }
+        return identities.toList()
+    }
+
+    private suspend fun parseIdentity(stored: dynamic): Identity? {
+        val gid = stored.gid as? String ?: return null
+        val publicKeyField = stored.publicKey as? String ?: return null
+        val privateKeyField = stored.privateKey as? String ?: return null
+        val publicKeyBytes = Base64.fromBase64Url(publicKeyField)
+        val privateKeyBytes = Base64.fromBase64Url(privateKeyField)
+        val algorithm = js("({ name: 'Ed25519' })")
+
+        val publicKey = subtleCrypto.importKey("raw", publicKeyBytes, algorithm, true, arrayOf("verify"))
+        val privateKey = subtleCrypto.importKey("pkcs8", privateKeyBytes, algorithm, true, arrayOf("sign"))
+        val keyPair =
+            json(
+                "publicKey" to publicKey,
+                "privateKey" to privateKey,
+            ).unsafeCast<CryptoKeyPair>()
+
+        return Identity(gid, keyPair)
+    }
+
     private companion object {
         const val databaseName = "mosa-identity"
         const val objectStoreName = "identity"
-        const val singletonKey = "active"
+        const val singletonKey = "instances"
         const val schemaVersion: Short = 1
     }
 }

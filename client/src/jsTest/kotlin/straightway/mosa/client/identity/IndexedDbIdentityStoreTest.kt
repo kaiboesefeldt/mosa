@@ -26,27 +26,35 @@ class IndexedDbIdentityStoreTest {
     @Test
     fun `store and load roundtrip preserves gid and key material`() = runTestWithIdentities {
         val identity = it.first()
-        components.store.store(identity)
+        val state = IdentityStoreState(listOf(identity, it.last()), 1)
+        components.store.storeState(state)
 
-        val reloaded = assertNotNull(components.store.load())
+        val reloaded = assertNotNull(components.store.loadState())
 
-        assertEquals(identity, reloaded)
+        assertEquals(state.activeIndex, reloaded.activeIndex)
+        state.identities.indices.forEach { index ->
+            assertIdentityEquals(state.identities[index], reloaded.identities[index])
+        }
     }
 
     @Test
     fun `load returns null when no identity is persisted`() = runTest {
-        val loaded = components.store.load()
+        val loaded = components.store.loadState()
         assertNull(loaded)
     }
 
     @Test
     fun `storing a new identity overwrites previous entry`() = runTestWithIdentities {
-        components.store.store(it.first())
-        components.store.store(it.last())
+        val first = IdentityStoreState(listOf(it.first()), 0)
+        val second = IdentityStoreState(listOf(it.last()), 0)
+        components.store.storeState(first)
+        components.store.storeState(second)
 
-        val reloaded = assertNotNull(components.store.load())
+        val reloaded = assertNotNull(components.store.loadState())
 
-        assertEquals(it.last(), reloaded)
+        assertEquals(second.activeIndex, reloaded.activeIndex)
+        assertEquals(1, reloaded.identities.size)
+        assertIdentityEquals(it.last(), reloaded.identities.single())
     }
 
     private fun runTestWithIdentities(block: suspend (List<Identity>) -> Unit) = runTest {
@@ -59,7 +67,7 @@ class IndexedDbIdentityStoreTest {
         }
     }
 
-    private suspend fun assertEquals(expected: Identity, actual: Identity) {
+    private suspend fun assertIdentityEquals(expected: Identity, actual: Identity) {
         assertEquals(expected.gid, actual.gid)
         assertContentEquals(
             components.export.pubRawOf(expected.keyPair),

@@ -1,117 +1,67 @@
 package straightway.mosa.client.identity
 
-import kotlinx.coroutines.test.runTest
-import straightway.mosa.client.browser.CryptoKeyPair
-import straightway.mosa.client.test.ensureStacktraceMapperInstalled
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.test.runTest
+import kotlin.js.unsafeCast
+import straightway.mosa.client.browser.CryptoKeyPair
 
 class IdentityRepositoryTest {
+    @Test
+    fun `select moves to requested index when available`() = runTest {
+        val first = identity("gid-1")
+        val second = identity("gid-2")
+        val third = identity("gid-3")
+        val initialState = IdentityStoreState(listOf(first, second, third), activeIndex = 0)
+        val store = RecordingIdentityStore(initialState)
+        val repository = IdentityRepository(store, generator = UnexpectedIdentityGenerator)
 
-    @BeforeTest
-    fun installStacktraceMapper() {
-        ensureStacktraceMapperInstalled()
+        val selection = repository.select(2)
+
+        assertEquals(2, selection?.index)
+        assertEquals(third, selection?.identity)
+        assertEquals(1, store.storedStates.size)
+        assertEquals(2, store.storedStates.single().activeIndex)
     }
 
     @Test
-    fun `loadOrCreate returns persisted identity without regenerating`() = runTest {
-        val persisted = identity("persisted")
-        val store = RecordingIdentityStore(initialIdentity = persisted)
-        val generator = RecordingIdentityGenerator(identity("new"))
-        val repository = IdentityRepository(store, generator)
+    fun `select ignores indexes outside stored range`() = runTest {
+        val first = identity("gid-1")
+        val second = identity("gid-2")
+        val initialState = IdentityStoreState(listOf(first, second), activeIndex = 1)
+        val store = RecordingIdentityStore(initialState)
+        val repository = IdentityRepository(store, generator = UnexpectedIdentityGenerator)
 
-        val result = repository.loadOrCreate()
+        val selection = repository.select(5)
 
-        assertSame(persisted, result)
-        assertEquals(1, store.loadCallCount)
-        assertTrue(store.storedIdentities.isEmpty())
-        assertTrue(generator.generatedIdentities.isEmpty())
+        assertEquals(1, selection?.index)
+        assertEquals(second, selection?.identity)
+        assertTrue(store.storedStates.isEmpty())
     }
+}
 
-    @Test
-    fun `loadOrCreate generates and stores when no identity exists`() = runTest {
-        val generated = identity("generated")
-        val store = RecordingIdentityStore(initialIdentity = null)
-        val generator = RecordingIdentityGenerator(generated)
-        val repository = IdentityRepository(store, generator)
+private object UnexpectedIdentityGenerator : IdentityProvider {
+    override suspend fun generate(): Identity = error("IdentityProvider should not be invoked")
+}
 
-        val result = repository.loadOrCreate()
+private fun identity(gid: String): Identity =
+    Identity(
+        gid = gid,
+        keyPair = emptyCryptoKeyPair(),
+    )
 
-        assertSame(generated, result)
-        assertEquals(1, store.loadCallCount)
-        assertEquals(listOf(generated), store.storedIdentities)
-        assertEquals(listOf(generated), generator.generatedIdentities)
-        assertSame(generated, store.currentIdentity)
-    }
+private fun emptyCryptoKeyPair(): CryptoKeyPair =
+    js("{ privateKey: {}, publicKey: {} }").unsafeCast<CryptoKeyPair>()
 
-    @Test
-    fun `regenerate always replaces stored identity`() = runTest {
-        val initial = identity("initial")
-        val regeneratedFirst = identity("regen-1")
-        val regeneratedSecond = identity("regen-2")
-        val store = RecordingIdentityStore(initialIdentity = initial)
-        val generator = RecordingIdentityGenerator(regeneratedFirst, regeneratedSecond)
-        val repository = IdentityRepository(store, generator)
+private class RecordingIdentityStore(initialState: IdentityStoreState?) : IdentityStore {
+    var state: IdentityStoreState? = initialState
+    val storedStates = mutableListOf<IdentityStoreState>()
 
-        val first = repository.regenerate()
-        val second = repository.regenerate()
+    override suspend fun loadState(): IdentityStoreState? = state
 
-        assertSame(regeneratedFirst, first)
-        assertSame(regeneratedSecond, second)
-        assertEquals(listOf(regeneratedFirst, regeneratedSecond), store.storedIdentities)
-        assertEquals(listOf(regeneratedFirst, regeneratedSecond), generator.generatedIdentities)
-        assertEquals(0, store.loadCallCount)
-        assertSame(regeneratedSecond, store.currentIdentity)
-    }
-
-    private class RecordingIdentityStore(
-        initialIdentity: Identity?
-    ) : IdentityStore {
-        private val loadResponses = ArrayDeque<Identity?>()
-        var currentIdentity: Identity? = initialIdentity
-            private set
-        val storedIdentities = mutableListOf<Identity>()
-        var loadCallCount = 0
-            private set
-
-        override suspend fun load(): Identity? {
-            loadCallCount++
-            return if (loadResponses.isNotEmpty()) {
-                loadResponses.removeFirst()
-            } else {
-                currentIdentity
-            }
-        }
-
-        override suspend fun store(identity: Identity) {
-            storedIdentities += identity
-            currentIdentity = identity
-        }
-    }
-
-    private class RecordingIdentityGenerator(
-        vararg identities: Identity
-    ) : IdentityProvider {
-        private val queue = ArrayDeque(identities.asList())
-        val generatedIdentities = mutableListOf<Identity>()
-
-        override suspend fun generate(): Identity {
-            val next = queue.removeFirstOrNull() ?: error("No identity prepared for test")
-            generatedIdentities += next
-            return next
-        }
-    }
-
-    private fun identity(label: String): Identity {
-        val keyPair = js("({})")
-        keyPair.publicKey = js("({ label: label + '-pub' })")
-        keyPair.privateKey = js("({ label: label + '-priv' })")
-        return Identity(
-            gid = "gid-$label",
-            keyPair = keyPair.unsafeCast<CryptoKeyPair>()
-        )
+    override suspend fun storeState(state: IdentityStoreState) {
+        storedStates += state
+        this.state = state
     }
 }

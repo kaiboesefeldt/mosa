@@ -32,13 +32,22 @@ private val IdentityApp = FC<Props> {
 
         is IdentityScreen.Landing ->
             IdentityLandingView {
-                identityName = screen.identityName
+                identityNameParts = screen.identityNameParts
                 identityAvatar = screen.identityAvatar
                 isBusy = screen.isBusy
                 errorText = screen.errorText
+                canDelete = screen.canDelete
+                canNavigatePrevious = screen.canNavigatePrevious
+                canNavigateNext = screen.canNavigateNext
+                isShowingLastIdentity = screen.isShowingLastIdentity
+                identityIndex = screen.identityIndex
+                identityTotal = screen.identityTotal
                 canConnect = screen.canConnect
                 onConnect = screen.onConnect
-                onGenerateNew = screen.onGenerateNew
+                onPrevious = screen.onPrevious
+                onNext = screen.onNext
+                onDelete = screen.onDelete
+                onSelect = screen.onSelect
             }
     }
 }

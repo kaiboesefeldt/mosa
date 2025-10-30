@@ -2,6 +2,8 @@ package straightway.mosa.client.ui
 
 import kotlin.js.json
 import kotlin.test.AfterTest
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlinx.coroutines.await
@@ -20,14 +22,30 @@ class IdentityLandingViewTest {
     }
 
     @Test
-    fun `disabled connect button when busy`() = runTest {
+    fun `keeps connect button enabled when busy`() = runTest {
         renderIdentityLandingView {
             isBusy = true
         }
 
         val connectButton = screen.getByRole("button", json("name" to text("button.connect.aria")))
 
-        assertTrue(connectButton.asDynamic().disabled as Boolean)
+        assertFalse(connectButton.asDynamic().disabled as Boolean)
+    }
+
+    @Test
+    fun `ignores connect request when busy`() = runTest {
+        var handled = false
+        renderIdentityLandingView {
+            isBusy = true
+            onConnect = { handled = true }
+        }
+
+        val connectButton = screen.getByRole("button", json("name" to text("button.connect.aria")))
+
+        val user = userEvent.setup()
+        user.click(connectButton).await()
+
+        assertFalse(handled)
     }
 
     @Test
@@ -47,16 +65,45 @@ class IdentityLandingViewTest {
     }
 
     @Test
-    fun `invokes regeneration handler when user requests new identity`() = runTest {
+    fun `invokes next handler when user navigates forward`() = runTest {
         var handled = false
         renderIdentityLandingView {
-            onGenerateNew = { handled = true }
+            canNavigateNext = true
+            onNext = { handled = true }
         }
 
-        val regenerateButton = screen.getByRole("button", json("name" to text("button.generateIdentity.aria")))
+        val nextButton = screen.getByRole("button", json("name" to text("button.identity.next.aria")))
 
         val user = userEvent.setup()
-        user.click(regenerateButton).await()
+        user.click(nextButton).await()
+
+        assertTrue(handled)
+    }
+
+    @Test
+    fun `shows plus label when last identity is active`() = runTest {
+        renderIdentityLandingView {
+            canNavigateNext = true
+            isShowingLastIdentity = true
+        }
+
+        val nextButton = screen.getByRole("button", json("name" to text("button.identity.next.aria")))
+
+        assertEquals("+", nextButton.textContent)
+    }
+
+    @Test
+    fun `invokes delete handler when user removes identity`() = runTest {
+        var handled = false
+        renderIdentityLandingView {
+            canDelete = true
+            onDelete = { handled = true }
+        }
+
+        val deleteButton = screen.getByRole("button", json("name" to text("button.identity.delete.aria")))
+
+        val user = userEvent.setup()
+        user.click(deleteButton).await()
 
         assertTrue(handled)
     }

@@ -14,8 +14,10 @@ import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentityRepository
 import straightway.mosa.client.identity.MisJwtService
+import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.pod.podAccess
 import straightway.mosa.client.util.Base64
+import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.util.BitStream
 import straightway.mosa.content.QueryRequest
@@ -23,13 +25,22 @@ import straightway.mosa.content.QueryResult
 
 sealed interface IdentityScreen {
     data class Landing(
-        val identityName: String,
+        val identityNameParts: FictionalName,
         val identityAvatar: String?,
         val isBusy: Boolean,
         val errorText: String?,
+        val canDelete: Boolean,
+        val canNavigatePrevious: Boolean,
+        val canNavigateNext: Boolean,
+        val isShowingLastIdentity: Boolean,
+        val identityIndex: Int,
+        val identityTotal: Int,
         val canConnect: Boolean,
         val onConnect: () -> Unit,
-        val onGenerateNew: () -> Unit,
+        val onPrevious: () -> Unit,
+        val onNext: () -> Unit,
+        val onDelete: () -> Unit,
+        val onSelect: (Int) -> Unit,
     ) : IdentityScreen
 
     data class Connected(
@@ -44,9 +55,9 @@ fun useIdentitySession(): IdentityScreen {
     val loadingText = translator.translate("identity.loading")
     val unknownError = translator.translate("identity.unknownError")
     val missingPodMessage = translator.translate("landing.noPodConfigured")
-    val (identityText, setIdentityText) = useState(loadingText)
+    val (identityNameParts, setIdentityNameParts) = useState(placeholderName(loadingText))
     val (identityAvatar, setIdentityAvatar) = useState<String?>(null)
-    val (currentIdentity, setCurrentIdentity) = useState<Identity?>(null)
+    val (currentSelection, setCurrentSelection) = useState<IdentitySelection?>(null)
     val (misJwt, setMisJwt) = useState<String?>(null)
     val (isConnected, setConnected) = useState(false)
     val (isBusy, setBusy) = useState(false)
@@ -56,24 +67,26 @@ fun useIdentitySession(): IdentityScreen {
     val defaultPod = (window.asDynamic().MOSA_POD_BASE as? String).orEmpty()
     val avatarGenerator = ClientInjector.get<DiceBearAvatarGenerator>()
 
-    fun refreshIdentity(regenerate: Boolean) {
+    fun applySelection(selection: IdentitySelection) {
+        val resolvedName = identityName(selection.identity)
+        setIdentityNameParts(resolvedName)
+        setCurrentSelection(selection)
+        setIdentityAvatar(avatarGenerator.dataUri(selection.identity.gid))
+        setMisJwt(null)
+        setConnected(false)
+        setQueryPreview(null)
+        setErrorText(null)
+    }
+
+    fun refreshIdentity() {
         if (isBusy) return
         setBusy(true)
         setIdentityAvatar(null)
         sessionScope.launch {
             try {
                 val repository = ClientInjector.get<IdentityRepository>()
-                val identity =
-                    if (regenerate) repository.regenerate()
-                    else repository.loadOrCreate()
-                val resolvedName = identityName(identity)
-                setIdentityText(resolvedName)
-                setCurrentIdentity(identity)
-                setIdentityAvatar(avatarGenerator.dataUri(identity.gid))
-                setMisJwt(null)
-                setConnected(false)
-                setQueryPreview(null)
-                setErrorText(null)
+                val selection = repository.loadOrCreate()
+                applySelection(selection)
             } catch (error: Throwable) {
                 val console = window.asDynamic().console
                 console?.error?.call(console, "Identity refresh failed", error)
@@ -81,12 +94,12 @@ fun useIdentitySession(): IdentityScreen {
                     ?: error::class.simpleName
                     ?: unknownError
                 val failureText = translator.translate("identity.failedToPrepare", mapOf("message" to message))
-                setIdentityText(failureText)
-                setCurrentIdentity(null)
+                setCurrentSelection(null)
                 setIdentityAvatar(null)
                 setMisJwt(null)
                 setConnected(false)
                 setQueryPreview(null)
+                setIdentityNameParts(placeholderName(failureText))
                 setErrorText(message)
             } finally {
                 setBusy(false)
@@ -94,9 +107,65 @@ fun useIdentitySession(): IdentityScreen {
         }
     }
 
+    fun performNavigation(loader: suspend IdentityRepository.() -> IdentitySelection?) {
+        if (isBusy) return
+        setBusy(true)
+        sessionScope.launch {
+            try {
+                val repository = ClientInjector.get<IdentityRepository>()
+                val selection = loader(repository)
+                if (selection != null) {
+                    applySelection(selection)
+                }
+            } catch (error: Throwable) {
+                val console = window.asDynamic().console
+                console?.error?.call(console, "Identity navigation failed", error)
+                val message = error.message?.takeIf { it.isNotBlank() }
+                    ?: error::class.simpleName
+                    ?: unknownError
+                setErrorText(message)
+            } finally {
+                setBusy(false)
+            }
+        }
+    }
+
+    fun navigateToPrevious() {
+        performNavigation { movePrevious() }
+    }
+
+    fun navigateToNext() {
+        performNavigation { moveNext() }
+    }
+
+    fun deleteIdentity() {
+        if (isBusy) return
+        setBusy(true)
+        sessionScope.launch {
+            try {
+                val repository = ClientInjector.get<IdentityRepository>()
+                val selection = repository.deleteCurrent()
+                applySelection(selection)
+            } catch (error: Throwable) {
+                val console = window.asDynamic().console
+                console?.error?.call(console, "Identity removal failed", error)
+                val message = error.message?.takeIf { it.isNotBlank() }
+                    ?: error::class.simpleName
+                    ?: unknownError
+                setErrorText(message)
+            } finally {
+                setBusy(false)
+            }
+        }
+    }
+
+    fun navigateToIndex(index: Int) {
+        performNavigation { select(index) }
+    }
+
     fun connectToPod() {
         if (isBusy) return
-        val identity = currentIdentity ?: return
+        val identity = currentSelection?.identity ?: return
         val podForCertificate = defaultPod
         if (podForCertificate.isBlank()) {
             setErrorText(missingPodMessage)
@@ -143,31 +212,41 @@ fun useIdentitySession(): IdentityScreen {
     useEffect(emptyArray<Any>()) {
         if (effectRan.current == true) return@useEffect
         effectRan.current = true
-        refreshIdentity(false)
+        refreshIdentity()
     }
 
-    val canConnect = currentIdentity != null && defaultPod.isNotBlank()
+    val canConnect = currentSelection != null && defaultPod.isNotBlank()
     val displayError = if (defaultPod.isBlank()) {
         errorText ?: missingPodMessage
     } else {
         errorText
     }
+    val isShowingLastIdentity = currentSelection?.let { !it.hasNext } ?: false
 
     return if (isConnected && misJwt != null) {
         IdentityScreen.Connected(
-            identityName = identityText,
+            identityName = identityNameParts.toString(),
             misJwt = misJwt,
             queryPreview = queryPreview,
         )
     } else {
         IdentityScreen.Landing(
-            identityName = identityText,
+            identityNameParts = identityNameParts,
             identityAvatar = identityAvatar,
             isBusy = isBusy,
             errorText = displayError,
+            canDelete = currentSelection != null,
+            canNavigatePrevious = currentSelection?.hasPrevious ?: false,
+            canNavigateNext = currentSelection != null,
+            isShowingLastIdentity = isShowingLastIdentity,
+            identityIndex = currentSelection?.index ?: 0,
+            identityTotal = currentSelection?.total ?: 1,
             canConnect = canConnect,
             onConnect = { connectToPod() },
-            onGenerateNew = { refreshIdentity(true) },
+            onPrevious = { navigateToPrevious() },
+            onNext = { navigateToNext() },
+            onDelete = { deleteIdentity() },
+            onSelect = { index -> navigateToIndex(index) },
         )
     }
 }
@@ -176,11 +255,16 @@ private val sessionScope = MainScope()
 
 private object ClientInjector : KoinComponent
 
-private fun identityName(identity: Identity): String {
+private fun identityName(identity: Identity): FictionalName {
     val nameGenerator = ClientInjector.get<FictionalNameGenerator>()
     val gidBytes = Base64.fromBase64Url(identity.gid)
     val bits = BitStream(gidBytes)
-    return nameGenerator.generate(bits).toString()
+    return nameGenerator.generate(bits)
+}
+
+private fun placeholderName(text: String): FictionalName {
+    val normalized = text.trim().ifBlank { "Identity" }
+    return FictionalName(givenNames = listOf(normalized), sureName = "")
 }
 
 private suspend fun createCertificateFor(gid: String, podHost: String): PodCertificate {
