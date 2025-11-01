@@ -17,6 +17,7 @@ import straightway.mosa.client.identity.MisJwtService
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.pod.podAccess
 import straightway.mosa.client.util.Base64
+import straightway.mosa.client.util.Base64.toBase64Url
 import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.util.BitStream
@@ -68,10 +69,11 @@ fun useIdentitySession(): IdentityScreen {
     val avatarGenerator = ClientInjector.get<DiceBearAvatarGenerator>()
 
     fun applySelection(selection: IdentitySelection) {
-        val resolvedName = identityName(selection.identity)
-        setIdentityNameParts(resolvedName)
+        IdentityVisuals(selection.identity).apply {
+            setIdentityNameParts(name)
+            setIdentityAvatar(avatar)
+        }
         setCurrentSelection(selection)
-        setIdentityAvatar(avatarGenerator.dataUri(selection.identity.gid))
         setMisJwt(null)
         setConnected(false)
         setQueryPreview(null)
@@ -255,11 +257,19 @@ private val sessionScope = MainScope()
 
 private object ClientInjector : KoinComponent
 
-private fun identityName(identity: Identity): FictionalName {
-    val nameGenerator = ClientInjector.get<FictionalNameGenerator>()
-    val gidBytes = Base64.fromBase64Url(identity.gid)
-    val bits = BitStream(gidBytes)
-    return nameGenerator.generate(bits)
+private class IdentityVisuals(identity: Identity) {
+    val name: FictionalName
+    val avatar: String
+
+    init {
+        val nameGenerator = ClientInjector.get<FictionalNameGenerator>()
+        val gidBytes = Base64.fromBase64Url(identity.gid)
+        val bits = BitStream(gidBytes)
+        name = nameGenerator.generate(bits)
+
+        val avatarSeed = bits.nextBytes(8).toBase64Url()
+        avatar = ClientInjector.get<DiceBearAvatarGenerator>().dataUri(avatarSeed)
+    }
 }
 
 private fun placeholderName(text: String): FictionalName {

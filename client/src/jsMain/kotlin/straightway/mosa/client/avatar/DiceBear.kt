@@ -16,8 +16,7 @@ external interface DiceBearOptions {
     var seed: String?
 }
 
-external interface DiceBearStyle {
-}
+external interface DiceBearStyle
 
 class DiceBearAvatarGenerator(
     private val style: DiceBearStyle = AdventurerNeutralStyle
