@@ -170,6 +170,16 @@ button:disabled {
     word-break: break-word;
 }
 
+.landing-dialog__identity-download {
+    justify-self: center;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.landing-dialog__identity-download:disabled {
+    opacity: 0.5;
+}
+
 .landing-dialog__nav-button {
     border: none;
     background: transparent;

@@ -29,11 +29,13 @@ external interface IdentityLandingViewProps : Props {
     var identityIndex: Int
     var identityTotal: Int
     var canConnect: Boolean
+    var canDownload: Boolean
     var onConnect: () -> Unit
     var onPrevious: () -> Unit
     var onNext: () -> Unit
     var onDelete: () -> Unit
     var onSelect: (Int) -> Unit
+    var onDownload: () -> Unit
 }
 
 val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
@@ -95,6 +97,15 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
                             if (i != 0) br { }
                             +line
                         }
+                    }
+                    button {
+                        className = ClassName("button button--subtle landing-dialog__identity-download")
+                        disabled = props.isBusy || !props.canDownload
+                        ariaLabel = translator.translate("button.identity.download.aria")
+                        onClick = {
+                            if (!props.isBusy && props.canDownload) props.onDownload()
+                        }
+                        +translator.translate("button.identity.download.label")
                     }
                 }
                 button {

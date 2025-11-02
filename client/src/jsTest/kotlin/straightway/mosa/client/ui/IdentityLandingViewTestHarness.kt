@@ -27,9 +27,11 @@ internal fun renderIdentityLandingView(
             identityIndex = 0
             identityTotal = 1
             onConnect = {}
+            canDownload = true
             onPrevious = {}
             onNext = {}
             onDelete = {}
+            onDownload = {}
             configure()
         }
     )

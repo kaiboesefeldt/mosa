@@ -4,6 +4,8 @@
   "button.connect.aria": "Los geht's!",
   "button.connect.label": "Los geht's!",
   "button.identity.delete.aria": "Identität löschen",
+  "button.identity.download.aria": "Schlüsselpaar herunterladen",
+  "button.identity.download.label": "Schlüssel herunterladen",
   "button.identity.next.aria": "Nächste Identität anzeigen",
   "button.identity.previous.aria": "Vorherige Identität anzeigen",
   "connected.authenticationTokenTitle": "Authentifizierungs-Token",
