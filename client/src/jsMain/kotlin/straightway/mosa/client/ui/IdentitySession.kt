@@ -1,6 +1,5 @@
 package straightway.mosa.client.ui
 
-import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -12,11 +11,11 @@ import react.useState
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.i18n.Translator
-import straightway.mosa.client.identity.CryptoExport
 import straightway.mosa.client.identity.IdentityRepository
 import straightway.mosa.client.identity.MisJwtService
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
+import straightway.mosa.client.identity.IdentityTransferService
 import straightway.mosa.client.pod.podAccess
 import straightway.mosa.client.util.Base64
 import straightway.mosa.client.util.Base64.toBase64Url
@@ -25,11 +24,6 @@ import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.util.BitStream
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryResult
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import org.w3c.dom.HTMLAnchorElement
-import org.w3c.files.Blob
-import org.w3c.files.BlobPropertyBag
 
 sealed interface IdentityScreen {
     data class Landing(
@@ -51,6 +45,8 @@ sealed interface IdentityScreen {
         val onSelect: (Int) -> Unit,
         val canDownload: Boolean,
         val onDownload: () -> Unit,
+        val canUpload: Boolean,
+        val onUpload: () -> Unit,
     ) : IdentityScreen
 
     data class Connected(
@@ -219,33 +215,39 @@ fun useIdentitySession(): IdentityScreen {
         }
     }
 
-    suspend fun downloadKeyPair(
-        identity: Identity,
-        nameParts: FictionalName
-    ) {
-        val payload = identity.toIdentityKeyPairExport()
-        val json = downloadJsonCodec.encodeToString(IdentityKeyPairExport.serializer(), payload)
-        val blob = Blob(arrayOf(json), BlobPropertyBag(type = "application/json"))
-        val anchor = document.createElement("a") as HTMLAnchorElement
-        val fileName = nameParts.toIdentityDownloadFileName() + ".json"
-        val url = (window.asDynamic().URL).createObjectURL(blob) as String
-        anchor.href = url
-        anchor.download = fileName
-        document.body?.appendChild(anchor)
-        anchor.click()
-        anchor.remove()
-        (window.asDynamic().URL).revokeObjectURL(url)
-    }
-
-    fun downloadKeyPair() {
+    fun downloadIdentity() {
         val identity = currentSelection?.identity ?: return
-        val nameParts = identityNameParts
+        val fileBaseName = identityNameParts.toIdentityDownloadFileName()
         sessionScope.launch {
             try {
-                downloadKeyPair(identity, nameParts)
+                val transfer = ClientInjector.get<IdentityTransferService>()
+                transfer.download(identity, fileBaseName)
             } catch (error: Throwable) {
                 val console = window.asDynamic().console
                 console?.error?.call(console, "Identity download failed", error)
+            }
+        }
+    }
+
+    fun uploadIdentity() {
+        if (isBusy) return
+        setBusy(true)
+        sessionScope.launch {
+            try {
+                val transfer = ClientInjector.get<IdentityTransferService>()
+                val imported = transfer.upload() ?: return@launch
+                val repository = ClientInjector.get<IdentityRepository>()
+                val selection = repository.import(imported)
+                applySelection(selection)
+            } catch (error: Throwable) {
+                val console = window.asDynamic().console
+                console?.error?.call(console, "Identity upload failed", error)
+                val message = error.message?.takeIf { it.isNotBlank() }
+                    ?: error::class.simpleName
+                    ?: unknownError
+                setErrorText(message)
+            } finally {
+                setBusy(false)
             }
         }
     }
@@ -289,17 +291,11 @@ fun useIdentitySession(): IdentityScreen {
             onDelete = { deleteIdentity() },
             onSelect = { index -> navigateToIndex(index) },
             canDownload = currentSelection != null,
-            onDownload = { downloadKeyPair() },
+            onDownload = { downloadIdentity() },
+            canUpload = true,
+            onUpload = { uploadIdentity() },
         )
     }
-}
-
-private suspend fun Identity.toIdentityKeyPairExport(): IdentityKeyPairExport {
-    val export = ClientInjector.get<CryptoExport>()
-    val publicKey = export.pubRawOf(keyPair).toBase64Url()
-    val privateKey = export.privPkcs8Of(keyPair).toBase64Url()
-    val payload = IdentityKeyPairExport(gid, publicKey, privateKey)
-    return payload
 }
 
 private val sessionScope = MainScope()
@@ -371,12 +367,3 @@ private fun prototypePreviewOf(translator: Translator, topic: String, result: Qu
         }
     }.trim()
 }
-
-@Serializable
-private data class IdentityKeyPairExport(
-    val gid: String,
-    val publicKey: String,
-    val privateKey: String,
-)
-
-private val downloadJsonCodec = Json { prettyPrint = true }

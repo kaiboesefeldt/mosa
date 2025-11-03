@@ -64,6 +64,23 @@ class IdentityRepository(
         store.storeState(updated)
         return updated.toSelection()
     }
+
+    suspend fun import(identity: Identity): IdentitySelection {
+        val current = store.loadState()
+        val updated =
+            if (current == null) {
+                IdentityStoreState(listOf(identity), 0)
+            } else {
+                val existingIndex = current.identities.indexOfFirst { it.gid == identity.gid }
+                if (existingIndex >= 0) {
+                    current.withActiveIndex(existingIndex)
+                } else {
+                    current.append(identity)
+                }
+            }
+        store.storeState(updated)
+        return updated.toSelection()
+    }
 }
 
 data class IdentitySelection(

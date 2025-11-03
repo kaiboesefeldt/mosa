@@ -30,12 +30,14 @@ external interface IdentityLandingViewProps : Props {
     var identityTotal: Int
     var canConnect: Boolean
     var canDownload: Boolean
+    var canUpload: Boolean
     var onConnect: () -> Unit
     var onPrevious: () -> Unit
     var onNext: () -> Unit
     var onDelete: () -> Unit
     var onSelect: (Int) -> Unit
     var onDownload: () -> Unit
+    var onUpload: () -> Unit
 }
 
 val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
@@ -106,6 +108,15 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
                             if (!props.isBusy && props.canDownload) props.onDownload()
                         }
                         +translator.translate("button.identity.download.label")
+                    }
+                    button {
+                        className = ClassName("button button--subtle landing-dialog__identity-upload")
+                        disabled = props.isBusy || !props.canUpload
+                        ariaLabel = translator.translate("button.identity.upload.aria")
+                        onClick = {
+                            if (!props.isBusy && props.canUpload) props.onUpload()
+                        }
+                        +translator.translate("button.identity.upload.label")
                     }
                 }
                 button {

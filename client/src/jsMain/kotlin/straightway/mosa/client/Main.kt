@@ -44,12 +44,14 @@ private val IdentityApp = FC<Props> {
                 identityTotal = screen.identityTotal
                 canConnect = screen.canConnect
                 canDownload = screen.canDownload
+                canUpload = screen.canUpload
                 onConnect = screen.onConnect
                 onPrevious = screen.onPrevious
                 onNext = screen.onNext
                 onDelete = screen.onDelete
                 onSelect = screen.onSelect
                 onDownload = screen.onDownload
+                onUpload = screen.onUpload
             }
     }
 }

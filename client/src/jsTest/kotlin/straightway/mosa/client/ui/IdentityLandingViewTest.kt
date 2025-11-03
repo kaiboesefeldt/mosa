@@ -108,5 +108,21 @@ class IdentityLandingViewTest {
         assertTrue(handled)
     }
 
+    @Test
+    fun `invokes upload handler when user requests identity upload`() = runTest {
+        var handled = false
+        renderIdentityLandingView {
+            canUpload = true
+            onUpload = { handled = true }
+        }
+
+        val uploadButton = screen.getByRole("button", json("name" to text("button.identity.upload.aria")))
+
+        val user = userEvent.setup()
+        user.click(uploadButton).await()
+
+        assertTrue(handled)
+    }
+
     private fun text(key: String): String = AppModule.get<Translator>().translate(key)
 }

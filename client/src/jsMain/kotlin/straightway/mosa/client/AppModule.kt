@@ -20,8 +20,11 @@ import straightway.mosa.client.identity.IdentityRepository
 import straightway.mosa.client.identity.IdentityStore
 import straightway.mosa.client.identity.IndexedDbIdentityStore
 import straightway.mosa.client.identity.MisJwtService
+import straightway.mosa.client.identity.IdentityTransferCodec
+import straightway.mosa.client.identity.IdentityTransferService
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.identity.FictionalNameGenerator
+import kotlinx.serialization.json.Json
 
 object AppModule : KoinComponent {
     fun start() {
@@ -61,6 +64,14 @@ object AppModule : KoinComponent {
                             )
                         }
                         single { CryptoExport(get()) }
+                        single {
+                            IdentityTransferCodec(
+                                get(),
+                                get(),
+                                Json { prettyPrint = true },
+                            )
+                        }
+                        single { IdentityTransferService(get()) }
                         single { FictionalNameGenerator() }
                         single { BrowserPrefs() }
                         single { Translator(get<BrowserPrefs>().languages) }
