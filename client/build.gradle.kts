@@ -44,6 +44,9 @@ kotlin {
         val kotlinxSerializationJsonVersion = "1.9.0"
         val ktorVersion = "3.2.0"
         val kotlinWrappersVersion = "2025.7.4-19.1.0"
+        val diceBearVersion = "9.2.4"
+        val fontAwesomeVersion = "7.1.0"
+
         jsMain {
             dependencies {
                 implementation(kotlin("stdlib-js"))
@@ -56,19 +59,25 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-react:$kotlinWrappersVersion")
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-react-dom:$kotlinWrappersVersion")
-                implementation(npm("@dicebear/core", "9.2.4"))
-                implementation(npm("@dicebear/adventurer-neutral", "9.2.4"))
+                implementation(npm("@dicebear/core", diceBearVersion))
+                implementation(npm("@dicebear/adventurer-neutral", diceBearVersion))
+                implementation(npm("@fortawesome/fontawesome-free", fontAwesomeVersion))
             }
         }
+
+        val karmaSourceMapSupportVersion = "1.4.0"
+        val testingLibReactVersion = "16.3.0"
+        val testingLibUserEventVersion = "14.6.1"
+        val testingLibDomVersion = "10.4.1"
         jsTest {
             dependencies {
                 implementation(kotlin("test"))
                 implementation("io.ktor:ktor-client-mock:$ktorVersion")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test-js:$kotlinxCoroutinesVersion")
-                implementation(npm("karma-source-map-support", "1.4.0"))
-                implementation(npm("@testing-library/react", "16.3.0"))
-                implementation(npm("@testing-library/user-event", "14.6.1"))
-                implementation(npm("@testing-library/dom", "10.4.1"))
+                implementation(npm("karma-source-map-support", karmaSourceMapSupportVersion))
+                implementation(npm("@testing-library/react", testingLibReactVersion))
+                implementation(npm("@testing-library/user-event", testingLibUserEventVersion))
+                implementation(npm("@testing-library/dom", testingLibDomVersion))
             }
         }
     }

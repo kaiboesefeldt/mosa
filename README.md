@@ -184,3 +184,7 @@ The pod answers with a MIS certificate for the transmitted `gid`.
 2. **Spam Resistance**: Although filtered by architecture, thematically fitting spam could appear.
 3. **Quality Control**: Thematic relevance ≠ content quality.
 5. **Filter-Bubble Risk**: Even though thematic diversity is possible within topics.  
+
+## Attribution
+
+Font Awesome Free by [Fonticons, Inc.](https://fontawesome.com) is available under the [CC BY 4.0 License](https://fontawesome.com/license/free) and is bundled in the web client.

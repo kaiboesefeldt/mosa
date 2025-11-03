@@ -27,6 +27,7 @@
 - UI renders a React-based identity generator that mints Ed25519 key pairs in-browser, requests pod certificates through `PodAccess`, and assembles MIS-JWTs with `MisJwtService` for display.
 - Built assets live under `client/build/…`; `copyClientFiles` task lifts the production bundle into the server resources directory before `processResources`/`shadowJar`.
 - Static HTML template sits in `client/src/jsMain/resources/index.html`; the server injects runtime base URLs so Pod location remains configurable.
+- Font Awesome Free is bundled via NPM for icon usage in UI work.
 
 ## Build & Run
 - Build everything: `./gradlew build` (runs ktlint checks, compiles server, CLI, client bundle, and shared module).
