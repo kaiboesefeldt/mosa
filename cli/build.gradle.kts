@@ -17,11 +17,11 @@ repositories {
 
 dependencies {
     val kotlinxCliVersion = "0.3.6"
-    val ktorVersion = "3.2.0"
-    val kotlinLoggingVersion = "7.0.7"
-    val logbackVersion = "1.5.18"
+    val ktorVersion = "3.3.1"
+    val kotlinLoggingVersion = "7.0.13"
+    val logbackVersion = "1.5.20"
     val auth0JwtVersion = "4.5.0"
-    val jacksonVersion = "2.17.2"
+    val jacksonVersion = "2.20.1"
 
     implementation(project(":shared"))
     implementation(project(":server"))

@@ -42,8 +42,8 @@ kotlin {
         val koinVersion = "4.1.1"
         val kotlinxCoroutinesVersion = "1.10.2"
         val kotlinxSerializationJsonVersion = "1.9.0"
-        val ktorVersion = "3.2.0"
-        val kotlinWrappersVersion = "2025.7.4-19.1.0"
+        val ktorVersion = "3.3.1"
+        val kotlinWrappersVersion = "2025.11.1-19.2.0"
         val diceBearVersion = "9.2.4"
         val fontAwesomeVersion = "7.1.0"
 

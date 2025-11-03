@@ -1,16 +1,17 @@
 [versions]
-kotlin = "2.2.0"
-ktor = "3.2.0"
-koin = "4.1.0"
-jackson = "2.17.2"
-sqlite = "3.46.0.0"
-exposed = "1.0.0-beta-2"
-logback = "1.5.18"
-kotlin-logging = "7.0.7"
-djl = "0.33.0"
-lucene = "9.9.0"
-mockk = "1.14.4"
+kotlin = "2.2.21"
+ktor = "3.3.1"
+koin = "4.1.1"
+jackson = "2.20.1"
+sqlite = "3.50.3.0"
+exposed = "0.61.0"
+logback = "1.5.20"
+kotlin-logging = "7.0.13"
+djl = "0.35.0"
+lucene = "9.12.3"
+mockk = "1.14.6"
 auth0-jwt = "4.5.0"
+bouncycastle = "1.82"
 
 [libraries]
 ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
@@ -32,6 +33,7 @@ sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
 
 lucene-core = { module = "org.apache.lucene:lucene-core", version.ref = "lucene" }
 lucene-analysis-common = { module = "org.apache.lucene:lucene-analysis-common", version.ref = "lucene" }
+lucene-backward-codecs = { module = "org.apache.lucene:lucene-backward-codecs", version.ref = "lucene" }
 
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
@@ -42,8 +44,8 @@ djl-model-zoo = { module = "ai.djl:model-zoo" }
 djl-onnxruntime-engine = { module = "ai.djl.onnxruntime:onnxruntime-engine" }
 djl-tokenizers = { module = "ai.djl.huggingface:tokenizers" }
 
-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "logback" }
-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "logback" }
+bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
 
 auth0-jwt = { module = "com.auth0:java-jwt", version.ref = "auth0-jwt" }
 

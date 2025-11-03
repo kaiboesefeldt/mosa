@@ -15,18 +15,18 @@ repositories {
 }
 
 dependencies {
-    val ktorVersion = "3.2.0"
+    val ktorVersion = "3.3.1"
     val koinVersion = "4.1.1"
     val exposedVersion = "1.0.0-beta-2"
-    val sqliteVersion = "3.46.0.0"
-    val jacksonVersion = "2.17.2"
-    val kotlinLoggingVersion = "7.0.7"
-    val logbackVersion = "1.5.18"
-    val djlVersion = "0.33.0"
-    val luceneVersion = "9.9.0"
-    val mockkVersion = "1.14.4"
+    val sqliteVersion = "3.50.3.0"
+    val jacksonVersion = "2.20.1"
+    val kotlinLoggingVersion = "7.0.13"
+    val logbackVersion = "1.5.20"
+    val djlVersion = "0.35.0"
+    val luceneVersion = "9.12.3"
+    val mockkVersion = "1.14.6"
     val auth0JwtVersion = "4.5.0"
-    val bouncyCastleVersion = "1.81"
+    val bouncyCastleVersion = "1.82"
 
     implementation(project(":shared"))
 
@@ -52,6 +52,7 @@ dependencies {
     // Lucene as Vector Store for KNN search
     implementation("org.apache.lucene:lucene-core:$luceneVersion")
     implementation("org.apache.lucene:lucene-analysis-common:$luceneVersion")
+    implementation("org.apache.lucene:lucene-backward-codecs:$luceneVersion")
 
     // ONNX and djl Runtime for local embeddings
     implementation(platform("ai.djl:bom:$djlVersion"))
