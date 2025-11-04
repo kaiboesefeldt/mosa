@@ -8,6 +8,8 @@
   "button.identity.download.label": "Schlüssel herunterladen",
   "button.identity.upload.aria": "Gespeichertes Schlüsselpaar hochladen",
   "button.identity.upload.label": "Schlüssel hochladen",
+  "button.identity.tools.aria": "Identitätsaktionen ein- oder ausblenden",
+  "button.identity.tools.title": "Weitere Optionen",
   "button.identity.next.aria": "Nächste Identität anzeigen",
   "button.identity.previous.aria": "Vorherige Identität anzeigen",
   "connected.authenticationTokenTitle": "Authentifizierungs-Token",

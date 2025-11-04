@@ -1,21 +1,27 @@
 package straightway.mosa.client.ui
 
+import kotlinx.browser.document
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import react.FC
 import react.Props
+import react.dom.events.MouseEvent
 import react.dom.html.ReactHTML.br
 import react.dom.html.ReactHTML.button
 import react.dom.html.ReactHTML.div
 import react.dom.html.ReactHTML.h1
+import react.dom.html.ReactHTML.i
 import react.dom.html.ReactHTML.img
 import react.dom.html.ReactHTML.p
 import react.dom.html.ReactHTML.span
-import web.cssom.ClassName
-import react.dom.events.MouseEvent
-import web.html.HTMLDivElement
+import react.useEffect
+import react.useState
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.identity.FictionalName
+import web.cssom.ClassName
+import web.html.HTMLDivElement
+import org.w3c.dom.events.Event
+import org.w3c.dom.events.EventListener
 
 external interface IdentityLandingViewProps : Props {
     var identityNameParts: FictionalName
@@ -45,6 +51,21 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
     val totalItems = props.identityTotal.coerceAtLeast(1)
     val boundedIndex = props.identityIndex.coerceIn(0, totalItems - 1)
     val activeSegment = if (totalItems <= 1) 0 else boundedIndex
+    val (areToolsVisible, setToolsVisible) = useState(false)
+
+    useEffect(arrayOf(areToolsVisible)) {
+        if (!areToolsVisible) return@useEffect
+        val listener =
+            EventListener { event: Event ->
+                val target = event.target ?: return@EventListener
+                val closestTools = target.asDynamic().closest?.call(target, ".landing-dialog__identity-tools")
+                if (closestTools == null) {
+                    setToolsVisible(false)
+                }
+            }
+        document.addEventListener("pointerdown", listener)
+        { document.removeEventListener("pointerdown", listener) }
+    }
     div {
         className = ClassName("landing-overlay")
         div {
@@ -62,27 +83,100 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
             }
             div {
                 className = ClassName("landing-dialog__identity")
-                button {
-                    className = ClassName("landing-dialog__identity-delete")
-                    disabled = props.isBusy || !props.canDelete
-                    ariaLabel = translator.translate("button.identity.delete.aria")
-                    onClick = {
-                        if (!props.isBusy && props.canDelete) props.onDelete()
+                div {
+                    className =
+                        ClassName(
+                            buildString {
+                                append("landing-dialog__identity-tools")
+                                if (areToolsVisible) append(" landing-dialog__identity-tools--expanded")
+                            }
+                        )
+                    button {
+                        className = ClassName("button button--icon landing-dialog__identity-tools-trigger")
+                        ariaLabel = translator.translate("button.identity.tools.aria")
+                        title = translator.translate("button.identity.tools.title")
+                        ariaExpanded = areToolsVisible
+                        onClick = {
+                            setToolsVisible { current -> !current }
+                        }
+                        i {
+                            className = ClassName("fa fa-solid fa-ellipsis")
+                            ariaHidden = true
+                        }
                     }
-                    +"×"
+                    if (areToolsVisible) {
+                        div {
+                            className = ClassName("landing-dialog__identity-tools-menu")
+                            button {
+                                className = ClassName("button button--icon landing-dialog__identity-tool")
+                                disabled = props.isBusy || !props.canDelete
+                                ariaLabel = translator.translate("button.identity.delete.aria")
+                                title = translator.translate("button.identity.delete.aria")
+                                onClick = {
+                                    if (!props.isBusy && props.canDelete) {
+                                        setToolsVisible(false)
+                                        props.onDelete()
+                                    }
+                                }
+                                i {
+                                    className = ClassName("fa fa-solid fa-trash-can")
+                                    ariaHidden = true
+                                }
+                            }
+                            button {
+                                className = ClassName("button button--icon landing-dialog__identity-tool")
+                                disabled = props.isBusy || !props.canDownload
+                                ariaLabel = translator.translate("button.identity.download.aria")
+                                title = translator.translate("button.identity.download.label")
+                                onClick = {
+                                    if (!props.isBusy && props.canDownload) {
+                                        setToolsVisible(false)
+                                        props.onDownload()
+                                    }
+                                }
+                                i {
+                                    className = ClassName("fa fa-solid fa-download")
+                                    ariaHidden = true
+                                }
+                            }
+                            button {
+                                className = ClassName("button button--icon landing-dialog__identity-tool")
+                                disabled = props.isBusy || !props.canUpload
+                                ariaLabel = translator.translate("button.identity.upload.aria")
+                                title = translator.translate("button.identity.upload.label")
+                                onClick = {
+                                    if (!props.isBusy && props.canUpload) {
+                                        setToolsVisible(false)
+                                        props.onUpload()
+                                    }
+                                }
+                                i {
+                                    className = ClassName("fa fa-solid fa-upload")
+                                    ariaHidden = true
+                                }
+                            }
+                        }
+                    }
                 }
                 button {
                     className = ClassName("landing-dialog__nav-button")
                     disabled = props.isBusy || !props.canNavigatePrevious
                     ariaLabel = translator.translate("button.identity.previous.aria")
+                    title = translator.translate("button.identity.previous.aria")
                     onClick = { props.onPrevious() }
-                    +"<"
+                    i {
+                        className = ClassName("fa fa-solid fa-chevron-left")
+                        ariaHidden = true
+                    }
                 }
                 div {
                     className = ClassName("landing-dialog__identity-content")
                     span {
                         className = ClassName("landing-dialog__identity-heading")
-                        +translator.translate("landing.identityLabel")
+                        span {
+                            className = ClassName("landing-dialog__identity-heading-label")
+                            +translator.translate("landing.identityLabel")
+                        }
                     }
                     p {
                         className = ClassName("landing-dialog__identity-value")
@@ -100,31 +194,24 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
                             +line
                         }
                     }
-                    button {
-                        className = ClassName("button button--subtle landing-dialog__identity-download")
-                        disabled = props.isBusy || !props.canDownload
-                        ariaLabel = translator.translate("button.identity.download.aria")
-                        onClick = {
-                            if (!props.isBusy && props.canDownload) props.onDownload()
-                        }
-                        +translator.translate("button.identity.download.label")
-                    }
-                    button {
-                        className = ClassName("button button--subtle landing-dialog__identity-upload")
-                        disabled = props.isBusy || !props.canUpload
-                        ariaLabel = translator.translate("button.identity.upload.aria")
-                        onClick = {
-                            if (!props.isBusy && props.canUpload) props.onUpload()
-                        }
-                        +translator.translate("button.identity.upload.label")
-                    }
                 }
                 button {
                     className = ClassName("landing-dialog__nav-button")
                     disabled = props.isBusy || !props.canNavigateNext
                     ariaLabel = translator.translate("button.identity.next.aria")
+                    title = translator.translate("button.identity.next.aria")
                     onClick = { props.onNext() }
-                    +(if (props.isShowingLastIdentity) "+" else ">")
+                    if (props.isShowingLastIdentity) {
+                        i {
+                            className = ClassName("fa fa-solid fa-user-plus")
+                            ariaHidden = true
+                        }
+                    } else {
+                        i {
+                            className = ClassName("fa fa-solid fa-chevron-right")
+                            ariaHidden = true
+                        }
+                    }
                 }
                 div {
                     className = ClassName("landing-dialog__identity-progress")

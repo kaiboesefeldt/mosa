@@ -7,6 +7,7 @@ import react.Props
 import react.create
 import react.dom.client.Root
 import react.dom.client.createRoot
+import straightway.mosa.client.assets.FontAwesomeResources
 import straightway.mosa.client.ui.IdentityConnectedView
 import straightway.mosa.client.ui.IdentityLandingView
 import straightway.mosa.client.ui.IdentityScreen
@@ -14,6 +15,7 @@ import straightway.mosa.client.ui.useIdentitySession
 import web.dom.Element as WebElement
 
 fun main() {
+    FontAwesomeResources.loadStyles()
     AppModule.start()
     val rootElement =
         document.getElementById("root")?.unsafeCast<WebElement>() ?: error("Element `root` not found")

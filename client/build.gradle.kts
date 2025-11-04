@@ -28,6 +28,9 @@ kotlin {
             }
             commonWebpackConfig {
                 devtool = "source-map"
+                cssSupport {
+                    enabled = true
+                }
             }
             testTask {
                 useKarma {

@@ -8,6 +8,8 @@
   "button.identity.download.label": "Download keys",
   "button.identity.upload.aria": "Upload saved key pair",
   "button.identity.upload.label": "Upload keys",
+  "button.identity.tools.aria": "Toggle identity options",
+  "button.identity.tools.title": "More options",
   "button.identity.next.aria": "Show next identity",
   "button.identity.previous.aria": "Show previous identity",
   "connected.authenticationTokenTitle": "Authentication token",

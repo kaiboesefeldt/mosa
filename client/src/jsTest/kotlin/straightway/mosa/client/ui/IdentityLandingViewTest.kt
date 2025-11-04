@@ -2,7 +2,6 @@ package straightway.mosa.client.ui
 
 import kotlin.js.json
 import kotlin.test.AfterTest
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -81,7 +80,7 @@ class IdentityLandingViewTest {
     }
 
     @Test
-    fun `shows plus label when last identity is active`() = runTest {
+    fun `shows plus icon when last identity is active`() = runTest {
         renderIdentityLandingView {
             canNavigateNext = true
             isShowingLastIdentity = true
@@ -89,7 +88,9 @@ class IdentityLandingViewTest {
 
         val nextButton = screen.getByRole("button", json("name" to text("button.identity.next.aria")))
 
-        assertEquals("+", nextButton.textContent)
+        val plusIcon = nextButton.querySelector("i.fa-user-plus")
+
+        assertTrue(plusIcon != null)
     }
 
     @Test
@@ -100,9 +101,10 @@ class IdentityLandingViewTest {
             onDelete = { handled = true }
         }
 
-        val deleteButton = screen.getByRole("button", json("name" to text("button.identity.delete.aria")))
-
         val user = userEvent.setup()
+        val toolsButton = screen.getByRole("button", json("name" to text("button.identity.tools.aria")))
+        user.click(toolsButton).await()
+        val deleteButton = screen.getByRole("button", json("name" to text("button.identity.delete.aria")))
         user.click(deleteButton).await()
 
         assertTrue(handled)
@@ -116,9 +118,10 @@ class IdentityLandingViewTest {
             onUpload = { handled = true }
         }
 
-        val uploadButton = screen.getByRole("button", json("name" to text("button.identity.upload.aria")))
-
         val user = userEvent.setup()
+        val toolsButton = screen.getByRole("button", json("name" to text("button.identity.tools.aria")))
+        user.click(toolsButton).await()
+        val uploadButton = screen.getByRole("button", json("name" to text("button.identity.upload.aria")))
         user.click(uploadButton).await()
 
         assertTrue(handled)
