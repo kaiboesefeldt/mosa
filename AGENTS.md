@@ -46,6 +46,10 @@
 - Tests live beside code in each module under `src/test/kotlin`. Keep them fast, deterministic, and focused—one scenario per test.
 - If you introduce new libs, always make sure you use the most recent stable version, if possible. Look up the most recent version using a web search!!
 - Don't use code comments at all! Instead, write the code so expressive, that comments are not required, e.g. by naming of code entities and extracted functions, that are named to make the functionality clear.
+- Avoid over-engineering!
+- Prefer using concrete types instead of `dynamic`.
+- Prefer using `suspend` functions instead of promises.
+- Avoid using nullable types as far as reasonable.
 - If necessary, reflect any major changes in the software architecture or the code structure in this `AGENTS.MD` file.
 - Clearly separate UI-related code from the rest.
   1. Make the ui related code as small as possible.
