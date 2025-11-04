@@ -14,13 +14,14 @@ import java.net.URL
 
 class WebClientController(
     val serveSourceMaps: Boolean = false,
+    allowPlainHttp: Boolean = false,
     private val getResourceUrl: (String) -> URL? = { WebClientController::class.java.classLoader.getResource(it) },
 ) : BaseController() {
     override fun Route.register() {
         get("/") {
             val htmlResourceUrl = getResourceUrl("static/index.html") ?: throw RuntimeException("internal resource not found")
             val hostHeader = call.request.header(HttpHeaders.Host) ?: throw BadRequestException("No Host header")
-            val proto = call.request.header("X-Forwarded-Proto") ?: defaultProtoForHost(hostHeader)
+            val proto = call.request.header("X-Forwarded-Proto") ?: defaultProto
             val base = "$proto://$hostHeader"
             val html = htmlResourceUrl.readText()
             val injected = html.injectMosaPodBase(base)
@@ -88,7 +89,7 @@ class WebClientController(
         }
     }
 
-    private fun defaultProtoForHost(host: String): String = if (host.startsWith("localhost", ignoreCase = true)) "http" else "https"
+    private val defaultProto = if (allowPlainHttp) "http" else "https"
 
     private val clientCodeJs: String by lazy {
         getResourceUrl("static/mosa-client.js")?.readText() ?: "console.log('Client not built');"

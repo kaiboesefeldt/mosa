@@ -39,7 +39,10 @@ class ServerCorsPluginTest {
                 }
             }
 
-            val response = client.get("/status")
+            val response =
+                client.get("/status") {
+                    header(HttpHeaders.XForwardedProto, "https")
+                }
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertEquals("*", response.headers[HttpHeaders.AccessControlAllowOrigin])
@@ -151,6 +154,7 @@ class ServerCorsPluginTest {
             val response =
                 client.request("/v1/items") {
                     method = HttpMethod.Options
+                    header(HttpHeaders.XForwardedProto, "https")
                 }
 
             assertEquals(HttpStatusCode.NoContent, response.status)
@@ -178,7 +182,10 @@ class ServerCorsPluginTest {
                 }
             }
 
-            val response = client.post("/v1/APPROVEGID")
+            val response =
+                client.post("/v1/APPROVEGID") {
+                    header(HttpHeaders.XForwardedProto, "https")
+                }
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertTrue(handlerInvoked)

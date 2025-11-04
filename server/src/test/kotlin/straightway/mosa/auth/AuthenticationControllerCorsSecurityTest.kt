@@ -21,8 +21,33 @@ class AuthenticationControllerCorsSecurityTest {
         }
 
     @Test
-    fun `approvegid accepts unauthenticated http request`() =
+    fun `approvegid rejects unauthenticated http request when tls required`() =
         environment {
+            val response =
+                client.post("/v1/approvegid") {
+                    header(HttpHeaders.XForwardedProto, "http")
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        AuthenticationApprovalRequest(
+                            gid = "gid",
+                        ),
+                    )
+                }
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+        }
+
+    @Test
+    fun `approvegid accepts unauthenticated http request when tls allowed`() {
+        val httpEnvironment =
+            ControllerHttpTestEnvironment(
+                AuthenticationController(podCertificateService),
+                requireTlsForPod = false,
+            ) {
+                single { podCertificateService }
+            }
+
+        httpEnvironment {
             val response =
                 client.post("/v1/approvegid") {
                     header(HttpHeaders.XForwardedProto, "http")
@@ -39,4 +64,5 @@ class AuthenticationControllerCorsSecurityTest {
             assertEquals("Retry-After", response.headers[HttpHeaders.AccessControlExposeHeaders])
             assertNull(response.headers["Access-Control-Allow-Credentials"])
         }
+    }
 }

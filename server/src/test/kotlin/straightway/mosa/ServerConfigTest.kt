@@ -1,11 +1,13 @@
 package straightway.mosa
 
 import com.auth0.jwt.interfaces.DecodedJWT
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
@@ -22,6 +24,36 @@ class ServerConfigTest {
             val response = client.post("/v1/query")
 
             assertEquals(HttpStatusCode.BadRequest, response.status)
+        }
+
+    @Test
+    fun `rejects http requests for web client when tls required`() =
+        testApplication {
+            application {
+                installNetworkServerPlugins(NoopTokenUtil, requireTlsForPod = true)
+                routing {
+                    get("/") { call.respond(HttpStatusCode.OK) }
+                }
+            }
+
+            val response = client.get("/")
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+        }
+
+    @Test
+    fun `allows http requests for web client when tls not required`() =
+        testApplication {
+            application {
+                installNetworkServerPlugins(NoopTokenUtil, requireTlsForPod = false)
+                routing {
+                    get("/") { call.respond(HttpStatusCode.OK) }
+                }
+            }
+
+            val response = client.get("/")
+
+            assertEquals(HttpStatusCode.OK, response.status)
         }
 
     @Test

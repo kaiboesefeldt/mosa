@@ -10,6 +10,7 @@ import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationPlugin
+import io.ktor.server.application.call
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
@@ -26,6 +27,9 @@ fun Application.installNetworkServerPlugins(
     tokenUtil: TokenUtil,
     requireTlsForPod: Boolean,
 ) {
+    if (requireTlsForPod) {
+        install(createMosaRequireTlsPlugin())
+    }
     install(createMosaApiCorsPlugin(requireTlsForPod))
     install(Authentication.Companion) {
         bearer {
@@ -73,6 +77,16 @@ fun createMosaApiCorsPlugin(requireTlsForPod: Boolean): ApplicationPlugin<Unit> 
                 HttpMethod.Get -> call.secureEndpointViolation(requireTlsForPod)?.let { call.respond(it) }
 
                 else -> call.respond(HttpStatusCode.MethodNotAllowed)
+            }
+        }
+    }
+
+private fun createMosaRequireTlsPlugin(): ApplicationPlugin<Unit> =
+    createApplicationPlugin("MosaRequireTls") {
+        onCall { call ->
+            if (!call.isSecureRequest()) {
+                call.respond(HttpStatusCode.BadRequest)
+                return@onCall
             }
         }
     }

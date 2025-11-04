@@ -24,23 +24,30 @@ class WebClientControllerTest {
         nullResourceUrl: Boolean = false,
         serveSourceMaps: Boolean = false,
         resourceDirectory: Path? = null,
+        allowPlainHttp: Boolean = false,
+        requireTlsForPod: Boolean = true,
     ) = object {
         val env =
             ControllerHttpTestEnvironment(
-                WebClientController(serveSourceMaps) { resourceName ->
-                    when {
-                        nullResourceUrl -> null
-                        resourceDirectory != null -> {
-                            val path = resourceDirectory.resolve(resourceName)
-                            if (Files.exists(path)) {
-                                path.toUri().toURL()
-                            } else {
-                                null
+                WebClientController(
+                    serveSourceMaps = serveSourceMaps,
+                    allowPlainHttp = allowPlainHttp,
+                    getResourceUrl = { resourceName ->
+                        when {
+                            nullResourceUrl -> null
+                            resourceDirectory != null -> {
+                                val path = resourceDirectory.resolve(resourceName)
+                                if (Files.exists(path)) {
+                                    path.toUri().toURL()
+                                } else {
+                                    null
+                                }
                             }
+                            else -> ControllerHttpTestEnvironment::class.java.classLoader.getResource(resourceName)
                         }
-                        else -> ControllerHttpTestEnvironment::class.java.classLoader.getResource(resourceName)
-                    }
-                },
+                    },
+                ),
+                requireTlsForPod = requireTlsForPod,
             )
     }
 
@@ -104,7 +111,7 @@ class WebClientControllerTest {
 
         @Test
         fun `defaults to https when no forwarded proto header present`() =
-            with(test()) {
+            with(test(requireTlsForPod = false)) {
                 env {
                     val bareClient = createClient {}
                     try {
@@ -123,8 +130,28 @@ class WebClientControllerTest {
             }
 
         @Test
-        fun `uses http for localhost hosts when no forwarded proto header present`() =
-            with(test()) {
+        fun `defaults to https for localhost hosts when plain http disabled`() =
+            with(test(requireTlsForPod = false)) {
+                env {
+                    val bareClient = createClient {}
+                    try {
+                        val response =
+                            bareClient.get("/") {
+                                headers.set(HttpHeaders.Host, "localhost:8080")
+                            }
+                        assertContains(
+                            response.bodyAsText(),
+                            Regex("""window\.MOSA_POD_BASE\s*=\s*"https://localhost:8080";"""),
+                        )
+                    } finally {
+                        bareClient.close()
+                    }
+                }
+            }
+
+        @Test
+        fun `uses http for localhost hosts when plain http enabled`() =
+            with(test(allowPlainHttp = true, requireTlsForPod = false)) {
                 env {
                     val bareClient = createClient {}
                     try {

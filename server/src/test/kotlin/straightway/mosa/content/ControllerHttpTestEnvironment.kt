@@ -40,6 +40,7 @@ import kotlin.time.Duration.Companion.days
 
 class ControllerHttpTestEnvironment(
     val controllers: List<BaseController>,
+    private val requireTlsForPod: Boolean = true,
     val additionalTestModules: org.koin.core.module.Module.() -> Unit = {},
 ) {
     val crypto = CryptoEd25519()
@@ -68,8 +69,9 @@ class ControllerHttpTestEnvironment(
 
     constructor(
         controller: BaseController,
+        requireTlsForPod: Boolean = true,
         additionalTestModules: org.koin.core.module.Module.() -> Unit = {},
-    ) : this(listOf(controller), additionalTestModules)
+    ) : this(listOf(controller), requireTlsForPod, additionalTestModules)
 
     operator fun invoke(
         vararg controllers: BaseController,
@@ -101,7 +103,7 @@ class ControllerHttpTestEnvironment(
                 modules(testModule)
             }
             application {
-                installNetworkServerPlugins(get(), requireTlsForPod = true)
+                installNetworkServerPlugins(get(), requireTlsForPod)
                 routing {
                     (this@ControllerHttpTestEnvironment.controllers + controllers).forEach {
                         register(it)
