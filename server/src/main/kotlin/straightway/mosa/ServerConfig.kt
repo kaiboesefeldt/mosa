@@ -45,7 +45,7 @@ fun Application.installNetworkServerPlugins(tokenUtil: TokenUtil) {
         jackson {
             registerModule(JavaTimeModule())
             registerModule(InstantJacksonSerializers.createModule())
-            setSerializationInclusion(JsonInclude.Include.NON_NULL)
+            setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
             setTimeZone(TimeZone.getTimeZone("UTC"))
         }
     }

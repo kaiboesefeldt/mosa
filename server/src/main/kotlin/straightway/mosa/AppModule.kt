@@ -21,7 +21,7 @@ import java.time.Clock
 
 typealias HasherFactory = () -> MessageDigest
 
-fun Module.configureMosaAppModule() {
+fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY) {
     single<EmbeddingService> { OnnxLocalEmbeddingService.create() } onClose { (it as? AutoCloseable)?.close() }
     single<Clock> { Clock.systemUTC() }
     single<VectorStore> {
@@ -43,12 +43,14 @@ fun Module.configureMosaAppModule() {
 
     single<PodCertificateService> { PodCertificateService(get()) }
 
-    single<EnvironmentVariableStore> { EnvironmentVariableStore { System.getenv(it) } }
+    single<CommandLineArgumentStore> { arguments }
 
     single { ContentController(get()) } bind BaseController::class
     single { AuthenticationController(get()) } bind BaseController::class
     single {
-        val env: EnvironmentVariableStore = get()
-        WebClientController(serveSourceMaps = env.get("MOSA_SERVE_SOURCE_MAPS")?.equals("true", ignoreCase = true) == true)
+        val cliArguments: CommandLineArgumentStore = get()
+        WebClientController(
+            serveSourceMaps = cliArguments.get(ServerCommandLineArguments.SERVE_SOURCE_MAPS) == true,
+        )
     } bind BaseController::class
 }

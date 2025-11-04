@@ -1,10 +1,8 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="pod" type="JetRunConfigurationType">
-    <envs>
-      <env name="MOSA_SERVE_SOURCE_MAPS" value="true" />
-    </envs>
     <option name="MAIN_CLASS_NAME" value="straightway.mosa.MainKt" />
     <module name="mosa.server.main" />
+    <option name="PROGRAM_PARAMETERS" value="--serve-source-maps" />
     <shortenClasspath name="NONE" />
     <method v="2">
       <option name="Make" enabled="true" />

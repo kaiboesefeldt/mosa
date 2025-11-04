@@ -130,10 +130,11 @@ class AppModuleTest {
     }
 
     @Test
-    fun `provides environment variable store service singleton`() {
-        val store = koin.get<EnvironmentVariableStore>()
-        val (anyKey, anyValue) = System.getenv().toList().first()
-        assertEquals(anyValue, store.get(anyKey))
+    fun `provides command line argument store singleton`() {
+        koinApplication!!.close()
+        val arguments = CommandLineArgumentStore.from { name -> if (name == ServerCommandLineArguments.SERVE_SOURCE_MAPS) "true" else null }
+        koinApplication = koinApplication { modules(module { configureMosaAppModule(arguments) }) }
+        assertSame(arguments, koin.get<CommandLineArgumentStore>())
     }
 
     @Test
@@ -162,11 +163,13 @@ class AppModuleTest {
         koinApplication!!.close()
         koinApplication =
             koinApplication {
-                allowOverride(true)
                 modules(
-                    module { configureMosaAppModule() },
                     module {
-                        single<EnvironmentVariableStore> { EnvironmentVariableStore { "TrUe" } }
+                        configureMosaAppModule(
+                            CommandLineArgumentStore.from {
+                                if (it == ServerCommandLineArguments.SERVE_SOURCE_MAPS) true else null
+                            },
+                        )
                     },
                 )
             }

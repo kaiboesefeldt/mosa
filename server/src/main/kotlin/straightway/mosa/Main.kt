@@ -4,17 +4,21 @@ import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.routing.routing
+import kotlinx.cli.ArgParser
+import kotlinx.cli.ArgType
+import kotlinx.cli.default
 import org.koin.dsl.module
 import org.koin.ktor.ext.getKoin
 import org.koin.ktor.plugin.Koin
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
 
-suspend fun main() {
+suspend fun main(args: Array<String>) {
+    val argumentStore = buildCommandLineArgumentStore(args)
     val server =
         embeddedServer(Netty, port = 8080) {
             install(Koin) {
-                modules(module { configureMosaAppModule() })
+                modules(module { configureMosaAppModule(argumentStore) })
             }
             installNetworkServerPlugins(getKoin().get())
             routing {
@@ -23,4 +27,19 @@ suspend fun main() {
         }
 
     server.startSuspend(wait = true)
+}
+
+internal fun buildCommandLineArgumentStore(args: Array<String>): CommandLineArgumentStore {
+    val parser = ArgParser("mosa-server")
+    val serveSourceMaps by
+        parser
+            .option(
+                ArgType.Boolean,
+                fullName = ServerCommandLineArguments.SERVE_SOURCE_MAPS_OPTION,
+                description = "Serve source maps for the client bundle",
+            ).default(false)
+    parser.parse(args)
+    val argumentValues =
+        mapOf(ServerCommandLineArguments.SERVE_SOURCE_MAPS to serveSourceMaps)
+    return CommandLineArgumentStore.from { name -> argumentValues[name] }
 }

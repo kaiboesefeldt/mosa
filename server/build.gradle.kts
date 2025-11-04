@@ -27,6 +27,7 @@ dependencies {
     val mockkVersion = "1.14.6"
     val auth0JwtVersion = "4.5.0"
     val bouncyCastleVersion = "1.82"
+    val kotlinxCliVersion = "0.3.6"
 
     implementation(project(":shared"))
 
@@ -42,6 +43,8 @@ dependencies {
     // Koin Dependency Injection
     implementation("io.insert-koin:koin-ktor:$koinVersion")
     implementation("io.insert-koin:koin-logger-slf4j:$koinVersion")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-cli-jvm:$kotlinxCliVersion")
 
     // Exposed ORM + SQLite
     implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
