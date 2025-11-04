@@ -83,6 +83,23 @@ class ContentServiceTest {
             }
 
         @Test
+        fun `queries without threadRootId uses empty fields map`() =
+            runTest {
+                setupEmbedding("topic without thread")
+                setupVectorStore()
+
+                sut.query(testUserGID, QueryRequest(topic = "topic without thread", threadRootId = null))
+
+                verifyQueryCall(
+                    VectorStore.Query(
+                        vector = testEmbedding,
+                        fromTime = null,
+                        fields = emptyMap(),
+                    ),
+                )
+            }
+
+        @Test
         fun `queries with topic only`() =
             runTest {
                 testQuery(
@@ -277,6 +294,42 @@ class ContentServiceTest {
                     )
                 assertEquals(expectedResult, result)
             }
+
+        @Test
+        fun `throws when authorGID field is missing`() =
+            runTest {
+                setupEmbedding("missing author topic")
+                val entryMissingAuthor =
+                    VectorStore.QueryResult(
+                        id = "missing-author-id",
+                        text = "entry without author",
+                        similarity = 0.5f,
+                        fields = mapOf("receivedAt" to "1609459200"),
+                    )
+                setupVectorStore(createVectorStoreResults(entries = listOf(entryMissingAuthor)))
+
+                assertThrows<RuntimeException> {
+                    sut.query(testUserGID, QueryRequest(topic = "missing author topic"))
+                }
+            }
+
+        @Test
+        fun `throws when receivedAt field is missing`() =
+            runTest {
+                setupEmbedding("missing received at topic")
+                val entryMissingReceivedAt =
+                    VectorStore.QueryResult(
+                        id = "missing-received-at-id",
+                        text = "entry without receivedAt",
+                        similarity = 0.6f,
+                        fields = mapOf("authorGID" to "author-without-received-at"),
+                    )
+                setupVectorStore(createVectorStoreResults(entries = listOf(entryMissingReceivedAt)))
+
+                assertThrows<RuntimeException> {
+                    sut.query(testUserGID, QueryRequest(topic = "missing received at topic"))
+                }
+            }
     }
 
     @Nested
@@ -349,6 +402,18 @@ class ContentServiceTest {
 
         @Test
         fun `replies with rootId field set for top level root`() = testReplyToRoot("root-123")
+
+        @Test
+        fun `throws BadRequest when root is not found`() =
+            runTest {
+                val unknownRootId = "unknown-root"
+                coEvery { vectorStore.query(VectorStore.Query(id = unknownRootId)) } returns
+                    VectorStore.QueryResults(resultsPage = emptyList(), queryOnId = null)
+
+                assertThrows<BadRequestException> {
+                    sut.reply(testUserGID, ReplyRequest(PublishRequest("ignored"), unknownRootId))
+                }
+            }
 
         @Test
         fun `throws BadRequest when replying to non-root`() =

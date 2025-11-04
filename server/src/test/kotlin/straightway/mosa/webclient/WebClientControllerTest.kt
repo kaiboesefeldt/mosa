@@ -2,12 +2,20 @@ package straightway.mosa.webclient
 
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import straightway.mosa.content.ControllerHttpTestEnvironment
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.Comparator
+import kotlin.io.path.createTempDirectory
 import kotlin.test.assertContains
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
@@ -15,14 +23,22 @@ class WebClientControllerTest {
     private fun test(
         nullResourceUrl: Boolean = false,
         serveSourceMaps: Boolean = false,
+        resourceDirectory: Path? = null,
     ) = object {
         val env =
             ControllerHttpTestEnvironment(
-                WebClientController(serveSourceMaps) {
-                    if (nullResourceUrl) {
-                        null
-                    } else {
-                        ControllerHttpTestEnvironment::class.java.classLoader.getResource(it)
+                WebClientController(serveSourceMaps) { resourceName ->
+                    when {
+                        nullResourceUrl -> null
+                        resourceDirectory != null -> {
+                            val path = resourceDirectory.resolve(resourceName)
+                            if (Files.exists(path)) {
+                                path.toUri().toURL()
+                            } else {
+                                null
+                            }
+                        }
+                        else -> ControllerHttpTestEnvironment::class.java.classLoader.getResource(resourceName)
                     }
                 },
             )
@@ -83,6 +99,46 @@ class WebClientControllerTest {
                 env {
                     val response = client.get("/")
                     assertEquals(HttpStatusCode.InternalServerError, response.status)
+                }
+            }
+
+        @Test
+        fun `defaults to https when no forwarded proto header present`() =
+            with(test()) {
+                env {
+                    val bareClient = createClient {}
+                    try {
+                        val response =
+                            bareClient.get("/") {
+                                headers.set(HttpHeaders.Host, "example.com")
+                            }
+                        assertContains(
+                            response.bodyAsText(),
+                            Regex("""window\.MOSA_POD_BASE\s*=\s*"https://example.com";"""),
+                        )
+                    } finally {
+                        bareClient.close()
+                    }
+                }
+            }
+
+        @Test
+        fun `uses http for localhost hosts when no forwarded proto header present`() =
+            with(test()) {
+                env {
+                    val bareClient = createClient {}
+                    try {
+                        val response =
+                            bareClient.get("/") {
+                                headers.set(HttpHeaders.Host, "localhost:8080")
+                            }
+                        assertContains(
+                            response.bodyAsText(),
+                            Regex("""window\.MOSA_POD_BASE\s*=\s*"http://localhost:8080";"""),
+                        )
+                    } finally {
+                        bareClient.close()
+                    }
                 }
             }
     }
@@ -154,5 +210,179 @@ class WebClientControllerTest {
                     assertContains(response.body<String>(), "--font-family")
                 }
             }
+
+        @Test
+        fun `responds with 404 when stylesheet is missing`() =
+            with(test(nullResourceUrl = true)) {
+                env {
+                    val response = client.get("/styles.css")
+                    assertEquals(HttpStatusCode.NotFound, response.status)
+                    assertEquals("", response.body<String>())
+                }
+            }
+    }
+
+    @Nested
+    inner class Webfonts {
+        @Test
+        fun `responds with 404 when font query misses parameter`() =
+            createResourceDirectory().use { resources ->
+                with(test(resourceDirectory = resources.path)) {
+                    env {
+                        val response = client.get("/webfonts/")
+                        assertEquals(HttpStatusCode.NotFound, response.status)
+                        assertEquals("", response.body<String>())
+                    }
+                }
+            }
+
+        @Test
+        fun `rejects font requests with directory traversal`() =
+            createResourceDirectory().use { resources ->
+                with(test(resourceDirectory = resources.path)) {
+                    env {
+                        val response = client.get("/webfonts/%2E%2E%2Ffont.woff2")
+                        assertEquals(HttpStatusCode.BadRequest, response.status)
+                        assertEquals("", response.body<String>())
+                    }
+                }
+            }
+
+        @Test
+        fun `responds with 404 when font file is unknown`() =
+            createResourceDirectory().use { resources ->
+                with(test(resourceDirectory = resources.path)) {
+                    env {
+                        val response = client.get("/webfonts/font.woff2")
+                        assertEquals(HttpStatusCode.NotFound, response.status)
+                        assertEquals("", response.body<String>())
+                    }
+                }
+            }
+
+        @Test
+        fun `serves font bytes when available`() =
+            createResourceDirectory("static/webfonts/font.woff2" to byteArrayOf(1, 2, 3)).use { resources ->
+                with(test(resourceDirectory = resources.path)) {
+                    env {
+                        val response = client.get("/webfonts/font.woff2")
+                        assertEquals(HttpStatusCode.OK, response.status)
+                        assertEquals(ContentType("font", "woff2"), response.contentType())
+                        assertContentEquals(byteArrayOf(1, 2, 3), response.body())
+                    }
+                }
+            }
+    }
+
+    @Nested
+    inner class StaticAsset {
+        @Test
+        fun `rejects asset requests with directory traversal`() =
+            createResourceDirectory().use { resources ->
+                with(test(resourceDirectory = resources.path)) {
+                    env {
+                        val response = client.get("/%2E%2E%2Fsecret.txt")
+                        assertEquals(HttpStatusCode.BadRequest, response.status)
+                        assertEquals("", response.body<String>())
+                    }
+                }
+            }
+
+        @Test
+        fun `responds with 404 when asset is missing`() =
+            createResourceDirectory().use { resources ->
+                with(test(resourceDirectory = resources.path)) {
+                    env {
+                        val response = client.get("/missing.js")
+                        assertEquals(HttpStatusCode.NotFound, response.status)
+                        assertEquals("", response.body<String>())
+                    }
+                }
+            }
+
+        @Test
+        fun `uses javascript content type for js assets`() =
+            createResourceDirectory("static/script.js" to "console.log('ok')".encodeToByteArray()).use { resources ->
+                with(test(resourceDirectory = resources.path)) {
+                    env {
+                        val response = client.get("/script.js")
+                        assertEquals(HttpStatusCode.OK, response.status)
+                        assertEquals(ContentType.Application.JavaScript, response.contentType())
+                        assertEquals("console.log('ok')", response.body<String>())
+                    }
+                }
+            }
+
+        @Test
+        fun `uses json content type for js map assets`() =
+            createResourceDirectory("static/script.js.map" to """{"version":3}""".encodeToByteArray()).use { resources ->
+                with(test(resourceDirectory = resources.path)) {
+                    env {
+                        val response = client.get("/script.js.map")
+                        assertEquals(HttpStatusCode.OK, response.status)
+                        assertEquals(ContentType.Application.Json, response.contentType())
+                        assertEquals("""{"version":3}""", response.body<String>())
+                    }
+                }
+            }
+
+        @Test
+        fun `uses css content type for styles`() =
+            createResourceDirectory("static/theme.css" to "body {}".encodeToByteArray()).use { resources ->
+                with(test(resourceDirectory = resources.path)) {
+                    env {
+                        val response = client.get("/theme.css")
+                        assertEquals(HttpStatusCode.OK, response.status)
+                        assertEquals(ContentType.Text.CSS, response.contentType())
+                        assertEquals("body {}", response.body<String>())
+                    }
+                }
+            }
+
+        @Test
+        fun `uses font content type for woff2 assets`() =
+            createResourceDirectory("static/font.woff2" to byteArrayOf(5, 6, 7)).use { resources ->
+                with(test(resourceDirectory = resources.path)) {
+                    env {
+                        val response = client.get("/font.woff2")
+                        assertEquals(HttpStatusCode.OK, response.status)
+                        assertEquals(ContentType("font", "woff2"), response.contentType())
+                        assertContentEquals(byteArrayOf(5, 6, 7), response.body())
+                    }
+                }
+            }
+
+        @Test
+        fun `falls back to octet stream for unknown asset types`() =
+            createResourceDirectory("static/data.bin" to byteArrayOf(9, 8, 7)).use { resources ->
+                with(test(resourceDirectory = resources.path)) {
+                    env {
+                        val response = client.get("/data.bin")
+                        assertEquals(HttpStatusCode.OK, response.status)
+                        assertEquals(ContentType.Application.OctetStream, response.contentType())
+                        assertContentEquals(byteArrayOf(9, 8, 7), response.body())
+                    }
+                }
+            }
+    }
+}
+
+private fun createResourceDirectory(vararg resources: Pair<String, ByteArray>): TempResourceDirectory {
+    val directory = createTempDirectory("webclient-resources")
+    resources.forEach { (name, content) ->
+        val path = directory.resolve(name)
+        Files.createDirectories(path.parent)
+        Files.write(path, content)
+    }
+    return TempResourceDirectory(directory)
+}
+
+private class TempResourceDirectory(
+    val path: Path,
+) : AutoCloseable {
+    override fun close() {
+        Files.walk(path).use { stream ->
+            stream.sorted(Comparator.reverseOrder()).forEach { Files.deleteIfExists(it) }
+        }
     }
 }

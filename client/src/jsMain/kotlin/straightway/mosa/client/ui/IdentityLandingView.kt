@@ -3,6 +3,9 @@ package straightway.mosa.client.ui
 import kotlinx.browser.document
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
+import org.w3c.dom.events.Event
+import org.w3c.dom.events.EventListener
+import react.ChildrenBuilder
 import react.FC
 import react.Props
 import react.dom.events.MouseEvent
@@ -20,8 +23,6 @@ import straightway.mosa.client.i18n.Translator
 import straightway.mosa.identity.FictionalName
 import web.cssom.ClassName
 import web.html.HTMLDivElement
-import org.w3c.dom.events.Event
-import org.w3c.dom.events.EventListener
 
 external interface IdentityLandingViewProps : Props {
     var identityNameParts: FictionalName
@@ -52,6 +53,7 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
     val boundedIndex = props.identityIndex.coerceIn(0, totalItems - 1)
     val activeSegment = if (totalItems <= 1) 0 else boundedIndex
     val (areToolsVisible, setToolsVisible) = useState(false)
+    val toolActions = identityToolActions(props)
 
     useEffect(arrayOf(areToolsVisible)) {
         if (!areToolsVisible) return@useEffect
@@ -84,13 +86,7 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
             div {
                 className = ClassName("landing-dialog__identity")
                 div {
-                    className =
-                        ClassName(
-                            buildString {
-                                append("landing-dialog__identity-tools")
-                                if (areToolsVisible) append(" landing-dialog__identity-tools--expanded")
-                            }
-                        )
+                    className = identityToolsClass(areToolsVisible)
                     button {
                         className = ClassName("button button--icon landing-dialog__identity-tools-trigger")
                         ariaLabel = translator.translate("button.identity.tools.aria")
@@ -107,52 +103,14 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
                     if (areToolsVisible) {
                         div {
                             className = ClassName("landing-dialog__identity-tools-menu")
-                            button {
-                                className = ClassName("button button--icon landing-dialog__identity-tool")
-                                disabled = props.isBusy || !props.canDelete
-                                ariaLabel = translator.translate("button.identity.delete.aria")
-                                title = translator.translate("button.identity.delete.aria")
-                                onClick = {
-                                    if (!props.isBusy && props.canDelete) {
-                                        setToolsVisible(false)
-                                        props.onDelete()
-                                    }
-                                }
-                                i {
-                                    className = ClassName("fa fa-solid fa-trash-can")
-                                    ariaHidden = true
-                                }
-                            }
-                            button {
-                                className = ClassName("button button--icon landing-dialog__identity-tool")
-                                disabled = props.isBusy || !props.canDownload
-                                ariaLabel = translator.translate("button.identity.download.aria")
-                                title = translator.translate("button.identity.download.label")
-                                onClick = {
-                                    if (!props.isBusy && props.canDownload) {
-                                        setToolsVisible(false)
-                                        props.onDownload()
-                                    }
-                                }
-                                i {
-                                    className = ClassName("fa fa-solid fa-download")
-                                    ariaHidden = true
-                                }
-                            }
-                            button {
-                                className = ClassName("button button--icon landing-dialog__identity-tool")
-                                disabled = props.isBusy || !props.canUpload
-                                ariaLabel = translator.translate("button.identity.upload.aria")
-                                title = translator.translate("button.identity.upload.label")
-                                onClick = {
-                                    if (!props.isBusy && props.canUpload) {
-                                        setToolsVisible(false)
-                                        props.onUpload()
-                                    }
-                                }
-                                i {
-                                    className = ClassName("fa fa-solid fa-upload")
-                                    ariaHidden = true
+                            toolActions.forEach { action ->
+                                identityToolButton(
+                                    action = action,
+                                    translator = translator,
+                                    isBusy = props.isBusy,
+                                ) {
+                                    setToolsVisible(false)
+                                    action.onTrigger()
                                 }
                             }
                         }
@@ -230,15 +188,7 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
                     }
                     repeat(totalItems) { segmentIndex ->
                         span {
-                            className =
-                                ClassName(
-                                    buildString {
-                                        append("landing-dialog__identity-progress-segment")
-                                        if (segmentIndex == activeSegment) {
-                                            append(" landing-dialog__identity-progress-segment--active")
-                                        }
-                                    }
-                                )
+                            className = identityProgressSegmentClass(segmentIndex == activeSegment)
                         }
                     }
                 }
@@ -267,7 +217,92 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
 
 private object LandingViewInjector : KoinComponent
 
-private val FictionalName.nameLines: List<String> get() = listOf(
-    givenNames.joinToString(" ").trim(),
-    addendum?.let { "$it'"} + sureName
+private fun identityToolsClass(isExpanded: Boolean): ClassName =
+    if (isExpanded) {
+        ClassName("landing-dialog__identity-tools landing-dialog__identity-tools--expanded")
+    } else {
+        ClassName("landing-dialog__identity-tools")
+    }
+
+private fun identityProgressSegmentClass(isActive: Boolean): ClassName =
+    if (isActive) {
+        ClassName("landing-dialog__identity-progress-segment landing-dialog__identity-progress-segment--active")
+    } else {
+        ClassName("landing-dialog__identity-progress-segment")
+    }
+
+private val FictionalName.nameLines: List<String>
+    get() {
+        val lines = mutableListOf<String>()
+        val givenNameLine = givenNames.filter { it.isNotBlank() }.joinToString(" ")
+        if (givenNameLine.isNotBlank()) {
+            lines += givenNameLine
+        }
+        val surnameParts = mutableListOf<String>()
+        addendum?.takeIf { it.isNotBlank() }?.let { surnameParts += "$it'" }
+        if (sureName.isNotBlank()) {
+            surnameParts += sureName
+        }
+        if (surnameParts.isNotEmpty()) {
+            lines += surnameParts.joinToString(" ")
+        }
+        if (lines.isEmpty()) {
+            lines += ""
+        }
+        return lines
+    }
+
+private fun identityToolActions(props: IdentityLandingViewProps): List<IdentityToolAction> =
+    listOf(
+        IdentityToolAction(
+            isEnabled = props.canDelete,
+            ariaKey = "button.identity.delete.aria",
+            titleKey = "button.identity.delete.aria",
+            iconClass = "fa fa-solid fa-trash-can",
+            onTrigger = props.onDelete,
+        ),
+        IdentityToolAction(
+            isEnabled = props.canDownload,
+            ariaKey = "button.identity.download.aria",
+            titleKey = "button.identity.download.label",
+            iconClass = "fa fa-solid fa-download",
+            onTrigger = props.onDownload,
+        ),
+        IdentityToolAction(
+            isEnabled = props.canUpload,
+            ariaKey = "button.identity.upload.aria",
+            titleKey = "button.identity.upload.label",
+            iconClass = "fa fa-solid fa-upload",
+            onTrigger = props.onUpload,
+        ),
+    )
+
+private fun ChildrenBuilder.identityToolButton(
+    action: IdentityToolAction,
+    translator: Translator,
+    isBusy: Boolean,
+    onTriggered: () -> Unit,
+) {
+    val isDisabled = isBusy || !action.isEnabled
+    button {
+        className = ClassName("button button--icon landing-dialog__identity-tool")
+        disabled = isDisabled
+        ariaLabel = translator.translate(action.ariaKey)
+        title = translator.translate(action.titleKey)
+        onClick = {
+            if (!isDisabled) onTriggered()
+        }
+        i {
+            className = ClassName(action.iconClass)
+            ariaHidden = true
+        }
+    }
+}
+
+private data class IdentityToolAction(
+    val isEnabled: Boolean,
+    val ariaKey: String,
+    val titleKey: String,
+    val iconClass: String,
+    val onTrigger: () -> Unit,
 )
