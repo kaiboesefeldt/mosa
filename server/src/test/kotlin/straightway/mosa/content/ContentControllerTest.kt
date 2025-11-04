@@ -7,6 +7,9 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.server.application.createApplicationPlugin
+import io.ktor.server.application.install
+import io.ktor.server.auth.authentication
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.just
@@ -62,6 +65,41 @@ class ContentControllerTest {
                     assertEquals(HttpStatusCode.Created, response.status)
                     coVerify(exactly = 1) {
                         contentService.publish(env.gid, request)
+                    }
+                }
+            }
+
+        @Test
+        fun `should return 401 Unauthorized when principal disappears`() =
+            with(test) {
+                env {
+                    application {
+                        install(
+                            createApplicationPlugin("DropPrincipal") {
+                                onCall { call ->
+                                    call.authentication.principal(
+                                        Any(),
+                                    )
+                                }
+                            },
+                        )
+                    }
+
+                    val request =
+                        PublishRequest(
+                            text = "Text to publish",
+                        )
+
+                    val response =
+                        client.post("/v1/publish") {
+                            contentType(ContentType.Application.Json)
+                            setBody(request)
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.Unauthorized, response.status)
+                    coVerify(exactly = 0) {
+                        contentService.publish(any(), any())
                     }
                 }
             }

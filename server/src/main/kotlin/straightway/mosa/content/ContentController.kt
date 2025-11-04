@@ -4,6 +4,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
+import io.ktor.server.request.path
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -17,23 +18,39 @@ class ContentController(
     override fun Route.register() {
         authenticate {
             postRoute("/publish") {
-                contentService.publish(userGID, call.receive<PublishRequest>())
+                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
+                contentService.publish(gid, call.receive<PublishRequest>())
                 call.respond(HttpStatusCode.Created, null)
             }
             postRoute("/reply") {
-                contentService.reply(userGID, call.receive<ReplyRequest>())
+                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
+                contentService.reply(gid, call.receive<ReplyRequest>())
                 call.respond(HttpStatusCode.Created, null)
             }
             postRoute("/query") {
-                val result = contentService.query(userGID, call.receive<QueryRequest>())
+                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
+                val result = contentService.query(gid, call.receive<QueryRequest>())
                 call.respond(HttpStatusCode.OK, result, typeInfo<QueryResult>())
             }
             postRoute("/queryon") {
-                val result = contentService.queryOn(userGID, call.receive<QueryOnRequest>())
+                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
+                val result = contentService.queryOn(gid, call.receive<QueryOnRequest>())
                 call.respond(HttpStatusCode.OK, result, typeInfo<QueryResult>())
             }
         }
     }
 
-    private val RoutingContext.userGID get() = call.principal<UserIdPrincipal>()!!.name
+    private suspend fun RoutingContext.userGidOrRespondUnauthorized(): String? {
+        val principal =
+            runCatching {
+                requireNotNull(call.principal<UserIdPrincipal>()) {
+                    "Missing authenticated principal for ${call.request.path()}"
+                }
+            }.getOrElse {
+                val description = it.message ?: "Missing authenticated principal"
+                call.respond(HttpStatusCode.Unauthorized, mapOf("message" to description))
+                return null
+            }
+        return principal.name
+    }
 }

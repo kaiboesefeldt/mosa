@@ -1,7 +1,6 @@
 # Refactoring Opportunities
 
 ## Server
-- `server/src/main/kotlin/straightway/mosa/content/ContentController.kt:38` – Forcing `principal<UserIdPrincipal>()!!` risks a crash if authentication fails mid-pipeline. Prefer `requireNotNull` with a descriptive 401 response path so the controller degrades gracefully.
 - `server/src/main/kotlin/straightway/mosa/VectorStore.kt:34` – `vector.contentEquals(other.vector)` dereferences nullable arrays and can throw when either side is null. Guard the comparison or normalise the state before comparing to keep equality and tests stable.
 - `server/src/main/kotlin/straightway/mosa/vectorstore/LuceneLocalVectorStore.kt:64-81` – A single `Mutex` protects both reads and writes, serialising all queries under load. Split the locking into read/write paths (e.g., `ReadWriteLock`) so concurrent search traffic does not block on writers.
 - `server/src/main/kotlin/straightway/mosa/vectorstore/LuceneLocalVectorStore.kt:107-121` – Each document write calls `clock.instant()` twice and scatters field assembly across the method. Capture the timestamp once and centralise field construction to avoid inconsistent data and make the code testable.
