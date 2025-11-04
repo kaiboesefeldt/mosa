@@ -33,7 +33,7 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installNetworkServerPlugins(tokenUtil)
+                installNetworkServerPlugins(tokenUtil, requireTlsForPod = true)
                 routing {
                     authenticate {
                         get("/secure") {
@@ -47,6 +47,7 @@ class ServerConfigAuthenticationTest {
             val response =
                 client.get("/secure") {
                     header(HttpHeaders.Authorization, "Bearer valid")
+                    header(HttpHeaders.XForwardedProto, "https")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
@@ -64,7 +65,7 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installNetworkServerPlugins(tokenUtil)
+                installNetworkServerPlugins(tokenUtil, requireTlsForPod = true)
                 routing {
                     authenticate {
                         get("/secure") {
@@ -77,6 +78,7 @@ class ServerConfigAuthenticationTest {
             val response =
                 client.get("/secure") {
                     header(HttpHeaders.Authorization, "Bearer invalid")
+                    header(HttpHeaders.XForwardedProto, "https")
                 }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -95,7 +97,7 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installNetworkServerPlugins(tokenUtil)
+                installNetworkServerPlugins(tokenUtil, requireTlsForPod = true)
                 routing {
                     authenticate {
                         get("/secure") {
@@ -108,6 +110,7 @@ class ServerConfigAuthenticationTest {
             val response =
                 client.get("/secure") {
                     header(HttpHeaders.Authorization, "Bearer nocert")
+                    header(HttpHeaders.XForwardedProto, "https")
                 }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -127,7 +130,7 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installNetworkServerPlugins(tokenUtil)
+                installNetworkServerPlugins(tokenUtil, requireTlsForPod = true)
                 routing {
                     authenticate {
                         get("/secure") {
@@ -140,6 +143,7 @@ class ServerConfigAuthenticationTest {
             val response =
                 client.get("/secure") {
                     header(HttpHeaders.Authorization, "Bearer nogid")
+                    header(HttpHeaders.XForwardedProto, "https")
                 }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -156,7 +160,7 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installNetworkServerPlugins(tokenUtil)
+                installNetworkServerPlugins(tokenUtil, requireTlsForPod = true)
                 routing {
                     authenticate {
                         get("/secure") {
@@ -169,6 +173,7 @@ class ServerConfigAuthenticationTest {
             val response =
                 client.get("/secure") {
                     header(HttpHeaders.Authorization, "Bearer boom")
+                    header(HttpHeaders.XForwardedProto, "https")
                 }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)

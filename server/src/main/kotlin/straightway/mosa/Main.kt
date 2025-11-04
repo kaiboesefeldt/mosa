@@ -19,12 +19,14 @@ private val log = KotlinLogging.logger {}
 suspend fun main(args: Array<String>) {
     val argumentStore = buildCommandLineArgumentStore(args)
     val serverPort = (argumentStore.get(ServerCommandLineArguments.SERVER_PORT) as? Int) ?: 8080
+    val allowHttp =
+        (argumentStore.get(ServerCommandLineArguments.ALLOW_HTTP) as? Boolean) ?: false
     val server =
         embeddedServer(Netty, port = serverPort) {
             install(Koin) {
                 modules(module { configureMosaAppModule(argumentStore) })
             }
-            installNetworkServerPlugins(getKoin().get())
+            installNetworkServerPlugins(getKoin().get(), !allowHttp)
             routing {
                 getKoin().getAll<BaseController>().forEach { register(it) }
             }
@@ -49,11 +51,19 @@ internal fun buildCommandLineArgumentStore(args: Array<String>): CommandLineArgu
                 fullName = ServerCommandLineArguments.SERVER_PORT_OPTION,
                 description = "Port for the MOSA server",
             ).default(8080)
+    val allowHttp by
+        parser
+            .option(
+                ArgType.Boolean,
+                fullName = ServerCommandLineArguments.ALLOW_HTTP_OPTION,
+                description = "Allow plain HTTP connections to the pod",
+            ).default(false)
     parser.parse(args)
     val argumentValues =
         mapOf(
             ServerCommandLineArguments.SERVE_SOURCE_MAPS to serveSourceMaps,
             ServerCommandLineArguments.SERVER_PORT to serverPort,
+            ServerCommandLineArguments.ALLOW_HTTP to allowHttp,
         )
     logCommandLineArguments(argumentValues)
     return CommandLineArgumentStore.from { name -> argumentValues[name] }

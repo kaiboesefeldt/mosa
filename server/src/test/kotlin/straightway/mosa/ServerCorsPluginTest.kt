@@ -31,7 +31,7 @@ class ServerCorsPluginTest {
     fun `ignores non v1 routes`() =
         testApplication {
             application {
-                install(createMosaApiCorsPlugin())
+                install(createMosaApiCorsPlugin(requireTlsForPod = true))
                 routing {
                     get("/status") {
                         call.respondText("ok")
@@ -52,7 +52,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin())
+                install(createMosaApiCorsPlugin(requireTlsForPod = true))
                 routing {
                     delete("/v1/items") {
                         handlerInvoked = true
@@ -80,7 +80,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin())
+                install(createMosaApiCorsPlugin(requireTlsForPod = true))
                 routing {
                     put("/v1/items") {
                         handlerInvoked = true
@@ -108,7 +108,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin())
+                install(createMosaApiCorsPlugin(requireTlsForPod = true))
                 routing {
                     post("/v1/items") {
                         handlerInvoked = true
@@ -139,7 +139,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin())
+                install(createMosaApiCorsPlugin(requireTlsForPod = true))
                 routing {
                     get("/v1/items") {
                         handlerInvoked = true
@@ -169,7 +169,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin())
+                install(createMosaApiCorsPlugin(requireTlsForPod = true))
                 routing {
                     post("/v1/APPROVEGID") {
                         handlerInvoked = true
@@ -193,7 +193,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin())
+                install(createMosaApiCorsPlugin(requireTlsForPod = true))
                 routing {
                     get("/v1/APPROVEGID") {
                         handlerInvoked = true
@@ -202,7 +202,10 @@ class ServerCorsPluginTest {
                 }
             }
 
-            val response = client.get("/v1/APPROVEGID")
+            val response =
+                client.get("/v1/APPROVEGID") {
+                    header(HttpHeaders.XForwardedProto, "https")
+                }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
             assertFalse(handlerInvoked)
@@ -217,7 +220,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin())
+                install(createMosaApiCorsPlugin(requireTlsForPod = true))
                 routing {
                     post("/v1/items") {
                         handlerInvoked = true
@@ -246,7 +249,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin())
+                install(createMosaApiCorsPlugin(requireTlsForPod = true))
                 routing {
                     post("/v1/items") {
                         handlerInvoked = true

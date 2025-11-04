@@ -16,15 +16,17 @@ import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.bearer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.request.host
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.util.TimeZone
 
-fun Application.installNetworkServerPlugins(tokenUtil: TokenUtil) {
-    install(createMosaApiCorsPlugin())
+fun Application.installNetworkServerPlugins(
+    tokenUtil: TokenUtil,
+    requireTlsForPod: Boolean,
+) {
+    install(createMosaApiCorsPlugin(requireTlsForPod))
     install(Authentication.Companion) {
         bearer {
             authenticate { credentials ->
@@ -51,7 +53,7 @@ fun Application.installNetworkServerPlugins(tokenUtil: TokenUtil) {
     }
 }
 
-fun createMosaApiCorsPlugin(): ApplicationPlugin<Unit> =
+fun createMosaApiCorsPlugin(requireTlsForPod: Boolean): ApplicationPlugin<Unit> =
     createApplicationPlugin("MosaApiCors") {
         onCall { call ->
             call.appendCorsBaseHeaders()
@@ -65,10 +67,10 @@ fun createMosaApiCorsPlugin(): ApplicationPlugin<Unit> =
 
                 HttpMethod.Post -> {
                     if (path.equals(APPROVE_GID_ROUTE, ignoreCase = true)) return@onCall
-                    call.secureEndpointViolation()?.let { call.respond(it) }
+                    call.secureEndpointViolation(requireTlsForPod)?.let { call.respond(it) }
                 }
 
-                HttpMethod.Get -> call.secureEndpointViolation()?.let { call.respond(it) }
+                HttpMethod.Get -> call.secureEndpointViolation(requireTlsForPod)?.let { call.respond(it) }
 
                 else -> call.respond(HttpStatusCode.MethodNotAllowed)
             }
@@ -99,8 +101,8 @@ private fun ApplicationCall.appendPreflightHeaders() {
     response.headers.append(HttpHeaders.AccessControlMaxAge, CORS_MAX_AGE_SECONDS)
 }
 
-private fun ApplicationCall.secureEndpointViolation(): HttpStatusCode? {
-    if (!isSecureOrLocalRequest()) {
+private fun ApplicationCall.secureEndpointViolation(requireTlsForPod: Boolean): HttpStatusCode? {
+    if (requireTlsForPod && !isSecureRequest()) {
         return HttpStatusCode.BadRequest
     }
 
@@ -112,17 +114,11 @@ private fun ApplicationCall.secureEndpointViolation(): HttpStatusCode? {
     return null
 }
 
-private fun ApplicationCall.isSecureOrLocalRequest(): Boolean {
+private fun ApplicationCall.isSecureRequest(): Boolean {
     val forwardedProto = request.headers[HttpHeaders.XForwardedProto]
     if (forwardedProto.equals("https", ignoreCase = true)) {
         return true
     }
 
-    if (request.local.scheme.equals("https", ignoreCase = true)) {
-        return true
-    }
-
-    val forwardedHost = request.headers[HttpHeaders.XForwardedHost]?.substringBefore(":")
-    val host = (forwardedHost ?: request.host()).lowercase()
-    return host == "localhost" || host == "127.0.0.1" || host == "::1"
+    return request.local.scheme.equals("https", ignoreCase = true)
 }

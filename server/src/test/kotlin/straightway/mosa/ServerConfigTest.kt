@@ -15,13 +15,13 @@ import kotlin.test.assertEquals
 
 class ServerConfigTest {
     @Test
-    fun `allows http requests for localhost`() =
+    fun `rejects http requests without tls`() =
         testApplication {
             configureTestServer()
 
             val response = client.post("/v1/query")
 
-            assertEquals(HttpStatusCode.Unauthorized, response.status)
+            assertEquals(HttpStatusCode.BadRequest, response.status)
         }
 
     @Test
@@ -51,9 +51,32 @@ class ServerConfigTest {
             assertEquals(HttpStatusCode.Unauthorized, response.status)
         }
 
-    private fun ApplicationTestBuilder.configureTestServer() {
+    @Test
+    fun `allows http requests for non localhost hosts when tls not required`() =
+        testApplication {
+            configureTestServer(requireTls = false)
+
+            val response =
+                client.post("/v1/query") {
+                    header(HttpHeaders.Host, "example.com")
+                }
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+        }
+
+    @Test
+    fun `allows http requests when tls not required`() =
+        testApplication {
+            configureTestServer(requireTls = false)
+
+            val response = client.post("/v1/query")
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+        }
+
+    private fun ApplicationTestBuilder.configureTestServer(requireTls: Boolean = true) {
         application {
-            installNetworkServerPlugins(NoopTokenUtil)
+            installNetworkServerPlugins(NoopTokenUtil, requireTls)
             routing {
                 post("/v1/query") { call.respond(HttpStatusCode.OK) }
             }

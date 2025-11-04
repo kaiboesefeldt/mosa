@@ -31,4 +31,18 @@ class MainArgumentsTest {
 
         assertEquals(9090, store.get(ServerCommandLineArguments.SERVER_PORT))
     }
+
+    @Test
+    fun `store requires tls by default`() {
+        val store = buildCommandLineArgumentStore(emptyArray())
+
+        assertEquals(false, store.get(ServerCommandLineArguments.ALLOW_HTTP))
+    }
+
+    @Test
+    fun `store disables tls requirement when flag set to false`() {
+        val store = buildCommandLineArgumentStore(arrayOf("--allow-http"))
+
+        assertEquals(true, store.get(ServerCommandLineArguments.ALLOW_HTTP))
+    }
 }

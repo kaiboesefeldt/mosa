@@ -101,7 +101,7 @@ class ControllerHttpTestEnvironment(
                 modules(testModule)
             }
             application {
-                installNetworkServerPlugins(get())
+                installNetworkServerPlugins(get(), requireTlsForPod = true)
                 routing {
                     (this@ControllerHttpTestEnvironment.controllers + controllers).forEach {
                         register(it)

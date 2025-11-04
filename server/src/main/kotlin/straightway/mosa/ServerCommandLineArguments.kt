@@ -5,4 +5,6 @@ object ServerCommandLineArguments {
     const val SERVE_SOURCE_MAPS_OPTION = "serve-source-maps"
     const val SERVER_PORT = "serverPort"
     const val SERVER_PORT_OPTION = "port"
+    const val ALLOW_HTTP = "allowHttp"
+    const val ALLOW_HTTP_OPTION = "allow-http"
 }
