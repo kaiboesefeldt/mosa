@@ -17,4 +17,18 @@ class MainArgumentsTest {
 
         assertEquals(true, store.get(ServerCommandLineArguments.SERVE_SOURCE_MAPS))
     }
+
+    @Test
+    fun `store returns default port when port argument omitted`() {
+        val store = buildCommandLineArgumentStore(emptyArray())
+
+        assertEquals(8080, store.get(ServerCommandLineArguments.SERVER_PORT))
+    }
+
+    @Test
+    fun `store returns provided port when port argument specified`() {
+        val store = buildCommandLineArgumentStore(arrayOf("--port", "9090"))
+
+        assertEquals(9090, store.get(ServerCommandLineArguments.SERVER_PORT))
+    }
 }

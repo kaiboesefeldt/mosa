@@ -15,8 +15,9 @@ import straightway.mosa.base.register
 
 suspend fun main(args: Array<String>) {
     val argumentStore = buildCommandLineArgumentStore(args)
+    val serverPort = (argumentStore.get(ServerCommandLineArguments.SERVER_PORT) as? Int) ?: 8080
     val server =
-        embeddedServer(Netty, port = 8080) {
+        embeddedServer(Netty, port = serverPort) {
             install(Koin) {
                 modules(module { configureMosaAppModule(argumentStore) })
             }
@@ -38,8 +39,18 @@ internal fun buildCommandLineArgumentStore(args: Array<String>): CommandLineArgu
                 fullName = ServerCommandLineArguments.SERVE_SOURCE_MAPS_OPTION,
                 description = "Serve source maps for the client bundle",
             ).default(false)
+    val serverPort by
+        parser
+            .option(
+                ArgType.Int,
+                fullName = ServerCommandLineArguments.SERVER_PORT_OPTION,
+                description = "Port for the MOSA server",
+            ).default(8080)
     parser.parse(args)
     val argumentValues =
-        mapOf(ServerCommandLineArguments.SERVE_SOURCE_MAPS to serveSourceMaps)
+        mapOf(
+            ServerCommandLineArguments.SERVE_SOURCE_MAPS to serveSourceMaps,
+            ServerCommandLineArguments.SERVER_PORT to serverPort,
+        )
     return CommandLineArgumentStore.from { name -> argumentValues[name] }
 }
