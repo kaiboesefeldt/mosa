@@ -1,5 +1,6 @@
 package straightway.mosa
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
@@ -12,6 +13,8 @@ import org.koin.ktor.ext.getKoin
 import org.koin.ktor.plugin.Koin
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
+
+private val log = KotlinLogging.logger {}
 
 suspend fun main(args: Array<String>) {
     val argumentStore = buildCommandLineArgumentStore(args)
@@ -52,5 +55,23 @@ internal fun buildCommandLineArgumentStore(args: Array<String>): CommandLineArgu
             ServerCommandLineArguments.SERVE_SOURCE_MAPS to serveSourceMaps,
             ServerCommandLineArguments.SERVER_PORT to serverPort,
         )
+    logCommandLineArguments(argumentValues)
     return CommandLineArgumentStore.from { name -> argumentValues[name] }
+}
+
+private fun logCommandLineArguments(argumentValues: Map<String, Any>) {
+    val formattedArguments =
+        buildString {
+            appendLine("Server command line options:")
+            val maxKeyLength = argumentValues.keys.maxOfOrNull { it.length } ?: 0
+            argumentValues
+                .toSortedMap()
+                .forEach { (key, value) ->
+                    append("  ")
+                    append(key.padEnd(maxKeyLength))
+                    append(" = ")
+                    appendLine(value.toString())
+                }
+        }
+    log.info { formattedArguments }
 }
