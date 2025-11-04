@@ -1,4 +1,5 @@
 import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -88,4 +89,8 @@ kotlin {
 
 tasks.withType<KotlinCompile> {
     dependsOn("formatKotlin")
+}
+
+tasks.withType<KotlinJsTest>().configureEach {
+    outputs.upToDateWhen { false }
 }
