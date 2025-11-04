@@ -296,7 +296,7 @@ class ContentServiceTest {
             }
 
         @Test
-        fun `throws when authorGID field is missing`() =
+        fun `throws failure when authorGID field is missing`() =
             runTest {
                 setupEmbedding("missing author topic")
                 val entryMissingAuthor =
@@ -308,13 +308,16 @@ class ContentServiceTest {
                     )
                 setupVectorStore(createVectorStoreResults(entries = listOf(entryMissingAuthor)))
 
-                assertThrows<RuntimeException> {
-                    sut.query(testUserGID, QueryRequest(topic = "missing author topic"))
-                }
+                val exception =
+                    assertThrows<MissingVectorMetadataException> {
+                        sut.query(testUserGID, QueryRequest(topic = "missing author topic"))
+                    }
+                assertEquals("missing-author-id", exception.entryId)
+                assertEquals("authorGID", exception.fieldName)
             }
 
         @Test
-        fun `throws when receivedAt field is missing`() =
+        fun `throws failure when receivedAt field is missing`() =
             runTest {
                 setupEmbedding("missing received at topic")
                 val entryMissingReceivedAt =
@@ -326,9 +329,12 @@ class ContentServiceTest {
                     )
                 setupVectorStore(createVectorStoreResults(entries = listOf(entryMissingReceivedAt)))
 
-                assertThrows<RuntimeException> {
-                    sut.query(testUserGID, QueryRequest(topic = "missing received at topic"))
-                }
+                val exception =
+                    assertThrows<MissingVectorMetadataException> {
+                        sut.query(testUserGID, QueryRequest(topic = "missing received at topic"))
+                    }
+                assertEquals("missing-received-at-id", exception.entryId)
+                assertEquals("receivedAt", exception.fieldName)
             }
     }
 

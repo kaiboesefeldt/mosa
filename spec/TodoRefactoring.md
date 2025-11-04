@@ -1,7 +1,6 @@
 # Refactoring Opportunities
 
 ## Server
-- `server/src/main/kotlin/straightway/mosa/content/ContentService.kt:112` – Throwing generic `RuntimeException` when mandatory Lucene fields are missing makes diagnosis hard and leaks implementation details to clients. Replace with domain-specific failures (e.g., a sealed error exposed as 5xx) so callers can distinguish persistence errors from client mistakes.
 - `server/src/main/kotlin/straightway/mosa/content/ContentController.kt:38` – Forcing `principal<UserIdPrincipal>()!!` risks a crash if authentication fails mid-pipeline. Prefer `requireNotNull` with a descriptive 401 response path so the controller degrades gracefully.
 - `server/src/main/kotlin/straightway/mosa/VectorStore.kt:34` – `vector.contentEquals(other.vector)` dereferences nullable arrays and can throw when either side is null. Guard the comparison or normalise the state before comparing to keep equality and tests stable.
 - `server/src/main/kotlin/straightway/mosa/vectorstore/LuceneLocalVectorStore.kt:64-81` – A single `Mutex` protects both reads and writes, serialising all queries under load. Split the locking into read/write paths (e.g., `ReadWriteLock`) so concurrent search traffic does not block on writers.

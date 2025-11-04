@@ -110,12 +110,9 @@ class ContentService(
             content = text,
             similarity = similarity,
             rootId = fields[ROOT_ID_KEY],
-            authorGID = fields["authorGID"] ?: throw RuntimeException("No authorGID field set for vector store entry $id"),
+            authorGID = fields.requireMetadata(id, "authorGID"),
             storedAt =
-                (
-                    fields["receivedAt"]
-                        ?: throw RuntimeException("No receivedAt field set for vector store entry $id")
-                ).toLong(),
+                fields.requireMetadata(id, "receivedAt").toLong(),
         )
 
     private fun String.hashId(): String =
@@ -142,6 +139,19 @@ class ContentService(
         private const val MAX_LOG_LEN_FOR_REQUESTS = 100
         private const val ROOT_ID_KEY = "rootId"
         private val nilQueryRequest = QueryRequest()
+
+        private fun Map<String, String>.requireMetadata(
+            entryId: String,
+            fieldName: String,
+        ): String = get(fieldName) ?: missingMetadata(entryId, fieldName)
+
+        private fun missingMetadata(
+            entryId: String,
+            fieldName: String,
+        ): Nothing {
+            log.error { "Vector store entry $entryId is missing metadata field $fieldName" }
+            throw MissingVectorMetadataException(entryId, fieldName)
+        }
 
         private fun Any.logString(): String =
             toString().let {
