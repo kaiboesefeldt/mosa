@@ -37,6 +37,7 @@ class JwtBuilderAndAuth0tokenUtilTest {
             .toBase64()
     private val podSignatureFactory = TransientEd25519Factory()
     private val podCertService = PodCertificateService(podSignatureFactory, clock)
+    private val signatureVerifierProvider = ThreadLocalEd25519VerifierProvider()
     private val certValidity = 7.days
     private val podCert =
         podCertService.approveGid(
@@ -45,7 +46,7 @@ class JwtBuilderAndAuth0tokenUtilTest {
         )
     val crypto = CryptoEd25519()
     val hasherFactory: HasherFactory = { MessageDigest.getInstance("SHA256") }
-    val tokenUtil = Auth0TokenUtil(crypto, podCertService, clock, hasherFactory)
+    val tokenUtil = Auth0TokenUtil(crypto, podCertService, clock, hasherFactory, signatureVerifierProvider)
     val jwtBuilder = JwtBuilder(clock, 24.hours)
 
     @Test

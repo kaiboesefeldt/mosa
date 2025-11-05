@@ -18,11 +18,13 @@ import straightway.mosa.Crypto
 import straightway.mosa.EmbeddingService
 import straightway.mosa.HasherFactory
 import straightway.mosa.SignatureFactory
+import straightway.mosa.SignatureVerifierProvider
 import straightway.mosa.TokenUtil
 import straightway.mosa.VectorStore
 import straightway.mosa.auth.Auth0TokenUtil
 import straightway.mosa.auth.JwtBuilder
 import straightway.mosa.auth.PodCertificateService
+import straightway.mosa.auth.ThreadLocalEd25519VerifierProvider
 import straightway.mosa.auth.TransientEd25519Factory
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
@@ -51,6 +53,7 @@ class ControllerHttpTestEnvironment(
         )
     val clientKeyPair = crypto.generateKeyPair()
     val signatureFactory = TransientEd25519Factory()
+    val signatureVerifierProvider = ThreadLocalEd25519VerifierProvider()
     val podCertService = PodCertificateService(signatureFactory)
     val hasherFactory = { MessageDigest.getInstance("SHA-256") }
     val gid =
@@ -92,8 +95,9 @@ class ControllerHttpTestEnvironment(
                 single<HasherFactory> { hasherFactory }
                 single<Clock> { clock }
                 single<SignatureFactory> { signatureFactory }
+                single<SignatureVerifierProvider> { signatureVerifierProvider }
                 single<Crypto> { crypto }
-                single<TokenUtil> { Auth0TokenUtil(get(), get(), get(), get()) }
+                single<TokenUtil> { Auth0TokenUtil(get(), get(), get(), get(), get()) }
                 single<ContentService> { ContentService(get(), get(), get(), get()) }
                 single<PodCertificateService> { podCertService }
                 additionalTestModules()

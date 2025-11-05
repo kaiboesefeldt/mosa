@@ -6,8 +6,8 @@ import com.auth0.jwt.interfaces.Header
 import com.auth0.jwt.interfaces.Payload
 import straightway.mosa.Crypto
 import straightway.mosa.HasherFactory
+import straightway.mosa.SignatureVerifierProvider
 import straightway.mosa.TokenUtil
-import java.security.Signature
 import java.time.Clock
 import kotlin.io.encoding.Base64
 
@@ -16,6 +16,7 @@ class Auth0TokenUtil(
     val podCertificateService: PodCertificateService,
     val clock: Clock,
     val hasherFactory: HasherFactory,
+    val signatureVerifierProvider: SignatureVerifierProvider,
 ) : TokenUtil {
     override fun decode(jwt: String): DecodedJWT = JWT.decode(jwt)
 
@@ -32,10 +33,10 @@ class Auth0TokenUtil(
             Base64.UrlSafe
                 .withPadding(Base64.PaddingOption.ABSENT)
                 .decode(this.signature)
-        val sig = Signature.getInstance("Ed25519")
-        sig.initVerify(pubKey)
-        sig.update(headerAndPayload.toByteArray(Charsets.US_ASCII))
-        return sig.verify(signatureBytes)
+        val signature = signatureVerifierProvider.get()
+        signature.initVerify(pubKey)
+        signature.update(headerAndPayload.toByteArray(Charsets.US_ASCII))
+        return signature.verify(signatureBytes)
     }
 
     private fun Header.isHeaderValid(): Boolean {

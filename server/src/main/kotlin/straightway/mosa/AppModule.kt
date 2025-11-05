@@ -7,6 +7,7 @@ import org.koin.dsl.onClose
 import straightway.mosa.auth.Auth0TokenUtil
 import straightway.mosa.auth.AuthenticationController
 import straightway.mosa.auth.PodCertificateService
+import straightway.mosa.auth.ThreadLocalEd25519VerifierProvider
 import straightway.mosa.auth.TransientEd25519Factory
 import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentController
@@ -36,8 +37,9 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     } onClose { (it as? AutoCloseable)?.close() }
     single<HasherFactory> { { MessageDigest.getInstance("SHA-256") } }
     single<SignatureFactory> { TransientEd25519Factory() }
+    single<SignatureVerifierProvider> { ThreadLocalEd25519VerifierProvider() }
     single<Crypto> { CryptoEd25519() }
-    single<TokenUtil> { Auth0TokenUtil(get(), get(), get(), get()) }
+    single<TokenUtil> { Auth0TokenUtil(get(), get(), get(), get(), get()) }
 
     single<ContentService> { ContentService(get(), get(), get(), get()) }
 
