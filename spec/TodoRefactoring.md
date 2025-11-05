@@ -1,7 +1,6 @@
 # Refactoring Opportunities
 
 ## Server
-- `server/src/main/kotlin/straightway/mosa/embedding/OnnxLocalEmbeddingService.kt:15-21` – DJL `Predictor` instances are not thread-safe, yet this singleton shares one across all coroutines. Introduce pooled predictors or synchronise access to prevent intermittent inference failures.
 - `server/src/main/kotlin/straightway/mosa/AppModule.kt:20-40` – Runtime defaults (model URL, Lucene directory, page sizes) are hard-coded, forcing code changes for ops tweaks and complicating tests. Externalise them through configuration/CLI to improve maintainability.
 - `server/src/main/kotlin/straightway/mosa/crypto/CryptoEd25519.kt:17` – Initialising a new `CryptoEd25519` repeatedly adds the BouncyCastle provider on each construction. Cache the provider setup (or guard with a check) so multiple instances—especially in tests—do not pay provider registration costs.
 - `server/src/main/kotlin/straightway/mosa/crypto/Util.kt:7` – `encoded.takeLast(32)` relies on provider-specific key encoding and allocates an intermediate list. Replace with a precise slice (`copyOfRange`) or better, reuse the existing key export utility to avoid brittle assumptions.

@@ -5,6 +5,8 @@ import ai.djl.repository.zoo.Criteria.builder
 import ai.djl.repository.zoo.ModelZoo
 import ai.djl.repository.zoo.ZooModel
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import straightway.mosa.EmbeddingService
 
 class OnnxLocalEmbeddingService private constructor(
@@ -13,14 +15,19 @@ class OnnxLocalEmbeddingService private constructor(
     AutoCloseable {
     private val model = loadModel(modelUrl)
     private val predictor = model.newPredictor()
+    private val predictorMutex = Mutex()
 
     override val dimension: Int by lazy { runBlocking { embed("determine embedding size").size } }
 
-    override suspend fun embed(text: String): FloatArray = predictor.predict(text)
+    override suspend fun embed(text: String): FloatArray = predictorMutex.withLock { predictor.predict(text) }
 
     override fun close() {
-        predictor.close()
-        model.close()
+        runBlocking {
+            predictorMutex.withLock {
+                predictor.close()
+                model.close()
+            }
+        }
     }
 
     fun interface Factory {
