@@ -21,7 +21,7 @@ import kotlin.io.encoding.Base64
 
 class CryptoEd25519 : Crypto {
     init {
-        Security.addProvider(BouncyCastleProvider())
+        ensureBouncyCastleProvider()
     }
 
     override fun generateKeyPair(): KeyPair {
@@ -105,5 +105,15 @@ class CryptoEd25519 : Crypto {
         return JcaPEMKeyConverter()
             .setProvider("BC")
             .getPublicKey(spki)
+    }
+
+    companion object {
+        private const val PROVIDER_NAME = "BC"
+
+        private fun ensureBouncyCastleProvider() {
+            if (Security.getProvider(PROVIDER_NAME) == null) {
+                Security.addProvider(BouncyCastleProvider())
+            }
+        }
     }
 }
