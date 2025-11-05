@@ -132,7 +132,10 @@ class AppModuleTest {
     @Test
     fun `provides command line argument store singleton`() {
         koinApplication!!.close()
-        val arguments = CommandLineArgumentStore.from { name -> if (name == ServerCommandLineArguments.SERVE_SOURCE_MAPS) "true" else null }
+        val arguments =
+            CommandLineArgumentStore.from { name ->
+                if (name == ServerCommandLineArguments.SERVE_SOURCE_MAPS) true else null
+            }
         koinApplication = koinApplication { modules(module { configureMosaAppModule(arguments) }) }
         assertSame(arguments, koin.get<CommandLineArgumentStore>())
     }
