@@ -1,5 +1,8 @@
 # MOSA Agent Guide
 
+## General
+- Answer in the same language as the request formulated by the user.
+
 ## Module Topology
 - `server/src/main/kotlin` – Ktor + Koin application entry point (`Main.kt`) with controllers, services, and DI wiring in `AppModule.kt`.
 - `client/src/jsMain/kotlin` – Kotlin/JS web client; Webpack output copied to `server/build/resources/main/static` via the `copyClientFiles` Gradle task.
@@ -47,16 +50,18 @@
 - If you introduce new libs, always make sure you use the most recent stable version, if possible. Look up the most recent version using a web search!!
 - Don't use code comments at all! Instead, write the code so expressive, that comments are not required, e.g. by naming of code entities and extracted functions, that are named to make the functionality clear.
 - Avoid over-engineering!
+- Avoid premature optimization!
 - Prefer using concrete types instead of `dynamic`.
 - Prefer using `suspend` functions instead of promises.
 - Avoid using nullable types as far as reasonable.
 - If necessary, reflect any major changes in the software architecture or the code structure in this `AGENTS.MD` file.
+- Don't use reflection!
 - Clearly separate UI-related code from the rest.
   1. Make the ui related code as small as possible.
   2. Only make sure, ui-related code compiles, but don't write tests for this code. 
 - If you develop business logic, you MUST work test-driven, iteratively in very small increments, i.e.
   1. Plan a small iteration, that brings you closer to the solution
-  2. FIRST write a MINMAL unit test, that tests the small functionality increment to develop
+  2. FIRST write a MINIMAL unit test, that tests the small functionality increment to develop
   3. THEN write the MINIMAL production code, that makes the test green
   4. THEN, without changing the test, clean up the production code, make it nice and minimal
   5. THEN, without changing the production code, clean up the test code
@@ -73,6 +78,7 @@
 - Strictly handle one minimal test case per test.
 - Make sure, tests DON'T succeed, only because preconditions are NOT met (e.g. `val c = createComponent() ?: return@runTest)`.
 - Name tests using kotlin's backtick notation, e.g. "fun `invokes connect handler when interaction finishes`()"
+- It is OK to make minor, functionally neutral changes to production code to simplify testing
 
 ## Security Notes
 - Ed25519 signing implemented through `TransientEd25519Factory`; keys are ephemeral in-memory unless you persist them explicitly.
