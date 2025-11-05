@@ -31,7 +31,12 @@ interface VectorStore : AutoCloseable {
             other as Query
 
             if (id != other.id) return false
-            if (!vector.contentEquals(other.vector)) return false
+            if (vector == null) {
+                if (other.vector != null) return false
+            } else {
+                if (other.vector == null) return false
+                if (!vector.contentEquals(other.vector)) return false
+            }
             if (fromTime != other.fromTime) return false
             if (toTime != other.toTime) return false
             if (fields != other.fields) return false

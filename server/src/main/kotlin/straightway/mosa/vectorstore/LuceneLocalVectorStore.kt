@@ -125,21 +125,33 @@ class LuceneLocalVectorStore private constructor(
             }
             addedItemIdsInThisTransaction.add(id)
 
-            val doc = Document()
-            doc.add(StringField(ID_FIELD_NAME, id, Field.Store.YES))
-            doc.add(TextField(TEXT_FIELD_NAME, text, Field.Store.YES))
-            doc.add(LongPoint(TIME_ADDED_FIELD_NAME, clock.instant().epochSecond))
-            doc.add(NumericDocValuesField(TIME_ADDED_FIELD_NAME, clock.instant().epochSecond))
-            fields.forEach { (key, value) ->
-                doc.add(StringField(key, value, Field.Store.YES))
-            }
-            doc.add(KnnFloatVectorField(VECTOR_FIELD_NAME, vector, VectorSimilarityFunction.COSINE))
+            val timeAdded = clock.instant().epochSecond
+            val document = buildDocument(id, text, fields, vector, timeAdded)
 
-            writer.addDocument(doc)
+            writer.addDocument(document)
         }
 
         override suspend fun remove(id: String) {
             writer.deleteDocuments(Term(ID_FIELD_NAME, id))
+        }
+
+        private fun buildDocument(
+            id: String,
+            text: String,
+            fields: Map<String, String>,
+            vector: FloatArray,
+            timeAdded: Long,
+        ): Document {
+            val document = Document()
+            document.add(StringField(ID_FIELD_NAME, id, Field.Store.YES))
+            document.add(TextField(TEXT_FIELD_NAME, text, Field.Store.YES))
+            document.add(LongPoint(TIME_ADDED_FIELD_NAME, timeAdded))
+            document.add(NumericDocValuesField(TIME_ADDED_FIELD_NAME, timeAdded))
+            fields.forEach { (key, value) ->
+                document.add(StringField(key, value, Field.Store.YES))
+            }
+            document.add(KnnFloatVectorField(VECTOR_FIELD_NAME, vector, VectorSimilarityFunction.COSINE))
+            return document
         }
     }
 
@@ -183,7 +195,7 @@ class LuceneLocalVectorStore private constructor(
                 val searcher = IndexSearcher(this)
                 val luceneQuery = createLuceneQuery(query)
                 val topDocs =
-                    if (query.vector === null) {
+                    if (query.vector == null) {
                         searcher.search(luceneQuery, pageSize, SORT_BY_TIME_ADDED)
                     } else {
                         searcher.search(luceneQuery, pageSize)
@@ -199,7 +211,7 @@ class LuceneLocalVectorStore private constructor(
                         createSearchOnId(
                             topDocs,
                             luceneQuery,
-                            if (query.vector === null) SORT_BY_TIME_ADDED else null,
+                            if (query.vector == null) SORT_BY_TIME_ADDED else null,
                         )
                     }
 
@@ -220,7 +232,7 @@ class LuceneLocalVectorStore private constructor(
 
     fun BooleanQuery.Builder.addKnnQuery(vector: FloatArray?) =
         also {
-            if (vector !== null) {
+            if (vector != null) {
                 add(
                     KnnFloatVectorQuery(VECTOR_FIELD_NAME, vector, maxResults),
                     BooleanClause.Occur.MUST,
@@ -232,7 +244,7 @@ class LuceneLocalVectorStore private constructor(
         fieldName: String,
         value: String?,
     ) = also {
-        if (value !== null) {
+        if (value != null) {
             add(
                 TermQuery(Term(fieldName, value)),
                 BooleanClause.Occur.FILTER,
@@ -245,7 +257,7 @@ class LuceneLocalVectorStore private constructor(
         from: Instant?,
         to: Instant?,
     ) = also {
-        if (from !== null || to !== null) {
+        if (from != null || to != null) {
             add(
                 LongPoint.newRangeQuery(
                     fieldName,
@@ -260,7 +272,7 @@ class LuceneLocalVectorStore private constructor(
     override suspend fun queryOn(queryOnId: UUID?): QueryResults {
         checkClosed()
 
-        if (queryOnId === null) {
+        if (queryOnId == null) {
             return QueryResults(emptyList(), null)
         }
 
@@ -272,7 +284,7 @@ class LuceneLocalVectorStore private constructor(
             val searcher = IndexSearcher(this)
             val topDocs =
                 with(queryOnRecord) {
-                    if (sort === null) {
+                    if (sort == null) {
                         searcher.searchAfter(after, query, n)
                     } else {
                         searcher.searchAfter(after, query, n, sort)

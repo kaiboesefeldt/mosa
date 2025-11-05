@@ -1,10 +1,6 @@
 # Refactoring Opportunities
 
 ## Server
-- `server/src/main/kotlin/straightway/mosa/VectorStore.kt:34` – `vector.contentEquals(other.vector)` dereferences nullable arrays and can throw when either side is null. Guard the comparison or normalise the state before comparing to keep equality and tests stable.
-- `server/src/main/kotlin/straightway/mosa/vectorstore/LuceneLocalVectorStore.kt:64-81` – A single `Mutex` protects both reads and writes, serialising all queries under load. Split the locking into read/write paths (e.g., `ReadWriteLock`) so concurrent search traffic does not block on writers.
-- `server/src/main/kotlin/straightway/mosa/vectorstore/LuceneLocalVectorStore.kt:107-121` – Each document write calls `clock.instant()` twice and scatters field assembly across the method. Capture the timestamp once and centralise field construction to avoid inconsistent data and make the code testable.
-- `server/src/main/kotlin/straightway/mosa/vectorstore/LuceneLocalVectorStore.kt:186-235` – The code relies on referential comparisons (`===`/`!==`) against `null`. Idiomatic Kotlin uses `==`/`!=`, so update these checks to avoid surprising semantics and keep static analysis effective.
 - `server/src/main/kotlin/straightway/mosa/vectorstore/LuceneLocalVectorStore.kt:346-371` – `removeSurplusSearchOnRecords()` and `clearSearchOnFor()` mutate a `ConcurrentLinkedQueue` and `ConcurrentHashMap` without coordination. Under pressure this can throw or drift (queue empty, map non-empty). Use a consistent data structure (or wrap in a single lock) to maintain invariants.
 - `server/src/main/kotlin/straightway/mosa/embedding/OnnxLocalEmbeddingService.kt:15-21` – DJL `Predictor` instances are not thread-safe, yet this singleton shares one across all coroutines. Introduce pooled predictors or synchronise access to prevent intermittent inference failures.
 - `server/src/main/kotlin/straightway/mosa/AppModule.kt:20-40` – Runtime defaults (model URL, Lucene directory, page sizes) are hard-coded, forcing code changes for ops tweaks and complicating tests. Externalise them through configuration/CLI to improve maintainability.
