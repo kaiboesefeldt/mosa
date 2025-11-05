@@ -2,7 +2,13 @@ package straightway.mosa.vectorstore
 
 import io.ktor.server.plugins.BadRequestException
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
@@ -638,6 +644,120 @@ class LuceneLocalVectorStoreTest {
                         listOf("id4"),
                         it.resultsPage.map { it.id },
                     )
+                }
+            }
+
+        @Test
+        fun `missing history entry during cleanup does not crash pagination`() =
+            test {
+                sut.writeAccess {
+                    (1..4).forEach {
+                        add(
+                            id = "id$it",
+                            text = "Text",
+                            fields = mapOf("Hello" to "world"),
+                            vector = vector + vector(1.0, 0.0, 0.0),
+                        )
+                    }
+                }
+
+                val initialQueryResult = sut.query(Query(vector = vector))
+                assertNotNull(initialQueryResult.queryOnId)
+
+                val luceneStore = sut as LuceneLocalVectorStore
+                luceneStore.forceSearchOnHistoryDesyncForTest()
+
+                assertDoesNotThrow {
+                    sut.query(Query(vector = vector))
+                }
+            }
+
+        @Test
+        fun `concurrent query and queryOn calls keep pagination registry consistent`() =
+            test {
+                sut.writeAccess {
+                    (1..30).forEach {
+                        add(
+                            id = "id$it",
+                            text = "Text $it",
+                            fields = mapOf("Hello" to "world"),
+                            vector = vector + vector(1.0, 0.0, 0.0),
+                        )
+                        testClock.advance(1.days)
+                    }
+                }
+
+                val pendingSearchOnIds = mutableListOf<UUID>()
+                val pendingMutex = Mutex()
+                val errors = mutableListOf<Throwable>()
+                val errorMutex = Mutex()
+                val iterations = 500
+
+                coroutineScope {
+                    val producer =
+                        launch(Dispatchers.Default) {
+                            repeat(iterations) {
+                                val result =
+                                    runCatching {
+                                        sut.query(Query(vector = vector))
+                                    }
+
+                                result.onFailure {
+                                    errorMutex.withLock { errors.add(it) }
+                                }
+
+                                result
+                                    .getOrNull()
+                                    ?.queryOnId
+                                    ?.let { searchOnId ->
+                                        pendingMutex.withLock { pendingSearchOnIds.add(searchOnId) }
+                                    }
+                                yield()
+                            }
+                        }
+
+                    val consumer =
+                        launch(Dispatchers.Default) {
+                            repeat(iterations) {
+                                val searchOnId =
+                                    pendingMutex.withLock {
+                                        if (pendingSearchOnIds.isEmpty()) {
+                                            null
+                                        } else {
+                                            pendingSearchOnIds.removeAt(0)
+                                        }
+                                    }
+                                        ?: run {
+                                            yield()
+                                            return@repeat
+                                        }
+
+                                val result =
+                                    runCatching {
+                                        sut.queryOn(searchOnId)
+                                    }
+
+                                result.onFailure {
+                                    errorMutex.withLock { errors.add(it) }
+                                }
+
+                                result
+                                    .getOrNull()
+                                    ?.queryOnId
+                                    ?.let { nextSearchOnId ->
+                                        pendingMutex.withLock { pendingSearchOnIds.add(nextSearchOnId) }
+                                    }
+                                yield()
+                            }
+                        }
+
+                    producer.join()
+                    consumer.cancel()
+                    consumer.join()
+                }
+
+                errorMutex.withLock {
+                    assertTrue(errors.isEmpty())
                 }
             }
     }

@@ -36,10 +36,11 @@ import straightway.mosa.VectorStore.QueryResult
 import straightway.mosa.VectorStore.QueryResults
 import java.time.Clock
 import java.time.Instant
+import java.util.ArrayDeque
+import java.util.LinkedHashMap
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.ConcurrentMap
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 class LuceneLocalVectorStore private constructor(
     directoryFactory: () -> Directory,
@@ -159,9 +160,9 @@ class LuceneLocalVectorStore private constructor(
     private val analyzer: StandardAnalyzer = StandardAnalyzer()
     private val config = IndexWriterConfig(analyzer)
     private val access: ReaderWriter = ReaderWriter()
-    private val queryOnRecords: ConcurrentMap<UUID, QueryOnRecord> =
-        ConcurrentHashMap<UUID, QueryOnRecord>()
-    private val searchOnHistory = ConcurrentLinkedQueue<UUID>()
+    private val queryOnRecords = LinkedHashMap<UUID, QueryOnRecord>()
+    private val searchOnHistory = ArrayDeque<UUID>()
+    private val searchOnRegistryLock = ReentrantLock()
     private var closed = false
 
     init {
@@ -227,7 +228,7 @@ class LuceneLocalVectorStore private constructor(
             .addKnnQuery(query.vector)
             .addTermQuery(ID_FIELD_NAME, query.id)
             .addTimeRangeQuery(TIME_ADDED_FIELD_NAME, query.fromTime, query.toTime)
-            .apply { query.fields.forEach { key, value -> addTermQuery(key, value) } }
+            .apply { query.fields.forEach { (key, value) -> addTermQuery(key, value) } }
             .build()
 
     fun BooleanQuery.Builder.addKnnQuery(vector: FloatArray?) =
@@ -277,7 +278,7 @@ class LuceneLocalVectorStore private constructor(
         }
 
         val queryOnRecord =
-            queryOnRecords[queryOnId]
+            searchOnRegistryLock.withLock { queryOnRecords[queryOnId] }
                 ?: return QueryResults(emptyList(), null)
 
         return access.read {
@@ -361,31 +362,55 @@ class LuceneLocalVectorStore private constructor(
         after: ScoreDoc,
         sort: Sort?,
     ) {
-        removeSurplusSearchOnRecords()
-        searchOnHistory.add(searchOnId)
-        queryOnRecords.put(
-            searchOnId,
-            QueryOnRecord(
-                after = after,
-                query = query,
-                n = pageSize,
-                sort = sort,
-            ),
-        )
+        searchOnRegistryLock.withLock {
+            ensureSearchOnHistoryAlignedLocked()
+            removeSurplusSearchOnRecordsLocked()
+            searchOnHistory.addLast(searchOnId)
+            queryOnRecords[searchOnId] =
+                QueryOnRecord(
+                    after = after,
+                    query = query,
+                    n = pageSize,
+                    sort = sort,
+                )
 
-        assert(queryOnRecords.size == searchOnHistory.size)
+            assert(queryOnRecords.size == searchOnHistory.size)
+        }
     }
 
-    private fun removeSurplusSearchOnRecords() {
+    private fun removeSurplusSearchOnRecordsLocked() {
         while (maxNotFinishedQueries <= queryOnRecords.size) {
-            val entryToRemove = searchOnHistory.remove()
+            if (searchOnHistory.isEmpty()) {
+                ensureSearchOnHistoryAlignedLocked()
+                if (searchOnHistory.isEmpty()) return
+            }
+            val entryToRemove = searchOnHistory.removeFirst()
             queryOnRecords.remove(entryToRemove)
         }
     }
 
     private fun clearSearchOnFor(searchOnId: UUID) {
-        queryOnRecords.remove(searchOnId)
-        searchOnHistory.remove(searchOnId)
+        searchOnRegistryLock.withLock {
+            ensureSearchOnHistoryAlignedLocked()
+            queryOnRecords.remove(searchOnId)
+            searchOnHistory.remove(searchOnId)
+        }
+    }
+
+    private fun ensureSearchOnHistoryAlignedLocked() {
+        if (searchOnHistory.size == queryOnRecords.size &&
+            searchOnHistory.zip(queryOnRecords.keys).all { (historyId, recordId) -> historyId == recordId }
+        ) {
+            return
+        }
+        searchOnHistory.clear()
+        queryOnRecords.keys.forEach { searchOnHistory.addLast(it) }
+    }
+
+    internal fun forceSearchOnHistoryDesyncForTest() {
+        searchOnRegistryLock.withLock {
+            searchOnHistory.clear()
+        }
     }
 
     private fun checkClosed() {
