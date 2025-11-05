@@ -9,10 +9,6 @@
 - `shared/src/commonMain/kotlin/straightway/mosa/util/BitStream.kt:61` – Returning zero when the source byte array is exhausted silently corrupts downstream randomness. Surface depletion explicitly so callers can refresh entropy rather than unknowingly reusing zeros.
 - `shared/src/commonMain/kotlin/straightway/mosa/util/Permutations.kt:11-16` – Building permutations via repeated `drop`/`take` creates quadratic allocations. Rewrite using indexed insertion into a mutable buffer to cut GC pressure in name generation.
 
-## CLI
-- `cli/src/main/kotlin/straightway/mosa/cli/MosaRestClient.kt:78-86` – Deriving the GID by slicing the encoded key duplicates low-level key logic and depends on provider-specific layouts. Delegate to the shared crypto helper (or expose a dedicated `gidOf` function) so the CLI and server stay consistent.
-- `cli/src/main/kotlin/straightway/mosa/cli/MosaRestClient.kt:74-93` – Every publish/search call refreshes the certificate and JWT, even within one CLI execution. Separate certificate acquisition from message calls or cache within an invocation to shrink network chatter and latency.
-
 ## Client
 - `client/src/jsMain/kotlin/straightway/mosa/client/ui/IdentitySession.kt:1-299` – The hook mixes DI lookups, coroutine orchestration, and view-model logic in one monolith, making it hard to test or extend. Extract a state machine/service layer and keep the hook focused on React state wiring.
 - `client/src/jsMain/kotlin/straightway/mosa/client/ui/IdentitySession.kt:301` – A global `MainScope` survives component unmounts, leaking coroutines. Replace with `CoroutineScope` tied to `useEffect` cleanup or leverage `CoroutineScope` from `MainScope()` stored in state.
