@@ -41,21 +41,21 @@ internal fun buildCommandLineArgumentStore(args: Array<String>): CommandLineArgu
         parser
             .option(
                 ArgType.Boolean,
-                fullName = ServerCommandLineArguments.SERVE_SOURCE_MAPS_OPTION,
+                fullName = ServerCommandLineArguments.SERVE_SOURCE_MAPS,
                 description = "Serve source maps for the client bundle",
             ).default(false)
     val serverPort by
         parser
             .option(
                 ArgType.Int,
-                fullName = ServerCommandLineArguments.SERVER_PORT_OPTION,
+                fullName = ServerCommandLineArguments.SERVER_PORT,
                 description = "Port for the MOSA server",
             ).default(8080)
     val allowHttp by
         parser
             .option(
                 ArgType.Boolean,
-                fullName = ServerCommandLineArguments.ALLOW_HTTP_OPTION,
+                fullName = ServerCommandLineArguments.ALLOW_HTTP,
                 description = "Allow plain HTTP connections to the pod",
             ).default(false)
     parser.parse(args)
