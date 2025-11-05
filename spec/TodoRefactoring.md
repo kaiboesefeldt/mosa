@@ -1,9 +1,6 @@
 # Refactoring Opportunities
 
 ## Server
-- `server/src/main/kotlin/straightway/mosa/AppModule.kt:20-40` – Runtime defaults (model URL, Lucene directory, page sizes) are hard-coded, forcing code changes for ops tweaks and complicating tests. Externalise them through configuration/CLI to improve maintainability.
-- `server/src/main/kotlin/straightway/mosa/crypto/Util.kt:7` – `encoded.takeLast(32)` relies on provider-specific key encoding and allocates an intermediate list. Replace with a precise slice (`copyOfRange`) or better, reuse the existing key export utility to avoid brittle assumptions.
-- `server/src/main/kotlin/straightway/mosa/auth/Auth0TokenUtil.kt:53` – Decoding `getClaim("pub").asString()` without a null check can still throw because `asString()` returns null for absent claims. Add the same guard used in `isJwtSignatureValid()` before decoding to keep `isValidMisJwt` resilient.
 - `server/src/main/kotlin/straightway/mosa/auth/Auth0TokenUtil.kt:21-44` – Spinning up `Signature.getInstance("Ed25519")` on every validation is expensive. Pool or inject a `SignatureFactory` equivalent (mirroring signing) to remove hot-path allocations.
 - `server/src/main/kotlin/straightway/mosa/auth/PodCertificateService.kt:68-88` – `String?.urlDecoded()` assumes Base64-URL input for `inf`, but callers pass raw strings today. Introduce explicit encoding responsibilities and make the contract clear so optional info does not crash decoding.
 - `server/src/main/kotlin/straightway/mosa/vectorstore/LuceneLocalVectorStore.kt:1-434` – The monolithic file wraps indexing, search execution, pagination state, and concurrency control in one class. Split responsibilities (e.g., reader cache, query planner, pagination registry) so each piece stays small and independently testable.
