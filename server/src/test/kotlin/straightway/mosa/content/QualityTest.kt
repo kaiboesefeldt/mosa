@@ -5,11 +5,15 @@ import org.apache.lucene.store.ByteBuffersDirectory
 import org.junit.jupiter.api.Test
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.testdata.TestPublish
+import straightway.mosa.vectorstore.LuceneIndexAccess
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
+import straightway.mosa.vectorstore.LuceneQueryPlanner
+import straightway.mosa.vectorstore.QueryOnRegistry
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
+import kotlin.test.AfterTest
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.measureTime
@@ -21,13 +25,13 @@ class QualityTest {
             Instant.ofEpochSecond(170000000L),
             ZoneId.of("UTC"),
         )
+    val indexAccess = LuceneIndexAccess { ByteBuffersDirectory() }
     val vectorStore =
         LuceneLocalVectorStore.create(
-            directoryFactory = { ByteBuffersDirectory() },
+            indexAccess = indexAccess,
+            paginationRegistry = QueryOnRegistry(pageSize = 10, maxNotFinishedQueries = 10000),
+            queryPlanner = LuceneQueryPlanner(maxResults = 1000),
             clock,
-            maxResults = 1000,
-            pageSize = 10,
-            maxNotFinishedQueries = 10000,
             vectorSize = embeddingService.dimension,
         )
     val contentService =
@@ -63,6 +67,11 @@ class QualityTest {
         }.also {
             println("Time for ingesting ${published.size} documents: $it")
         }
+    }
+
+    @AfterTest
+    fun afterTest() {
+        indexAccess.close()
     }
 
     @Test

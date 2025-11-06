@@ -31,7 +31,10 @@ import straightway.mosa.base.register
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.installNetworkServerPlugins
 import straightway.mosa.jackson.InstantJacksonSerializers
+import straightway.mosa.vectorstore.LuceneIndexAccess
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
+import straightway.mosa.vectorstore.LuceneQueryPlanner
+import straightway.mosa.vectorstore.QueryOnRegistry
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
@@ -82,13 +85,13 @@ class ControllerHttpTestEnvironment(
     ) {
         val testModule =
             module {
+                single<LuceneIndexAccess> { LuceneIndexAccess { ByteBuffersDirectory() } } onClose { (it as? AutoCloseable)?.close() }
                 single<VectorStore> {
                     LuceneLocalVectorStore.create(
-                        directoryFactory = { ByteBuffersDirectory() },
+                        indexAccess = get(),
+                        paginationRegistry = QueryOnRegistry(pageSize = 10, maxNotFinishedQueries = 10000),
+                        queryPlanner = LuceneQueryPlanner(maxResults = 1000),
                         clock = clock,
-                        maxResults = 1000,
-                        pageSize = 10,
-                        maxNotFinishedQueries = 10000,
                         vectorSize = get<EmbeddingService>().dimension,
                     )
                 } onClose { (it as? AutoCloseable)?.close() }

@@ -14,7 +14,10 @@ import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
+import straightway.mosa.vectorstore.LuceneIndexAccess
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
+import straightway.mosa.vectorstore.LuceneQueryPlanner
+import straightway.mosa.vectorstore.QueryOnRegistry
 import straightway.mosa.webclient.WebClientController
 import java.nio.file.Paths
 import java.security.MessageDigest
@@ -25,13 +28,16 @@ typealias HasherFactory = () -> MessageDigest
 fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY) {
     single<EmbeddingService> { OnnxLocalEmbeddingService.create() } onClose { (it as? AutoCloseable)?.close() }
     single<Clock> { Clock.systemUTC() }
+    single<LuceneIndexAccess> { LuceneIndexAccess { MMapDirectory(Paths.get("mosa_lucene_index")) } } onClose
+        { (it as? AutoCloseable)?.close() }
+    single<QueryOnRegistry> { QueryOnRegistry(pageSize = 10, maxNotFinishedQueries = 10000) }
+    single<LuceneQueryPlanner> { LuceneQueryPlanner(maxResults = 1000) }
     single<VectorStore> {
         LuceneLocalVectorStore.create(
-            directoryFactory = { MMapDirectory(Paths.get("mosa_lucene_index")) },
+            indexAccess = get(),
+            paginationRegistry = get(),
+            queryPlanner = get(),
             clock = get<Clock>(),
-            maxResults = 1000,
-            pageSize = 10,
-            maxNotFinishedQueries = 10000,
             vectorSize = get<EmbeddingService>().dimension,
         )
     } onClose { (it as? AutoCloseable)?.close() }

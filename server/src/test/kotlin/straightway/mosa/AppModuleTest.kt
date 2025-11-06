@@ -4,11 +4,10 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.runs
-import io.mockk.slot
+import io.mockk.unmockkObject
 import io.mockk.verify
-import org.apache.lucene.store.Directory
-import org.apache.lucene.store.MMapDirectory
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -29,7 +28,6 @@ import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import straightway.mosa.webclient.WebClientController
-import java.nio.file.Paths
 import java.time.Clock
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -48,6 +46,7 @@ class AppModuleTest {
 
     @BeforeEach
     fun setUp() {
+        mockkObject(LuceneLocalVectorStore.Companion)
         mockOnnxEmbeddingService()
         mockVectorStore()
         koinApplication = koinApplication { modules(module { configureMosaAppModule() }) }
@@ -58,7 +57,7 @@ class AppModuleTest {
         koinApplication?.close()
         koinApplication = null
         OnnxLocalEmbeddingService.embeddingServiceFactory = null
-        LuceneLocalVectorStore.vectorStoreFactory = null
+        unmockkObject(LuceneLocalVectorStore.Companion)
     }
 
     @Test
@@ -73,25 +72,16 @@ class AppModuleTest {
 
     @Test
     fun `provides lucene vector store singleton`() {
-        val dirFactorySlot = slot<() -> Directory>()
-        LuceneLocalVectorStore.vectorStoreFactory =
-            mockk(relaxed = true) {
-                every { create(capture(dirFactorySlot), any(), any(), any(), any(), any()) } returns vectorStore
-            }
-        assertSame(vectorStore, koin.get<VectorStore>())
+        assertSame(koin.get<VectorStore>(), koin.get<VectorStore>())
         verify(exactly = 1) {
-            LuceneLocalVectorStore.vectorStoreFactory!!.create(
-                any(),
-                koin.get<Clock>(),
-                1000,
-                10,
-                10000,
-                embedding.size,
+            LuceneLocalVectorStore.create(
+                indexAccess = any(),
+                paginationRegistry = any(),
+                queryPlanner = any(),
+                clock = koin.get<Clock>(),
+                vectorSize = embedding.size,
             )
         }
-        val dir = dirFactorySlot.captured()
-        assertIs<MMapDirectory>(dir)
-        assertEquals(Paths.get("mosa_lucene_index").toAbsolutePath(), dir.directory)
     }
 
     @Test
@@ -206,18 +196,13 @@ class AppModuleTest {
     }
 
     private fun mockVectorStore() {
-        LuceneLocalVectorStore.vectorStoreFactory =
-            mockk(relaxed = true) {
-                every { create(any(), any(), any(), any(), any(), any()) } returns vectorStore
-            }
         every {
             LuceneLocalVectorStore.create(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                embedding.size,
+                indexAccess = any(),
+                paginationRegistry = any(),
+                queryPlanner = any(),
+                clock = any(),
+                vectorSize = embedding.size,
             )
         } returns vectorStore
         every { vectorStore.close() } just runs

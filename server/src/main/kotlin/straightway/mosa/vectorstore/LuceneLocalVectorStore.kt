@@ -1,190 +1,38 @@
 package straightway.mosa.vectorstore
 
-import io.ktor.server.plugins.BadRequestException
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.Document
 import org.apache.lucene.document.DocumentStoredFieldVisitor
-import org.apache.lucene.document.Field
-import org.apache.lucene.document.KnnFloatVectorField
-import org.apache.lucene.document.LongPoint
-import org.apache.lucene.document.NumericDocValuesField
-import org.apache.lucene.document.StringField
-import org.apache.lucene.document.TextField
 import org.apache.lucene.index.DirectoryReader
-import org.apache.lucene.index.DirectoryReader.openIfChanged
 import org.apache.lucene.index.IndexNotFoundException
-import org.apache.lucene.index.IndexWriter
-import org.apache.lucene.index.IndexWriterConfig
-import org.apache.lucene.index.Term
-import org.apache.lucene.index.VectorSimilarityFunction
-import org.apache.lucene.search.BooleanClause
-import org.apache.lucene.search.BooleanQuery
 import org.apache.lucene.search.IndexSearcher
-import org.apache.lucene.search.KnnFloatVectorQuery
-import org.apache.lucene.search.Query
 import org.apache.lucene.search.ScoreDoc
-import org.apache.lucene.search.Sort
-import org.apache.lucene.search.SortField
-import org.apache.lucene.search.TermQuery
 import org.apache.lucene.search.TopDocs
 import org.apache.lucene.search.TotalHits
-import org.apache.lucene.store.Directory
 import straightway.mosa.VectorStore
 import straightway.mosa.VectorStore.QueryResult
 import straightway.mosa.VectorStore.QueryResults
 import java.time.Clock
-import java.time.Instant
-import java.util.ArrayDeque
-import java.util.LinkedHashMap
 import java.util.UUID
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 
 class LuceneLocalVectorStore private constructor(
-    directoryFactory: () -> Directory,
+    private val indexAccess: LuceneIndexAccess,
+    private val paginationRegistry: QueryOnRegistry,
+    private val queryPlanner: LuceneQueryPlanner,
     private val clock: Clock,
-    private val maxResults: Int,
-    private val pageSize: Int,
-    private val maxNotFinishedQueries: Int,
     private val vectorSize: Int,
 ) : VectorStore {
-    private data class QueryOnRecord(
-        val after: ScoreDoc,
-        val query: Query,
-        val n: Int,
-        val sort: Sort?,
-    )
-
-    private inner class ReaderWriter : AutoCloseable {
-        private val writer = IndexWriter(directory, config)
-        private var reader: DirectoryReader? = null
-        private val readerLock = Mutex()
-
-        suspend fun <T> read(block: DirectoryReader.() -> T): T =
-            readerLock.withLock {
-                makeSureReaderIsInitialized()
-                reader!!.block()
-            }
-
-        suspend fun <T> write(block: suspend IndexWriter.() -> T): T =
-            readerLock.withLock {
-                writer.block().also {
-                    writer.commit()
-                    reader?.let { oldReader ->
-                        openIfChanged(reader)?.let {
-                            oldReader.close()
-                            reader = it
-                        }
-                    }
-                }
-            }
-
-        fun makeSureReaderIsInitialized(): DirectoryReader {
-            val nullSafeReader = reader ?: DirectoryReader.open(directory)
-            reader = nullSafeReader
-            return nullSafeReader
-        }
-
-        fun transaction(): Transaction =
-            Transaction(
-                runCatching { makeSureReaderIsInitialized() }.getOrNull(),
-                writer,
-            )
-
-        override fun close() {
-            reader?.close()
-        }
-    }
-
-    private inner class Transaction(
-        private val reader: DirectoryReader?,
-        private val writer: IndexWriter,
-    ) : VectorStore.Transaction {
-        private val addedItemIdsInThisTransaction = mutableSetOf<String>()
-
-        override suspend fun add(
-            id: String,
-            text: String,
-            fields: Map<String, String>,
-            vector: FloatArray,
-        ) {
-            if (vector.size != vectorSize) {
-                throw RuntimeException(
-                    "Vector size mismatch: ${vector.size} vs. $vectorSize",
-                )
-            }
-            if ((fields.keys intersect SPECIAL_FIELDS).any()) {
-                throw RuntimeException(
-                    "Usage of special field name(s): ${(fields.keys intersect SPECIAL_FIELDS)}",
-                )
-            }
-
-            if (id in addedItemIdsInThisTransaction || reader?.existsItemWithID(id) == true) {
-                throw BadRequestException("Item with ID $id already exists")
-            }
-            addedItemIdsInThisTransaction.add(id)
-
-            val timeAdded = clock.instant().epochSecond
-            val document = buildDocument(id, text, fields, vector, timeAdded)
-
-            writer.addDocument(document)
-        }
-
-        override suspend fun remove(id: String) {
-            writer.deleteDocuments(Term(ID_FIELD_NAME, id))
-        }
-
-        private fun buildDocument(
-            id: String,
-            text: String,
-            fields: Map<String, String>,
-            vector: FloatArray,
-            timeAdded: Long,
-        ): Document {
-            val document = Document()
-            document.add(StringField(ID_FIELD_NAME, id, Field.Store.YES))
-            document.add(TextField(TEXT_FIELD_NAME, text, Field.Store.YES))
-            document.add(LongPoint(TIME_ADDED_FIELD_NAME, timeAdded))
-            document.add(NumericDocValuesField(TIME_ADDED_FIELD_NAME, timeAdded))
-            fields.forEach { (key, value) ->
-                document.add(StringField(key, value, Field.Store.YES))
-            }
-            document.add(KnnFloatVectorField(VECTOR_FIELD_NAME, vector, VectorSimilarityFunction.COSINE))
-            return document
-        }
-    }
-
-    private val directory: Directory = directoryFactory()
-    private val analyzer: StandardAnalyzer = StandardAnalyzer()
-    private val config = IndexWriterConfig(analyzer)
-    private val access: ReaderWriter = ReaderWriter()
-    private val queryOnRecords = LinkedHashMap<UUID, QueryOnRecord>()
-    private val searchOnHistory = ArrayDeque<UUID>()
-    private val searchOnRegistryLock = ReentrantLock()
     private var closed = false
-
-    init {
-        if (maxNotFinishedQueries < 1) {
-            throw RuntimeException(
-                "maxNotFinishedSearches must be >= 1 (actual: $maxNotFinishedQueries)",
-            )
-        }
-    }
 
     override fun close() {
         if (closed) return
         closed = true
-        access.close()
-        analyzer.close()
-        directory.close()
+        indexAccess.close()
     }
 
     override suspend fun writeAccess(transactionBlock: suspend VectorStore.Transaction.() -> Unit) {
         checkClosed()
-        access.write {
-            access.transaction().transactionBlock()
+        indexAccess.write {
+            indexAccess.transaction(clock, vectorSize).transactionBlock()
         }
     }
 
@@ -192,9 +40,9 @@ class LuceneLocalVectorStore private constructor(
         checkClosed()
 
         return runCatching {
-            access.read {
+            indexAccess.read {
                 val searcher = IndexSearcher(this)
-                val luceneQuery = createLuceneQuery(query)
+                val luceneQuery = queryPlanner.create(query)
                 val topDocs =
                     if (query.vector == null) {
                         searcher.search(luceneQuery, pageSize, SORT_BY_TIME_ADDED)
@@ -209,7 +57,7 @@ class LuceneLocalVectorStore private constructor(
                     if (resultsPage.isNotFullPage() || topDocs.areResultsExhausted()) {
                         null
                     } else {
-                        createSearchOnId(
+                        paginationRegistry.register(
                             topDocs,
                             luceneQuery,
                             if (query.vector == null) SORT_BY_TIME_ADDED else null,
@@ -222,54 +70,6 @@ class LuceneLocalVectorStore private constructor(
             .getOrDefault(QueryResults(resultsPage = emptyList(), queryOnId = null))
     }
 
-    private fun createLuceneQuery(query: VectorStore.Query): Query =
-        BooleanQuery
-            .Builder()
-            .addKnnQuery(query.vector)
-            .addTermQuery(ID_FIELD_NAME, query.id)
-            .addTimeRangeQuery(TIME_ADDED_FIELD_NAME, query.fromTime, query.toTime)
-            .apply { query.fields.forEach { (key, value) -> addTermQuery(key, value) } }
-            .build()
-
-    fun BooleanQuery.Builder.addKnnQuery(vector: FloatArray?) =
-        also {
-            if (vector != null) {
-                add(
-                    KnnFloatVectorQuery(VECTOR_FIELD_NAME, vector, maxResults),
-                    BooleanClause.Occur.MUST,
-                )
-            }
-        }
-
-    fun BooleanQuery.Builder.addTermQuery(
-        fieldName: String,
-        value: String?,
-    ) = also {
-        if (value != null) {
-            add(
-                TermQuery(Term(fieldName, value)),
-                BooleanClause.Occur.FILTER,
-            )
-        }
-    }
-
-    fun BooleanQuery.Builder.addTimeRangeQuery(
-        fieldName: String,
-        from: Instant?,
-        to: Instant?,
-    ) = also {
-        if (from != null || to != null) {
-            add(
-                LongPoint.newRangeQuery(
-                    fieldName,
-                    from?.epochSecond ?: Long.MIN_VALUE,
-                    to?.epochSecond ?: Long.MAX_VALUE,
-                ),
-                BooleanClause.Occur.FILTER,
-            )
-        }
-    }
-
     override suspend fun queryOn(queryOnId: UUID?): QueryResults {
         checkClosed()
 
@@ -278,10 +78,10 @@ class LuceneLocalVectorStore private constructor(
         }
 
         val queryOnRecord =
-            searchOnRegistryLock.withLock { queryOnRecords[queryOnId] }
+            paginationRegistry.get(queryOnId)
                 ?: return QueryResults(emptyList(), null)
 
-        return access.read {
+        return indexAccess.read {
             val searcher = IndexSearcher(this)
             val topDocs =
                 with(queryOnRecord) {
@@ -292,7 +92,7 @@ class LuceneLocalVectorStore private constructor(
                     }
                 }
 
-            clearSearchOnFor(queryOnId)
+            paginationRegistry.clear(queryOnId)
 
             val resultsPage =
                 topDocs
@@ -303,7 +103,7 @@ class LuceneLocalVectorStore private constructor(
                 if (resultsPage.isNotFullPage() || topDocs.areResultsExhausted(resultsSoFar = queryOnRecord.n)) {
                     null
                 } else {
-                    createSearchOnId(
+                    paginationRegistry.register(
                         topDocs,
                         queryOnRecord.query,
                         queryOnRecord.sort,
@@ -314,25 +114,12 @@ class LuceneLocalVectorStore private constructor(
         }
     }
 
-    private fun DirectoryReader.existsItemWithID(itemID: String): Boolean {
-        val searcher = IndexSearcher(this)
-        val searchResult = searcher.search(TermQuery(Term(ID_FIELD_NAME, itemID)), 1)
-        return 0 < searchResult.scoreDocs.size
-    }
+    private val pageSize = paginationRegistry.pageSize
 
     private fun List<QueryResult>.isNotFullPage(): Boolean = size < pageSize
 
     private fun TopDocs.areResultsExhausted(resultsSoFar: Int = 0): Boolean =
         totalHits.value == (resultsSoFar + pageSize.toLong()) && totalHits.relation == TotalHits.Relation.EQUAL_TO
-
-    private fun createSearchOnId(
-        topDocs: TopDocs,
-        query: Query,
-        sort: Sort?,
-    ): UUID =
-        UUID.randomUUID().also {
-            registerForSearchOn(it, query, topDocs.scoreDocs.last(), sort)
-        }
 
     private fun ScoreDoc.toSearchResult(reader: DirectoryReader): QueryResult {
         val doc = getDocument(reader)
@@ -356,116 +143,24 @@ class LuceneLocalVectorStore private constructor(
             .filter { it.name() !in SPECIAL_FIELDS }
             .associate { it.name() to it.storedValue().stringValue }
 
-    private fun registerForSearchOn(
-        searchOnId: UUID,
-        query: Query,
-        after: ScoreDoc,
-        sort: Sort?,
-    ) {
-        searchOnRegistryLock.withLock {
-            ensureSearchOnHistoryAlignedLocked()
-            removeSurplusSearchOnRecordsLocked()
-            searchOnHistory.addLast(searchOnId)
-            queryOnRecords[searchOnId] =
-                QueryOnRecord(
-                    after = after,
-                    query = query,
-                    n = pageSize,
-                    sort = sort,
-                )
-
-            assert(queryOnRecords.size == searchOnHistory.size)
-        }
-    }
-
-    private fun removeSurplusSearchOnRecordsLocked() {
-        while (maxNotFinishedQueries <= queryOnRecords.size) {
-            if (searchOnHistory.isEmpty()) {
-                ensureSearchOnHistoryAlignedLocked()
-                if (searchOnHistory.isEmpty()) return
-            }
-            val entryToRemove = searchOnHistory.removeFirst()
-            queryOnRecords.remove(entryToRemove)
-        }
-    }
-
-    private fun clearSearchOnFor(searchOnId: UUID) {
-        searchOnRegistryLock.withLock {
-            ensureSearchOnHistoryAlignedLocked()
-            queryOnRecords.remove(searchOnId)
-            searchOnHistory.remove(searchOnId)
-        }
-    }
-
-    private fun ensureSearchOnHistoryAlignedLocked() {
-        if (searchOnHistory.size == queryOnRecords.size &&
-            searchOnHistory.zip(queryOnRecords.keys).all { (historyId, recordId) -> historyId == recordId }
-        ) {
-            return
-        }
-        searchOnHistory.clear()
-        queryOnRecords.keys.forEach { searchOnHistory.addLast(it) }
-    }
-
-    internal fun forceSearchOnHistoryDesyncForTest() {
-        searchOnRegistryLock.withLock {
-            searchOnHistory.clear()
-        }
-    }
-
     private fun checkClosed() {
         if (closed) throw RuntimeException("The vector store has already been closed")
     }
 
-    fun interface Factory {
-        fun create(
-            directoryFactory: () -> Directory,
-            clock: Clock,
-            maxResults: Int,
-            pageSize: Int,
-            maxNotFinishedQueries: Int,
-            vectorSize: Int,
-        ): LuceneLocalVectorStore
-    }
-
     companion object {
-        var vectorStoreFactory: Factory? = null
-
         fun create(
-            directoryFactory: () -> Directory,
+            indexAccess: LuceneIndexAccess,
+            paginationRegistry: QueryOnRegistry,
+            queryPlanner: LuceneQueryPlanner,
             clock: Clock,
-            maxResults: Int,
-            pageSize: Int,
-            maxNotFinishedQueries: Int,
             vectorSize: Int,
         ): VectorStore =
-            vectorStoreFactory?.create(
-                directoryFactory,
+            LuceneLocalVectorStore(
+                indexAccess,
+                paginationRegistry,
+                queryPlanner,
                 clock,
-                maxResults,
-                pageSize,
-                maxNotFinishedQueries,
-                vectorSize,
-            ) ?: LuceneLocalVectorStore(
-                directoryFactory,
-                clock,
-                maxResults,
-                pageSize,
-                maxNotFinishedQueries,
                 vectorSize,
             )
-
-        private const val ID_FIELD_NAME = "id"
-        private const val TEXT_FIELD_NAME = "text"
-        private const val VECTOR_FIELD_NAME = "vector"
-        private const val TIME_ADDED_FIELD_NAME = "timeadded"
-        private val SPECIAL_FIELDS =
-            setOf(
-                ID_FIELD_NAME,
-                TEXT_FIELD_NAME,
-                VECTOR_FIELD_NAME,
-                TIME_ADDED_FIELD_NAME,
-            )
-        private val SORT_BY_TIME_ADDED = Sort(SortField(TIME_ADDED_FIELD_NAME, SortField.Type.LONG, true))
     }
 }

@@ -1,8 +1,5 @@
 # Refactoring Opportunities
 
-## Server
-- `server/src/main/kotlin/straightway/mosa/vectorstore/LuceneLocalVectorStore.kt:1-434` – The monolithic file wraps indexing, search execution, pagination state, and concurrency control in one class. Split responsibilities (e.g., reader cache, query planner, pagination registry) so each piece stays small and independently testable.
-
 ## Shared
 - `shared/src/commonMain/kotlin/straightway/mosa/util/BitStream.kt:24-41` – Using modulus to fold `nextBits*` results into ranges introduces bias for non power-of-two bounds. Switch to rejection sampling to keep generated names statistically uniform.
 - `shared/src/commonMain/kotlin/straightway/mosa/util/BitStream.kt:61` – Returning zero when the source byte array is exhausted silently corrupts downstream randomness. Surface depletion explicitly so callers can refresh entropy rather than unknowingly reusing zeros.
