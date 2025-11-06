@@ -1,7 +1,6 @@
 # Refactoring Opportunities
 
 ## Server
-- `server/src/main/kotlin/straightway/mosa/auth/PodCertificateService.kt:68-88` – `String?.urlDecoded()` assumes Base64-URL input for `inf`, but callers pass raw strings today. Introduce explicit encoding responsibilities and make the contract clear so optional info does not crash decoding.
 - `server/src/main/kotlin/straightway/mosa/vectorstore/LuceneLocalVectorStore.kt:1-434` – The monolithic file wraps indexing, search execution, pagination state, and concurrency control in one class. Split responsibilities (e.g., reader cache, query planner, pagination registry) so each piece stays small and independently testable.
 
 ## Shared

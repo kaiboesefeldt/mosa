@@ -1,5 +1,6 @@
 package straightway.mosa.auth
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import straightway.mosa.SignatureFactory
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -15,21 +16,31 @@ class PodCertificateService(
         validitySeconds: Long,
         inf: String? = null,
     ): PodCertificate {
+        val gidBytes = gid.decodeBase64UrlOrNull() ?: throw InvalidPodCertificateRequest("gid")
+        val infBytes =
+            when (inf) {
+                null -> ByteArray(0)
+                else -> inf.decodeBase64UrlOrNull() ?: throw InvalidPodCertificateRequest("inf")
+            }
         val exp = calculateExpiration(validitySeconds)
-        val signingInput = buildSigningInput(gid, exp, inf)
+        val signingInput = buildSigningInput(gidBytes, exp, infBytes)
         val signature = sign(signingInput)
         return PodCertificate(gid = gid, exp = exp, inf = inf, sig = signature)
     }
 
-    fun isValid(cert: PodCertificate): Boolean =
-        clock.instant().epochSecond < cert.exp &&
-            isSignatureValid(cert)
+    fun isValid(cert: PodCertificate): Boolean = clock.instant().epochSecond < cert.exp && isSignatureValid(cert)
 
     private fun isSignatureValid(cert: PodCertificate): Boolean {
         val key = signatureFactory.publicKey
         val signer = signatureFactory.newSigner()
         signer.initVerify(key)
-        val signingInput = with(cert) { buildSigningInput(gid, exp, inf) }
+        val gidBytes = cert.gid.decodeBase64UrlOrNull() ?: return false
+        val infBytes =
+            when (val value = cert.inf) {
+                null -> ByteArray(0)
+                else -> value.decodeBase64UrlOrNull() ?: return false
+            }
+        val signingInput = buildSigningInput(gidBytes, cert.exp, infBytes)
         val sigBytes =
             kotlin.io.encoding.Base64.UrlSafe
                 .withPadding(kotlin.io.encoding.Base64.PaddingOption.ABSENT)
@@ -44,21 +55,19 @@ class PodCertificateService(
     }
 
     private fun buildSigningInput(
-        gid: String,
+        gid: ByteArray,
         exp: Long,
-        inf: String?,
+        inf: ByteArray,
     ): ByteArray {
-        val gidBytes = gid.urlDecoded()
         val expBytes = longBytes(exp)
-        val infBytes = inf.urlDecoded()
-        val totalLength = gidBytes.size + expBytes.size + infBytes.size
+        val totalLength = gid.size + expBytes.size + inf.size
 
         return ByteBuffer
             .allocate(totalLength)
             .apply {
-                put(gidBytes)
+                put(gid)
                 put(expBytes)
-                put(infBytes)
+                put(inf)
             }.array()
     }
 
@@ -69,7 +78,7 @@ class PodCertificateService(
             .putLong(exp)
             .array()
 
-    private fun String?.urlDecoded(): ByteArray = if (this === null) ByteArray(0) else Base64.getUrlDecoder().decode(this)
+    private fun String.decodeBase64UrlOrNull(): ByteArray? = runCatching { Base64.getUrlDecoder().decode(this) }.getOrNull()
 
     private fun sign(data: ByteArray): String {
         val signer = signatureFactory.newSigner()
@@ -78,3 +87,7 @@ class PodCertificateService(
         return Base64.getUrlEncoder().withoutPadding().encodeToString(signatureBytes)
     }
 }
+
+class InvalidPodCertificateRequest(
+    field: String,
+) : IllegalArgumentException("Invalid base64url encoding for $field")

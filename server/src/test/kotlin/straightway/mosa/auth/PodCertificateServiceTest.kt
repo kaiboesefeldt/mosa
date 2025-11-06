@@ -8,6 +8,7 @@ import java.time.ZoneId
 import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -49,6 +50,36 @@ class PodCertificateServiceTest {
         // We test this using a fresh PodCertificateService, which has a new key pair
         val newSignatureFactory = TransientEd25519Factory()
         assertFalse(createSut(newSignatureFactory).isValid(cert))
+    }
+
+    @Test
+    fun `approveGid fails for a gid that is not base64url encoded`() {
+        assertFailsWith<InvalidPodCertificateRequest> {
+            sut.approveGid("!!!", validitySeconds = 600L)
+        }
+    }
+
+    @Test
+    fun `approveGid fails for inf that is not base64url encoded`() {
+        val base64gid = "The GID".toBase64()
+
+        assertFailsWith<InvalidPodCertificateRequest> {
+            sut.approveGid(base64gid, validitySeconds = 600L, inf = "!!!")
+        }
+    }
+
+    @Test
+    fun `validation fails for an invalid certificate with non-base64url encoded gid`() {
+        val base64gid = "The GID".toBase64()
+        val cert = sut.approveGid(base64gid, validitySeconds = 600L).copy(gid = "!!!")
+        assertFalse(sut.isValid(cert))
+    }
+
+    @Test
+    fun `validation fails for an invalid certificate with non-base64url encoded inf`() {
+        val base64gid = "The GID".toBase64()
+        val cert = sut.approveGid(base64gid, validitySeconds = 600L).copy(inf = "!!!")
+        assertFalse(sut.isValid(cert))
     }
 
     @Test
