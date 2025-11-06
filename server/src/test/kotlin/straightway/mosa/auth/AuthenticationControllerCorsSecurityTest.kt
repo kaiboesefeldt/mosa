@@ -8,6 +8,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import straightway.mosa.content.ControllerHttpTestEnvironment
+import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -29,7 +30,7 @@ class AuthenticationControllerCorsSecurityTest {
                     contentType(ContentType.Application.Json)
                     setBody(
                         AuthenticationApprovalRequest(
-                            gid = "gid",
+                            gid = "gid".toBase64Url(),
                         ),
                     )
                 }
@@ -54,7 +55,7 @@ class AuthenticationControllerCorsSecurityTest {
                     contentType(ContentType.Application.Json)
                     setBody(
                         AuthenticationApprovalRequest(
-                            gid = "gid",
+                            gid = "gid".toBase64Url(),
                         ),
                     )
                 }
@@ -65,4 +66,40 @@ class AuthenticationControllerCorsSecurityTest {
             assertNull(response.headers["Access-Control-Allow-Credentials"])
         }
     }
+
+    @Test
+    fun `approvegid returns bad request when gid is not base64url encoded`() =
+        environment {
+            val response =
+                client.post("/v1/approvegid") {
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        AuthenticationApprovalRequest(
+                            gid = "not base64",
+                        ),
+                    )
+                }
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+        }
+
+    @Test
+    fun `approvegid bad request includes cors headers`() =
+        environment {
+            val response =
+                client.post("/v1/approvegid") {
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        AuthenticationApprovalRequest(
+                            gid = "not base64",
+                        ),
+                    )
+                }
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertEquals("*", response.headers[HttpHeaders.AccessControlAllowOrigin])
+            assertEquals("Retry-After", response.headers[HttpHeaders.AccessControlExposeHeaders])
+        }
+
+    private fun String.toBase64Url(): String = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(encodeToByteArray())
 }

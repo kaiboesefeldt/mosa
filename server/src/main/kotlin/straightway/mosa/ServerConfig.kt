@@ -17,9 +17,12 @@ import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.bearer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.plugins.statuspages.exception
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
+import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.util.TimeZone
 
@@ -31,6 +34,11 @@ fun Application.installNetworkServerPlugins(
         install(createMosaRequireTlsPlugin())
     }
     install(createMosaApiCorsPlugin(requireTlsForPod))
+    install(StatusPages) {
+        exception<InvalidPodCertificateRequest> { call, cause ->
+            call.respond(HttpStatusCode.BadRequest, mapOf("message" to cause.message))
+        }
+    }
     install(Authentication.Companion) {
         bearer {
             authenticate { credentials ->

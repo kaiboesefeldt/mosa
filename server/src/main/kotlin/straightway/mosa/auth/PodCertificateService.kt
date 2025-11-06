@@ -1,6 +1,5 @@
 package straightway.mosa.auth
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import straightway.mosa.SignatureFactory
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
