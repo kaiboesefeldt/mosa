@@ -1,7 +1,6 @@
 # Refactoring Opportunities
 
 ## Shared
-- `shared/src/commonMain/kotlin/straightway/mosa/util/Permutations.kt:11-16` – Building permutations via repeated `drop`/`take` creates quadratic allocations. Rewrite using indexed insertion into a mutable buffer to cut GC pressure in name generation.
 
 ## Client
 - `client/src/jsMain/kotlin/straightway/mosa/client/ui/IdentitySession.kt:1-299` – The hook mixes DI lookups, coroutine orchestration, and view-model logic in one monolith, making it hard to test or extend. Extract a state machine/service layer and keep the hook focused on React state wiring.
