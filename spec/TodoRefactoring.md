@@ -1,8 +1,6 @@
 # Refactoring Opportunities
 
 ## Shared
-- `shared/src/commonMain/kotlin/straightway/mosa/util/BitStream.kt:24-41` – Using modulus to fold `nextBits*` results into ranges introduces bias for non power-of-two bounds. Switch to rejection sampling to keep generated names statistically uniform.
-- `shared/src/commonMain/kotlin/straightway/mosa/util/BitStream.kt:61` – Returning zero when the source byte array is exhausted silently corrupts downstream randomness. Surface depletion explicitly so callers can refresh entropy rather than unknowingly reusing zeros.
 - `shared/src/commonMain/kotlin/straightway/mosa/util/Permutations.kt:11-16` – Building permutations via repeated `drop`/`take` creates quadratic allocations. Rewrite using indexed insertion into a mutable buffer to cut GC pressure in name generation.
 
 ## Client
