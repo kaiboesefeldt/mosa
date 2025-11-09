@@ -1,29 +1,25 @@
 package straightway.mosa.client.ui
 
 import kotlinx.browser.window
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import react.useEffect
-import react.useRef
+import react.useMemo
 import react.useState
-import straightway.mosa.auth.PodCertificate
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.i18n.Translator
-import straightway.mosa.client.identity.IdentityRepository
+import straightway.mosa.client.identity.IdentitySelectionRepository
+import straightway.mosa.client.identity.IdentityTransferPort
 import straightway.mosa.client.identity.MisJwtService
-import straightway.mosa.client.identity.Identity
-import straightway.mosa.client.identity.IdentitySelection
-import straightway.mosa.client.identity.IdentityTransferService
+import straightway.mosa.client.logging.Logger
+import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.podAccess
-import straightway.mosa.client.util.Base64
-import straightway.mosa.client.util.Base64.toBase64Url
 import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
-import straightway.mosa.util.BitStream
-import straightway.mosa.content.QueryRequest
-import straightway.mosa.content.QueryResult
 
 sealed interface IdentityScreen {
     data class Landing(
@@ -58,312 +54,123 @@ sealed interface IdentityScreen {
 
 fun useIdentitySession(): IdentityScreen {
     val translator = ClientInjector.get<Translator>()
-    val loadingText = translator.translate("identity.loading")
-    val unknownError = translator.translate("identity.unknownError")
-    val missingPodMessage = translator.translate("landing.noPodConfigured")
-    val (identityNameParts, setIdentityNameParts) = useState(placeholderName(loadingText))
-    val (identityAvatar, setIdentityAvatar) = useState<String?>(null)
-    val (currentSelection, setCurrentSelection) = useState<IdentitySelection?>(null)
-    val (misJwt, setMisJwt) = useState<String?>(null)
-    val (isConnected, setConnected) = useState(false)
-    val (isBusy, setBusy) = useState(false)
-    val (errorText, setErrorText) = useState<String?>(null)
-    val (queryPreview, setQueryPreview) = useState<String?>(null)
-    val effectRan = useRef(false)
+    val repository = ClientInjector.get<IdentitySelectionRepository>()
+    val transfer = ClientInjector.get<IdentityTransferPort>()
+    val misJwtService = ClientInjector.get<MisJwtService>()
+    val avatarGenerator = ClientInjector.get<DiceBearAvatarGenerator>()
+    val nameGenerator = ClientInjector.get<FictionalNameGenerator>()
+    val textProvider =
+        useMemo(translator) {
+            TranslatorIdentitySessionTextProvider(translator)
+        }
+    val visualsFactory =
+        useMemo(nameGenerator, avatarGenerator) {
+            IdentityVisualsFactory(nameGenerator, avatarGenerator)
+        }
     val defaultPod = (window.asDynamic().MOSA_POD_BASE as? String).orEmpty()
 
-    fun applySelection(selection: IdentitySelection) {
-        IdentityVisuals(selection.identity).apply {
-            setIdentityNameParts(name)
-            setIdentityAvatar(avatar)
+    val scope = useMemo(*noDependencies) { MainScope() }
+    val logger = useMemo(*noDependencies) { ClientInjector.get<Logger>() }
+    val machine =
+        useMemo(
+            repository,
+            transfer,
+            misJwtService,
+            visualsFactory,
+            defaultPod,
+            logger,
+            textProvider,
+        ) {
+            identitySessionStateMachineFactory(
+                IdentitySessionMachineConfig(
+                    repository = repository,
+                    transfer = transfer,
+                    misJwtService = misJwtService,
+                    podAccessProvider = { host -> ClientInjector.podAccess(host) },
+                    textProvider = textProvider,
+                    visualsFactory = visualsFactory,
+                    defaultPod = defaultPod,
+                    scope = scope,
+                    logger = logger,
+                ),
+            )
         }
-        setCurrentSelection(selection)
-        setMisJwt(null)
-        setConnected(false)
-        setQueryPreview(null)
-        setErrorText(null)
-    }
+    val (viewState, setViewState) = useState(machine.state.value)
 
-    fun refreshIdentity() {
-        if (isBusy) return
-        setBusy(true)
-        setIdentityAvatar(null)
-        sessionScope.launch {
-            try {
-                val repository = ClientInjector.get<IdentityRepository>()
-                val selection = repository.loadOrCreate()
-                applySelection(selection)
-            } catch (error: Throwable) {
-                val console = window.asDynamic().console
-                console?.error?.call(console, "Identity refresh failed", error)
-                val message = error.message?.takeIf { it.isNotBlank() }
-                    ?: error::class.simpleName
-                    ?: unknownError
-                val failureText = translator.translate("identity.failedToPrepare", mapOf("message" to message))
-                setCurrentSelection(null)
-                setIdentityAvatar(null)
-                setMisJwt(null)
-                setConnected(false)
-                setQueryPreview(null)
-                setIdentityNameParts(placeholderName(failureText))
-                setErrorText(message)
-            } finally {
-                setBusy(false)
-            }
+    useEffect(*noDependencies) {
+        val job = scope.launch {
+            machine.state.collect { setViewState(it) }
         }
-    }
-
-    fun performNavigation(loader: suspend IdentityRepository.() -> IdentitySelection?) {
-        if (isBusy) return
-        setBusy(true)
-        sessionScope.launch {
-            try {
-                val repository = ClientInjector.get<IdentityRepository>()
-                val selection = loader(repository)
-                if (selection != null) {
-                    applySelection(selection)
-                }
-            } catch (error: Throwable) {
-                val console = window.asDynamic().console
-                console?.error?.call(console, "Identity navigation failed", error)
-                val message = error.message?.takeIf { it.isNotBlank() }
-                    ?: error::class.simpleName
-                    ?: unknownError
-                setErrorText(message)
-            } finally {
-                setBusy(false)
-            }
+        machine.refresh()
+        val cleanup: () -> Unit = {
+            job.cancel()
+            scope.cancel()
         }
+        cleanup()
     }
 
-    fun navigateToPrevious() {
-        performNavigation { movePrevious() }
-    }
-
-    fun navigateToNext() {
-        performNavigation { moveNext() }
-    }
-
-    fun deleteIdentity() {
-        if (isBusy) return
-        setBusy(true)
-        sessionScope.launch {
-            try {
-                val repository = ClientInjector.get<IdentityRepository>()
-                val selection = repository.deleteCurrent()
-                applySelection(selection)
-            } catch (error: Throwable) {
-                val console = window.asDynamic().console
-                console?.error?.call(console, "Identity removal failed", error)
-                val message = error.message?.takeIf { it.isNotBlank() }
-                    ?: error::class.simpleName
-                    ?: unknownError
-                setErrorText(message)
-            } finally {
-                setBusy(false)
-            }
-        }
-    }
-
-    fun navigateToIndex(index: Int) {
-        performNavigation { select(index) }
-    }
-
-    fun connectToPod() {
-        if (isBusy) return
-        val identity = currentSelection?.identity ?: return
-        val podForCertificate = defaultPod
-        if (podForCertificate.isBlank()) {
-            setErrorText(missingPodMessage)
-            return
-        }
-        setBusy(true)
-        setQueryPreview(null)
-        sessionScope.launch {
-            try {
-                val cert = createCertificateFor(identity.gid, podForCertificate)
-                val misJwtService = ClientInjector.get<MisJwtService>()
-                val jwt = misJwtService.buildMisJwt(identity, cert)
-                val previewTopic = "Anything"
-                val preview =
-                    runCatching {
-                        fetchPrototypeQuery(podForCertificate, jwt, previewTopic)
-                    }.map {
-                        prototypePreviewOf(translator, previewTopic, it)
-                    }.getOrElse { error ->
-                        val console = window.asDynamic().console
-                        console?.warn?.call(console, "Prototype query failed", error)
-                        error.message?.takeIf { it.isNotBlank() }
-                            ?: error::class.simpleName
-                            ?: unknownError
-                    }
-                setMisJwt(jwt)
-                setQueryPreview(preview)
-                setConnected(true)
-                setErrorText(null)
-            } catch (error: Throwable) {
-                val console = window.asDynamic().console
-                console?.error?.call(console, "Pod connection failed", error)
-                val message = error.message?.takeIf { it.isNotBlank() }
-                    ?: error::class.simpleName
-                    ?: unknownError
-                setQueryPreview(null)
-                setErrorText(message)
-            } finally {
-                setBusy(false)
-            }
-        }
-    }
-
-    fun downloadIdentity() {
-        val identity = currentSelection?.identity ?: return
-        val fileBaseName = identityNameParts.toIdentityDownloadFileName()
-        sessionScope.launch {
-            try {
-                val transfer = ClientInjector.get<IdentityTransferService>()
-                transfer.download(identity, fileBaseName)
-            } catch (error: Throwable) {
-                val console = window.asDynamic().console
-                console?.error?.call(console, "Identity download failed", error)
-            }
-        }
-    }
-
-    fun uploadIdentity() {
-        if (isBusy) return
-        setBusy(true)
-        sessionScope.launch {
-            try {
-                val transfer = ClientInjector.get<IdentityTransferService>()
-                val imported = transfer.upload() ?: return@launch
-                val repository = ClientInjector.get<IdentityRepository>()
-                val selection = repository.import(imported)
-                applySelection(selection)
-            } catch (error: Throwable) {
-                val console = window.asDynamic().console
-                console?.error?.call(console, "Identity upload failed", error)
-                val message = error.message?.takeIf { it.isNotBlank() }
-                    ?: error::class.simpleName
-                    ?: unknownError
-                setErrorText(message)
-            } finally {
-                setBusy(false)
-            }
-        }
-    }
-
-    useEffect(emptyArray<Any>()) {
-        if (effectRan.current == true) return@useEffect
-        effectRan.current = true
-        refreshIdentity()
-    }
-
-    val canConnect = currentSelection != null && defaultPod.isNotBlank()
-    val displayError = if (defaultPod.isBlank()) {
-        errorText ?: missingPodMessage
-    } else {
-        errorText
-    }
-    val isShowingLastIdentity = currentSelection?.let { !it.hasNext } ?: false
-
-    return if (isConnected && misJwt != null) {
-        IdentityScreen.Connected(
-            identityName = identityNameParts.toString(),
-            misJwt = misJwt,
-            queryPreview = queryPreview,
-        )
-    } else {
-        IdentityScreen.Landing(
-            identityNameParts = identityNameParts,
-            identityAvatar = identityAvatar,
-            isBusy = isBusy,
-            errorText = displayError,
-            canDelete = currentSelection != null,
-            canNavigatePrevious = currentSelection?.hasPrevious ?: false,
-            canNavigateNext = currentSelection != null,
-            isShowingLastIdentity = isShowingLastIdentity,
-            identityIndex = currentSelection?.index ?: 0,
-            identityTotal = currentSelection?.total ?: 1,
-            canConnect = canConnect,
-            onConnect = { connectToPod() },
-            onPrevious = { navigateToPrevious() },
-            onNext = { navigateToNext() },
-            onDelete = { deleteIdentity() },
-            onSelect = { index -> navigateToIndex(index) },
-            canDownload = currentSelection != null,
-            onDownload = { downloadIdentity() },
-            canUpload = true,
-            onUpload = { uploadIdentity() },
-        )
+    return when (val state = viewState) {
+        is IdentitySessionViewState.Connected ->
+            IdentityScreen.Connected(
+                identityName = state.identityName,
+                misJwt = state.misJwt,
+                queryPreview = state.queryPreview,
+            )
+        is IdentitySessionViewState.Landing ->
+            IdentityScreen.Landing(
+                identityNameParts = state.identityNameParts,
+                identityAvatar = state.identityAvatar,
+                isBusy = state.isBusy,
+                errorText = state.errorText,
+                canDelete = state.canDelete,
+                canNavigatePrevious = state.canNavigatePrevious,
+                canNavigateNext = state.canNavigateNext,
+                isShowingLastIdentity = state.isShowingLastIdentity,
+                identityIndex = state.identityIndex,
+                identityTotal = state.identityTotal,
+                canConnect = state.canConnect,
+                onConnect = { machine.connectToPod() },
+                onPrevious = { machine.navigateToPrevious() },
+                onNext = { machine.navigateToNext() },
+                onDelete = { machine.deleteIdentity() },
+                onSelect = { index -> machine.select(index) },
+                canDownload = state.canDownload,
+                onDownload = { machine.downloadIdentity() },
+                canUpload = state.canUpload,
+                onUpload = { machine.uploadIdentity() },
+            )
     }
 }
-
-private val sessionScope = MainScope()
 
 private object ClientInjector : KoinComponent
 
-private class IdentityVisuals(identity: Identity) {
-    val name: FictionalName
-    val avatar: String
+private val noDependencies: Array<dynamic> = emptyArray()
 
-    init {
-        val nameGenerator = ClientInjector.get<FictionalNameGenerator>()
-        val gidBytes = Base64.fromBase64Url(identity.gid)
-        val bits = BitStream(gidBytes)
-        name = nameGenerator.generate(bits)
+internal data class IdentitySessionMachineConfig(
+    val repository: IdentitySelectionRepository,
+    val transfer: IdentityTransferPort,
+    val misJwtService: MisJwtService,
+    val podAccessProvider: (String) -> PodAccess,
+    val textProvider: IdentitySessionTextProvider,
+    val visualsFactory: IdentityVisualsFactory,
+    val defaultPod: String,
+    val scope: CoroutineScope,
+    val logger: Logger,
+)
 
-        val avatarSeed = bits.nextBytes(8).toBase64Url()
-        avatar = ClientInjector.get<DiceBearAvatarGenerator>().dataUri(avatarSeed)
+internal typealias IdentitySessionStateMachineFactory = (IdentitySessionMachineConfig) -> IdentitySessionStateMachine
+
+internal var identitySessionStateMachineFactory: IdentitySessionStateMachineFactory =
+    { config ->
+        IdentitySessionStateMachine(
+            repository = config.repository,
+            transfer = config.transfer,
+            misJwtBuilder = { identity, certificate -> config.misJwtService.buildMisJwt(identity, certificate) },
+            podAccessFactory = config.podAccessProvider,
+            textProvider = config.textProvider,
+            visualsProvider = { identity -> config.visualsFactory.create(identity) },
+            defaultPod = config.defaultPod,
+            scope = config.scope,
+            logger = config.logger,
+        )
     }
-}
-
-private fun placeholderName(text: String): FictionalName {
-    val normalized = text.trim().ifBlank { "Identity" }
-    return FictionalName(givenNames = listOf(normalized), sureName = "")
-}
-
-internal fun FictionalName.toIdentityDownloadFileName(): String {
-    val tokens = buildList {
-        addAll(givenNames)
-        addAll(addendum?.split(Regex("[\\s-]+")).orEmpty())
-        addAll(sureName.split(Regex("\\s+")))
-    }.map { token ->
-        token.filter { it.isLetterOrDigit() }
-    }.filter { it.isNotEmpty() }
-    val camel = tokens.joinToString("") { token ->
-        if (token.all { it.isUpperCase() || it.isDigit() }) {
-            token
-        } else {
-            val lower = token.lowercase()
-            lower.replaceFirstChar { it.uppercase() }
-        }
-    }
-    return camel.ifEmpty { "IdentityKeys" }
-}
-
-private suspend fun createCertificateFor(gid: String, podHost: String): PodCertificate {
-    val podAccess = ClientInjector.podAccess(podHost)
-    return podAccess.approveGid(gid)
-}
-
-private suspend fun fetchPrototypeQuery(podHost: String, jwt: String, topic: String): QueryResult {
-    val podAccess = ClientInjector.podAccess(podHost)
-    return podAccess.query(QueryRequest(topic = topic), jwt)
-}
-
-private fun prototypePreviewOf(translator: Translator, topic: String, result: QueryResult): String {
-    if (result.entries.isEmpty()) {
-        return translator.translate("preview.resultsEmpty", mapOf("topic" to topic))
-    }
-    val header = translator.translate("preview.resultsHeader", mapOf("topic" to topic))
-    return buildString {
-        appendLine(header)
-        result.entries.forEach { entry ->
-            append("- ")
-            append(entry.content)
-            append(" (")
-            append(entry.similarity)
-            appendLine(")")
-        }
-    }.trim()
-}

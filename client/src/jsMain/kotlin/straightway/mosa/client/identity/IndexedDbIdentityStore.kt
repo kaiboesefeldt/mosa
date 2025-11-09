@@ -1,9 +1,9 @@
 package straightway.mosa.client.identity
 
-import kotlinx.browser.window
 import kotlinx.coroutines.suspendCancellableCoroutine
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.browser.SubtleCrypto
+import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.util.Base64
 import straightway.mosa.client.util.Base64.toBase64Url
 import kotlin.coroutines.resume
@@ -15,17 +15,18 @@ class IndexedDbIdentityStore(
     private val subtleCrypto: SubtleCrypto,
     private val cryptoExport: CryptoExport,
     private val indexedDb: dynamic,
+    private val logger: Logger,
 ) : IdentityStore {
     override suspend fun loadState(): IdentityStoreState? =
         runCatching { loadInternal() }
             .getOrElse {
-                logWarning("IndexedDB identity load failed", it)
+                logger.warn("IndexedDB identity load failed", it)
                 null
             }
 
     override suspend fun storeState(state: IdentityStoreState) {
         runCatching { storeInternal(state) }
-            .onFailure { logWarning("IndexedDB identity store failed", it) }
+            .onFailure { logger.warn("IndexedDB identity store failed", it) }
     }
 
     private suspend fun loadInternal(): IdentityStoreState? {
@@ -90,10 +91,6 @@ class IndexedDbIdentityStore(
             }
         }
         return awaitRequest(request)
-    }
-
-    private fun logWarning(message: String, error: Throwable) {
-        window.asDynamic().console?.warn?.call(window.asDynamic().console, message, error)
     }
 
     private fun isNullish(value: dynamic): Boolean =

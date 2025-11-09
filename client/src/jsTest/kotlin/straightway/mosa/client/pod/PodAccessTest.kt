@@ -182,7 +182,7 @@ class PodAccessTest {
                     addHandler(handler)
                 }
             }
-        return PodAccess("https://pod.example", client)
+        return PodAccessImpl("https://pod.example", client)
     }
 
     private fun podAccessResponding(

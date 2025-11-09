@@ -1,10 +1,19 @@
 package straightway.mosa.client.identity
 
+interface IdentitySelectionRepository {
+    suspend fun loadOrCreate(): IdentitySelection
+    suspend fun movePrevious(): IdentitySelection?
+    suspend fun moveNext(): IdentitySelection
+    suspend fun deleteCurrent(): IdentitySelection
+    suspend fun select(index: Int): IdentitySelection?
+    suspend fun import(identity: Identity): IdentitySelection
+}
+
 class IdentityRepository(
     private val store: IdentityStore,
     private val generator: IdentityProvider,
-) {
-    suspend fun loadOrCreate(): IdentitySelection {
+) : IdentitySelectionRepository {
+    override suspend fun loadOrCreate(): IdentitySelection {
         val stored = store.loadState()
         if (stored != null) return stored.toSelection()
 
@@ -14,7 +23,7 @@ class IdentityRepository(
         return initial.toSelection()
     }
 
-    suspend fun movePrevious(): IdentitySelection? {
+    override suspend fun movePrevious(): IdentitySelection? {
         val current = store.loadState() ?: return null
         if (!current.hasPrevious()) return null
         val updated = current.withActiveIndex(current.activeIndex - 1)
@@ -22,7 +31,7 @@ class IdentityRepository(
         return updated.toSelection()
     }
 
-    suspend fun moveNext(): IdentitySelection {
+    override suspend fun moveNext(): IdentitySelection {
         val current = store.loadState()
         val updated =
             when {
@@ -40,7 +49,7 @@ class IdentityRepository(
         return updated.toSelection()
     }
 
-    suspend fun deleteCurrent(): IdentitySelection {
+    override suspend fun deleteCurrent(): IdentitySelection {
         val current = store.loadState()
         val updated =
             if (current == null || current.identities.size == 1) {
@@ -56,7 +65,7 @@ class IdentityRepository(
         return updated.toSelection()
     }
 
-    suspend fun select(index: Int): IdentitySelection? {
+    override suspend fun select(index: Int): IdentitySelection? {
         val current = store.loadState() ?: return null
         if (index !in current.identities.indices) return current.toSelection()
         if (index == current.activeIndex) return current.toSelection()
@@ -65,7 +74,7 @@ class IdentityRepository(
         return updated.toSelection()
     }
 
-    suspend fun import(identity: Identity): IdentitySelection {
+    override suspend fun import(identity: Identity): IdentitySelection {
         val current = store.loadState()
         val updated =
             if (current == null) {

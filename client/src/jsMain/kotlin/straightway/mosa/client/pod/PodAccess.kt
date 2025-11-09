@@ -20,35 +20,43 @@ import straightway.mosa.content.QueryResult
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.ReplyRequest
 
-class PodAccess(
+interface PodAccess {
+    suspend fun approveGid(gid: String): PodCertificate
+    suspend fun publish(request: PublishRequest, jwt: String)
+    suspend fun reply(request: ReplyRequest, jwt: String)
+    suspend fun query(request: QueryRequest, jwt: String): QueryResult
+    suspend fun queryOn(request: QueryOnRequest, jwt: String): QueryResult
+}
+
+class PodAccessImpl(
     private val podBase: String,
     private val httpClient: HttpClient,
-) {
-    suspend fun approveGid(gid: String): PodCertificate {
+): PodAccess  {
+    override suspend fun approveGid(gid: String): PodCertificate {
         val path = "/v1/approvegid"
         return post(path, AuthenticationApprovalRequest(gid))
             .ensureSuccess(path, gid)
             .body()
     }
 
-    suspend fun publish(request: PublishRequest, jwt: String) {
+    override suspend fun publish(request: PublishRequest, jwt: String) {
         val path = "/v1/publish"
         post(path, request, jwt).ensureSuccess(path, request)
     }
 
-    suspend fun reply(request: ReplyRequest, jwt: String) {
+    override suspend fun reply(request: ReplyRequest, jwt: String) {
         val path = "/v1/reply"
         post(path, request, jwt).ensureSuccess(path, request)
     }
 
-    suspend fun query(request: QueryRequest, jwt: String): QueryResult {
+    override suspend fun query(request: QueryRequest, jwt: String): QueryResult {
         val path = "/v1/query"
         return post(path, request, jwt)
             .ensureSuccess(path, request)
             .body()
     }
 
-    suspend fun queryOn(request: QueryOnRequest, jwt: String): QueryResult {
+    override suspend fun queryOn(request: QueryOnRequest, jwt: String): QueryResult {
         val path = "/v1/queryon"
         return post(path, request, jwt)
             .ensureSuccess(path, request)

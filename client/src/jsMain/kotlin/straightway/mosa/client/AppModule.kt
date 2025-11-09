@@ -22,9 +22,14 @@ import straightway.mosa.client.identity.IndexedDbIdentityStore
 import straightway.mosa.client.identity.MisJwtService
 import straightway.mosa.client.identity.IdentityTransferCodec
 import straightway.mosa.client.identity.IdentityTransferService
+import straightway.mosa.client.identity.IdentitySelectionRepository
+import straightway.mosa.client.identity.IdentityTransferPort
 import straightway.mosa.client.pod.PodAccess
+import straightway.mosa.client.logging.BrowserLogger
+import straightway.mosa.client.logging.Logger
 import straightway.mosa.identity.FictionalNameGenerator
 import kotlinx.serialization.json.Json
+import straightway.mosa.client.pod.PodAccessImpl
 
 object AppModule : KoinComponent {
     fun start() {
@@ -47,16 +52,17 @@ object AppModule : KoinComponent {
                             IndexedDbIdentityStore(
                                 get(),
                                 get(),
-                                window.asDynamic().indexedDB
+                                window.asDynamic().indexedDB,
+                                get(),
                             )
                         }
-                        single { IdentityRepository(get(), get<IdentityProvider>()) }
+                        single<IdentitySelectionRepository> { IdentityRepository(get(), get<IdentityProvider>()) }
                         single {
                             HttpClient {
                                 install(ContentNegotiation) { json() }
                             }
                         }
-                        factory { PodAccess(it[0], get()) }
+                        factory<PodAccess> { PodAccessImpl(it[0], get()) }
                         single {
                             SubtleCrypto(
                                 window.asDynamic().crypto?.subtle
@@ -71,11 +77,12 @@ object AppModule : KoinComponent {
                                 Json { prettyPrint = true },
                             )
                         }
-                        single { IdentityTransferService(get()) }
+                        single<IdentityTransferPort> { IdentityTransferService(get()) }
                         single { FictionalNameGenerator() }
                         single { BrowserPrefs() }
                         single { Translator(get<BrowserPrefs>().languages) }
                         single { DiceBearAvatarGenerator() }
+                        single<Logger> { BrowserLogger() }
                     },
                 )
             }

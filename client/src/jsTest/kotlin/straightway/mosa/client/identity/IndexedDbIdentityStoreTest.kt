@@ -3,6 +3,9 @@ package straightway.mosa.client.identity
 import kotlinx.browser.window
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.runTest
+import straightway.mosa.client.browser.SubtleCrypto
+import straightway.mosa.client.logging.Logger
+import straightway.mosa.client.test.ensureStacktraceMapperInstalled
 import kotlin.coroutines.resume
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -10,8 +13,6 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import straightway.mosa.client.browser.SubtleCrypto
-import straightway.mosa.client.test.ensureStacktraceMapperInstalled
 import kotlin.test.fail
 
 class IndexedDbIdentityStoreTest {
@@ -94,7 +95,7 @@ class IndexedDbIdentityStoreTest {
         val rawSubtle = window.asDynamic().crypto?.subtle ?: fail("Subtle crypto not found")
         val subtle = SubtleCrypto(rawSubtle)
         val export = CryptoExport(subtle)
-        val store = IndexedDbIdentityStore(subtle, export, indexedDb)
+        val store = IndexedDbIdentityStore(subtle, export, indexedDb, TestLogger)
         val generator = IdentityGenerator(export, subtle)
         return Components(subtle, export, store, generator)
     }
@@ -109,4 +110,9 @@ class IndexedDbIdentityStoreTest {
         val store: IndexedDbIdentityStore,
         val generator: IdentityGenerator,
     )
+
+    private object TestLogger : Logger {
+        override fun error(message: String, throwable: Throwable?) = Unit
+        override fun warn(message: String, throwable: Throwable?) = Unit
+    }
 }

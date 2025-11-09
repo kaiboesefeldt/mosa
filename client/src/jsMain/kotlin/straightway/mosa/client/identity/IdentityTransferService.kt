@@ -14,10 +14,15 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+interface IdentityTransferPort {
+    suspend fun download(identity: Identity, fileBaseName: String)
+    suspend fun upload(): Identity?
+}
+
 class IdentityTransferService(
     private val codec: IdentityTransferCodec,
-) {
-    suspend fun download(identity: Identity, fileBaseName: String) {
+) : IdentityTransferPort {
+    override suspend fun download(identity: Identity, fileBaseName: String) {
         val json = codec.encode(identity)
         val blob = Blob(arrayOf(json), BlobPropertyBag(type = "application/json"))
         val anchor = document.createElement("a") as HTMLAnchorElement
@@ -31,7 +36,7 @@ class IdentityTransferService(
         urlCreator.revokeObjectURL(url)
     }
 
-    suspend fun upload(): Identity? {
+    override suspend fun upload(): Identity? {
         val file = selectFile() ?: return null
         val content = readFile(file)
         return codec.decode(content)
