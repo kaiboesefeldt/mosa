@@ -106,7 +106,7 @@ fun useIdentitySession(): IdentityScreen {
             job.cancel()
             scope.cancel()
         }
-        cleanup()
+        cleanup
     }
 
     return when (val state = viewState) {

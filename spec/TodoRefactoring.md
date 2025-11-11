@@ -1,7 +1,6 @@
 # Refactoring Opportunities
 
 ## Client
-- `client/src/jsMain/kotlin/straightway/mosa/client/ui/IdentityLandingView.kt:27` – One React component still renders the full dialog, handles tool menus, and wires actions. Split into smaller, focused components (header, carousel, tools) to improve readability and reuse.
 - `client/src/jsMain/kotlin/straightway/mosa/client/browser/SubtleCrypto.kt:35` – `generateKey` accepts an `algo: String` but is always passed a dynamic object. Align the signature with WebCrypto types (e.g., `AlgorithmIdentifier`) to avoid unsafe casts.
 - `client/src/jsMain/kotlin/straightway/mosa/client/identity/IdentityGenerator.kt:11` – Building the algorithm via `js("({ name: 'Ed25519' })")` and handing dynamic values to `generateKey` is non-idiomatic Kotlin/JS. Switch to the typed `web.crypto` bindings (or wrap the dynamic call) so the compiler can help.
 - `client/src/jsMain/kotlin/straightway/mosa/client/ui/IdentityLandingView.kt:58` – Accessing `Event.target` through `asDynamic().closest` bypasses the DOM types. Wrap the lookup in a typed helper or use `target.closest` via the `Element` interface to stay type-safe.
