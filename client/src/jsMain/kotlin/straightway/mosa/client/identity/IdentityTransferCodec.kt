@@ -2,6 +2,7 @@ package straightway.mosa.client.identity
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import straightway.mosa.client.browser.AlgorithmIdentifiers
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.browser.SubtleCrypto
 import straightway.mosa.client.util.Base64
@@ -27,7 +28,7 @@ class IdentityTransferCodec(
         val privateKeyBytes = Base64.fromBase64Url(payload.privateKey)
         val digest = subtleCrypto.digest("SHA-256", publicKeyBytes).toBase64Url()
         require(digest == payload.gid) { "Public key digest mismatch" }
-        val algorithm = js("({ name: 'Ed25519' })")
+        val algorithm = AlgorithmIdentifiers.ed25519
         val publicKey = subtleCrypto.importKey("raw", publicKeyBytes, algorithm, true, arrayOf("verify"))
         val privateKey = subtleCrypto.importKey("pkcs8", privateKeyBytes, algorithm, true, arrayOf("sign"))
         val keyPair =

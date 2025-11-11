@@ -1,7 +1,6 @@
 # Refactoring Opportunities
 
 ## Client
-- `client/src/jsMain/kotlin/straightway/mosa/client/browser/SubtleCrypto.kt:35` – `generateKey` accepts an `algo: String` but is always passed a dynamic object. Align the signature with WebCrypto types (e.g., `AlgorithmIdentifier`) to avoid unsafe casts.
 - `client/src/jsMain/kotlin/straightway/mosa/client/identity/IdentityGenerator.kt:11` – Building the algorithm via `js("({ name: 'Ed25519' })")` and handing dynamic values to `generateKey` is non-idiomatic Kotlin/JS. Switch to the typed `web.crypto` bindings (or wrap the dynamic call) so the compiler can help.
 - `client/src/jsMain/kotlin/straightway/mosa/client/ui/IdentityLandingView.kt:49` – Event handling still reaches into `asDynamic().closest`. Move this logic into a typed helper (shared between `IdentityCarousel` and `IdentityToolsMenu`) to avoid unchecked DOM access now that the view is split.
 - `client/src/jsMain/kotlin/straightway/mosa/client/ui/IdentityCarousel.kt:27` – Carousel rendering duplicates nav button wiring and progress handling. Consider extracting a typed navigation presenter so button state logic can be unit tested without JSX noise.

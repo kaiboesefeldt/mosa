@@ -32,7 +32,7 @@ class SubtleCrypto(private val wrapped: dynamic) {
             .unsafeCast<Promise<CryptoKey>>()
             .await()
 
-    suspend fun generateKey(algo: String, exportable: Boolean, usages: Array<String>): CryptoKeyPair =
+    suspend fun generateKey(algo: AlgorithmIdentifier, exportable: Boolean, usages: Array<String>): CryptoKeyPair =
         wrapped
             .generateKey(algo, exportable, usages)
             .unsafeCast<Promise<CryptoKeyPair>>()

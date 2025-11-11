@@ -1,16 +1,17 @@
 package straightway.mosa.client.browser
 
 import kotlinx.coroutines.test.runTest
-import org.khronos.webgl.Int8Array
 import org.khronos.webgl.ArrayBuffer
-import straightway.mosa.client.test.ensureStacktraceMapperInstalled
+import org.khronos.webgl.Int8Array
 import kotlin.also
 import kotlin.js.Promise
+import kotlin.js.unsafeCast
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
+import straightway.mosa.client.test.ensureStacktraceMapperInstalled
 
 class SubtleCryptoTest {
     @BeforeTest
@@ -66,7 +67,11 @@ class SubtleCryptoTest {
 
     @Test
     fun `generateKey delegates to wrapped subtle crypto`() = runTest {
-        data class GenerateKeyCall(val algo: String, val exportable: Boolean, val usages: List<String>)
+        data class GenerateKeyCall(
+            val algo: AlgorithmIdentifier,
+            val exportable: Boolean,
+            val usages: List<String>,
+        )
 
         val generatedPrivateKey = createKey("generated-private")
         val generatedPublicKey = createKey("generated-public")
@@ -75,16 +80,17 @@ class SubtleCryptoTest {
         keyPairResult.publicKey = generatedPublicKey
         val generateCalls = mutableListOf<GenerateKeyCall>()
         val wrapped = js("({})")
-        wrapped.generateKey = { algo: String, exportable: Boolean, usages: Array<String> ->
+        wrapped.generateKey = { algo: AlgorithmIdentifier, exportable: Boolean, usages: Array<String> ->
             generateCalls += GenerateKeyCall(algo, exportable, usages.toList())
             resolved(keyPairResult.unsafeCast<CryptoKeyPair>())
         }
         val sut = SubtleCrypto(wrapped)
+        val algorithm = AlgorithmIdentifiers.ed25519
 
-        val generated = sut.generateKey("Ed25519", true, arrayOf("sign", "verify"))
+        val generated = sut.generateKey(algorithm, true, arrayOf("sign", "verify"))
 
         val call = generateCalls.single()
-        assertEquals("Ed25519", call.algo)
+        assertSame(algorithm, call.algo)
         assertEquals(true, call.exportable)
         assertContentEquals(listOf("sign", "verify"), call.usages)
         assertSame(generatedPrivateKey, generated.privateKey)
