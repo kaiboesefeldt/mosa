@@ -24,6 +24,7 @@ external interface Screen {
 
 external interface FireEvent {
     fun change(element: Element, event: dynamic = definedExternally): Boolean
+    fun click(element: Element, event: dynamic = definedExternally): Boolean
 }
 
 external interface RenderResult {
