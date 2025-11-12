@@ -23,18 +23,18 @@ class SubtleCrypto(private val wrapped: dynamic) {
     suspend fun importKey(
         format: String,
         keyData: ByteArray,
-        algorithm: dynamic,
+        algorithm: KeyAlgorithm,
         exportable: Boolean,
-        usages: Array<String>,
+        usages: Array<KeyUsage>,
     ): CryptoKey =
         wrapped
-            .importKey(format, keyData, algorithm, exportable, usages)
+            .importKey(format, keyData, algorithm.descriptor, exportable, usages.toJsValues())
             .unsafeCast<Promise<CryptoKey>>()
             .await()
 
-    suspend fun generateKey(algo: AlgorithmIdentifier, exportable: Boolean, usages: Array<String>): CryptoKeyPair =
+    suspend fun generateKey(algo: KeyAlgorithm, exportable: Boolean, usages: Array<KeyUsage>): CryptoKeyPair =
         wrapped
-            .generateKey(algo, exportable, usages)
+            .generateKey(algo.descriptor, exportable, usages.toJsValues())
             .unsafeCast<Promise<CryptoKeyPair>>()
             .await()
 
@@ -45,3 +45,5 @@ class SubtleCrypto(private val wrapped: dynamic) {
             .await()
             .toByteArray()
 }
+
+private fun Array<KeyUsage>.toJsValues(): Array<String> = map(KeyUsage::value).toTypedArray()

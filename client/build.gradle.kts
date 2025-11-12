@@ -14,6 +14,9 @@ repositories {
     mavenCentral()
     maven("https://maven.pkg.jetbrains.space/public/p/kotlin-wrappers/maven")
 }
+@Suppress("UNCHECKED_CAST")
+val firefoxEnv = rootProject.extra["firefoxEnvironment"] as Map<String, String>
+val prepareFirefoxEnvironment = rootProject.tasks.named("prepareFirefoxEnvironment")
 
 kotlin {
     js {
@@ -92,5 +95,7 @@ tasks.withType<KotlinCompile> {
 }
 
 tasks.withType<KotlinJsTest>().configureEach {
+    dependsOn(prepareFirefoxEnvironment)
+    firefoxEnv.forEach { (key, value) -> environment(key, value) }
     outputs.upToDateWhen { false }
 }

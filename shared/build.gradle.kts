@@ -15,6 +15,10 @@ repositories {
     mavenCentral()
 }
 
+@Suppress("UNCHECKED_CAST")
+val firefoxEnv = rootProject.extra["firefoxEnvironment"] as Map<String, String>
+val prepareFirefoxEnvironment = rootProject.tasks.named("prepareFirefoxEnvironment")
+
 kotlin {
     val kotlinxSerializationVersion = "1.9.0"
     jvm() 
@@ -53,5 +57,7 @@ tasks.withType<KotlinCompile> {
 }
 
 tasks.withType<KotlinJsTest>().configureEach {
+    dependsOn(prepareFirefoxEnvironment)
+    firefoxEnv.forEach { (key, value) -> environment(key, value) }
     outputs.upToDateWhen { false }
 }

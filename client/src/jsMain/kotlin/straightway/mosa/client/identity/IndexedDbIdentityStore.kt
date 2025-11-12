@@ -1,8 +1,9 @@
 package straightway.mosa.client.identity
 
 import kotlinx.coroutines.suspendCancellableCoroutine
-import straightway.mosa.client.browser.AlgorithmIdentifiers
 import straightway.mosa.client.browser.CryptoKeyPair
+import straightway.mosa.client.browser.KeyAlgorithm
+import straightway.mosa.client.browser.KeyUsage
 import straightway.mosa.client.browser.SubtleCrypto
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.util.Base64
@@ -132,10 +133,10 @@ class IndexedDbIdentityStore(
         val privateKeyField = stored.privateKey as? String ?: return null
         val publicKeyBytes = Base64.fromBase64Url(publicKeyField)
         val privateKeyBytes = Base64.fromBase64Url(privateKeyField)
-        val algorithm = AlgorithmIdentifiers.ed25519
+        val algorithm = KeyAlgorithm.Ed25519
 
-        val publicKey = subtleCrypto.importKey("raw", publicKeyBytes, algorithm, true, arrayOf("verify"))
-        val privateKey = subtleCrypto.importKey("pkcs8", privateKeyBytes, algorithm, true, arrayOf("sign"))
+        val publicKey = subtleCrypto.importKey("raw", publicKeyBytes, algorithm, true, arrayOf(KeyUsage.Verify))
+        val privateKey = subtleCrypto.importKey("pkcs8", privateKeyBytes, algorithm, true, arrayOf(KeyUsage.Sign))
         val keyPair =
             json(
                 "publicKey" to publicKey,

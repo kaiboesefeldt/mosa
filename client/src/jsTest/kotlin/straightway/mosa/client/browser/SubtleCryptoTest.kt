@@ -66,9 +66,40 @@ class SubtleCryptoTest {
     }
 
     @Test
+    fun `importKey delegates to wrapped subtle crypto`() = runTest {
+        data class ImportKeyCall(
+            val format: String,
+            val keyData: ByteArray,
+            val algorithmName: String?,
+            val exportable: Boolean,
+            val usages: List<String>,
+        )
+
+        val importCalls = mutableListOf<ImportKeyCall>()
+        val importedKey = createKey("imported")
+        val keyBytes = createByteArray(3, 3, 3)
+        val wrapped = js("({})")
+        wrapped.importKey = { format: String, keyData: ByteArray, algorithm: dynamic, exportable: Boolean, usages: Array<String> ->
+            importCalls += ImportKeyCall(format, keyData, algorithm.name as? String, exportable, usages.toList())
+            resolved(importedKey)
+        }
+        val sut = SubtleCrypto(wrapped)
+
+        val key = sut.importKey("raw", keyBytes, KeyAlgorithm.Ed25519, true, arrayOf(KeyUsage.Verify))
+
+        val call = importCalls.single()
+        assertEquals("raw", call.format)
+        assertSame(keyBytes, call.keyData)
+        assertEquals("Ed25519", call.algorithmName)
+        assertEquals(true, call.exportable)
+        assertEquals(listOf("verify"), call.usages)
+        assertSame(importedKey, key)
+    }
+
+    @Test
     fun `generateKey delegates to wrapped subtle crypto`() = runTest {
         data class GenerateKeyCall(
-            val algo: AlgorithmIdentifier,
+            val algorithmName: String?,
             val exportable: Boolean,
             val usages: List<String>,
         )
@@ -80,19 +111,17 @@ class SubtleCryptoTest {
         keyPairResult.publicKey = generatedPublicKey
         val generateCalls = mutableListOf<GenerateKeyCall>()
         val wrapped = js("({})")
-        wrapped.generateKey = { algo: AlgorithmIdentifier, exportable: Boolean, usages: Array<String> ->
-            generateCalls += GenerateKeyCall(algo, exportable, usages.toList())
+        wrapped.generateKey = { algo: dynamic, exportable: Boolean, usages: Array<String> ->
+            generateCalls += GenerateKeyCall(algo.name as? String, exportable, usages.toList())
             resolved(keyPairResult.unsafeCast<CryptoKeyPair>())
         }
         val sut = SubtleCrypto(wrapped)
-        val algorithm = AlgorithmIdentifiers.ed25519
-
-        val generated = sut.generateKey(algorithm, true, arrayOf("sign", "verify"))
+        val generated = sut.generateKey(KeyAlgorithm.Ed25519, true, arrayOf(KeyUsage.Sign, KeyUsage.Verify))
 
         val call = generateCalls.single()
-        assertSame(algorithm, call.algo)
+        assertEquals("Ed25519", call.algorithmName)
         assertEquals(true, call.exportable)
-        assertContentEquals(listOf("sign", "verify"), call.usages)
+        assertEquals(listOf("sign", "verify"), call.usages)
         assertSame(generatedPrivateKey, generated.privateKey)
         assertSame(generatedPublicKey, generated.publicKey)
     }
