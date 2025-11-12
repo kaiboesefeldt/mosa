@@ -3,6 +3,7 @@ package straightway.mosa.client.ui
 import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
@@ -102,11 +103,12 @@ fun useIdentitySession(): IdentityScreen {
             machine.state.collect { setViewState(it) }
         }
         machine.refresh()
-        val cleanup: () -> Unit = {
+        try {
+            awaitCancellation()
+        } finally {
             job.cancel()
             scope.cancel()
         }
-        cleanup
     }
 
     return when (viewState) {
