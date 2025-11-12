@@ -52,4 +52,29 @@ class TranslatorTest {
 
         assertEquals("Failed to prepare identity: Boom", translated)
     }
+
+    @Test
+    fun `uses language fallback when region specific translations are missing`() {
+        val provider = FakeTranslationResourceProvider(
+            mapOf(
+                "pt" to mapOf("button.connect.label" to "Partiu!"),
+                "en" to mapOf("button.connect.label" to "Let's go!")
+            )
+        )
+        val translator = Translator(listOf(Locale("pt-BR")), provider)
+
+        val translated = translator.translate("button.connect.label")
+
+        assertEquals("Partiu!", translated)
+    }
+}
+
+private class FakeTranslationResourceProvider(
+    private val bundles: Map<String, Map<String, String>>,
+    private val fallbackTag: String = "en"
+) : TranslationResourceProvider {
+    override fun load(tag: String): TranslationResource? = bundles[tag]?.let { TranslationResource(tag, it) }
+
+    override fun fallback(): TranslationResource =
+        load(fallbackTag) ?: error("Missing fallback translations for $fallbackTag")
 }
