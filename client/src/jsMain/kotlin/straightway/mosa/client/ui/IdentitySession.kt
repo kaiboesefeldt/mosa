@@ -109,34 +109,34 @@ fun useIdentitySession(): IdentityScreen {
         cleanup
     }
 
-    return when (val state = viewState) {
+    return when (viewState) {
         is IdentitySessionViewState.Connected ->
             IdentityScreen.Connected(
-                identityName = state.identityName,
-                misJwt = state.misJwt,
-                queryPreview = state.queryPreview,
+                identityName = viewState.identityName,
+                misJwt = viewState.misJwt,
+                queryPreview = viewState.queryPreview,
             )
         is IdentitySessionViewState.Landing ->
             IdentityScreen.Landing(
-                identityNameParts = state.identityNameParts,
-                identityAvatar = state.identityAvatar,
-                isBusy = state.isBusy,
-                errorText = state.errorText,
-                canDelete = state.canDelete,
-                canNavigatePrevious = state.canNavigatePrevious,
-                canNavigateNext = state.canNavigateNext,
-                isShowingLastIdentity = state.isShowingLastIdentity,
-                identityIndex = state.identityIndex,
-                identityTotal = state.identityTotal,
-                canConnect = state.canConnect,
+                identityNameParts = viewState.identityNameParts,
+                identityAvatar = viewState.identityAvatar,
+                isBusy = viewState.isBusy,
+                errorText = viewState.errorText,
+                canDelete = viewState.canDelete,
+                canNavigatePrevious = viewState.canNavigatePrevious,
+                canNavigateNext = viewState.canNavigateNext,
+                isShowingLastIdentity = viewState.isShowingLastIdentity,
+                identityIndex = viewState.identityIndex,
+                identityTotal = viewState.identityTotal,
+                canConnect = viewState.canConnect,
                 onConnect = { machine.connectToPod() },
                 onPrevious = { machine.navigateToPrevious() },
                 onNext = { machine.navigateToNext() },
                 onDelete = { machine.deleteIdentity() },
                 onSelect = { index -> machine.select(index) },
-                canDownload = state.canDownload,
+                canDownload = viewState.canDownload,
                 onDownload = { machine.downloadIdentity() },
-                canUpload = state.canUpload,
+                canUpload = viewState.canUpload,
                 onUpload = { machine.uploadIdentity() },
             )
     }
