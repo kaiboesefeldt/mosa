@@ -1,7 +1,6 @@
 # Refactoring Opportunities
 
 ## Client
-- `client/src/jsMain/kotlin/straightway/mosa/client/util/TextEncoder.kt:5` – Exposing the raw `dynamic` return type forces callers to `unsafeCast`. Replace with the typed `TextEncoder` declaration from the stdlib (or wrap the cast) so downstream code stays type-safe.
 - `client/src/jsMain/kotlin/straightway/mosa/client/assets/FontAwesomeResources.kt:5` – The external module currently returns `dynamic`. Prefer a typed external (e.g., `Unit` return) to remove the implicit dynamic access pattern.
 
 ## General

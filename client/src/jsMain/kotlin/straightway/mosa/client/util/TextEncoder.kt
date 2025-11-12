@@ -1,10 +1,17 @@
 package straightway.mosa.client.util
 
-import kotlin.js.unsafeCast
+import org.khronos.webgl.Uint8Array
+import org.khronos.webgl.get
 
 external class TextEncoder {
-    fun encode(s: String): dynamic
+    fun encode(value: String): Uint8Array
 }
 
-fun textEncode(s: String): ByteArray =
-    TextEncoder().encode(s).unsafeCast<ByteArray>()
+fun textEncode(value: String): ByteArray {
+    val encoded = TextEncoder().encode(value)
+    val result = ByteArray(encoded.length)
+    for (index in result.indices) {
+        result[index] = encoded[index].toByte()
+    }
+    return result
+}
