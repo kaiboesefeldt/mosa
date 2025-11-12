@@ -66,6 +66,7 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-react:$kotlinWrappersVersion")
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-react-dom:$kotlinWrappersVersion")
+                implementation("org.jetbrains.kotlin-wrappers:kotlin-browser:$kotlinWrappersVersion")
                 implementation(npm("@dicebear/core", diceBearVersion))
                 implementation(npm("@dicebear/adventurer-neutral", diceBearVersion))
                 implementation(npm("@fortawesome/fontawesome-free", fontAwesomeVersion))

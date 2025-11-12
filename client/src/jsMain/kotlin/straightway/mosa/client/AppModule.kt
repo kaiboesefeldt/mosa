@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.browser.window
+import kotlinx.serialization.json.Json
 import org.koin.core.component.KoinComponent
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
@@ -16,20 +17,24 @@ import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.CryptoExport
 import straightway.mosa.client.identity.IdentityGenerator
 import straightway.mosa.client.identity.IdentityProvider
+import straightway.mosa.client.identity.IdentityRecordMapper
 import straightway.mosa.client.identity.IdentityRepository
-import straightway.mosa.client.identity.IdentityStore
-import straightway.mosa.client.identity.IndexedDbIdentityStore
-import straightway.mosa.client.identity.MisJwtService
-import straightway.mosa.client.identity.IdentityTransferCodec
-import straightway.mosa.client.identity.IdentityTransferService
 import straightway.mosa.client.identity.IdentitySelectionRepository
+import straightway.mosa.client.identity.IdentityStore
+import straightway.mosa.client.identity.IdentityTransferCodec
 import straightway.mosa.client.identity.IdentityTransferPort
-import straightway.mosa.client.pod.PodAccess
+import straightway.mosa.client.identity.IdentityTransferService
+import straightway.mosa.client.identity.IndexedDbAsyncBridge
+import straightway.mosa.client.identity.IndexedDbIdentityStore
+import straightway.mosa.client.identity.IndexedDbSchemaManager
+import straightway.mosa.client.identity.MisJwtService
 import straightway.mosa.client.logging.BrowserLogger
 import straightway.mosa.client.logging.Logger
-import straightway.mosa.identity.FictionalNameGenerator
-import kotlinx.serialization.json.Json
+import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodAccessImpl
+import straightway.mosa.identity.FictionalNameGenerator
+import web.idb.IDBFactory
+import web.idb.indexedDB
 
 object AppModule : KoinComponent {
     fun start() {
@@ -48,11 +53,15 @@ object AppModule : KoinComponent {
                         }
                         single { IdentityGenerator(get(), get()) }
                         single<IdentityProvider> { get<IdentityGenerator>() }
+                        single<IDBFactory?> { browserIndexedDb() }
+                        single { IndexedDbSchemaManager(get()) }
+                        single { IndexedDbAsyncBridge() }
+                        single { IdentityRecordMapper(get(), get()) }
                         single<IdentityStore> {
                             IndexedDbIdentityStore(
                                 get(),
                                 get(),
-                                window.asDynamic().indexedDB,
+                                get(),
                                 get(),
                             )
                         }
@@ -89,3 +98,10 @@ object AppModule : KoinComponent {
         }
     }
 }
+
+private fun browserIndexedDb(): IDBFactory? =
+    if ((js("typeof indexedDB === 'undefined'") as Boolean)) {
+        null
+    } else {
+        indexedDB
+    }

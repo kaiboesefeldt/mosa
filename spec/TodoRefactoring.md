@@ -1,8 +1,6 @@
 # Refactoring Opportunities
 
 ## Client
-- `client/src/jsMain/kotlin/straightway/mosa/client/identity/IndexedDbIdentityStore.kt:14` – The store API is still `dynamic` despite available DOM/IndexedDB externals. Replacing these with typed interfaces (`IDBDatabase`, `IDBObjectStore`, etc.) will simplify reasoning and remove unchecked casts.
-- `client/src/jsMain/kotlin/straightway/mosa/client/identity/IndexedDbIdentityStore.kt:14` – Persistence, migration, serialization, and error handling all live in one coroutine-heavy block. Extract smaller adapters (schema manager, record mapper, async bridge) to reduce cognitive load and aid testing.
 - `client/src/jsMain/kotlin/straightway/mosa/client/browser/BrowserPrefs.kt:7` – Injecting `dynamic` navigators and using `js("Array.isArray")` is non-idiomatic. Adopt the typed `Navigator` externals and Kotlin collection helpers to eliminate unchecked `dynamic` usage.
 - `client/src/jsMain/kotlin/straightway/mosa/client/identity/IdentityTransferService.kt:25` – Falling back to `window.asDynamic().URL` is fragile. Introduce a typed URL factory (e.g., wrap `kotlinx.browser.window.URL`) to keep the code type-safe.
 - `client/src/jsMain/kotlin/straightway/mosa/client/i18n/Translator.kt:43` – The translator loads resources through `dynamic` `require.context`. Encapsulate that behind a typed abstraction or generate bindings so translation lookups are checked at compile time.

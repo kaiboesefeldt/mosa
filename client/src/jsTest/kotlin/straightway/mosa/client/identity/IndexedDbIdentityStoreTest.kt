@@ -7,6 +7,7 @@ import straightway.mosa.client.browser.SubtleCrypto
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.test.ensureStacktraceMapperInstalled
 import kotlin.coroutines.resume
+import kotlin.js.asDynamic
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -14,6 +15,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.fail
+import web.idb.IDBFactory
+import web.idb.IDBOpenDBRequest
+import web.idb.indexedDB
 
 class IndexedDbIdentityStoreTest {
 
@@ -58,6 +62,23 @@ class IndexedDbIdentityStoreTest {
         assertIdentityEquals(it.last(), reloaded.identities.single())
     }
 
+    @Test
+    fun `store gracefully handles missing indexeddb`() = runTestWithIdentities {
+        val fallbackStore =
+            IndexedDbIdentityStore(
+                TestLogger,
+                IndexedDbSchemaManager(null),
+                IdentityRecordMapper(components.subtle, components.export),
+                IndexedDbAsyncBridge(),
+            )
+        val state = IdentityStoreState(listOf(it.first()), 0)
+
+        fallbackStore.storeState(state)
+
+        val reloaded = fallbackStore.loadState()
+        assertNull(reloaded)
+    }
+
     private fun runTestWithIdentities(block: suspend (List<Identity>) -> Unit) = runTest {
         val testIdentities = (1..2).map { components.generator.generate() }
         try {
@@ -80,28 +101,44 @@ class IndexedDbIdentityStoreTest {
         )
     }
 
-    private val indexedDb: dynamic get() = window.asDynamic().indexedDB ?: fail("No indexedDB")
+    private val indexedDb: IDBFactory
+        get() = if ((js("typeof indexedDB === 'undefined'") as Boolean)) {
+            fail("No indexedDB")
+        } else {
+            indexedDB
+        }
 
     private suspend fun clearDatabase() {
-        val request = indexedDb.deleteDatabase(databaseName)
-        suspendCancellableCoroutine { continuation ->
-            request.onsuccess = { continuation.resume(Unit) }
-            request.onerror = { continuation.resume(Unit) }
-            request.onblocked = { continuation.resume(Unit) }
-        }
+        suspendOnOpenRequest(indexedDb.deleteDatabase(databaseName))
     }
 
     private fun createComponents(): Components {
         val rawSubtle = window.asDynamic().crypto?.subtle ?: fail("Subtle crypto not found")
         val subtle = SubtleCrypto(rawSubtle)
         val export = CryptoExport(subtle)
-        val store = IndexedDbIdentityStore(subtle, export, indexedDb, TestLogger)
+        val store =
+            IndexedDbIdentityStore(
+                TestLogger,
+                IndexedDbSchemaManager(indexedDb),
+                IdentityRecordMapper(subtle, export),
+                IndexedDbAsyncBridge(),
+            )
         val generator = IdentityGenerator(export, subtle)
         return Components(subtle, export, store, generator)
     }
 
     private companion object {
         const val databaseName = "mosa-identity"
+    }
+
+    private suspend fun suspendOnOpenRequest(request: IDBOpenDBRequest) {
+        suspendCancellableCoroutine { continuation ->
+            val dynamicRequest = request.asDynamic()
+            val resume: () -> Unit = { continuation.resume(Unit) }
+            dynamicRequest.onsuccess = resume
+            dynamicRequest.onerror = resume
+            dynamicRequest.onblocked = resume
+        }
     }
 
     private data class Components(
