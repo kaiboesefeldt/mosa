@@ -46,31 +46,6 @@ internal fun ChildrenBuilder.identityToolsMenu(
     }
 }
 
-internal fun identityToolActions(props: IdentityLandingViewProps): List<IdentityToolAction> =
-    listOf(
-        IdentityToolAction(
-            isEnabled = props.canDelete,
-            ariaKey = "button.identity.delete.aria",
-            titleKey = "button.identity.delete.aria",
-            iconClass = "fa fa-solid fa-trash-can",
-            onTrigger = props.onDelete,
-        ),
-        IdentityToolAction(
-            isEnabled = props.canDownload,
-            ariaKey = "button.identity.download.aria",
-            titleKey = "button.identity.download.label",
-            iconClass = "fa fa-solid fa-download",
-            onTrigger = props.onDownload,
-        ),
-        IdentityToolAction(
-            isEnabled = props.canUpload,
-            ariaKey = "button.identity.upload.aria",
-            titleKey = "button.identity.upload.label",
-            iconClass = "fa fa-solid fa-upload",
-            onTrigger = props.onUpload,
-        ),
-    )
-
 private fun ChildrenBuilder.identityToolButton(
     action: IdentityToolAction,
     translator: Translator,
@@ -92,11 +67,3 @@ private fun ChildrenBuilder.identityToolButton(
         }
     }
 }
-
-internal data class IdentityToolAction(
-    val isEnabled: Boolean,
-    val ariaKey: String,
-    val titleKey: String,
-    val iconClass: String,
-    val onTrigger: () -> Unit,
-)

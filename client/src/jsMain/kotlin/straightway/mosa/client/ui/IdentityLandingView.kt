@@ -44,7 +44,7 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
     val boundedIndex = props.identityIndex.coerceIn(0, totalItems - 1)
     val activeSegment = if (totalItems <= 1) 0 else boundedIndex
     val (areToolsVisible, setToolsVisible) = useState(false)
-    val toolActions = identityToolActions(props)
+    val toolActions = IdentityToolsPresenter.present(props.toIdentityToolsCapabilities())
 
     useEffect(arrayOf(areToolsVisible)) {
         if (!areToolsVisible) return@useEffect
@@ -95,3 +95,13 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
 }
 
 private object LandingViewInjector : KoinComponent
+
+private fun IdentityLandingViewProps.toIdentityToolsCapabilities(): IdentityToolsCapabilities =
+    IdentityToolsCapabilities(
+        canDelete = canDelete,
+        canDownload = canDownload,
+        canUpload = canUpload,
+        onDelete = onDelete,
+        onDownload = onDownload,
+        onUpload = onUpload,
+    )

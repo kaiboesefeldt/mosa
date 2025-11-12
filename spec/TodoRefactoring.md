@@ -1,7 +1,6 @@
 # Refactoring Opportunities
 
 ## Client
-- `client/src/jsMain/kotlin/straightway/mosa/client/ui/IdentityToolsMenu.kt:10` – Tool actions remain defined inline with DOM creation. Introduce a presenter or hook to generate actions outside the component tree, allowing logic to be validated without rendering.
 - `client/src/jsMain/kotlin/straightway/mosa/client/identity/IndexedDbIdentityStore.kt:14` – The store API is still `dynamic` despite available DOM/IndexedDB externals. Replacing these with typed interfaces (`IDBDatabase`, `IDBObjectStore`, etc.) will simplify reasoning and remove unchecked casts.
 - `client/src/jsMain/kotlin/straightway/mosa/client/identity/IndexedDbIdentityStore.kt:14` – Persistence, migration, serialization, and error handling all live in one coroutine-heavy block. Extract smaller adapters (schema manager, record mapper, async bridge) to reduce cognitive load and aid testing.
 - `client/src/jsMain/kotlin/straightway/mosa/client/browser/BrowserPrefs.kt:7` – Injecting `dynamic` navigators and using `js("Array.isArray")` is non-idiomatic. Adopt the typed `Navigator` externals and Kotlin collection helpers to eliminate unchecked `dynamic` usage.
