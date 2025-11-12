@@ -18,9 +18,8 @@ private val log = KotlinLogging.logger {}
 
 suspend fun main(args: Array<String>) {
     val argumentStore = buildCommandLineArgumentStore(args)
-    val serverPort = (argumentStore.get(ServerCommandLineArguments.SERVER_PORT) as? Int) ?: 8080
-    val allowHttp =
-        (argumentStore.get(ServerCommandLineArguments.ALLOW_HTTP) as? Boolean) ?: false
+    val serverPort = argumentStore.getInt(ServerCommandLineArguments.SERVER_PORT) ?: 8080
+    val allowHttp = argumentStore.getBoolean(ServerCommandLineArguments.ALLOW_HTTP) ?: false
     val server =
         embeddedServer(Netty, port = serverPort) {
             install(Koin) {

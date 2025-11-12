@@ -58,8 +58,8 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     single {
         val cliArguments: CommandLineArgumentStore = get()
         WebClientController(
-            serveSourceMaps = cliArguments.get(ServerCommandLineArguments.SERVE_SOURCE_MAPS) == true,
-            allowPlainHttp = cliArguments.get(ServerCommandLineArguments.ALLOW_HTTP) == true,
+            serveSourceMaps = cliArguments.getBoolean(ServerCommandLineArguments.SERVE_SOURCE_MAPS) == true,
+            allowPlainHttp = cliArguments.getBoolean(ServerCommandLineArguments.ALLOW_HTTP) == true,
         )
     } bind BaseController::class
 }
