@@ -5,35 +5,25 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import straightway.mosa.auth.PodCertificate
-import straightway.mosa.client.logging.Logger
-import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.identity.IdentityTransferPort
-import straightway.mosa.content.QueryRequest
-import straightway.mosa.content.QueryResult
+import straightway.mosa.client.logging.Logger
 
 class IdentitySessionStateMachine(
     private val repository: IdentitySelectionRepository,
     private val transfer: IdentityTransferPort,
-    private val misJwtBuilder: suspend (Identity, PodCertificate) -> String,
-    private val podAccessFactory: (String) -> PodAccess,
     private val textProvider: IdentitySessionTextProvider,
     private val visualsProvider: (Identity) -> IdentityVisuals,
-    private val defaultPod: String,
     private val scope: CoroutineScope,
     private val logger: Logger,
-    private val previewTopic: String = "Anything",
 ) {
     private var currentSelection: IdentitySelection? = null
     private var identityNameParts = placeholderName(textProvider.loading)
     private var identityAvatar: String? = null
     private var isBusy = false
     private var errorText: String? = null
-    private var misJwt: String? = null
-    private var queryPreview: String? = null
     private var isConnected = false
 
     private val _state = MutableStateFlow(initialLandingState())
@@ -59,26 +49,10 @@ class IdentitySessionStateMachine(
     fun select(index: Int) = navigate("Identity navigation failed") { select(index) }
 
     fun connectToPod() {
-        val selection = currentSelection ?: return
-        if (defaultPod.isBlank()) {
-            errorText = textProvider.missingPod
-            publishState()
-            return
-        }
-        runExclusive(
-            failureMessage = "Pod connection failed",
-            beforeRun = { resetConnection() },
-        ) {
-            val podAccess = podAccessFactory(defaultPod)
-            val certificate = podAccess.approveGid(selection.identity.gid)
-            val jwt = misJwtBuilder(selection.identity, certificate)
-            val preview = fetchPreview(podAccess, jwt)
-            misJwt = jwt
-            queryPreview = preview
-            isConnected = true
-            errorText = null
-            publishState()
-        }
+        if (currentSelection == null || isBusy) return
+        isConnected = true
+        errorText = null
+        publishState()
     }
 
     fun downloadIdentity() {
@@ -127,12 +101,7 @@ class IdentitySessionStateMachine(
     }
 
     private fun publishState() {
-        _state.value =
-            if (isConnected && misJwt != null) {
-                connectedState()
-            } else {
-                landingViewState()
-            }
+        _state.value = if (isConnected) connectedState() else landingViewState()
     }
 
     private fun initialLandingState(): IdentitySessionViewState =
@@ -157,14 +126,14 @@ class IdentitySessionStateMachine(
             identityNameParts = identityNameParts,
             identityAvatar = identityAvatar,
             isBusy = isBusy,
-            errorText = landingErrorText(),
+            errorText = errorText,
             canDelete = currentSelection != null,
             canNavigatePrevious = currentSelection?.hasPrevious ?: false,
             canNavigateNext = currentSelection != null,
             isShowingLastIdentity = currentSelection?.let { !it.hasNext } ?: false,
             identityIndex = currentSelection?.index ?: 0,
             identityTotal = currentSelection?.total ?: 1,
-            canConnect = currentSelection != null && defaultPod.isNotBlank(),
+            canConnect = currentSelection != null,
             canDownload = currentSelection != null,
             canUpload = true,
         )
@@ -172,12 +141,7 @@ class IdentitySessionStateMachine(
     private fun connectedState(): IdentitySessionViewState.Connected =
         IdentitySessionViewState.Connected(
             identityName = identityNameParts.toString(),
-            misJwt = misJwt.orEmpty(),
-            queryPreview = queryPreview,
         )
-
-    private fun landingErrorText(): String? =
-        if (defaultPod.isBlank()) errorText ?: textProvider.missingPod else errorText
 
     private fun runExclusive(
         failureMessage: String,
@@ -216,37 +180,7 @@ class IdentitySessionStateMachine(
     }
 
     private fun resetConnection() {
-        misJwt = null
-        queryPreview = null
         isConnected = false
-    }
-
-    private suspend fun fetchPreview(
-        podAccess: PodAccess,
-        jwt: String,
-    ): String =
-        runCatching { podAccess.query(QueryRequest(previewTopic), jwt) }
-            .map { prototypePreview(previewTopic, it) }
-            .getOrElse { error ->
-                logger.warn("Prototype query failed", error)
-                errorMessage(error)
-            }
-
-    private fun prototypePreview(topic: String, result: QueryResult): String {
-        if (result.entries.isEmpty()) {
-            return textProvider.previewResultsEmpty(topic)
-        }
-        val header = textProvider.previewResultsHeader(topic)
-        return buildString {
-            appendLine(header)
-            result.entries.forEach { entry ->
-                append("- ")
-                append(entry.content)
-                append(" (")
-                append(entry.similarity)
-                appendLine(")")
-            }
-        }.trim()
     }
 
     private fun errorMessage(error: Throwable): String {

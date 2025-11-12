@@ -21,7 +21,5 @@ sealed interface IdentitySessionViewState {
 
     data class Connected(
         val identityName: String,
-        val misJwt: String,
-        val queryPreview: String?,
     ) : IdentitySessionViewState
 }

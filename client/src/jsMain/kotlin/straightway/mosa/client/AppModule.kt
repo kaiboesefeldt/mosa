@@ -34,6 +34,9 @@ import straightway.mosa.client.logging.BrowserLogger
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodAccessImpl
+import straightway.mosa.client.topic.IndexedDbTopicStore
+import straightway.mosa.client.topic.TopicRepository
+import straightway.mosa.client.topic.TopicStore
 import straightway.mosa.identity.FictionalNameGenerator
 import web.idb.IDBFactory
 import web.idb.indexedDB
@@ -91,6 +94,8 @@ object AppModule : KoinComponent {
                         single<ObjectUrlFactory> { WindowObjectUrlFactory() }
                         single<IdentityTransferPort> { IdentityTransferService(get(), get()) }
                         single { FictionalNameGenerator() }
+                        single<TopicStore> { IndexedDbTopicStore(get(), get(), get()) }
+                        single { TopicRepository(get()) }
                         single { BrowserPrefs() }
                         single { Translator(get<BrowserPrefs>().languages) }
                         single { DiceBearAvatarGenerator() }

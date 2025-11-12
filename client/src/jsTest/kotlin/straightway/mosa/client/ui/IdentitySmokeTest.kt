@@ -5,7 +5,6 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
-import kotlinx.browser.window
 import kotlinx.coroutines.await
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
@@ -13,7 +12,6 @@ import org.w3c.dom.Element
 import react.FC
 import react.Props
 import react.create
-import straightway.mosa.auth.PodCertificate
 import straightway.mosa.client.AppModule
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.identity.Identity
@@ -21,22 +19,15 @@ import straightway.mosa.client.identity.IdentityProvider
 import straightway.mosa.client.identity.IdentityRepository
 import straightway.mosa.client.identity.IdentityStore
 import straightway.mosa.client.identity.IdentityStoreState
-import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.testing.RenderResult
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.render
 import straightway.mosa.client.testing.userEvent
 import straightway.mosa.client.util.Base64.toBase64Url
-import straightway.mosa.content.PublishRequest
-import straightway.mosa.content.QueryOnRequest
-import straightway.mosa.content.QueryRequest
-import straightway.mosa.content.QueryResult
-import straightway.mosa.content.ReplyRequest
 
 class IdentitySmokeTest {
     private lateinit var identityStore: InMemoryIdentityStore
     private lateinit var identityProvider: QueueIdentityProvider
-    private lateinit var podAccess: RecordingPodAccess
     private lateinit var repository: IdentityRepository
     private var originalFactory: IdentitySessionStateMachineFactory? = null
 
@@ -53,7 +44,6 @@ class IdentitySmokeTest {
                     testIdentity("delta"),
                 ),
             )
-        podAccess = RecordingPodAccess()
         repository = IdentityRepository(identityStore, identityProvider)
         originalFactory = identitySessionStateMachineFactory
         identitySessionStateMachineFactory =
@@ -61,27 +51,22 @@ class IdentitySmokeTest {
                 IdentitySessionStateMachine(
                     repository = repository,
                     transfer = config.transfer,
-                    misJwtBuilder = { identity, cert -> "jwt:${identity.gid}:${cert.gid}" },
-                    podAccessFactory = { podAccess },
                     textProvider = config.textProvider,
                     visualsProvider = { identity -> config.visualsFactory.create(identity) },
-                    defaultPod = config.defaultPod,
                     scope = config.scope,
                     logger = config.logger,
                 )
             }
-        window.asDynamic().MOSA_POD_BASE = "https://pod.smoke.test"
     }
 
     @AfterTest
     fun tearDown() {
         cleanup()
         originalFactory?.let { identitySessionStateMachineFactory = it }
-        window.asDynamic().MOSA_POD_BASE = js("undefined")
     }
 
     @Test
-    fun `runs identity lifecycle from landing to pod connection`() = runTest {
+    fun `runs identity lifecycle from landing to topic board`() = runTest {
         val result = renderSmokeApp()
         waitForIdentityReady(result.container)
         val user = userEvent.setup()
@@ -110,13 +95,7 @@ class IdentitySmokeTest {
 
         waitForButtonEnabled("connect button") { connectButton(result.container) }
         user.click(connectButton(result.container)).await()
-        waitForPodConnection()
         waitForConnectedView(result.container)
-
-        val activeGid = identityStore.currentIdentity()!!.gid
-        assertEquals(listOf(activeGid), podAccess.approvedGids)
-        assertEquals(listOf("Anything"), podAccess.queryTopics)
-        assertEquals("jwt:$activeGid:$activeGid", podAccess.lastJwt)
     }
 
     private suspend fun waitForIdentityReady(container: Element) {
@@ -137,10 +116,10 @@ class IdentitySmokeTest {
 
     private suspend fun waitForConnectedView(container: Element) {
         eventually("connected view") {
-            val shell = container.querySelector(".connected-shell") ?: error("Connected view missing")
-            val header = shell.querySelector(".connected-shell__header")?.textContent.orEmpty()
-            check(header.isNotBlank())
-            check(shell.querySelectorAll(".connected-shell__section-title").length >= 1)
+            val board = container.querySelector(".topic-board") ?: error("Topic board missing")
+            check(board.querySelectorAll(".topic-board__column").length == 3)
+            val addButton = board.querySelector(".topic-board__add-button")
+            check(addButton != null)
         }
     }
 
@@ -215,9 +194,6 @@ class IdentitySmokeTest {
         eventually(description) { checkNotNull(lookup()) }
     }
 
-    private suspend fun waitForPodConnection() {
-        eventually("pod approval") { check(podAccess.approvedGids.isNotEmpty()) }
-    }
 }
 
 private data class IdentitySnapshot(
@@ -230,8 +206,6 @@ private val IdentitySmokeApp = FC<Props> {
         is IdentityScreen.Connected ->
             IdentityConnectedView {
                 identityName = screen.identityName
-                misJwt = screen.misJwt
-                queryPreview = screen.queryPreview
             }
 
         is IdentityScreen.Landing ->
@@ -280,43 +254,6 @@ private class QueueIdentityProvider(
 
     override suspend fun generate(): Identity =
         queue.removeFirstOrNull() ?: source.last()
-}
-
-private class RecordingPodAccess : PodAccess {
-    val approvedGids = mutableListOf<String>()
-    val queryTopics = mutableListOf<String>()
-    var lastJwt: String? = null
-
-    override suspend fun approveGid(gid: String): PodCertificate {
-        approvedGids += gid
-        return PodCertificate(gid, 1_234, "sig-$gid")
-    }
-
-    override suspend fun publish(request: PublishRequest, jwt: String) = Unit
-
-    override suspend fun reply(request: ReplyRequest, jwt: String) = Unit
-
-    override suspend fun query(request: QueryRequest, jwt: String): QueryResult {
-        queryTopics += request.topic.orEmpty()
-        lastJwt = jwt
-        return QueryResult(
-            entries =
-                listOf(
-                    QueryResult.Entry(
-                        id = "preview-id",
-                        content = "Prototype",
-                        similarity = 0.9f,
-                        authorGID = "author",
-                        storedAt = 42,
-                        rootId = null,
-                    ),
-                ),
-            queryOnId = "preview",
-        )
-    }
-
-    override suspend fun queryOn(request: QueryOnRequest, jwt: String): QueryResult =
-        QueryResult(emptyList(), "preview")
 }
 
 private fun testIdentity(label: String): Identity {

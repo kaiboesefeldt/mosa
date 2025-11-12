@@ -1,6 +1,5 @@
 package straightway.mosa.client.ui
 
-import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.awaitCancellation
@@ -15,10 +14,7 @@ import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.identity.IdentityTransferPort
-import straightway.mosa.client.identity.MisJwtService
 import straightway.mosa.client.logging.Logger
-import straightway.mosa.client.pod.PodAccess
-import straightway.mosa.client.pod.podAccess
 import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
 
@@ -48,8 +44,6 @@ sealed interface IdentityScreen {
 
     data class Connected(
         val identityName: String,
-        val misJwt: String,
-        val queryPreview: String?,
     ) : IdentityScreen
 }
 
@@ -57,7 +51,6 @@ fun useIdentitySession(): IdentityScreen {
     val translator = ClientInjector.get<Translator>()
     val repository = ClientInjector.get<IdentitySelectionRepository>()
     val transfer = ClientInjector.get<IdentityTransferPort>()
-    val misJwtService = ClientInjector.get<MisJwtService>()
     val avatarGenerator = ClientInjector.get<DiceBearAvatarGenerator>()
     val nameGenerator = ClientInjector.get<FictionalNameGenerator>()
     val textProvider =
@@ -68,29 +61,16 @@ fun useIdentitySession(): IdentityScreen {
         useMemo(nameGenerator, avatarGenerator) {
             IdentityVisualsFactory(nameGenerator, avatarGenerator)
         }
-    val defaultPod = (window.asDynamic().MOSA_POD_BASE as? String).orEmpty()
-
     val scope = useMemo(*noDependencies) { MainScope() }
     val logger = useMemo(*noDependencies) { ClientInjector.get<Logger>() }
     val machine =
-        useMemo(
-            repository,
-            transfer,
-            misJwtService,
-            visualsFactory,
-            defaultPod,
-            logger,
-            textProvider,
-        ) {
+        useMemo(repository, transfer, visualsFactory, logger, textProvider) {
             identitySessionStateMachineFactory(
                 IdentitySessionMachineConfig(
                     repository = repository,
                     transfer = transfer,
-                    misJwtService = misJwtService,
-                    podAccessProvider = { host -> ClientInjector.podAccess(host) },
                     textProvider = textProvider,
                     visualsFactory = visualsFactory,
-                    defaultPod = defaultPod,
                     scope = scope,
                     logger = logger,
                 ),
@@ -115,8 +95,6 @@ fun useIdentitySession(): IdentityScreen {
         is IdentitySessionViewState.Connected ->
             IdentityScreen.Connected(
                 identityName = viewState.identityName,
-                misJwt = viewState.misJwt,
-                queryPreview = viewState.queryPreview,
             )
         is IdentitySessionViewState.Landing ->
             IdentityScreen.Landing(
@@ -151,11 +129,8 @@ private val noDependencies: Array<dynamic> = emptyArray()
 internal data class IdentitySessionMachineConfig(
     val repository: IdentitySelectionRepository,
     val transfer: IdentityTransferPort,
-    val misJwtService: MisJwtService,
-    val podAccessProvider: (String) -> PodAccess,
     val textProvider: IdentitySessionTextProvider,
     val visualsFactory: IdentityVisualsFactory,
-    val defaultPod: String,
     val scope: CoroutineScope,
     val logger: Logger,
 )
@@ -167,11 +142,8 @@ internal var identitySessionStateMachineFactory: IdentitySessionStateMachineFact
         IdentitySessionStateMachine(
             repository = config.repository,
             transfer = config.transfer,
-            misJwtBuilder = { identity, certificate -> config.misJwtService.buildMisJwt(identity, certificate) },
-            podAccessFactory = config.podAccessProvider,
             textProvider = config.textProvider,
             visualsProvider = { identity -> config.visualsFactory.create(identity) },
-            defaultPod = config.defaultPod,
             scope = config.scope,
             logger = config.logger,
         )

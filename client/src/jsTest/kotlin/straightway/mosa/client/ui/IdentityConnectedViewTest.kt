@@ -1,72 +1,71 @@
 package straightway.mosa.client.ui
 
 import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.assertEquals
+import kotlinx.browser.window
+import kotlinx.coroutines.await
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.runTest
+import org.w3c.dom.Element
+import react.FC
+import react.Props
 import react.create
-import org.koin.core.component.get
 import straightway.mosa.client.AppModule
-import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.testing.RenderResult
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.render
+import straightway.mosa.client.testing.userEvent
 
 class IdentityConnectedViewTest {
+    private var originalPrompt: dynamic = null
+
+    @BeforeTest
+    fun setUp() {
+        AppModule.start()
+        originalPrompt = window.asDynamic().prompt
+    }
+
     @AfterTest
     fun tearDown() {
         cleanup()
+        window.asDynamic().prompt = originalPrompt
     }
 
     @Test
-    fun `renders authentication token`() {
-        val result =
-            renderIdentityConnectedView {
-                misJwt = "encoded-jwt"
-                queryPreview = null
-            }
-        val content = result.container.textContent.orEmpty()
+    fun `adds topic via prompt`() = runTest {
+        window.asDynamic().prompt = { _: String -> "Neues Thema" }
+        val user = userEvent.setup()
+        val view = renderConnectedView()
 
-        assertTrue(content.contains(text("connected.authenticationTokenTitle")))
-        assertTrue(content.contains("encoded-jwt"))
+        waitForCondition { view.container.querySelector(".topic-board__add-button") != null }
+        val button = addButton(view.container)
+        user.click(button).await()
+        waitForCondition { view.container.querySelectorAll(".topic-card").length == 1 }
+        val cardText = view.container.querySelector(".topic-card")?.textContent?.trim()
+        assertEquals("Neues Thema", cardText)
     }
 
-    @Test
-    fun `renders prototype preview when available`() {
-        val preview = "nearest results"
-        val result =
-            renderIdentityConnectedView {
-                queryPreview = preview
-            }
-        val content = result.container.textContent.orEmpty()
-
-        assertTrue(content.contains(text("connected.prototypeQueryResultTitle")))
-        assertTrue(content.contains(preview))
+    private suspend fun waitForCondition(condition: () -> Boolean) {
+        repeat(200) {
+            if (condition()) return
+            delay(20)
+        }
+        error("condition not met")
     }
 
-    @Test
-    fun `hides prototype preview when missing`() {
-        val result =
-            renderIdentityConnectedView {
-                queryPreview = null
-            }
-        val content = result.container.textContent.orEmpty()
+    private fun addButton(container: Element): Element =
+        container.querySelector(".topic-board__add-button") ?: error("Add button missing")
 
-        assertFalse(content.contains(text("connected.prototypeQueryResultTitle")))
-    }
+    private fun renderConnectedView(): RenderResult =
+        render(
+            ConnectedViewHarness.create(),
+        )
 }
 
-private fun renderIdentityConnectedView(
-    configure: IdentityConnectedViewProps.() -> Unit = {},
-): RenderResult =
-    render(
-        IdentityConnectedView.create {
-            AppModule.start()
-            identityName = "Ada Lovelace"
-            misJwt = "mis.jwt.token"
-            queryPreview = "preview"
-            configure()
-        },
-    )
-
-private fun text(key: String): String = AppModule.get<Translator>().translate(key)
+private val ConnectedViewHarness = FC<Props> {
+    IdentityConnectedView {
+        identityName = "Tester"
+    }
+}

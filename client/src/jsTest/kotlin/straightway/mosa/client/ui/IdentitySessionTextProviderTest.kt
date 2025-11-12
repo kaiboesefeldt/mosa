@@ -13,7 +13,6 @@ class IdentitySessionTextProviderTest {
     fun `exposes static translations`() {
         assertEquals("...", provider.loading)
         assertEquals("Unknown error", provider.unknownError)
-        assertEquals("No pod is configured for this client.", provider.missingPod)
     }
 
     @Test
@@ -21,14 +20,5 @@ class IdentitySessionTextProviderTest {
         val message = provider.failedToPrepare("offline")
 
         assertEquals("Failed to prepare identity: offline", message)
-    }
-
-    @Test
-    fun `formats preview texts for topic`() {
-        val header = provider.previewResultsHeader("Topic")
-        val empty = provider.previewResultsEmpty("Topic")
-
-        assertEquals("Results for Topic:", header)
-        assertEquals("Results for Topic: none", empty)
     }
 }

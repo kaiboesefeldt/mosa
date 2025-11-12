@@ -1,23 +1,59 @@
 package straightway.mosa.client.ui
 
+import kotlinx.browser.window
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
+import react.ChildrenBuilder
 import react.FC
 import react.Props
+import react.dom.html.ReactHTML.button
 import react.dom.html.ReactHTML.div
-import react.dom.html.ReactHTML.pre
 import react.dom.html.ReactHTML.span
-import web.cssom.ClassName
+import react.useEffect
+import react.useMemo
+import react.useState
 import straightway.mosa.client.i18n.Translator
+import straightway.mosa.client.topic.Topic
+import straightway.mosa.client.topic.TopicRepository
+import web.cssom.ClassName
 
 external interface IdentityConnectedViewProps : Props {
     var identityName: String
-    var misJwt: String
-    var queryPreview: String?
 }
 
 val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val translator = ConnectedViewInjector.get<Translator>()
+    val repository = ConnectedViewInjector.get<TopicRepository>()
+    val scope = useMemo(*noDependencies) { MainScope() }
+    val (topics, setTopics) = useState<List<Topic>>(emptyList())
+
+    useEffect(arrayOf(repository)) {
+        scope.launch {
+            setTopics(repository.all())
+        }
+    }
+
+    useEffect(*noDependencies) {
+        try {
+            awaitCancellation()
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    fun addTopic() {
+        val text = window.prompt(translator.translate("connected.topics.prompt")) ?: return
+        val sanitized = text.trim()
+        if (sanitized.isEmpty()) return
+        scope.launch {
+            setTopics(repository.add(sanitized))
+        }
+    }
+
     div {
         className = ClassName("connected-shell")
         div {
@@ -25,33 +61,72 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             +props.identityName
         }
         div {
-            className = ClassName("connected-shell__content")
+            className = ClassName("topic-board")
+            topicColumn(translator, topics, ::addTopic)
+            placeholderColumn(
+                title = translator.translate("connected.posts.title"),
+                message = translator.translate("connected.posts.empty"),
+                modifier = "topic-board__column--posts",
+            )
+            placeholderColumn(
+                title = translator.translate("connected.replies.title"),
+                message = translator.translate("connected.replies.empty"),
+                modifier = "topic-board__column--replies",
+            )
+        }
+    }
+}
+
+private fun ChildrenBuilder.topicColumn(
+    translator: Translator,
+    topics: List<Topic>,
+    onAddTopic: () -> Unit,
+) = div {
+    className = ClassName("topic-board__column topic-board__column--topics")
+    div {
+        className = ClassName("topic-board__column-header")
+        span {
+            className = ClassName("topic-board__column-title")
+            +translator.translate("connected.topics.title")
+        }
+        button {
+            className = ClassName("button button--primary topic-board__add-button")
+            onClick = { onAddTopic() }
+            +translator.translate("connected.topics.add")
+        }
+    }
+    if (topics.isEmpty()) {
+        div {
+            className = ClassName("topic-board__empty")
+            +translator.translate("connected.topics.empty")
+        }
+    } else {
+        topics.forEach { topic ->
             div {
-                className = ClassName("connected-shell__section")
-                span {
-                    className = ClassName("connected-shell__section-title")
-                    +translator.translate("connected.authenticationTokenTitle")
-                }
-                div {
-                    className = ClassName("connected-shell__snippet")
-                    pre { +props.misJwt }
-                }
-            }
-            props.queryPreview?.let { preview ->
-                div {
-                    className = ClassName("connected-shell__section")
-                    span {
-                        className = ClassName("connected-shell__section-title")
-                        +translator.translate("connected.prototypeQueryResultTitle")
-                    }
-                    div {
-                        className = ClassName("connected-shell__snippet")
-                        pre { +preview }
-                    }
-                }
+                key = topic.title
+                className = ClassName("topic-card")
+                +topic.title
             }
         }
     }
 }
 
+private fun ChildrenBuilder.placeholderColumn(
+    title: String,
+    message: String,
+    modifier: String,
+) = div {
+    className = ClassName("topic-board__column $modifier")
+    span {
+        className = ClassName("topic-board__column-title")
+        +title
+    }
+    div {
+        className = ClassName("topic-board__empty")
+        +message
+    }
+}
+
 private object ConnectedViewInjector : KoinComponent
+
+private val noDependencies: Array<dynamic> = emptyArray()

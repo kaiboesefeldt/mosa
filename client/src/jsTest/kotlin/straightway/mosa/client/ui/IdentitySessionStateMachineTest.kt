@@ -14,21 +14,13 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import straightway.mosa.auth.PodCertificate
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.identity.IdentityTransferPort
 import straightway.mosa.client.logging.Logger
-import straightway.mosa.client.pod.PodAccess
-import straightway.mosa.content.PublishRequest
-import straightway.mosa.content.QueryOnRequest
-import straightway.mosa.content.QueryRequest
-import straightway.mosa.content.QueryResult
-import straightway.mosa.content.ReplyRequest
 import straightway.mosa.identity.FictionalName
-import kotlin.test.fail
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class IdentitySessionStateMachineTest {
@@ -204,28 +196,9 @@ class IdentitySessionStateMachineTest {
     }
 
     @Test
-    fun `refresh exposes missing pod hint when default blank`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val textProvider = FakeIdentitySessionTextProvider(missingPod = "kein pod")
-        val machine = machine(repository = repository, textProvider = textProvider, scope = this, defaultPod = "")
-
-        machine.refresh()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
-        assertEquals("kein pod", state.errorText)
-    }
-
-    @Test
     fun `connect publishes connected view`() = runTest(dispatcher) {
         val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val podAccess = RecordingIdentitySessionPodAccess()
-        val machine =
-            machine(
-                repository = repository,
-                podAccessFactory = { podAccess },
-                scope = this,
-            )
+        val machine = machine(repository = repository, scope = this)
 
         machine.refresh()
         advanceUntilIdle()
@@ -234,181 +207,17 @@ class IdentitySessionStateMachineTest {
 
         val state = assertIs<IdentitySessionViewState.Connected>(machine.state.value)
         assertEquals("Ada Lovelace", state.identityName)
-        assertEquals("jwt-token", state.misJwt)
-        assertEquals("header Anything\n- preview (0.9)", state.queryPreview)
-        assertEquals(listOf("gid-123"), podAccess.approvedGids)
-        assertEquals(QueryRequest("Anything") to "jwt-token", podAccess.lastQuery)
     }
 
     @Test
     fun `connect ignored without selection`() = runTest(dispatcher) {
         val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val podAccess = RecordingIdentitySessionPodAccess()
-        val machine = machine(repository = repository, podAccessFactory = { podAccess }, scope = this)
+        val machine = machine(repository = repository, scope = this)
 
         machine.connectToPod()
         advanceUntilIdle()
 
-        assertTrue(podAccess.approvedGids.isEmpty())
         assertIs<IdentitySessionViewState.Landing>(machine.state.value)
-    }
-
-    @Test
-    fun `connect requires pod configuration`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val textProvider = FakeIdentitySessionTextProvider(missingPod = "kein pod")
-        val podAccess = RecordingIdentitySessionPodAccess()
-        val machine =
-            machine(
-                repository = repository,
-                scope = this,
-                textProvider = textProvider,
-                podAccessFactory = { podAccess },
-                defaultPod = "",
-            )
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.connectToPod()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
-        assertEquals("kein pod", state.errorText)
-        assertTrue(podAccess.approvedGids.isEmpty())
-    }
-
-    @Test
-    fun `connect obeys busy guard`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val podAccess = RecordingIdentitySessionPodAccess()
-        val resume = CompletableDeferred<Unit>()
-        podAccess.approveAction = { gid ->
-            resume.await()
-            PodCertificate(gid, 0, "sig")
-        }
-        val machine = machine(repository = repository, podAccessFactory = { podAccess }, scope = this)
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.connectToPod()
-        machine.connectToPod()
-        assertEquals(1, podAccess.approvedGids.size)
-
-        resume.complete(Unit)
-        advanceUntilIdle()
-    }
-
-    @Test
-    fun `connect displays empty preview text`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val podAccess = RecordingIdentitySessionPodAccess()
-        podAccess.queryAction = { _, _ -> QueryResult(entries = emptyList(), queryOnId = "qid") }
-        val textProvider = FakeIdentitySessionTextProvider()
-        val machine =
-            machine(
-                repository = repository,
-                podAccessFactory = { podAccess },
-                textProvider = textProvider,
-                scope = this,
-            )
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.connectToPod()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Connected>(machine.state.value)
-        assertEquals(textProvider.previewResultsEmpty("Anything"), state.queryPreview)
-    }
-
-    @Test
-    fun `connect logs warning when preview query fails`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val podAccess = RecordingIdentitySessionPodAccess()
-        podAccess.queryAction = { _, _ -> throw RuntimeException("preview fail") }
-        val logger = RecordingLogger()
-        val machine =
-            machine(
-                repository = repository,
-                podAccessFactory = { podAccess },
-                logger = logger,
-                scope = this,
-            )
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.connectToPod()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Connected>(machine.state.value)
-        assertEquals("preview fail", state.queryPreview)
-        assertEquals(listOf("Prototype query failed"), logger.warnEntries.map { it.message })
-    }
-
-    @Test
-    fun `connect preview uses class name when message blank`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val podAccess = RecordingIdentitySessionPodAccess()
-        podAccess.queryAction = { _, _ -> throw BlankMessageError() }
-        val machine = machine(repository = repository, podAccessFactory = { podAccess }, scope = this)
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.connectToPod()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Connected>(machine.state.value)
-        assertEquals("BlankMessageError", state.queryPreview)
-    }
-
-    @Test
-    fun `connect surfaces approve failures`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val podAccess = RecordingIdentitySessionPodAccess()
-        podAccess.approveAction = { throw RuntimeException("approval broken") }
-        val logger = RecordingLogger()
-        val machine =
-            machine(
-                repository = repository,
-                podAccessFactory = { podAccess },
-                logger = logger,
-                scope = this,
-            )
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.connectToPod()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
-        assertEquals("approval broken", state.errorText)
-        assertEquals(listOf("Pod connection failed"), logger.errorEntries.map { it.message })
-    }
-
-    @Test
-    fun `connect surfaces unknown errors from jwt builder`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val podAccess = RecordingIdentitySessionPodAccess()
-        val textProvider = FakeIdentitySessionTextProvider()
-        val anonymousError = object : Throwable() {
-            override val message: String = " "
-        }
-        val machine =
-            machine(
-                repository = repository,
-                podAccessFactory = { podAccess },
-                textProvider = textProvider,
-                scope = this,
-                misJwtBuilder = { _, _ -> throw anonymousError },
-            )
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.connectToPod()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
-        assertEquals(textProvider.unknownError, state.errorText)
     }
 
     @Test
@@ -586,21 +395,15 @@ class IdentitySessionStateMachineTest {
         repository: RecordingIdentitySelectionRepository,
         scope: TestScope,
         transfer: RecordingIdentityTransferPort = RecordingIdentityTransferPort(),
-        podAccessFactory: (String) -> PodAccess = { RecordingIdentitySessionPodAccess() },
         textProvider: FakeIdentitySessionTextProvider = FakeIdentitySessionTextProvider(),
         visualsProvider: (Identity) -> IdentityVisuals = { IdentityVisuals(FictionalName(listOf("Ada"), "Lovelace"), "avatar") },
         logger: RecordingLogger = RecordingLogger(),
-        misJwtBuilder: suspend (Identity, PodCertificate) -> String = { _, _ -> "jwt-token" },
-        defaultPod: String = "http://pod",
     ): IdentitySessionStateMachine =
         IdentitySessionStateMachine(
             repository = repository,
             transfer = transfer,
-            misJwtBuilder = misJwtBuilder,
-            podAccessFactory = podAccessFactory,
             textProvider = textProvider,
             visualsProvider = visualsProvider,
-            defaultPod = defaultPod,
             scope = scope,
             logger = logger,
         )
@@ -662,29 +465,6 @@ private class RecordingIdentitySelectionRepository(
     }
 }
 
-private class RecordingIdentitySessionPodAccess : PodAccess {
-    val approvedGids = mutableListOf<String>()
-    var lastQuery: Pair<QueryRequest, String>? = null
-    var approveAction: suspend (String) -> PodCertificate = { gid -> PodCertificate(gid = gid, exp = 0, sig = "sig") }
-    var queryAction: suspend (QueryRequest, String) -> QueryResult = { _, _ -> defaultQueryResult() }
-
-    override suspend fun approveGid(gid: String): PodCertificate {
-        approvedGids += gid
-        return approveAction(gid)
-    }
-
-    override suspend fun publish(request: PublishRequest, jwt: String) = fail("Not implemented")
-
-    override suspend fun reply(request: ReplyRequest, jwt: String) = fail("Not implemented")
-
-    override suspend fun query(request: QueryRequest, jwt: String): QueryResult {
-        lastQuery = request to jwt
-        return queryAction(request, jwt)
-    }
-
-    override suspend fun queryOn(request: QueryOnRequest, jwt: String): QueryResult = fail("Not implemented")
-}
-
 private class RecordingIdentityTransferPort : IdentityTransferPort {
     val downloaded = mutableListOf<Pair<Identity, String>>()
     var downloadAction: suspend (Identity, String) -> Unit = { identity, fileBaseName ->
@@ -702,14 +482,9 @@ private class RecordingIdentityTransferPort : IdentityTransferPort {
 private class FakeIdentitySessionTextProvider(
     override val loading: String = "loading",
     override val unknownError: String = "unknown",
-    override val missingPod: String = "missing",
     private val failedTemplate: (String) -> String = { message -> "failed $message" },
-    private val emptyTemplate: (String) -> String = { topic -> "empty $topic" },
-    private val headerTemplate: (String) -> String = { topic -> "header $topic" },
 ) : IdentitySessionTextProvider {
     override fun failedToPrepare(message: String): String = failedTemplate(message)
-    override fun previewResultsEmpty(topic: String): String = emptyTemplate(topic)
-    override fun previewResultsHeader(topic: String): String = headerTemplate(topic)
 }
 
 private class RecordingLogger : Logger {
@@ -726,22 +501,6 @@ private class RecordingLogger : Logger {
         warnEntries += Entry(message, throwable)
     }
 }
-
-private class BlankMessageError : Throwable("   ")
-
-private fun defaultQueryResult(): QueryResult =
-    QueryResult(
-        entries = listOf(
-            QueryResult.Entry(
-                id = "1",
-                content = "preview",
-                similarity = 0.9f,
-                authorGID = "gid-123",
-                storedAt = 0,
-            ),
-        ),
-        queryOnId = "qid",
-    )
 
 private fun identitySelection(
     gid: String = "gid-123",
