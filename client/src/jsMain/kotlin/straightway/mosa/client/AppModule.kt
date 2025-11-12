@@ -12,7 +12,9 @@ import org.koin.dsl.module
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.aux.TimeService
 import straightway.mosa.client.browser.BrowserPrefs
+import straightway.mosa.client.browser.ObjectUrlFactory
 import straightway.mosa.client.browser.SubtleCrypto
+import straightway.mosa.client.browser.WindowObjectUrlFactory
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.CryptoExport
 import straightway.mosa.client.identity.IdentityGenerator
@@ -86,7 +88,8 @@ object AppModule : KoinComponent {
                                 Json { prettyPrint = true },
                             )
                         }
-                        single<IdentityTransferPort> { IdentityTransferService(get()) }
+                        single<ObjectUrlFactory> { WindowObjectUrlFactory() }
+                        single<IdentityTransferPort> { IdentityTransferService(get(), get()) }
                         single { FictionalNameGenerator() }
                         single { BrowserPrefs() }
                         single { Translator(get<BrowserPrefs>().languages) }

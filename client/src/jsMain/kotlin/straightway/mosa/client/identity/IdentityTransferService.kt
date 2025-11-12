@@ -1,7 +1,6 @@
 package straightway.mosa.client.identity
 
 import kotlinx.browser.document
-import kotlinx.browser.window
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.w3c.dom.HTMLAnchorElement
 import org.w3c.dom.HTMLInputElement
@@ -13,6 +12,7 @@ import org.w3c.files.FileReader
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import straightway.mosa.client.browser.ObjectUrlFactory
 
 interface IdentityTransferPort {
     suspend fun download(identity: Identity, fileBaseName: String)
@@ -21,19 +21,22 @@ interface IdentityTransferPort {
 
 class IdentityTransferService(
     private val codec: IdentityTransferCodec,
+    private val urlFactory: ObjectUrlFactory,
 ) : IdentityTransferPort {
     override suspend fun download(identity: Identity, fileBaseName: String) {
         val json = codec.encode(identity)
         val blob = Blob(arrayOf(json), BlobPropertyBag(type = "application/json"))
         val anchor = document.createElement("a") as HTMLAnchorElement
-        val urlCreator = window.asDynamic().URL ?: error("URL API not available")
-        val url = urlCreator.createObjectURL(blob) as String
-        anchor.href = url
+        val objectUrl = urlFactory.create(blob)
+        anchor.href = objectUrl.value
         anchor.download = "$fileBaseName.json"
         document.body?.appendChild(anchor)
-        anchor.click()
-        anchor.remove()
-        urlCreator.revokeObjectURL(url)
+        try {
+            anchor.click()
+        } finally {
+            anchor.remove()
+            objectUrl.revoke()
+        }
     }
 
     override suspend fun upload(): Identity? {
