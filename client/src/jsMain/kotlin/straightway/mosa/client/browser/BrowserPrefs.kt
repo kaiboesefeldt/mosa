@@ -1,27 +1,53 @@
 package straightway.mosa.client.browser
 
+import js.array.ReadonlyArray
 import js.intl.Locale
 import kotlin.collections.buildList
 import kotlin.js.unsafeCast
+import web.navigator.Navigator
+import web.navigator.navigator
 
 class BrowserPrefs(
-    private val navigatorProvider: () -> dynamic = { js("typeof navigator === 'undefined' ? undefined : navigator") }
+    private val navigatorProvider: () -> Navigator? = ::currentNavigator
 ) {
     val languages: List<Locale>
-        get() {
-            val navigator = navigatorProvider()!!
-            val tags = buildList {
-                addAll(readLanguageArray(navigator))
-                val primary = navigator.language as? String
-                if (!primary.isNullOrBlank()) add(primary)
-            }.distinct()
-            return tags.map(::Locale)
-        }
+        get() = navigatorProvider()
+            ?.preferredLanguageTags()
+            ?.map(::Locale)
+            ?: emptyList()
 
-    private fun readLanguageArray(navigator: dynamic): List<String> {
-        val source = navigator.languages ?: return emptyList()
-        val isArray = js("Array.isArray(source)") as Boolean
-        if (!isArray) return emptyList()
-        return source.unsafeCast<Array<String>>().mapNotNull { it.takeIf(String::isNotBlank) }
+    private fun Navigator.preferredLanguageTags(): List<String> {
+        val preferences = unsafeCast<LanguageAwareNavigator>()
+        return buildList {
+            addAll(preferences.languages.collectLanguageTags())
+            preferences.language
+                ?.takeUnless(String::isBlank)
+                ?.let(::add)
+        }.distinct()
     }
+
+    private fun ReadonlyArray<String>?.collectLanguageTags(): List<String> =
+        this?.let { values ->
+            buildList {
+                repeat(values.length) { index ->
+                    val tag = values[index]
+                    if (tag.isNotBlank()) add(tag)
+                }
+            }
+        } ?: emptyList()
+
+    private companion object {
+        @Suppress("UnsafeCastFromDynamic")
+        private fun currentNavigator(): Navigator? =
+            if (js("typeof navigator === 'undefined'") as Boolean) {
+                null
+            } else {
+                navigator
+            }
+    }
+}
+
+private external interface LanguageAwareNavigator {
+    val language: String?
+    val languages: ReadonlyArray<String>?
 }

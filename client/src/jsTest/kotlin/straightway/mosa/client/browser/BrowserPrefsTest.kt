@@ -31,6 +31,13 @@ class BrowserPrefsTest {
         }
     }
 
+    @Test
+    fun `returns empty list when navigator is unavailable`() {
+        val prefs = BrowserPrefs { null }
+
+        assertEquals(emptyList(), prefs.languages)
+    }
+
     private fun withNavigator(@Suppress("unused") navigator: dynamic, block: () -> Unit) {
         val descriptor = js("Object.getOwnPropertyDescriptor(globalThis, 'navigator')")
         js("Object.defineProperty(globalThis, 'navigator', { value: navigator, configurable: true, writable: true })")
