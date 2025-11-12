@@ -24,6 +24,12 @@ internal fun ChildrenBuilder.identityCarousel(
     activeSegment: Int,
     totalItems: Int,
 ) {
+    val navigationPresenter = IdentityCarouselNavigationPresenter(
+        props = props,
+        activeSegment = activeSegment,
+    )
+    val previousButton = navigationPresenter.previousButton()
+    val nextButton = navigationPresenter.nextButton()
     div {
         className = ClassName("landing-dialog__identity")
         identityToolsMenu(
@@ -36,12 +42,12 @@ internal fun ChildrenBuilder.identityCarousel(
         )
         button {
             className = ClassName("landing-dialog__nav-button")
-            disabled = props.isBusy || !props.canNavigatePrevious
+            disabled = previousButton.isDisabled
             ariaLabel = translator.translate("button.identity.previous.aria")
             title = translator.translate("button.identity.previous.aria")
-            onClick = { props.onPrevious() }
+            onClick = { previousButton.onClick() }
             i {
-                className = ClassName("fa fa-solid fa-chevron-left")
+                className = ClassName(previousButton.icon.cssClass)
                 ariaHidden = true
             }
         }
@@ -75,40 +81,28 @@ internal fun ChildrenBuilder.identityCarousel(
         }
         button {
             className = ClassName("landing-dialog__nav-button")
-            disabled = props.isBusy || !props.canNavigateNext
+            disabled = nextButton.isDisabled
             ariaLabel = translator.translate("button.identity.next.aria")
             title = translator.translate("button.identity.next.aria")
-            onClick = { props.onNext() }
-            if (props.isShowingLastIdentity) {
-                i {
-                    className = ClassName("fa fa-solid fa-user-plus")
-                    ariaHidden = true
-                }
-            } else {
-                i {
-                    className = ClassName("fa fa-solid fa-chevron-right")
-                    ariaHidden = true
-                }
+            onClick = { nextButton.onClick() }
+            i {
+                className = ClassName(nextButton.icon.cssClass)
+                ariaHidden = true
             }
         }
         div {
             className = ClassName("landing-dialog__identity-progress")
             onClick = { event: MouseEvent<HTMLDivElement, *> ->
-                val segments = props.identityTotal
-                if (!props.isBusy && segments > 0) {
-                    val rect = event.currentTarget.getBoundingClientRect()
-                    val width = rect.width
-                    if (width > 0.0) {
-                        val offset = (event.clientX - rect.left).coerceIn(0.0, width)
-                        val rawIndex = ((offset / width) * segments).toInt()
-                        val targetIndex = rawIndex.coerceIn(0, segments - 1)
-                        props.onSelect(targetIndex)
-                    }
+                val rect = event.currentTarget.getBoundingClientRect()
+                val width = rect.width
+                val offset = event.clientX - rect.left
+                navigationPresenter.progressSelection(width, offset)?.let { target ->
+                    props.onSelect(target)
                 }
             }
             repeat(totalItems) { segmentIndex ->
                 span {
-                    className = identityProgressSegmentClass(segmentIndex == activeSegment)
+                    className = identityProgressSegmentClass(navigationPresenter.isSegmentActive(segmentIndex))
                 }
             }
         }
