@@ -71,13 +71,6 @@ internal fun identityToolActions(props: IdentityLandingViewProps): List<Identity
         ),
     )
 
-private fun identityToolsClass(isExpanded: Boolean): ClassName =
-    if (isExpanded) {
-        ClassName("landing-dialog__identity-tools landing-dialog__identity-tools--expanded")
-    } else {
-        ClassName("landing-dialog__identity-tools")
-    }
-
 private fun ChildrenBuilder.identityToolButton(
     action: IdentityToolAction,
     translator: Translator,

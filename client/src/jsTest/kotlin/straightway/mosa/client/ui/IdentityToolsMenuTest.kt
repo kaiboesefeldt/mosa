@@ -5,6 +5,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.browser.document
 import kotlinx.coroutines.await
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.get
@@ -13,6 +14,7 @@ import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.screen
 import straightway.mosa.client.testing.userEvent
+import web.html.HTMLElement
 
 class IdentityToolsMenuTest {
     @AfterTest
@@ -79,6 +81,20 @@ class IdentityToolsMenuTest {
 
         assertTrue(isDisabled)
         assertFalse(handled)
+    }
+
+    @Test
+    fun `collapses tools menu after outside pointer interaction`() = runTest {
+        renderIdentityLandingView()
+
+        val toggleButton = screen.getByRole("button", json("name" to text("button.identity.tools.aria")))
+        val user = userEvent.setup()
+        user.click(toggleButton).await()
+        val overlay = document.querySelector(".landing-overlay") as HTMLElement
+        user.click(overlay).await()
+        val container = toggleButton.parentElement!!
+
+        assertFalse(container.classList.contains("landing-dialog__identity-tools--expanded"))
     }
 
     @Test

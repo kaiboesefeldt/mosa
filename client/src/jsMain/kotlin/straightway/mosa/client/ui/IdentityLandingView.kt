@@ -50,9 +50,7 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
         if (!areToolsVisible) return@useEffect
         val listener =
             EventListener { event: Event ->
-                val target = event.target ?: return@EventListener
-                val closestTools = target.asDynamic().closest?.call(target, ".landing-dialog__identity-tools")
-                if (closestTools == null) {
+                if (!event.target.isIdentityToolsTarget()) {
                     setToolsVisible(false)
                 }
             }
