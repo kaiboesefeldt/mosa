@@ -17,6 +17,7 @@ import straightway.mosa.client.testing.RenderResult
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.render
 import straightway.mosa.client.testing.userEvent
+import straightway.mosa.identity.FictionalName
 
 class IdentityConnectedViewTest {
     private var originalPrompt: dynamic = null
@@ -67,5 +68,30 @@ class IdentityConnectedViewTest {
 private val ConnectedViewHarness = FC<Props> {
     IdentityConnectedView {
         identityName = "Tester"
+        profile = placeholderProfile()
     }
 }
+
+private fun placeholderProfile(): IdentityScreen.Landing =
+    IdentityScreen.Landing(
+        identityNameParts = FictionalName(emptyList(), ""),
+        identityAvatar = null,
+        isBusy = false,
+        errorText = null,
+        canDelete = false,
+        canNavigatePrevious = false,
+        canNavigateNext = false,
+        isShowingLastIdentity = false,
+        identityIndex = 0,
+        identityTotal = 1,
+        canConnect = false,
+        onConnect = {},
+        onPrevious = {},
+        onNext = {},
+        onDelete = {},
+        onSelect = {},
+        canDownload = false,
+        onDownload = {},
+        canUpload = false,
+        onUpload = {},
+    )

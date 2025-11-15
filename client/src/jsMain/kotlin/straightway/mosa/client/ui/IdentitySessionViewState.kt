@@ -21,5 +21,6 @@ sealed interface IdentitySessionViewState {
 
     data class Connected(
         val identityName: String,
+        val profile: Landing,
     ) : IdentitySessionViewState
 }

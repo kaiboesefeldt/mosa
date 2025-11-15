@@ -7,6 +7,7 @@ import org.w3c.dom.events.Event
 import org.w3c.dom.events.EventListener
 import react.FC
 import react.Props
+import react.dom.events.MouseEvent
 import react.dom.html.ReactHTML.button
 import react.dom.html.ReactHTML.div
 import react.useEffect
@@ -36,6 +37,7 @@ external interface IdentityLandingViewProps : Props {
     var onSelect: (Int) -> Unit
     var onDownload: () -> Unit
     var onUpload: () -> Unit
+    var onClose: (() -> Unit)?
 }
 
 val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
@@ -59,6 +61,13 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
     }
     div {
         className = ClassName("landing-overlay")
+        props.onClose?.let { onClose ->
+            onClick = { event: MouseEvent<*, *> ->
+                if (event.target == event.currentTarget) {
+                    onClose()
+                }
+            }
+        }
         div {
             className = ClassName("landing-dialog")
             identityDialogHeader(translator)
@@ -105,3 +114,26 @@ private fun IdentityLandingViewProps.toIdentityToolsCapabilities(): IdentityTool
         onDownload = onDownload,
         onUpload = onUpload,
     )
+
+internal fun IdentityLandingViewProps.applyFrom(screen: IdentityScreen.Landing) {
+    identityNameParts = screen.identityNameParts
+    identityAvatar = screen.identityAvatar
+    isBusy = screen.isBusy
+    errorText = screen.errorText
+    canDelete = screen.canDelete
+    canNavigatePrevious = screen.canNavigatePrevious
+    canNavigateNext = screen.canNavigateNext
+    isShowingLastIdentity = screen.isShowingLastIdentity
+    identityIndex = screen.identityIndex
+    identityTotal = screen.identityTotal
+    canConnect = screen.canConnect
+    canDownload = screen.canDownload
+    canUpload = screen.canUpload
+    onConnect = screen.onConnect
+    onPrevious = screen.onPrevious
+    onNext = screen.onNext
+    onDelete = screen.onDelete
+    onSelect = screen.onSelect
+    onDownload = screen.onDownload
+    onUpload = screen.onUpload
+}

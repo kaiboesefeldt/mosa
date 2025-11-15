@@ -10,6 +10,7 @@ import react.dom.client.createRoot
 import straightway.mosa.client.assets.FontAwesomeResources
 import straightway.mosa.client.ui.IdentityConnectedView
 import straightway.mosa.client.ui.IdentityLandingView
+import straightway.mosa.client.ui.applyFrom
 import straightway.mosa.client.ui.IdentityScreen
 import straightway.mosa.client.ui.useIdentitySession
 import web.dom.Element as WebElement
@@ -28,30 +29,12 @@ private val IdentityApp = FC<Props> {
         is IdentityScreen.Connected ->
             IdentityConnectedView {
                 identityName = screen.identityName
+                profile = screen.profile
             }
 
         is IdentityScreen.Landing ->
             IdentityLandingView {
-                identityNameParts = screen.identityNameParts
-                identityAvatar = screen.identityAvatar
-                isBusy = screen.isBusy
-                errorText = screen.errorText
-                canDelete = screen.canDelete
-                canNavigatePrevious = screen.canNavigatePrevious
-                canNavigateNext = screen.canNavigateNext
-                isShowingLastIdentity = screen.isShowingLastIdentity
-                identityIndex = screen.identityIndex
-                identityTotal = screen.identityTotal
-                canConnect = screen.canConnect
-                canDownload = screen.canDownload
-                canUpload = screen.canUpload
-                onConnect = screen.onConnect
-                onPrevious = screen.onPrevious
-                onNext = screen.onNext
-                onDelete = screen.onDelete
-                onSelect = screen.onSelect
-                onDownload = screen.onDownload
-                onUpload = screen.onUpload
+                applyFrom(screen)
             }
     }
 }

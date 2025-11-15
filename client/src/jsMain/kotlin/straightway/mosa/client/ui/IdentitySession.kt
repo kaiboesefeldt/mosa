@@ -44,6 +44,7 @@ sealed interface IdentityScreen {
 
     data class Connected(
         val identityName: String,
+        val profile: Landing,
     ) : IdentityScreen
 }
 
@@ -91,34 +92,38 @@ fun useIdentitySession(): IdentityScreen {
         }
     }
 
+    fun IdentitySessionViewState.Landing.toScreen(): IdentityScreen.Landing =
+        IdentityScreen.Landing(
+            identityNameParts = identityNameParts,
+            identityAvatar = identityAvatar,
+            isBusy = isBusy,
+            errorText = errorText,
+            canDelete = canDelete,
+            canNavigatePrevious = canNavigatePrevious,
+            canNavigateNext = canNavigateNext,
+            isShowingLastIdentity = isShowingLastIdentity,
+            identityIndex = identityIndex,
+            identityTotal = identityTotal,
+            canConnect = canConnect,
+            onConnect = { machine.connectToPod() },
+            onPrevious = { machine.navigateToPrevious() },
+            onNext = { machine.navigateToNext() },
+            onDelete = { machine.deleteIdentity() },
+            onSelect = { index -> machine.select(index) },
+            canDownload = canDownload,
+            onDownload = { machine.downloadIdentity() },
+            canUpload = canUpload,
+            onUpload = { machine.uploadIdentity() },
+        )
+
     return when (viewState) {
         is IdentitySessionViewState.Connected ->
             IdentityScreen.Connected(
                 identityName = viewState.identityName,
+                profile = viewState.profile.toScreen(),
             )
         is IdentitySessionViewState.Landing ->
-            IdentityScreen.Landing(
-                identityNameParts = viewState.identityNameParts,
-                identityAvatar = viewState.identityAvatar,
-                isBusy = viewState.isBusy,
-                errorText = viewState.errorText,
-                canDelete = viewState.canDelete,
-                canNavigatePrevious = viewState.canNavigatePrevious,
-                canNavigateNext = viewState.canNavigateNext,
-                isShowingLastIdentity = viewState.isShowingLastIdentity,
-                identityIndex = viewState.identityIndex,
-                identityTotal = viewState.identityTotal,
-                canConnect = viewState.canConnect,
-                onConnect = { machine.connectToPod() },
-                onPrevious = { machine.navigateToPrevious() },
-                onNext = { machine.navigateToNext() },
-                onDelete = { machine.deleteIdentity() },
-                onSelect = { index -> machine.select(index) },
-                canDownload = viewState.canDownload,
-                onDownload = { machine.downloadIdentity() },
-                canUpload = viewState.canUpload,
-                onUpload = { machine.uploadIdentity() },
-            )
+            viewState.toScreen()
     }
 }
 

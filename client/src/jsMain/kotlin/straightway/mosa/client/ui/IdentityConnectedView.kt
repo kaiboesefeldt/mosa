@@ -12,6 +12,7 @@ import react.FC
 import react.Props
 import react.dom.html.ReactHTML.button
 import react.dom.html.ReactHTML.div
+import react.dom.html.ReactHTML.img
 import react.dom.html.ReactHTML.span
 import react.useEffect
 import react.useMemo
@@ -23,6 +24,7 @@ import web.cssom.ClassName
 
 external interface IdentityConnectedViewProps : Props {
     var identityName: String
+    var profile: IdentityScreen.Landing
 }
 
 val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
@@ -30,6 +32,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val repository = ConnectedViewInjector.get<TopicRepository>()
     val scope = useMemo(*noDependencies) { MainScope() }
     val (topics, setTopics) = useState<List<Topic>>(emptyList())
+    val (isProfileVisible, setProfileVisible) = useState(false)
 
     useEffect(arrayOf(repository)) {
         scope.launch {
@@ -45,6 +48,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
+    val avatarDescription = translator.translate("connected.profile.avatar.title")
+
     fun addTopic() {
         val text = window.prompt(translator.translate("connected.topics.prompt")) ?: return
         val sanitized = text.trim()
@@ -54,11 +59,44 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
+    fun showProfile() {
+        setProfileVisible(true)
+    }
+
+    fun hideProfile() {
+        setProfileVisible(false)
+    }
+
     div {
         className = ClassName("connected-shell")
         div {
             className = ClassName("connected-shell__header")
-            +props.identityName
+            div {
+                className = ClassName("connected-shell__profile")
+                span {
+                    className = ClassName("connected-shell__identity-name")
+                    +props.identityName
+                }
+                button {
+                    className = ClassName("connected-shell__avatar-button")
+                    ariaLabel = translator.translate("connected.profile.avatar.aria")
+                    title = avatarDescription
+                    onClick = { showProfile() }
+                    val avatar = props.profile.identityAvatar
+                    if (avatar != null) {
+                        img {
+                            className = ClassName("connected-shell__avatar-image")
+                            src = avatar
+                            alt = avatarDescription
+                        }
+                    } else {
+                        span {
+                            className = ClassName("connected-shell__avatar-fallback")
+                            +(props.identityName.firstOrNull()?.uppercaseChar()?.toString() ?: "?")
+                        }
+                    }
+                }
+            }
         }
         div {
             className = ClassName("topic-board")
@@ -73,6 +111,18 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 message = translator.translate("connected.replies.empty"),
                 modifier = "topic-board__column--replies",
             )
+        }
+    }
+
+    if (isProfileVisible) {
+        IdentityLandingView {
+            applyFrom(props.profile)
+            val connectProfile = props.profile.onConnect
+            onClose = { hideProfile() }
+            onConnect = {
+                connectProfile()
+                hideProfile()
+            }
         }
     }
 }

@@ -210,6 +210,32 @@ class IdentitySessionStateMachineTest {
     }
 
     @Test
+    fun `connected state retains profile data`() = runTest(dispatcher) {
+        val repository = RecordingIdentitySelectionRepository(identitySelection(index = 1, total = 3))
+        val visuals =
+            IdentityVisuals(
+                name = FictionalName(listOf("Grace"), "Hopper"),
+                avatar = "avatar-grace",
+            )
+        val machine = machine(repository = repository, visualsProvider = { visuals }, scope = this)
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        val state = assertIs<IdentitySessionViewState.Connected>(machine.state.value)
+        val profile = state.profile
+        assertEquals(1, profile.identityIndex)
+        assertEquals(3, profile.identityTotal)
+        assertEquals("avatar-grace", profile.identityAvatar)
+        assertEquals(visuals.name, profile.identityNameParts)
+        assertTrue(profile.canConnect)
+        assertTrue(profile.canDownload)
+        assertTrue(profile.canNavigateNext)
+    }
+
+    @Test
     fun `connect ignored without selection`() = runTest(dispatcher) {
         val repository = RecordingIdentitySelectionRepository(identitySelection())
         val machine = machine(repository = repository, scope = this)

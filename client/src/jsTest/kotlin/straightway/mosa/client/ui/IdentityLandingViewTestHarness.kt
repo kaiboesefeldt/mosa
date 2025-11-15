@@ -34,6 +34,7 @@ internal fun renderIdentityLandingView(
             onDownload = {}
             canUpload = true
             onUpload = {}
+            onClose = null
             configure()
         }
     )
