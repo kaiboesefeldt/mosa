@@ -6,11 +6,11 @@ import straightway.mosa.client.testing.RenderResult
 import straightway.mosa.client.testing.render
 import straightway.mosa.identity.FictionalName
 
-internal fun renderIdentityLandingView(
-    configure: IdentityLandingViewProps.() -> Unit = {},
+internal fun renderIdentityProfileView(
+    configure: IdentityProfileViewProps.() -> Unit = {},
 ): RenderResult =
     render(
-        IdentityLandingView.create {
+        IdentityProfileView.create {
             AppModule.start()
             identityNameParts = FictionalName(
                 givenNames = listOf("Default"),

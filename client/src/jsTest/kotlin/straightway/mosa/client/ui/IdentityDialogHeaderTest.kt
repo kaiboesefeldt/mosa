@@ -19,15 +19,15 @@ class IdentityDialogHeaderTest {
     }
 
     @Test
-    fun `renders localized landing header`() = runTest {
-        val result = renderIdentityLandingView()
+    fun `renders localized profile header`() = runTest {
+        val result = renderIdentityProfileView()
 
-        val title = screen.getByRole("heading", json("name" to text("landing.title")))
-        val description = result.container.querySelector(".landing-dialog__description")!!
+        val title = screen.getByRole("heading", json("name" to text("profile.title")))
+        val description = result.container.querySelector(".profile-dialog__description")!!
 
-        assertTrue(title.classList.contains("landing-dialog__title"))
-        assertTrue(description.classList.contains("landing-dialog__description"))
-        assertEquals(text("landing.description"), description.textContent)
+        assertTrue(title.classList.contains("profile-dialog__title"))
+        assertTrue(description.classList.contains("profile-dialog__description"))
+        assertEquals(text("profile.description"), description.textContent)
     }
 
     private fun text(key: String): String = AppModule.get<Translator>().translate(key)

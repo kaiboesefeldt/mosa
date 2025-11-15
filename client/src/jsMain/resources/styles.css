@@ -51,7 +51,7 @@ button:disabled {
     opacity: 0.65;
 }
 
-.landing-overlay {
+.profile-overlay {
     position: fixed;
     inset: 0;
     width: 100%;
@@ -66,7 +66,7 @@ button:disabled {
     overflow-y: auto;
 }
 
-.landing-dialog {
+.profile-dialog {
     width: min(560px, 100%);
     padding: 2.25rem;
     border-radius: 28px;
@@ -78,25 +78,25 @@ button:disabled {
     gap: 1.75rem;
 }
 
-.landing-dialog__header {
+.profile-dialog__header {
     display: grid;
     gap: 0.5rem;
     text-align: center;
 }
 
-.landing-dialog__title {
+.profile-dialog__title {
     margin: 0;
     font-size: 1.9rem;
     line-height: 1.08;
 }
 
-.landing-dialog__description {
+.profile-dialog__description {
     margin: 0;
     color: var(--color-muted);
     line-height: 1.4;
 }
 
-.landing-dialog__identity {
+.profile-dialog__identity {
     padding: 1.1rem;
     border-radius: 24px;
     border: 1px solid var(--color-border);
@@ -108,13 +108,13 @@ button:disabled {
     position: relative;
 }
 
-.landing-dialog__identity-content {
+.profile-dialog__identity-content {
     display: grid;
     gap: 0.45rem;
     text-align: center;
 }
 
-.landing-dialog__identity-tools {
+.profile-dialog__identity-tools {
     position: absolute;
     top: 0.6rem;
     right: 0.6rem;
@@ -125,24 +125,24 @@ button:disabled {
     z-index: 3;
 }
 
-.landing-dialog__identity-tools--expanded {
+.profile-dialog__identity-tools--expanded {
     z-index: 4;
 }
 
-.landing-dialog__identity-tools-trigger {
+.profile-dialog__identity-tools-trigger {
     box-shadow: 0 8px 16px rgba(15, 23, 42, 0.1);
 }
 
-.landing-dialog__identity-tools-trigger:not(:disabled):hover {
+.profile-dialog__identity-tools-trigger:not(:disabled):hover {
     box-shadow: 0 10px 20px rgba(15, 23, 42, 0.14);
 }
 
-.landing-dialog__identity-tools-trigger:focus-visible {
+.profile-dialog__identity-tools-trigger:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 3px;
 }
 
-.landing-dialog__identity-tools-menu {
+.profile-dialog__identity-tools-menu {
     display: grid;
     gap: 0.4rem;
     padding: 0.45rem;
@@ -153,22 +153,22 @@ button:disabled {
     align-self: flex-end;
 }
 
-.landing-dialog__identity-tool {
+.profile-dialog__identity-tool {
     width: 42px;
     height: 42px;
     box-shadow: 0 8px 16px rgba(15, 23, 42, 0.1);
 }
 
-.landing-dialog__identity-tool:not(:disabled):hover {
+.profile-dialog__identity-tool:not(:disabled):hover {
     box-shadow: 0 10px 20px rgba(15, 23, 42, 0.14);
 }
 
-.landing-dialog__identity-tool:focus-visible {
+.profile-dialog__identity-tool:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 3px;
 }
 
-.landing-dialog__identity-avatar {
+.profile-dialog__identity-avatar {
     width: 120px;
     height: 120px;
     border-radius: 36px;
@@ -177,7 +177,7 @@ button:disabled {
     box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
 }
 
-.landing-dialog__identity-heading {
+.profile-dialog__identity-heading {
     display: inline-block;
     font-size: 0.9rem;
     letter-spacing: 0.1em;
@@ -185,11 +185,11 @@ button:disabled {
     color: var(--color-muted);
 }
 
-.landing-dialog__identity-heading-label {
+.profile-dialog__identity-heading-label {
     letter-spacing: 0.12em;
 }
 
-.landing-dialog__identity-value {
+.profile-dialog__identity-value {
     margin: 0;
     font-size: 1.45rem;
     font-weight: 600;
@@ -197,7 +197,7 @@ button:disabled {
     word-break: break-word;
 }
 
-.landing-dialog__nav-button {
+.profile-dialog__nav-button {
     border: none;
     background: transparent;
     width: 42px;
@@ -212,26 +212,26 @@ button:disabled {
     transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
-.landing-dialog__identity > .landing-dialog__nav-button:first-of-type {
+.profile-dialog__identity > .profile-dialog__nav-button:first-of-type {
     justify-self: start;
     margin-left: 0.2rem;
 }
 
-.landing-dialog__identity > .landing-dialog__nav-button:last-of-type {
+.profile-dialog__identity > .profile-dialog__nav-button:last-of-type {
     justify-self: end;
     margin-right: 0.2rem;
 }
 
-.landing-dialog__nav-button:not(:disabled):hover {
+.profile-dialog__nav-button:not(:disabled):hover {
     background: rgba(99, 102, 241, 0.12);
     transform: translateY(-2px);
 }
 
-.landing-dialog__nav-button:disabled {
+.profile-dialog__nav-button:disabled {
     color: var(--color-border);
 }
 
-.landing-dialog__identity-progress {
+.profile-dialog__identity-progress {
     grid-column: 1 / span 3;
     display: flex;
     gap: 4px;
@@ -241,7 +241,7 @@ button:disabled {
     cursor: pointer;
 }
 
-.landing-dialog__identity-progress-segment {
+.profile-dialog__identity-progress-segment {
     flex: 1;
     height: 3px;
     border-radius: 999px;
@@ -250,12 +250,12 @@ button:disabled {
     transition: background 0.2s ease, opacity 0.2s ease;
 }
 
-.landing-dialog__identity-progress-segment--active {
+.profile-dialog__identity-progress-segment--active {
     background: rgba(99, 102, 241, 0.85);
     opacity: 1;
 }
 
-.landing-dialog__error {
+.profile-dialog__error {
     padding: 0.9rem 1.1rem;
     border-radius: 16px;
     border: 1px solid var(--color-danger);
@@ -264,7 +264,7 @@ button:disabled {
     font-weight: 600;
 }
 
-.landing-dialog__actions {
+.profile-dialog__actions {
     display: grid;
     gap: 0.75rem;
 }
@@ -355,6 +355,8 @@ button:disabled {
     backdrop-filter: none;
     box-shadow: none;
     display: grid;
+    grid-template-rows: auto 1fr;
+    align-content: start;
     gap: 1.75rem;
 }
 

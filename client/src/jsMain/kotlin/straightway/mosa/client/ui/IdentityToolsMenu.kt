@@ -18,7 +18,7 @@ internal fun ChildrenBuilder.identityToolsMenu(
     div {
         className = identityToolsClass(areToolsVisible)
         button {
-            className = ClassName("button button--icon landing-dialog__identity-tools-trigger")
+            className = ClassName("button button--icon profile-dialog__identity-tools-trigger")
             ariaLabel = translator.translate("button.identity.tools.aria")
             title = translator.translate("button.identity.tools.title")
             ariaExpanded = areToolsVisible
@@ -30,7 +30,7 @@ internal fun ChildrenBuilder.identityToolsMenu(
         }
         if (areToolsVisible) {
             div {
-                className = ClassName("landing-dialog__identity-tools-menu")
+                className = ClassName("profile-dialog__identity-tools-menu")
                 toolActions.forEach { action ->
                     identityToolButton(
                         action = action,
@@ -54,7 +54,7 @@ private fun ChildrenBuilder.identityToolButton(
 ) {
     val isDisabled = isBusy || !action.isEnabled
     button {
-        className = ClassName("button button--icon landing-dialog__identity-tool")
+        className = ClassName("button button--icon profile-dialog__identity-tool")
         disabled = isDisabled
         ariaLabel = translator.translate(action.ariaKey)
         title = translator.translate(action.titleKey)

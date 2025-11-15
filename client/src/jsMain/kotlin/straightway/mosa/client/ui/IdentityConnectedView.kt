@@ -24,7 +24,7 @@ import web.cssom.ClassName
 
 external interface IdentityConnectedViewProps : Props {
     var identityName: String
-    var profile: IdentityScreen.Landing
+    var profile: IdentityScreen.Profile
 }
 
 val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
@@ -115,7 +115,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     if (isProfileVisible) {
-        IdentityLandingView {
+        IdentityProfileView {
             applyFrom(props.profile)
             val connectProfile = props.profile.onConnect
             onClose = { hideProfile() }

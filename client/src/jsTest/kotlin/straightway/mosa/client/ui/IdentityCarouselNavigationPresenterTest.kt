@@ -1,6 +1,5 @@
 package straightway.mosa.client.ui
 
-import kotlin.js.Json
 import kotlin.js.json
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -96,7 +95,7 @@ class IdentityCarouselNavigationPresenterTest {
 
     private fun presenter(
         activeSegment: Int = 0,
-        configure: IdentityLandingViewProps.() -> Unit = {},
+        configure: IdentityProfileViewProps.() -> Unit = {},
     ): IdentityCarouselNavigationPresenter =
         IdentityCarouselNavigationPresenter(
             props = identityProps(configure),
@@ -105,9 +104,9 @@ class IdentityCarouselNavigationPresenterTest {
 
     @Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")
     private fun identityProps(
-        configure: IdentityLandingViewProps.() -> Unit = {},
-    ): IdentityLandingViewProps {
-        val props = (json() as Json).unsafeCast<IdentityLandingViewProps>()
+        configure: IdentityProfileViewProps.() -> Unit = {},
+    ): IdentityProfileViewProps {
+        val props = json().unsafeCast<IdentityProfileViewProps>()
         props.identityNameParts = FictionalName()
         props.identityAvatar = null
         props.isBusy = false

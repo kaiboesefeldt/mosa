@@ -9,7 +9,7 @@ import react.dom.client.Root
 import react.dom.client.createRoot
 import straightway.mosa.client.assets.FontAwesomeResources
 import straightway.mosa.client.ui.IdentityConnectedView
-import straightway.mosa.client.ui.IdentityLandingView
+import straightway.mosa.client.ui.IdentityProfileView
 import straightway.mosa.client.ui.applyFrom
 import straightway.mosa.client.ui.IdentityScreen
 import straightway.mosa.client.ui.useIdentitySession
@@ -32,8 +32,8 @@ private val IdentityApp = FC<Props> {
                 profile = screen.profile
             }
 
-        is IdentityScreen.Landing ->
-            IdentityLandingView {
+        is IdentityScreen.Profile ->
+            IdentityProfileView {
                 applyFrom(screen)
             }
     }

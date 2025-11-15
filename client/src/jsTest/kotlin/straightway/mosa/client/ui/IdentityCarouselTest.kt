@@ -29,11 +29,11 @@ class IdentityCarouselTest {
     fun `renders provided identity avatar`() = runTest {
         val avatarUri = "data:image/png;base64,avatar"
         val result =
-            renderIdentityLandingView {
+            renderIdentityProfileView {
                 identityAvatar = avatarUri
             }
 
-        val avatar = result.container.querySelector("img.landing-dialog__identity-avatar") as HTMLImageElement
+        val avatar = result.container.querySelector("img.profile-dialog__identity-avatar") as HTMLImageElement
 
         assertEquals(avatarUri, avatar.getAttribute("src"))
         assertEquals("Default Identity", avatar.getAttribute("alt"))
@@ -42,11 +42,11 @@ class IdentityCarouselTest {
     @Test
     fun `renders blank identity line when name parts missing`() = runTest {
         val result =
-            renderIdentityLandingView {
+            renderIdentityProfileView {
                 identityNameParts = FictionalName()
             }
 
-        val valueElement = result.container.querySelector(".landing-dialog__identity-value")!!
+        val valueElement = result.container.querySelector(".profile-dialog__identity-value")!!
 
         assertEquals("", valueElement.textContent.orEmpty())
     }
@@ -54,7 +54,7 @@ class IdentityCarouselTest {
     @Test
     fun `formats multi line identity name`() = runTest {
         val result =
-            renderIdentityLandingView {
+            renderIdentityProfileView {
                 identityNameParts = FictionalName(
                     givenNames = listOf("Ada", "M."),
                     sureName = "Lovelace",
@@ -62,7 +62,7 @@ class IdentityCarouselTest {
                 )
             }
 
-        val valueElement = result.container.querySelector(".landing-dialog__identity-value")!!
+        val valueElement = result.container.querySelector(".profile-dialog__identity-value")!!
         val html = valueElement.innerHTML
 
         assertTrue(html.contains("<br"))
@@ -72,7 +72,7 @@ class IdentityCarouselTest {
 
     @Test
     fun `enables previous navigation when movement allowed`() = runTest {
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             canNavigatePrevious = true
         }
 
@@ -83,7 +83,7 @@ class IdentityCarouselTest {
 
     @Test
     fun `disables previous navigation when movement forbidden`() = runTest {
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             canNavigatePrevious = false
         }
 
@@ -94,7 +94,7 @@ class IdentityCarouselTest {
 
     @Test
     fun `disables next navigation while busy`() = runTest {
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             isBusy = true
             canNavigateNext = true
         }
@@ -106,7 +106,7 @@ class IdentityCarouselTest {
 
     @Test
     fun `shows chevron icon when identities remain`() = runTest {
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             canNavigateNext = true
             isShowingLastIdentity = false
         }
@@ -122,12 +122,12 @@ class IdentityCarouselTest {
     @Test
     fun `renders progress indicators for total identities`() = runTest {
         val result =
-            renderIdentityLandingView {
+            renderIdentityProfileView {
                 identityTotal = 4
                 identityIndex = 2
             }
 
-        val progress = result.container.querySelector(".landing-dialog__identity-progress") as HTMLDivElement
+        val progress = result.container.querySelector(".profile-dialog__identity-progress") as HTMLDivElement
         val segments = progress.querySelectorAll("span")
         val activeSegments =
             (0 until segments.length).map { index ->
@@ -143,12 +143,12 @@ class IdentityCarouselTest {
     fun `selects identity from progress click`() = runTest {
         var selectedIndex: Int? = null
         val result =
-            renderIdentityLandingView {
+            renderIdentityProfileView {
                 identityTotal = 5
                 onSelect = { selectedIndex = it }
             }
 
-        val progress = result.container.querySelector(".landing-dialog__identity-progress") as HTMLDivElement
+        val progress = result.container.querySelector(".profile-dialog__identity-progress") as HTMLDivElement
         progress.asDynamic().getBoundingClientRect = {
             js("{ left: 10, width: 200 }")
         }
@@ -161,13 +161,13 @@ class IdentityCarouselTest {
     fun `ignores progress click while busy`() = runTest {
         var selectedIndex: Int? = null
         val result =
-            renderIdentityLandingView {
+            renderIdentityProfileView {
                 isBusy = true
                 identityTotal = 3
                 onSelect = { selectedIndex = it }
             }
 
-        val progress = result.container.querySelector(".landing-dialog__identity-progress") as HTMLDivElement
+        val progress = result.container.querySelector(".profile-dialog__identity-progress") as HTMLDivElement
         progress.asDynamic().getBoundingClientRect = {
             js("{ left: 0, width: 300 }")
         }
@@ -180,12 +180,12 @@ class IdentityCarouselTest {
     fun `ignores progress click when identities unavailable`() = runTest {
         var selectedIndex: Int? = null
         val result =
-            renderIdentityLandingView {
+            renderIdentityProfileView {
                 identityTotal = 0
                 onSelect = { selectedIndex = it }
             }
 
-        val progress = result.container.querySelector(".landing-dialog__identity-progress") as HTMLDivElement
+        val progress = result.container.querySelector(".profile-dialog__identity-progress") as HTMLDivElement
         progress.asDynamic().getBoundingClientRect = {
             js("{ left: 0, width: 100 }")
         }
@@ -198,12 +198,12 @@ class IdentityCarouselTest {
     fun `ignores progress click when element width missing`() = runTest {
         var selectedIndex: Int? = null
         val result =
-            renderIdentityLandingView {
+            renderIdentityProfileView {
                 identityTotal = 3
                 onSelect = { selectedIndex = it }
             }
 
-        val progress = result.container.querySelector(".landing-dialog__identity-progress") as HTMLDivElement
+        val progress = result.container.querySelector(".profile-dialog__identity-progress") as HTMLDivElement
         progress.asDynamic().getBoundingClientRect = {
             js("{ left: 0, width: 0 }")
         }

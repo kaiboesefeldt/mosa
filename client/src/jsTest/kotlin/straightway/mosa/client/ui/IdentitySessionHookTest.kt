@@ -56,6 +56,6 @@ private fun renderIdentitySessionHook() {
 private val IdentitySessionHookHarness = FC<Props> {
     when (useIdentitySession()) {
         is IdentityScreen.Connected -> div { +"connected" }
-        is IdentityScreen.Landing -> div { +"landing" }
+        is IdentityScreen.Profile -> div { +"profile" }
     }
 }

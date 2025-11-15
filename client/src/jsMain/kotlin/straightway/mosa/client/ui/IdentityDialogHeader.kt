@@ -9,14 +9,14 @@ import web.cssom.ClassName
 
 internal fun ChildrenBuilder.identityDialogHeader(translator: Translator) {
     div {
-        className = ClassName("landing-dialog__header")
+        className = ClassName("profile-dialog__header")
         h1 {
-            className = ClassName("landing-dialog__title")
-            +translator.translate("landing.title")
+            className = ClassName("profile-dialog__title")
+            +translator.translate("profile.title")
         }
         p {
-            className = ClassName("landing-dialog__description")
-            +translator.translate("landing.description")
+            className = ClassName("profile-dialog__description")
+            +translator.translate("profile.description")
         }
     }
 }

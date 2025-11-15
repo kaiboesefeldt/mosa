@@ -15,7 +15,7 @@ class IdentityToolsDomTest {
         val className = identityToolsClass(true)
 
         assertEquals(
-            ClassName("landing-dialog__identity-tools landing-dialog__identity-tools--expanded"),
+            ClassName("profile-dialog__identity-tools profile-dialog__identity-tools--expanded"),
             className,
         )
     }
@@ -24,7 +24,7 @@ class IdentityToolsDomTest {
     fun `builds collapsed class list when menu is hidden`() {
         val className = identityToolsClass(false)
 
-        assertEquals(ClassName("landing-dialog__identity-tools"), className)
+        assertEquals(ClassName("profile-dialog__identity-tools"), className)
     }
 
     @Test
@@ -59,7 +59,7 @@ class IdentityToolsDomTest {
 
     private fun createContainer(): HTMLElement {
         val container = document.createElement("div") as HTMLElement
-        container.className = "landing-dialog__identity-tools"
+        container.className = "profile-dialog__identity-tools"
         return container
     }
 }

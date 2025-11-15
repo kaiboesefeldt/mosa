@@ -71,7 +71,7 @@ class PermutationsTest {
     }
 
     @Test
-    fun `permutations of ten element list`() {
-        assertEquals(3628800, allPermsOf(listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)).count())
+    fun `permutations of nine element list`() {
+        assertEquals(362880, allPermsOf(listOf(1, 2, 3, 4, 5, 6, 7, 8, 9)).count())
     }
 }

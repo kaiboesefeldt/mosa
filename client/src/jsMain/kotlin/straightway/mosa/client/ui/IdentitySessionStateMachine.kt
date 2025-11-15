@@ -26,7 +26,7 @@ class IdentitySessionStateMachine(
     private var errorText: String? = null
     private var isConnected = false
 
-    private val _state = MutableStateFlow<IdentitySessionViewState>(initialLandingState())
+    private val _state = MutableStateFlow<IdentitySessionViewState>(initialProfileState())
     val state: StateFlow<IdentitySessionViewState> = _state
 
     fun refresh() {
@@ -101,11 +101,11 @@ class IdentitySessionStateMachine(
     }
 
     private fun publishState() {
-        _state.value = if (isConnected) connectedState() else landingViewState()
+        _state.value = if (isConnected) connectedState() else profileViewState()
     }
 
-    private fun initialLandingState(): IdentitySessionViewState.Landing =
-        IdentitySessionViewState.Landing(
+    private fun initialProfileState(): IdentitySessionViewState.Profile =
+        IdentitySessionViewState.Profile(
             identityNameParts = identityNameParts,
             identityAvatar = identityAvatar,
             isBusy = isBusy,
@@ -121,8 +121,8 @@ class IdentitySessionStateMachine(
             canUpload = true,
         )
 
-    private fun landingViewState(): IdentitySessionViewState.Landing =
-        IdentitySessionViewState.Landing(
+    private fun profileViewState(): IdentitySessionViewState.Profile =
+        IdentitySessionViewState.Profile(
             identityNameParts = identityNameParts,
             identityAvatar = identityAvatar,
             isBusy = isBusy,
@@ -141,7 +141,7 @@ class IdentitySessionStateMachine(
     private fun connectedState(): IdentitySessionViewState.Connected =
         IdentitySessionViewState.Connected(
             identityName = identityNameParts.toString(),
-            profile = landingViewState(),
+            profile = profileViewState(),
         )
 
     private fun runExclusive(

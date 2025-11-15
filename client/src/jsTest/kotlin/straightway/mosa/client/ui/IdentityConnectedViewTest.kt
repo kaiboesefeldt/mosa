@@ -72,8 +72,8 @@ private val ConnectedViewHarness = FC<Props> {
     }
 }
 
-private fun placeholderProfile(): IdentityScreen.Landing =
-    IdentityScreen.Landing(
+private fun placeholderProfile(): IdentityScreen.Profile =
+    IdentityScreen.Profile(
         identityNameParts = FictionalName(emptyList(), ""),
         identityAvatar = null,
         isBusy = false,

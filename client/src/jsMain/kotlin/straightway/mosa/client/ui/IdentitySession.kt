@@ -19,7 +19,7 @@ import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
 
 sealed interface IdentityScreen {
-    data class Landing(
+    data class Profile(
         val identityNameParts: FictionalName,
         val identityAvatar: String?,
         val isBusy: Boolean,
@@ -44,7 +44,7 @@ sealed interface IdentityScreen {
 
     data class Connected(
         val identityName: String,
-        val profile: Landing,
+        val profile: Profile,
     ) : IdentityScreen
 }
 
@@ -92,8 +92,8 @@ fun useIdentitySession(): IdentityScreen {
         }
     }
 
-    fun IdentitySessionViewState.Landing.toScreen(): IdentityScreen.Landing =
-        IdentityScreen.Landing(
+    fun IdentitySessionViewState.Profile.toScreen(): IdentityScreen.Profile =
+        IdentityScreen.Profile(
             identityNameParts = identityNameParts,
             identityAvatar = identityAvatar,
             isBusy = isBusy,
@@ -122,7 +122,7 @@ fun useIdentitySession(): IdentityScreen {
                 identityName = viewState.identityName,
                 profile = viewState.profile.toScreen(),
             )
-        is IdentitySessionViewState.Landing ->
+        is IdentitySessionViewState.Profile ->
             viewState.toScreen()
     }
 }

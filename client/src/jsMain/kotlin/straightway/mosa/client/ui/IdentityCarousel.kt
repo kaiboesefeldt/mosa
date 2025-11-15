@@ -16,7 +16,7 @@ import web.html.HTMLDivElement
 
 internal fun ChildrenBuilder.identityCarousel(
     translator: Translator,
-    props: IdentityLandingViewProps,
+    props: IdentityProfileViewProps,
     toolActions: List<IdentityToolAction>,
     areToolsVisible: Boolean,
     onToggleTools: () -> Unit,
@@ -31,7 +31,7 @@ internal fun ChildrenBuilder.identityCarousel(
     val previousButton = navigationPresenter.previousButton()
     val nextButton = navigationPresenter.nextButton()
     div {
-        className = ClassName("landing-dialog__identity")
+        className = ClassName("profile-dialog__identity")
         identityToolsMenu(
             translator = translator,
             toolActions = toolActions,
@@ -41,7 +41,7 @@ internal fun ChildrenBuilder.identityCarousel(
             onCloseTools = onCloseTools,
         )
         button {
-            className = ClassName("landing-dialog__nav-button")
+            className = ClassName("profile-dialog__nav-button")
             disabled = previousButton.isDisabled
             ariaLabel = translator.translate("button.identity.previous.aria")
             title = translator.translate("button.identity.previous.aria")
@@ -52,20 +52,20 @@ internal fun ChildrenBuilder.identityCarousel(
             }
         }
         div {
-            className = ClassName("landing-dialog__identity-content")
+            className = ClassName("profile-dialog__identity-content")
             span {
-                className = ClassName("landing-dialog__identity-heading")
+                className = ClassName("profile-dialog__identity-heading")
                 span {
-                    className = ClassName("landing-dialog__identity-heading-label")
-                    +translator.translate("landing.identityLabel")
+                    className = ClassName("profile-dialog__identity-heading-label")
+                    +translator.translate("profile.identityLabel")
                 }
             }
             p {
-                className = ClassName("landing-dialog__identity-value")
+                className = ClassName("profile-dialog__identity-value")
                 props.identityAvatar?.let { avatarUri ->
                     div {
                         img {
-                            className = ClassName("landing-dialog__identity-avatar")
+                            className = ClassName("profile-dialog__identity-avatar")
                             src = avatarUri
                             alt = props.identityNameParts.toString()
                         }
@@ -80,7 +80,7 @@ internal fun ChildrenBuilder.identityCarousel(
             }
         }
         button {
-            className = ClassName("landing-dialog__nav-button")
+            className = ClassName("profile-dialog__nav-button")
             disabled = nextButton.isDisabled
             ariaLabel = translator.translate("button.identity.next.aria")
             title = translator.translate("button.identity.next.aria")
@@ -91,7 +91,7 @@ internal fun ChildrenBuilder.identityCarousel(
             }
         }
         div {
-            className = ClassName("landing-dialog__identity-progress")
+            className = ClassName("profile-dialog__identity-progress")
             onClick = { event: MouseEvent<HTMLDivElement, *> ->
                 val rect = event.currentTarget.getBoundingClientRect()
                 val width = rect.width
@@ -111,9 +111,9 @@ internal fun ChildrenBuilder.identityCarousel(
 
 private fun identityProgressSegmentClass(isActive: Boolean): ClassName =
     if (isActive) {
-        ClassName("landing-dialog__identity-progress-segment landing-dialog__identity-progress-segment--active")
+        ClassName("profile-dialog__identity-progress-segment profile-dialog__identity-progress-segment--active")
     } else {
-        ClassName("landing-dialog__identity-progress-segment")
+        ClassName("profile-dialog__identity-progress-segment")
     }
 
 private val FictionalName.nameLines: List<String>

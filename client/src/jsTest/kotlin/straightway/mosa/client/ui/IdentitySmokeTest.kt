@@ -3,7 +3,6 @@ package straightway.mosa.client.ui
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlinx.coroutines.await
 import kotlinx.coroutines.delay
@@ -66,32 +65,32 @@ class IdentitySmokeTest {
     }
 
     @Test
-    fun `runs identity lifecycle from landing to topic board`() = runTest {
+    fun `runs identity lifecycle from profile to topic board`() = runTest {
         val result = renderSmokeApp()
         waitForIdentityReady(result.container)
         val user = userEvent.setup()
 
-        val initialIdentity = landingSnapshot(result.container)
+        val initialIdentity = profileSnapshot(result.container)
 
         waitForButtonEnabled("next button") { nextButton(result.container) }
         user.click(nextButton(result.container)).await()
-        waitForLandingChange(result.container) { it.name != initialIdentity.name }
-        val createdIdentity = landingSnapshot(result.container)
+        waitForProfileChange(result.container) { it.name != initialIdentity.name }
+        val createdIdentity = profileSnapshot(result.container)
         assertNotEquals(initialIdentity.avatar, createdIdentity.avatar)
 
         user.click(toolsToggle(result.container)).await()
         waitForElement("delete button") { findDeleteButton(result.container) }
         user.click(deleteButton(result.container)).await()
-        waitForLandingChange(result.container) { it.name == initialIdentity.name }
+        waitForProfileChange(result.container) { it.name == initialIdentity.name }
 
         waitForButtonEnabled("next button after delete") { nextButton(result.container) }
         user.click(nextButton(result.container)).await()
-        waitForLandingChange(result.container) { it.name != initialIdentity.name }
-        val navigatedIdentity = landingSnapshot(result.container)
+        waitForProfileChange(result.container) { it.name != initialIdentity.name }
+        val navigatedIdentity = profileSnapshot(result.container)
         assertNotEquals(createdIdentity.name, navigatedIdentity.name)
         waitForButtonEnabled("previous button") { previousButton(result.container) }
         user.click(previousButton(result.container)).await()
-        waitForLandingChange(result.container) { it.name == initialIdentity.name }
+        waitForProfileChange(result.container) { it.name == initialIdentity.name }
 
         waitForButtonEnabled("connect button") { connectButton(result.container) }
         user.click(connectButton(result.container)).await()
@@ -100,16 +99,16 @@ class IdentitySmokeTest {
 
     private suspend fun waitForIdentityReady(container: Element) {
         eventually("initial identity visuals") {
-            check(container.querySelector(".landing-dialog__identity-avatar") != null)
+            check(container.querySelector(".profile-dialog__identity-avatar") != null)
         }
     }
 
-    private suspend fun waitForLandingChange(
+    private suspend fun waitForProfileChange(
         container: Element,
         predicate: (IdentitySnapshot) -> Boolean,
     ) {
-        eventually("landing view") {
-            val snapshot = landingSnapshot(container)
+        eventually("profile view") {
+            val snapshot = profileSnapshot(container)
             check(predicate(snapshot))
         }
     }
@@ -135,15 +134,15 @@ class IdentitySmokeTest {
         error("Condition was not met: $description")
     }
 
-    private fun landingSnapshot(container: Element): IdentitySnapshot {
+    private fun profileSnapshot(container: Element): IdentitySnapshot {
         val value =
-            container.querySelector(".landing-dialog__identity-value")
+            container.querySelector(".profile-dialog__identity-value")
                 ?: error("Identity value element missing")
         val text =
             value.textContent.orEmpty()
                 .replace("\\s+".toRegex(), " ")
                 .trim()
-        val avatar = container.querySelector(".landing-dialog__identity-avatar")?.getAttribute("src")
+        val avatar = container.querySelector(".profile-dialog__identity-avatar")?.getAttribute("src")
         return IdentitySnapshot(text, avatar)
     }
 
@@ -153,19 +152,19 @@ class IdentitySmokeTest {
         )
 
     private fun nextButton(container: Element): Element =
-        (container.querySelectorAll(".landing-dialog__nav-button").item(1) as? Element)
+        (container.querySelectorAll(".profile-dialog__nav-button").item(1) as? Element)
             ?: error("Next button missing")
 
     private fun previousButton(container: Element): Element =
-        (container.querySelectorAll(".landing-dialog__nav-button").item(0) as? Element)
+        (container.querySelectorAll(".profile-dialog__nav-button").item(0) as? Element)
             ?: error("Previous button missing")
 
     private fun connectButton(container: Element): Element =
-        container.querySelector(".landing-dialog__actions button")
+        container.querySelector(".profile-dialog__actions button")
             ?: error("Connect button missing")
 
     private fun toolsToggle(container: Element): Element =
-        container.querySelector(".landing-dialog__identity-tools-trigger")
+        container.querySelector(".profile-dialog__identity-tools-trigger")
             ?: error("Tools toggle missing")
 
     private fun deleteButton(container: Element): Element =
@@ -173,8 +172,8 @@ class IdentitySmokeTest {
             ?: error("Delete button missing"))
 
     private fun findDeleteButton(container: Element): Element? =
-        (container.querySelector(".landing-dialog__identity-tool .fa-trash-can")
-            ?.parentElement as? Element)
+        container.querySelector(".profile-dialog__identity-tool .fa-trash-can")
+            ?.parentElement
 
     private suspend fun waitForButtonEnabled(
         description: String,
@@ -209,8 +208,8 @@ private val IdentitySmokeApp = FC<Props> {
                 profile = screen.profile
             }
 
-        is IdentityScreen.Landing ->
-            IdentityLandingView {
+        is IdentityScreen.Profile ->
+            IdentityProfileView {
                 applyFrom(screen)
             }
     }
@@ -224,8 +223,6 @@ private class InMemoryIdentityStore : IdentityStore {
     override suspend fun storeState(state: IdentityStoreState) {
         this.state = state
     }
-
-    fun currentIdentity(): Identity? = state?.current()
 }
 
 private class QueueIdentityProvider(

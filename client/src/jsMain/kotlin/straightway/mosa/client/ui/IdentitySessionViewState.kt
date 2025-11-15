@@ -3,7 +3,7 @@ package straightway.mosa.client.ui
 import straightway.mosa.identity.FictionalName
 
 sealed interface IdentitySessionViewState {
-    data class Landing(
+    data class Profile(
         val identityNameParts: FictionalName,
         val identityAvatar: String?,
         val isBusy: Boolean,
@@ -21,6 +21,6 @@ sealed interface IdentitySessionViewState {
 
     data class Connected(
         val identityName: String,
-        val profile: Landing,
+        val profile: Profile,
     ) : IdentitySessionViewState
 }

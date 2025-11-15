@@ -16,7 +16,7 @@ import straightway.mosa.client.i18n.Translator
 import straightway.mosa.identity.FictionalName
 import web.cssom.ClassName
 
-external interface IdentityLandingViewProps : Props {
+external interface IdentityProfileViewProps : Props {
     var identityNameParts: FictionalName
     var identityAvatar: String?
     var isBusy: Boolean
@@ -40,8 +40,8 @@ external interface IdentityLandingViewProps : Props {
     var onClose: (() -> Unit)?
 }
 
-val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
-    val translator = LandingViewInjector.get<Translator>()
+val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
+    val translator = ProfileViewInjector.get<Translator>()
     val totalItems = props.identityTotal.coerceAtLeast(1)
     val boundedIndex = props.identityIndex.coerceIn(0, totalItems - 1)
     val activeSegment = if (totalItems <= 1) 0 else boundedIndex
@@ -60,7 +60,7 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
         { document.removeEventListener("pointerdown", listener) }
     }
     div {
-        className = ClassName("landing-overlay")
+        className = ClassName("profile-overlay")
         props.onClose?.let { onClose ->
             onClick = { event: MouseEvent<*, *> ->
                 if (event.target == event.currentTarget) {
@@ -69,7 +69,7 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
             }
         }
         div {
-            className = ClassName("landing-dialog")
+            className = ClassName("profile-dialog")
             identityDialogHeader(translator)
             identityCarousel(
                 translator = translator,
@@ -83,12 +83,12 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
             )
             props.errorText?.let { message ->
                 div {
-                    className = ClassName("landing-dialog__error")
+                    className = ClassName("profile-dialog__error")
                     +message
                 }
             }
             div {
-                className = ClassName("landing-dialog__actions")
+                className = ClassName("profile-dialog__actions")
                 button {
                     className = ClassName("button button--primary button--primary-large")
                     disabled = !props.canConnect
@@ -103,9 +103,9 @@ val IdentityLandingView = FC<IdentityLandingViewProps> { props ->
     }
 }
 
-private object LandingViewInjector : KoinComponent
+private object ProfileViewInjector : KoinComponent
 
-private fun IdentityLandingViewProps.toIdentityToolsCapabilities(): IdentityToolsCapabilities =
+private fun IdentityProfileViewProps.toIdentityToolsCapabilities(): IdentityToolsCapabilities =
     IdentityToolsCapabilities(
         canDelete = canDelete,
         canDownload = canDownload,
@@ -115,7 +115,7 @@ private fun IdentityLandingViewProps.toIdentityToolsCapabilities(): IdentityTool
         onUpload = onUpload,
     )
 
-internal fun IdentityLandingViewProps.applyFrom(screen: IdentityScreen.Landing) {
+internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) {
     identityNameParts = screen.identityNameParts
     identityAvatar = screen.identityAvatar
     isBusy = screen.isBusy

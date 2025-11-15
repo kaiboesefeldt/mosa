@@ -32,7 +32,7 @@ class IdentitySessionStateMachineTest {
         val textProvider = FakeIdentitySessionTextProvider(loading = "Bitte warten")
         val machine = machine(repository = repository, textProvider = textProvider, scope = this)
 
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertEquals(FictionalName(listOf("Bitte warten"), ""), state.identityNameParts)
         assertFalse(state.isBusy)
         assertNull(state.errorText)
@@ -41,14 +41,14 @@ class IdentitySessionStateMachineTest {
     }
 
     @Test
-    fun `refresh updates landing view`() = runTest(dispatcher) {
+    fun `refresh updates profile view`() = runTest(dispatcher) {
         val repository = RecordingIdentitySelectionRepository(identitySelection())
         val machine = machine(repository = repository, scope = this)
 
         machine.refresh()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertEquals(0, state.identityIndex)
         assertEquals(1, state.identityTotal)
         assertTrue(state.canConnect)
@@ -69,7 +69,7 @@ class IdentitySessionStateMachineTest {
         machine.refresh()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertEquals(textProvider.failedToPrepare("kaputt"), state.identityNameParts.givenNames.single())
         assertEquals("kaputt", state.errorText)
         assertFalse(state.canConnect)
@@ -86,7 +86,7 @@ class IdentitySessionStateMachineTest {
         machine.refresh()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertEquals(textProvider.unknownError, state.errorText)
         assertEquals(textProvider.failedToPrepare(textProvider.unknownError), state.identityNameParts.givenNames.single())
     }
@@ -121,7 +121,7 @@ class IdentitySessionStateMachineTest {
         machine.navigateToNext()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertEquals(1, state.identityIndex)
         assertTrue(state.canNavigatePrevious)
         assertTrue(state.canNavigateNext)
@@ -141,7 +141,7 @@ class IdentitySessionStateMachineTest {
         machine.navigateToPrevious()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertEquals(0, state.identityIndex)
         assertFalse(state.canNavigatePrevious)
     }
@@ -158,7 +158,7 @@ class IdentitySessionStateMachineTest {
         machine.navigateToNext()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertEquals("broken nav", state.errorText)
         assertEquals(listOf("Identity navigation failed"), logger.errorEntries.map { it.message })
     }
@@ -175,7 +175,7 @@ class IdentitySessionStateMachineTest {
         machine.deleteIdentity()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertEquals(FictionalName(listOf("gid-del"), "Hero"), state.identityNameParts)
     }
 
@@ -190,7 +190,7 @@ class IdentitySessionStateMachineTest {
         machine.select(2)
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertEquals(2, state.identityIndex)
         assertTrue(state.canNavigatePrevious)
     }
@@ -243,7 +243,7 @@ class IdentitySessionStateMachineTest {
         machine.connectToPod()
         advanceUntilIdle()
 
-        assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        assertIs<IdentitySessionViewState.Profile>(machine.state.value)
     }
 
     @Test
@@ -322,7 +322,7 @@ class IdentitySessionStateMachineTest {
         machine.uploadIdentity()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertEquals(1, state.identityIndex)
         assertEquals(FictionalName(listOf("gid-999"), "Hero"), state.identityNameParts)
     }
@@ -338,7 +338,7 @@ class IdentitySessionStateMachineTest {
         advanceUntilIdle()
 
         assertEquals(0, repository.importInvocations)
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertFalse(state.isBusy)
     }
 
@@ -353,7 +353,7 @@ class IdentitySessionStateMachineTest {
         machine.uploadIdentity()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertEquals("upload fail", state.errorText)
         assertEquals(listOf("Identity upload failed"), logger.errorEntries.map { it.message })
     }
@@ -396,7 +396,7 @@ class IdentitySessionStateMachineTest {
         machine.uploadIdentity()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Landing>(machine.state.value)
+        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
         assertEquals(textProvider.unknownError, state.errorText)
     }
 

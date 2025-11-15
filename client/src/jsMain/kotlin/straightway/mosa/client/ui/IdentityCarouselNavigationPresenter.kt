@@ -1,7 +1,7 @@
 package straightway.mosa.client.ui
 
 internal class IdentityCarouselNavigationPresenter(
-    private val props: IdentityLandingViewProps,
+    private val props: IdentityProfileViewProps,
     private val activeSegment: Int,
 ) {
     fun previousButton(): IdentityNavButton =

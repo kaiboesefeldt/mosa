@@ -14,7 +14,6 @@ import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.screen
 import straightway.mosa.client.testing.userEvent
-import web.html.HTMLElement
 
 class IdentityToolsMenuTest {
     @AfterTest
@@ -24,31 +23,31 @@ class IdentityToolsMenuTest {
 
     @Test
     fun `collapses tools menu by default`() = runTest {
-        renderIdentityLandingView()
+        renderIdentityProfileView()
 
         val toggleButton = screen.getByRole("button", json("name" to text("button.identity.tools.aria")))
         val container = toggleButton.parentElement!!
 
-        assertFalse(container.classList.contains("landing-dialog__identity-tools--expanded"))
+        assertFalse(container.classList.contains("profile-dialog__identity-tools--expanded"))
     }
 
     @Test
     fun `expands tools menu after toggle`() = runTest {
-        renderIdentityLandingView()
+        renderIdentityProfileView()
 
         val toggleButton = screen.getByRole("button", json("name" to text("button.identity.tools.aria")))
         val user = userEvent.setup()
         user.click(toggleButton).await()
         val container = toggleButton.parentElement!!
 
-        assertTrue(container.classList.contains("landing-dialog__identity-tools--expanded"))
-        assertTrue(container.querySelector(".landing-dialog__identity-tools-menu") != null)
+        assertTrue(container.classList.contains("profile-dialog__identity-tools--expanded"))
+        assertTrue(container.querySelector(".profile-dialog__identity-tools-menu") != null)
     }
 
     @Test
     fun `closes tools menu after action trigger`() = runTest {
         var handled = false
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             onDelete = { handled = true }
         }
 
@@ -60,13 +59,13 @@ class IdentityToolsMenuTest {
         val container = toggleButton.parentElement!!
 
         assertTrue(handled)
-        assertFalse(container.classList.contains("landing-dialog__identity-tools--expanded"))
+        assertFalse(container.classList.contains("profile-dialog__identity-tools--expanded"))
     }
 
     @Test
     fun `disables tool actions while busy`() = runTest {
         var handled = false
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             isBusy = true
             canDelete = true
             onDelete = { handled = true }
@@ -85,22 +84,22 @@ class IdentityToolsMenuTest {
 
     @Test
     fun `collapses tools menu after outside pointer interaction`() = runTest {
-        renderIdentityLandingView()
+        renderIdentityProfileView()
 
         val toggleButton = screen.getByRole("button", json("name" to text("button.identity.tools.aria")))
         val user = userEvent.setup()
         user.click(toggleButton).await()
-        val overlay = document.querySelector(".landing-overlay") as HTMLElement
+        val overlay = document.querySelector(".profile-overlay")
         user.click(overlay).await()
         val container = toggleButton.parentElement!!
 
-        assertFalse(container.classList.contains("landing-dialog__identity-tools--expanded"))
+        assertFalse(container.classList.contains("profile-dialog__identity-tools--expanded"))
     }
 
     @Test
     fun `keeps disabled actions non interactive`() = runTest {
         var handled = false
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             canDownload = false
             onDownload = { handled = true }
         }

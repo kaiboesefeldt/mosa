@@ -14,7 +14,7 @@ import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.screen
 import straightway.mosa.client.testing.userEvent
 
-class IdentityLandingViewTest {
+class IdentityProfileViewTest {
     @AfterTest
     fun tearDown() {
         cleanup()
@@ -22,7 +22,7 @@ class IdentityLandingViewTest {
 
     @Test
     fun `keeps connect button enabled when busy`() = runTest {
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             isBusy = true
         }
 
@@ -34,7 +34,7 @@ class IdentityLandingViewTest {
     @Test
     fun `ignores connect request when busy`() = runTest {
         var handled = false
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             isBusy = true
             onConnect = { handled = true }
         }
@@ -50,7 +50,7 @@ class IdentityLandingViewTest {
     @Test
     fun `invokes connect handler when interaction finishes`() = runTest {
         var handled = false
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             canConnect = true
             onConnect = { handled = true }
         }
@@ -66,7 +66,7 @@ class IdentityLandingViewTest {
     @Test
     fun `invokes next handler when user navigates forward`() = runTest {
         var handled = false
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             canNavigateNext = true
             onNext = { handled = true }
         }
@@ -81,7 +81,7 @@ class IdentityLandingViewTest {
 
     @Test
     fun `shows plus icon when last identity is active`() = runTest {
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             canNavigateNext = true
             isShowingLastIdentity = true
         }
@@ -96,7 +96,7 @@ class IdentityLandingViewTest {
     @Test
     fun `invokes delete handler when user removes identity`() = runTest {
         var handled = false
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             canDelete = true
             onDelete = { handled = true }
         }
@@ -113,7 +113,7 @@ class IdentityLandingViewTest {
     @Test
     fun `invokes upload handler when user requests identity upload`() = runTest {
         var handled = false
-        renderIdentityLandingView {
+        renderIdentityProfileView {
             canUpload = true
             onUpload = { handled = true }
         }

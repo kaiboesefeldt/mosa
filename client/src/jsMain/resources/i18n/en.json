@@ -25,7 +25,7 @@
   "identity.failedToPrepare": "Failed to prepare identity: {{message}}",
   "identity.loading": "...",
   "identity.unknownError": "Unknown error",
-  "landing.description": "It's about the content!",
-  "landing.identityLabel": "You are",
-  "landing.title": "MOSA"
+  "profile.description": "It's about the content!",
+  "profile.identityLabel": "You are",
+  "profile.title": "MOSA"
 }
