@@ -1,7 +1,9 @@
 package straightway.mosa.client.identity
 
-import straightway.mosa.client.logging.Logger
 import kotlin.js.ExperimentalWasmJsInterop
+import straightway.mosa.client.logging.Logger
+import straightway.mosa.client.util.getOrElseLogOrThrowCancellation
+import straightway.mosa.client.util.onFailureLogOrThrowCancellation
 import web.idb.IDBTransactionMode
 import web.idb.IDBValidKey
 import web.idb.readonly
@@ -16,14 +18,11 @@ class IndexedDbIdentityStore(
 ) : IdentityStore {
     override suspend fun loadState(): IdentityStoreState? =
         runCatching { loadInternal() }
-            .getOrElse {
-                logger.warn("IndexedDB identity load failed", it)
-                null
-            }
+            .getOrElseLogOrThrowCancellation(logger, "IndexedDB identity load failed") { null }
 
     override suspend fun storeState(state: IdentityStoreState) {
         runCatching { storeInternal(state) }
-            .onFailure { logger.warn("IndexedDB identity store failed", it) }
+            .onFailureLogOrThrowCancellation(logger, "IndexedDB identity store failed")
     }
 
     private suspend fun loadInternal(): IdentityStoreState? {

@@ -4,6 +4,8 @@ import kotlin.js.ExperimentalWasmJsInterop
 import straightway.mosa.client.identity.IndexedDbAsyncBridge
 import straightway.mosa.client.identity.IndexedDbSchemaManager
 import straightway.mosa.client.logging.Logger
+import straightway.mosa.client.util.getOrElseLogOrThrowCancellation
+import straightway.mosa.client.util.onFailureLogOrThrowCancellation
 import web.idb.IDBFactory
 import web.idb.IDBTransactionMode
 import web.idb.IDBValidKey
@@ -28,14 +30,11 @@ class IndexedDbTopicStore(
 
     override suspend fun load(): List<Topic> =
         runCatching { loadInternal() }
-            .getOrElse {
-                logger.warn("IndexedDB topic load failed", it)
-                emptyList()
-            }
+            .getOrElseLogOrThrowCancellation(logger, "IndexedDB topic load failed") { emptyList() }
 
     override suspend fun save(topics: List<Topic>) {
         runCatching { storeInternal(topics) }
-            .onFailure { logger.warn("IndexedDB topic store failed", it) }
+            .onFailureLogOrThrowCancellation(logger, "IndexedDB topic store failed")
     }
 
     private suspend fun loadInternal(): List<Topic> {
