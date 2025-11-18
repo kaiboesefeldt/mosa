@@ -546,6 +546,51 @@ button:disabled {
     font-weight: 600;
 }
 
+.post-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.post-card__similarity {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.post-card__author-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.post-card__avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-soft);
+}
+
+.post-card__author-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.post-card__author-name {
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.post-card__timestamp {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+}
+
 .post-card__content {
     font-size: 0.95rem;
     line-height: 1.6;

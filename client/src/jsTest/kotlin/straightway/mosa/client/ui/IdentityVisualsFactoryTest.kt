@@ -38,6 +38,29 @@ class IdentityVisualsFactoryTest {
         assertEquals(expectedSeed, avatarSeed)
         assertEquals("avatar:$expectedSeed", visuals.avatar)
     }
+
+    @Test
+    fun `builds visuals directly from gid`() {
+        val gidBytes = ByteArray(32) { index -> (index * 5 + 1).toByte() }
+        val gid = gidBytes.toBase64Url()
+        val identity =
+            Identity(
+                gid = gid,
+                keyPair = emptyCryptoKeyPair(),
+            )
+        val name = FictionalName(givenNames = listOf("Ivy"), sureName = "Quill")
+        val builder = SteppedNameBuilder(name, consumedBits = 19)
+        val factory =
+            IdentityVisualsFactory(
+                nameBuilder = builder::build,
+                avatarBuilder = { seed -> "avatar:$seed" },
+            )
+
+        val visualFromGid = factory.createFromGid(gid)
+        val visualFromIdentity = factory.create(identity)
+
+        assertEquals(visualFromIdentity, visualFromGid)
+    }
 }
 
 private class SteppedNameBuilder(

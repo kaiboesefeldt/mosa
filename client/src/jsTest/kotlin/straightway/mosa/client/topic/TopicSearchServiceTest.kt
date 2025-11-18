@@ -107,6 +107,33 @@ class TopicSearchServiceTest {
         assertTrue(logger.warnMessages.any { it.contains("Beta") })
     }
 
+    @Test
+    fun `sorts entries within a topic by similarity descending`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        podAccess =
+            FakePodAccess(
+                responses =
+                    mapOf(
+                        "Alpha" to
+                            QueryResult(
+                                entries =
+                                    listOf(
+                                        QueryResult.Entry("first", "content-1", 0.75f, "author", 0),
+                                        QueryResult.Entry("second", "content-2", 0.9f, "author", 0),
+                                        QueryResult.Entry("third", "content-3", 0.3f, "author", 0),
+                                    ),
+                                queryOnId = "ignored",
+                            ),
+                    ),
+            )
+        val service = createService()
+
+        val results = service.fetchFor(listOf(Topic("Alpha")))
+
+        val entryOrder = results.single().entries.map { it.id }
+        assertEquals(listOf("second", "first", "third"), entryOrder)
+    }
+
     private fun createService(): TopicSearchService =
         TopicSearchService(
             identityRepository = StaticIdentityRepository(identity),

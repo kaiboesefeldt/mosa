@@ -19,6 +19,7 @@ import react.FC
 import react.Props
 import react.create
 import straightway.mosa.auth.PodCertificate
+import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.Identity
@@ -40,6 +41,7 @@ import straightway.mosa.client.topic.TopicStore
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalName
+import straightway.mosa.identity.FictionalNameGenerator
 
 class IdentityConnectedViewTest {
     private var originalPrompt: dynamic = null
@@ -220,6 +222,8 @@ class IdentityConnectedViewTest {
             module {
                 single { Translator(emptyList()) }
                 single<IdentitySessionStore> { BrowserIdentitySessionStore() }
+                single { FictionalNameGenerator() }
+                single { DiceBearAvatarGenerator() }
                 single<TopicStore> { InMemoryTopicStore(topics) }
                 single { TopicRepository(get()) }
                 single<IdentitySelectionRepository> { StaticIdentityRepository(identityForTests) }

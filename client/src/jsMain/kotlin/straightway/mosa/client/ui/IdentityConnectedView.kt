@@ -5,6 +5,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlin.js.Date
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import react.ChildrenBuilder
@@ -19,11 +20,13 @@ import react.useMemo
 import react.useRef
 import react.useState
 import straightway.mosa.client.i18n.Translator
+import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.topic.Topic
 import straightway.mosa.client.topic.TopicRepository
 import straightway.mosa.client.topic.TopicPosts
 import straightway.mosa.client.topic.TopicSearchService
 import straightway.mosa.content.QueryResult
+import straightway.mosa.identity.FictionalNameGenerator
 import web.cssom.ClassName
 
 external interface IdentityConnectedViewProps : Props {
@@ -36,6 +39,12 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val repository = ConnectedViewInjector.get<TopicRepository>()
     val sessionStore = ConnectedViewInjector.get<IdentitySessionStore>()
     val searchService = ConnectedViewInjector.get<TopicSearchService>()
+    val nameGenerator = ConnectedViewInjector.get<FictionalNameGenerator>()
+    val avatarGenerator = ConnectedViewInjector.get<DiceBearAvatarGenerator>()
+    val visualsFactory =
+        useMemo(nameGenerator, avatarGenerator) {
+            IdentityVisualsFactory(nameGenerator, avatarGenerator)
+        }
     val scope = useMemo(*noDependencies) { MainScope() }
     val (topics, setTopics) = useState<List<Topic>>(emptyList())
     val (selectedTopic, setSelectedTopic) = useState<Topic?>(null)
@@ -163,6 +172,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             topicColumn(translator, topics, selectedTopic, ::addTopic, ::selectTopic)
             postsColumn(
                 translator = translator,
+                visualsFactory = visualsFactory,
                 posts = posts,
                 isLoading = isLoadingPosts,
             )
@@ -248,6 +258,7 @@ private fun ChildrenBuilder.placeholderColumn(
 
 private fun ChildrenBuilder.postsColumn(
     translator: Translator,
+    visualsFactory: IdentityVisualsFactory,
     posts: List<TopicPosts>,
     isLoading: Boolean,
 ) = div {
@@ -269,25 +280,77 @@ private fun ChildrenBuilder.postsColumn(
             }
         else -> posts.forEach { topicPosts ->
             topicPosts.entries.forEach { entry ->
-                postCard(topicPosts.topic, entry)
+                postCard(translator, visualsFactory, topicPosts.topic, entry)
             }
         }
     }
 }
 
-private fun ChildrenBuilder.postCard(topic: Topic, entry: QueryResult.Entry) = div {
-    key = entry.id
-    className = ClassName("post-card")
-    span {
-        className = ClassName("post-card__topic")
-        +topic.title
-    }
+private fun ChildrenBuilder.postCard(
+    translator: Translator,
+    visualsFactory: IdentityVisualsFactory,
+    topic: Topic,
+    entry: QueryResult.Entry,
+) {
+    val authorVisuals = visualsFactory.createFromGid(entry.authorGID)
+    val authorName = authorVisuals.name.toString().trim()
+    val timestamp = formatTimestamp(entry.storedAt)
+    val similarity = formatSimilarity(entry.similarity)
     div {
-        className = ClassName("post-card__content")
-        +entry.content
+        key = entry.id
+        className = ClassName("post-card")
+        div {
+            className = ClassName("post-card__header")
+            span {
+                className = ClassName("post-card__topic")
+                +topic.title
+            }
+            span {
+                className = ClassName("post-card__similarity")
+                +translator.translate(
+                    "connected.posts.similarity",
+                    mapOf("value" to similarity),
+                )
+            }
+        }
+        div {
+            className = ClassName("post-card__author-row")
+            img {
+                className = ClassName("post-card__avatar")
+                src = authorVisuals.avatar
+                alt = authorName
+            }
+            div {
+                className = ClassName("post-card__author-details")
+                span {
+                    className = ClassName("post-card__author-name")
+                    +translator.translate(
+                        "connected.posts.author",
+                        mapOf("name" to authorName),
+                    )
+                }
+                span {
+                    className = ClassName("post-card__timestamp")
+                    +translator.translate(
+                        "connected.posts.timestamp",
+                        mapOf("value" to timestamp),
+                    )
+                }
+            }
+        }
+        div {
+            className = ClassName("post-card__content")
+            +entry.content
+        }
     }
 }
 
 private object ConnectedViewInjector : KoinComponent
 
 private val noDependencies: Array<dynamic> = emptyArray()
+
+private fun formatTimestamp(epochSeconds: Long): String =
+    Date(epochSeconds.toDouble() * 1000).toLocaleString()
+
+private fun formatSimilarity(similarity: Float): String =
+    (similarity.toDouble().asDynamic().toFixed(3) as String)

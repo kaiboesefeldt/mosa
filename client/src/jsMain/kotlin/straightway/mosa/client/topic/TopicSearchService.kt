@@ -45,6 +45,7 @@ class TopicSearchService(
                 .onFailure { logger.warn("Topic query failed for ${topic.title}", it) }
                 .getOrNull()
                 ?.entries
+                ?.sortedByDescending { it.similarity }
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { TopicPosts(topic, it) }
         }

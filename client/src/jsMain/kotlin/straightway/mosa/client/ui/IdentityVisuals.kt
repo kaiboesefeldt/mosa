@@ -22,8 +22,13 @@ class IdentityVisualsFactory(
         avatarGenerator: DiceBearAvatarGenerator,
     ) : this(nameGenerator::generate, avatarGenerator::dataUri)
 
-    fun create(identity: Identity): IdentityVisuals {
-        val gidBytes = Base64.fromBase64Url(identity.gid)
+    fun create(identity: Identity): IdentityVisuals =
+        createFromGid(identity.gid)
+
+    fun createFromGid(gid: String): IdentityVisuals =
+        buildVisuals(Base64.fromBase64Url(gid))
+
+    private fun buildVisuals(gidBytes: ByteArray): IdentityVisuals {
         val bits = BitStream(gidBytes)
         val name = nameBuilder(bits)
         val avatarSeed = bits.nextBytes(8).toBase64Url()
