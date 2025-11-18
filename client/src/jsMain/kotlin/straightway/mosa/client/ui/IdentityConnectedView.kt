@@ -280,7 +280,7 @@ private fun ChildrenBuilder.postsColumn(
             }
         else -> posts.forEach { topicPosts ->
             topicPosts.entries.forEach { entry ->
-                postCard(translator, visualsFactory, topicPosts.topic, entry)
+                postCard(translator, visualsFactory, entry)
             }
         }
     }
@@ -289,7 +289,6 @@ private fun ChildrenBuilder.postsColumn(
 private fun ChildrenBuilder.postCard(
     translator: Translator,
     visualsFactory: IdentityVisualsFactory,
-    topic: Topic,
     entry: QueryResult.Entry,
 ) {
     val authorVisuals = visualsFactory.createFromGid(entry.authorGID)
@@ -299,20 +298,6 @@ private fun ChildrenBuilder.postCard(
     div {
         key = entry.id
         className = ClassName("post-card")
-        div {
-            className = ClassName("post-card__header")
-            span {
-                className = ClassName("post-card__topic")
-                +topic.title
-            }
-            span {
-                className = ClassName("post-card__similarity")
-                +translator.translate(
-                    "connected.posts.similarity",
-                    mapOf("value" to similarity),
-                )
-            }
-        }
         div {
             className = ClassName("post-card__author-row")
             img {
@@ -329,12 +314,16 @@ private fun ChildrenBuilder.postCard(
                         mapOf("name" to authorName),
                     )
                 }
-                span {
-                    className = ClassName("post-card__timestamp")
-                    +translator.translate(
-                        "connected.posts.timestamp",
-                        mapOf("value" to timestamp),
-                    )
+                div {
+                    className = ClassName("post-card__meta")
+                    span {
+                        className = ClassName("post-card__timestamp")
+                        +timestamp
+                    }
+                    span {
+                        className = ClassName("post-card__similarity")
+                        +similarity
+                    }
                 }
             }
         }
