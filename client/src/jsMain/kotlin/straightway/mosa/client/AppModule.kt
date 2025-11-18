@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
 import org.koin.core.component.KoinComponent
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
+import org.koin.core.parameter.parametersOf
 import org.koin.dsl.module
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.aux.TimeService
@@ -34,12 +35,16 @@ import straightway.mosa.client.logging.BrowserLogger
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodAccessImpl
+import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.client.topic.IndexedDbTopicStore
+import straightway.mosa.client.topic.JwtBuilder
+import straightway.mosa.client.topic.PodAccessFactory
 import straightway.mosa.client.topic.TopicRepository
+import straightway.mosa.client.topic.TopicSearchService
 import straightway.mosa.client.topic.TopicStore
-import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.client.ui.BrowserIdentitySessionStore
 import straightway.mosa.client.ui.IdentitySessionStore
+import straightway.mosa.identity.FictionalNameGenerator
 import web.idb.IDBFactory
 import web.idb.indexedDB
 
@@ -79,7 +84,11 @@ object AppModule : KoinComponent {
                                 install(ContentNegotiation) { json() }
                             }
                         }
+                        single { PodBaseProvider() }
                         factory<PodAccess> { PodAccessImpl(it[0], get()) }
+                        single<PodAccessFactory> {
+                            { podBase -> get<PodAccess> { parametersOf(podBase) } }
+                        }
                         single {
                             SubtleCrypto(
                                 window.asDynamic().crypto?.subtle
@@ -87,6 +96,11 @@ object AppModule : KoinComponent {
                             )
                         }
                         single { CryptoExport(get()) }
+                        single<JwtBuilder> {
+                            { identity, certificate ->
+                                get<MisJwtService>().buildMisJwt(identity, certificate)
+                            }
+                        }
                         single {
                             IdentityTransferCodec(
                                 get(),
@@ -99,6 +113,15 @@ object AppModule : KoinComponent {
                         single { FictionalNameGenerator() }
                         single<TopicStore> { IndexedDbTopicStore(get(), get(), get()) }
                         single { TopicRepository(get()) }
+                        single {
+                            TopicSearchService(
+                                get(),
+                                get(),
+                                get(),
+                                get(),
+                                get(),
+                            )
+                        }
                         single { BrowserPrefs() }
                         single { Translator(get<BrowserPrefs>().languages) }
                         single { DiceBearAvatarGenerator() }

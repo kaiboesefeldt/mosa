@@ -16,10 +16,14 @@ import react.dom.html.ReactHTML.img
 import react.dom.html.ReactHTML.span
 import react.useEffect
 import react.useMemo
+import react.useRef
 import react.useState
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.topic.Topic
 import straightway.mosa.client.topic.TopicRepository
+import straightway.mosa.client.topic.TopicPosts
+import straightway.mosa.client.topic.TopicSearchService
+import straightway.mosa.content.QueryResult
 import web.cssom.ClassName
 
 external interface IdentityConnectedViewProps : Props {
@@ -31,17 +35,46 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val translator = ConnectedViewInjector.get<Translator>()
     val repository = ConnectedViewInjector.get<TopicRepository>()
     val sessionStore = ConnectedViewInjector.get<IdentitySessionStore>()
+    val searchService = ConnectedViewInjector.get<TopicSearchService>()
     val scope = useMemo(*noDependencies) { MainScope() }
     val (topics, setTopics) = useState<List<Topic>>(emptyList())
+    val (posts, setPosts) = useState<List<TopicPosts>>(emptyList())
+    val (isLoadingPosts, setLoadingPosts) = useState(false)
+    val postsRequestVersion = useRef(0)
     val initialProfileVisibility =
         useMemo(sessionStore) {
             sessionStore.load()?.isProfileVisible ?: false
         }
     val (isProfileVisible, setProfileVisible) = useState(initialProfileVisibility)
 
-    useEffect(arrayOf(repository)) {
+    suspend fun refreshPosts(currentTopics: List<Topic>) {
+        val nextVersion = (postsRequestVersion.current ?: 0) + 1
+        postsRequestVersion.current = nextVersion
+        val version = nextVersion
+        if (currentTopics.isEmpty()) {
+            setPosts(emptyList())
+            setLoadingPosts(false)
+            return
+        }
+        setLoadingPosts(true)
+        val results =
+            runCatching { searchService.fetchFor(currentTopics) }
+                .getOrElse {
+                    if (postsRequestVersion.current == version) {
+                        setLoadingPosts(false)
+                    }
+                    return
+                }
+        if (postsRequestVersion.current != version) return
+        setPosts(results)
+        setLoadingPosts(false)
+    }
+
+    useEffect(*noDependencies) {
         scope.launch {
-            setTopics(repository.all())
+            val loadedTopics = repository.all()
+            setTopics(loadedTopics)
+            refreshPosts(loadedTopics)
         }
     }
 
@@ -71,7 +104,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         val sanitized = text.trim()
         if (sanitized.isEmpty()) return
         scope.launch {
-            setTopics(repository.add(sanitized))
+            val updated = repository.add(sanitized)
+            setTopics(updated)
+            refreshPosts(updated)
         }
     }
 
@@ -117,10 +152,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         div {
             className = ClassName("topic-board")
             topicColumn(translator, topics, ::addTopic)
-            placeholderColumn(
-                title = translator.translate("connected.posts.title"),
-                message = translator.translate("connected.posts.empty"),
-                modifier = "topic-board__column--posts",
+            postsColumn(
+                translator = translator,
+                posts = posts,
+                isLoading = isLoadingPosts,
             )
             placeholderColumn(
                 title = translator.translate("connected.replies.title"),
@@ -190,6 +225,48 @@ private fun ChildrenBuilder.placeholderColumn(
     div {
         className = ClassName("topic-board__empty")
         +message
+    }
+}
+
+private fun ChildrenBuilder.postsColumn(
+    translator: Translator,
+    posts: List<TopicPosts>,
+    isLoading: Boolean,
+) = div {
+    className = ClassName("topic-board__column topic-board__column--posts")
+    span {
+        className = ClassName("topic-board__column-title")
+        +translator.translate("connected.posts.title")
+    }
+    when {
+        isLoading ->
+            div {
+                className = ClassName("topic-board__empty")
+                +translator.translate("connected.posts.loading")
+            }
+        posts.isEmpty() ->
+            div {
+                className = ClassName("topic-board__empty")
+                +translator.translate("connected.posts.empty")
+            }
+        else -> posts.forEach { topicPosts ->
+            topicPosts.entries.forEach { entry ->
+                postCard(topicPosts.topic, entry)
+            }
+        }
+    }
+}
+
+private fun ChildrenBuilder.postCard(topic: Topic, entry: QueryResult.Entry) = div {
+    key = entry.id
+    className = ClassName("post-card")
+    span {
+        className = ClassName("post-card__topic")
+        +topic.title
+    }
+    div {
+        className = ClassName("post-card__content")
+        +entry.content
     }
 }
 

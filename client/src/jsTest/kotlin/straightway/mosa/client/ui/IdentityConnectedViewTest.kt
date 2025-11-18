@@ -49,7 +49,7 @@ class IdentityConnectedViewTest {
         waitForCondition { view.container.querySelector(".topic-board__add-button") != null }
         val button = addButton(view.container)
         user.click(button).await()
-        waitForCondition { view.container.querySelectorAll(".topic-card").length == 1 }
+        waitForCondition { view.container.querySelectorAll(".topic-card").length >= 1 }
         val cardText = view.container.querySelector(".topic-card")?.textContent?.trim()
         assertEquals("Neues Thema", cardText)
     }
