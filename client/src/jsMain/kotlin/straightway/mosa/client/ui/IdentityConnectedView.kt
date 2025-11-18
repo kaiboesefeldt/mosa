@@ -38,27 +38,28 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val searchService = ConnectedViewInjector.get<TopicSearchService>()
     val scope = useMemo(*noDependencies) { MainScope() }
     val (topics, setTopics) = useState<List<Topic>>(emptyList())
+    val (selectedTopic, setSelectedTopic) = useState<Topic?>(null)
     val (posts, setPosts) = useState<List<TopicPosts>>(emptyList())
     val (isLoadingPosts, setLoadingPosts) = useState(false)
     val postsRequestVersion = useRef(0)
     val initialProfileVisibility =
         useMemo(sessionStore) {
             sessionStore.load()?.isProfileVisible ?: false
-        }
+    }
     val (isProfileVisible, setProfileVisible) = useState(initialProfileVisibility)
 
-    suspend fun refreshPosts(currentTopics: List<Topic>) {
+    suspend fun refreshPosts(currentTopic: Topic?) {
         val nextVersion = (postsRequestVersion.current ?: 0) + 1
         postsRequestVersion.current = nextVersion
         val version = nextVersion
-        if (currentTopics.isEmpty()) {
+        if (currentTopic == null) {
             setPosts(emptyList())
             setLoadingPosts(false)
             return
         }
         setLoadingPosts(true)
         val results =
-            runCatching { searchService.fetchFor(currentTopics) }
+            runCatching { searchService.fetchFor(listOf(currentTopic)) }
                 .getOrElse {
                     if (postsRequestVersion.current == version) {
                         setLoadingPosts(false)
@@ -70,11 +71,19 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         setLoadingPosts(false)
     }
 
+    fun selectTopic(topic: Topic?) {
+        if (topic == selectedTopic) return
+        setSelectedTopic(topic)
+        scope.launch {
+            refreshPosts(topic)
+        }
+    }
+
     useEffect(*noDependencies) {
         scope.launch {
             val loadedTopics = repository.all()
             setTopics(loadedTopics)
-            refreshPosts(loadedTopics)
+            selectTopic(loadedTopics.firstOrNull())
         }
     }
 
@@ -106,7 +115,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         scope.launch {
             val updated = repository.add(sanitized)
             setTopics(updated)
-            refreshPosts(updated)
+            selectTopic(updated.lastOrNull())
         }
     }
 
@@ -151,7 +160,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
         div {
             className = ClassName("topic-board")
-            topicColumn(translator, topics, ::addTopic)
+            topicColumn(translator, topics, selectedTopic, ::addTopic, ::selectTopic)
             postsColumn(
                 translator = translator,
                 posts = posts,
@@ -181,7 +190,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
 private fun ChildrenBuilder.topicColumn(
     translator: Translator,
     topics: List<Topic>,
+    selectedTopic: Topic?,
     onAddTopic: () -> Unit,
+    onSelectTopic: (Topic) -> Unit,
 ) = div {
     className = ClassName("topic-board__column topic-board__column--topics")
     div {
@@ -203,9 +214,16 @@ private fun ChildrenBuilder.topicColumn(
         }
     } else {
         topics.forEach { topic ->
+            val cardClass =
+                if (topic == selectedTopic) {
+                    "topic-card topic-card--selected"
+                } else {
+                    "topic-card"
+                }
             div {
                 key = topic.title
-                className = ClassName("topic-card")
+                className = ClassName(cardClass)
+                onClick = { onSelectTopic(topic) }
                 +topic.title
             }
         }

@@ -514,10 +514,16 @@ button:disabled {
     font-weight: 500;
     color: var(--color-text);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
 }
 
 .topic-card:hover {
     border-color: rgba(99, 102, 241, 0.35);
+    box-shadow: var(--shadow-soft);
+}
+
+.topic-card--selected {
+    border-color: rgba(99, 102, 241, 0.6);
     box-shadow: var(--shadow-soft);
 }
 
