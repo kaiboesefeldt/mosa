@@ -61,8 +61,8 @@
   2. Only make sure, ui-related code compiles, but don't write tests for this code. 
 - If you develop business logic, you MUST work test-driven, iteratively in very small increments, i.e.
   1. Plan a small iteration, that brings you closer to the solution
-  2. FIRST write a MINIMAL unit test, that tests the small functionality increment to develop
-  3. THEN write the MINIMAL production code, that makes the test green
+  2. FIRST write one MINIMAL unit test case, that tests the small functionality increment to develop, and see it red
+  3. THEN write the MINIMAL production code, that makes the test green, and see it green
   4. THEN, without changing the test, clean up the production code, make it nice and minimal
   5. THEN, without changing the production code, clean up the test code
   6. If not yet finished, go back to step 1.
