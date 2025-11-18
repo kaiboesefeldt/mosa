@@ -15,6 +15,8 @@ import react.dom.html.ReactHTML.button
 import react.dom.html.ReactHTML.div
 import react.dom.html.ReactHTML.img
 import react.dom.html.ReactHTML.span
+import react.dom.html.ReactHTML.textarea
+import react.dom.events.ChangeEvent
 import react.useEffect
 import react.useMemo
 import react.useRef
@@ -25,9 +27,11 @@ import straightway.mosa.client.topic.Topic
 import straightway.mosa.client.topic.TopicRepository
 import straightway.mosa.client.topic.TopicPosts
 import straightway.mosa.client.topic.TopicSearchService
+import straightway.mosa.client.topic.PostPublisher
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
 import web.cssom.ClassName
+import web.html.HTMLTextAreaElement
 
 external interface IdentityConnectedViewProps : Props {
     var identityName: String
@@ -41,6 +45,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val searchService = ConnectedViewInjector.get<TopicSearchService>()
     val nameGenerator = ConnectedViewInjector.get<FictionalNameGenerator>()
     val avatarGenerator = ConnectedViewInjector.get<DiceBearAvatarGenerator>()
+    val postPublisher = ConnectedViewInjector.get<PostPublisher>()
     val visualsFactory =
         useMemo(nameGenerator, avatarGenerator) {
             IdentityVisualsFactory(nameGenerator, avatarGenerator)
@@ -56,6 +61,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             sessionStore.load()?.isProfileVisible ?: false
     }
     val (isProfileVisible, setProfileVisible) = useState(initialProfileVisibility)
+    val (isComposerOpen, setComposerOpen) = useState(false)
+    val (composerText, setComposerText) = useState("")
+    val (isPublishing, setPublishing) = useState(false)
+    val (publishError, setPublishError) = useState<String?>(null)
 
     suspend fun refreshPosts(currentTopic: Topic?) {
         val nextVersion = (postsRequestVersion.current ?: 0) + 1
@@ -136,6 +145,40 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         persistProfileVisibility(false)
     }
 
+    fun openComposer() {
+        setPublishError(null)
+        setComposerOpen(true)
+    }
+
+    fun closeComposer() {
+        if (isPublishing) return
+        setPublishError(null)
+        setComposerOpen(false)
+    }
+
+    fun sendPost() {
+        if (isPublishing) return
+        val text = composerText.trim()
+        if (text.isEmpty()) return
+        val topicForRefresh = selectedTopic
+        setPublishing(true)
+        setPublishError(null)
+        scope.launch {
+            try {
+                val success = postPublisher.publish(text)
+                if (success) {
+                    setComposerText("")
+                    setComposerOpen(false)
+                    refreshPosts(topicForRefresh)
+                } else {
+                    setPublishError(translator.translate("connected.composer.error"))
+                }
+            } finally {
+                setPublishing(false)
+            }
+        }
+    }
+
     div {
         className = ClassName("connected-shell")
         div {
@@ -182,6 +225,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 modifier = "topic-board__column--replies",
             )
         }
+        floatingComposerButton(
+            label = translator.translate("connected.composer.open"),
+            onActivate = ::openComposer,
+        )
     }
 
     if (isProfileVisible) {
@@ -194,6 +241,18 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 hideProfile()
             }
         }
+    }
+
+    if (isComposerOpen) {
+        composerDialog(
+            translator = translator,
+            text = composerText,
+            onTextChange = { next -> setComposerText(next) },
+            onClose = ::closeComposer,
+            onSend = ::sendPost,
+            isPublishing = isPublishing,
+            errorText = publishError,
+        )
     }
 }
 
@@ -280,7 +339,7 @@ private fun ChildrenBuilder.postsColumn(
             }
         else -> posts.forEach { topicPosts ->
             topicPosts.entries.forEach { entry ->
-                postCard(translator, visualsFactory, entry)
+                postCard(translator, visualsFactory, topicPosts.topic.title, entry)
             }
         }
     }
@@ -289,6 +348,7 @@ private fun ChildrenBuilder.postsColumn(
 private fun ChildrenBuilder.postCard(
     translator: Translator,
     visualsFactory: IdentityVisualsFactory,
+    topic: String,
     entry: QueryResult.Entry,
 ) {
     val authorVisuals = visualsFactory.createFromGid(entry.authorGID)
@@ -298,6 +358,10 @@ private fun ChildrenBuilder.postCard(
     div {
         key = entry.id
         className = ClassName("post-card")
+        span {
+            className = ClassName("post-card__topic")
+            +topic
+        }
         div {
             className = ClassName("post-card__author-row")
             img {
@@ -330,6 +394,73 @@ private fun ChildrenBuilder.postCard(
         div {
             className = ClassName("post-card__content")
             +entry.content
+        }
+    }
+}
+
+private fun ChildrenBuilder.floatingComposerButton(
+    label: String,
+    onActivate: () -> Unit,
+) = button {
+    className = ClassName("composer-button")
+    ariaLabel = label
+    title = label
+    onClick = { onActivate() }
+    +"+"
+}
+
+private fun ChildrenBuilder.composerDialog(
+    translator: Translator,
+    text: String,
+    onTextChange: (String) -> Unit,
+    onClose: () -> Unit,
+    onSend: () -> Unit,
+    isPublishing: Boolean,
+    errorText: String?,
+) = div {
+    className = ClassName("composer-overlay")
+    div {
+        className = ClassName("composer-dialog")
+        div {
+            className = ClassName("composer-dialog__header")
+            span {
+                className = ClassName("composer-dialog__title")
+                +translator.translate("connected.composer.title")
+            }
+            button {
+                className = ClassName("composer-dialog__close")
+                ariaLabel = translator.translate("connected.composer.close")
+                onClick = { onClose() }
+                +"x"
+            }
+        }
+        div {
+            className = ClassName("composer-dialog__body")
+            textarea {
+                className = ClassName("composer-dialog__textarea")
+                placeholder = translator.translate("connected.composer.placeholder")
+                value = text
+                disabled = isPublishing
+                rows = 5
+                onChange = { event: ChangeEvent<HTMLTextAreaElement> ->
+                    onTextChange(event.target.value)
+                }
+            }
+            if (errorText != null) {
+                div {
+                    className = ClassName("composer-dialog__error")
+                    +errorText
+                }
+            }
+        }
+        div {
+            className = ClassName("composer-dialog__footer")
+            button {
+                className = ClassName("button button--primary composer-dialog__send")
+                disabled = text.trim().isEmpty() || isPublishing
+                onClick = { onSend() }
+                +translator.translate("connected.composer.send")
+            }
         }
     }
 }

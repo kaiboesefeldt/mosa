@@ -38,6 +38,7 @@ import straightway.mosa.client.topic.Topic
 import straightway.mosa.client.topic.TopicRepository
 import straightway.mosa.client.topic.TopicSearchService
 import straightway.mosa.client.topic.TopicStore
+import straightway.mosa.client.topic.PostPublisher
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalName
@@ -58,6 +59,7 @@ class IdentityConnectedViewTest {
         cleanup()
         window.asDynamic().prompt = originalPrompt
         sessionStore.save(IdentitySessionSnapshot(null, false))
+        window.asDynamic().MOSA_POD_BASE = null
         stopKoin()
     }
 
@@ -181,6 +183,42 @@ class IdentityConnectedViewTest {
         assertEquals(1, podAccess.queryInvocations.size)
     }
 
+    @Test
+    fun `opens composer dialog from floating button`() = runTest {
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelector(".composer-button") != null }
+        user.click(composerButton(view.container)).await()
+
+        waitForCondition { view.container.querySelector(".composer-dialog") != null }
+    }
+
+    @Test
+    fun `publishes post via composer`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelector(".composer-button") != null }
+        user.click(composerButton(view.container)).await()
+        waitForCondition { view.container.querySelector(".composer-dialog__textarea") != null }
+        user.type(composerTextarea(view.container), "Neuer Beitrag").await()
+        user.click(sendComposerButton(view.container)).await()
+
+        waitForCondition { podAccess.publishRequests.isNotEmpty() }
+        assertEquals("Neuer Beitrag", podAccess.publishRequests.single().text)
+        waitForCondition { view.container.querySelector(".composer-dialog") == null }
+    }
+
     private suspend fun waitForCondition(condition: () -> Boolean) {
         repeat(200) {
             if (condition()) return
@@ -231,6 +269,7 @@ class IdentityConnectedViewTest {
                 single<PodAccessFactory> { { podAccess } }
                 single<JwtBuilder> { { _, _ -> "jwt" } }
                 single<Logger> { RecordingLogger() }
+                single { PostPublisher(get(), get(), get(), get(), get()) }
                 single { TopicSearchService(get(), get(), get(), get(), get()) }
             }
         startKoin { modules(module) }
@@ -241,6 +280,15 @@ class IdentityConnectedViewTest {
     private fun avatarButton(container: Element): Element =
         container.querySelector(".connected-shell__avatar-button")
             ?: error("Avatar button missing")
+
+    private fun composerButton(container: Element): Element =
+        container.querySelector(".composer-button") ?: error("Composer button missing")
+
+    private fun composerTextarea(container: Element): Element =
+        container.querySelector(".composer-dialog__textarea") ?: error("Composer textarea missing")
+
+    private fun sendComposerButton(container: Element): Element =
+        container.querySelector(".composer-dialog__send") ?: error("Composer send button missing")
 }
 
 private val ConnectedViewHarness = FC<Props> {
@@ -293,6 +341,8 @@ private class RecordingPodAccess(
 ) : PodAccess {
     val approveInvocations = mutableListOf<String>()
     val queryInvocations = mutableListOf<QueryRequest>()
+    val publishRequests = mutableListOf<straightway.mosa.content.PublishRequest>()
+    var shouldFailPublish = false
 
     override suspend fun approveGid(gid: String): PodCertificate {
         approveInvocations += gid
@@ -300,7 +350,8 @@ private class RecordingPodAccess(
     }
 
     override suspend fun publish(request: straightway.mosa.content.PublishRequest, jwt: String) {
-        error("not used")
+        if (shouldFailPublish) throw RuntimeException("publish failed")
+        publishRequests += request
     }
 
     override suspend fun reply(request: straightway.mosa.content.ReplyRequest, jwt: String) {

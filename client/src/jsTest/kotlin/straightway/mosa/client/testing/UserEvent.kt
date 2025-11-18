@@ -13,4 +13,5 @@ external interface UserEventModule {
 
 external interface UserEventApi {
     fun click(element: dynamic): Promise<Unit>
+    fun type(element: dynamic, text: String): Promise<Unit>
 }
