@@ -54,6 +54,7 @@ class IdentitySmokeTest {
                     visualsProvider = { identity -> config.visualsFactory.create(identity) },
                     scope = config.scope,
                     logger = config.logger,
+                    sessionStore = config.sessionStore,
                 )
             }
     }

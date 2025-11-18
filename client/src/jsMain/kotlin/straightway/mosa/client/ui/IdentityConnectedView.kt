@@ -30,9 +30,14 @@ external interface IdentityConnectedViewProps : Props {
 val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val translator = ConnectedViewInjector.get<Translator>()
     val repository = ConnectedViewInjector.get<TopicRepository>()
+    val sessionStore = ConnectedViewInjector.get<IdentitySessionStore>()
     val scope = useMemo(*noDependencies) { MainScope() }
     val (topics, setTopics) = useState<List<Topic>>(emptyList())
-    val (isProfileVisible, setProfileVisible) = useState(false)
+    val initialProfileVisibility =
+        useMemo(sessionStore) {
+            sessionStore.load()?.isProfileVisible ?: false
+        }
+    val (isProfileVisible, setProfileVisible) = useState(initialProfileVisibility)
 
     useEffect(arrayOf(repository)) {
         scope.launch {
@@ -50,6 +55,17 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
 
     val avatarDescription = translator.translate("connected.profile.avatar.title")
 
+    fun persistProfileVisibility(visible: Boolean) {
+        setProfileVisible(visible)
+        val currentSnapshot = sessionStore.load()
+        sessionStore.save(
+            IdentitySessionSnapshot(
+                connectedIdentityGid = currentSnapshot?.connectedIdentityGid,
+                isProfileVisible = visible,
+            ),
+        )
+    }
+
     fun addTopic() {
         val text = window.prompt(translator.translate("connected.topics.prompt")) ?: return
         val sanitized = text.trim()
@@ -60,11 +76,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     fun showProfile() {
-        setProfileVisible(true)
+        persistProfileVisibility(true)
     }
 
     fun hideProfile() {
-        setProfileVisible(false)
+        persistProfileVisibility(false)
     }
 
     div {

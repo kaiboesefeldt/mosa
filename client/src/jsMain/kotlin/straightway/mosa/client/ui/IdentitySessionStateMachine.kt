@@ -18,15 +18,17 @@ class IdentitySessionStateMachine(
     private val visualsProvider: (Identity) -> IdentityVisuals,
     private val scope: CoroutineScope,
     private val logger: Logger,
+    private val sessionStore: IdentitySessionStore,
 ) {
+    private val initialSnapshot = sessionStore.load()
     private var currentSelection: IdentitySelection? = null
     private var identityNameParts = placeholderName(textProvider.loading)
     private var identityAvatar: String? = null
     private var isBusy = false
     private var errorText: String? = null
-    private var isConnected = false
+    private var isConnected = initialSnapshot?.connectedIdentityGid != null
 
-    private val _state = MutableStateFlow<IdentitySessionViewState>(initialProfileState())
+    private val _state = MutableStateFlow<IdentitySessionViewState>(initialViewState())
     val state: StateFlow<IdentitySessionViewState> = _state
 
     fun refresh() {
@@ -36,7 +38,7 @@ class IdentitySessionStateMachine(
             onFailure = ::handlePreparationFailure,
         ) {
             val selection = repository.loadOrCreate()
-            applySelection(selection)
+            applySelection(selection, profileVisibleOverride = null)
         }
     }
 
@@ -52,6 +54,7 @@ class IdentitySessionStateMachine(
         if (currentSelection == null || isBusy) return
         isConnected = true
         errorText = null
+        persistSession(profileVisibleOverride = false)
         publishState()
     }
 
@@ -85,14 +88,18 @@ class IdentitySessionStateMachine(
         }
     }
 
-    private fun applySelection(selection: IdentitySelection) {
+    private fun applySelection(
+        selection: IdentitySelection,
+        profileVisibleOverride: Boolean? = false,
+    ) {
         currentSelection = selection
         val visuals = visualsProvider(selection.identity)
         identityNameParts = visuals.name
         identityAvatar = visuals.avatar
-        resetConnection()
         errorText = null
+        restoreConnection(selection)
         publishState()
+        persistSession(profileVisibleOverride = profileVisibleOverride)
     }
 
     private fun setBusy(value: Boolean) {
@@ -103,6 +110,9 @@ class IdentitySessionStateMachine(
     private fun publishState() {
         _state.value = if (isConnected) connectedState() else profileViewState()
     }
+
+    private fun initialViewState(): IdentitySessionViewState =
+        if (isConnected) connectedState() else initialProfileState()
 
     private fun initialProfileState(): IdentitySessionViewState.Profile =
         IdentitySessionViewState.Profile(
@@ -180,8 +190,21 @@ class IdentitySessionStateMachine(
         publishState()
     }
 
+    private fun restoreConnection(selection: IdentitySelection) {
+        val snapshot = sessionStore.load()
+        isConnected = snapshot?.connectedIdentityGid == selection.identity.gid
+    }
+
+    private fun persistSession(profileVisibleOverride: Boolean? = null) {
+        val connectedGid = currentSelection?.identity?.gid?.takeIf { isConnected }
+        val current = sessionStore.load()
+        val isProfileVisible = profileVisibleOverride ?: current?.isProfileVisible ?: false
+        sessionStore.save(IdentitySessionSnapshot(connectedGid, isProfileVisible))
+    }
+
     private fun resetConnection() {
         isConnected = false
+        persistSession(profileVisibleOverride = false)
     }
 
     private fun errorMessage(error: Throwable): String {

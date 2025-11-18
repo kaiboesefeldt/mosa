@@ -64,8 +64,9 @@ fun useIdentitySession(): IdentityScreen {
         }
     val scope = useMemo(*noDependencies) { MainScope() }
     val logger = useMemo(*noDependencies) { ClientInjector.get<Logger>() }
+    val sessionStore = useMemo(*noDependencies) { ClientInjector.get<IdentitySessionStore>() }
     val machine =
-        useMemo(repository, transfer, visualsFactory, logger, textProvider) {
+        useMemo(repository, transfer, visualsFactory, logger, textProvider, sessionStore) {
             identitySessionStateMachineFactory(
                 IdentitySessionMachineConfig(
                     repository = repository,
@@ -74,6 +75,7 @@ fun useIdentitySession(): IdentityScreen {
                     visualsFactory = visualsFactory,
                     scope = scope,
                     logger = logger,
+                    sessionStore = sessionStore,
                 ),
             )
         }
@@ -138,6 +140,7 @@ internal data class IdentitySessionMachineConfig(
     val visualsFactory: IdentityVisualsFactory,
     val scope: CoroutineScope,
     val logger: Logger,
+    val sessionStore: IdentitySessionStore,
 )
 
 internal typealias IdentitySessionStateMachineFactory = (IdentitySessionMachineConfig) -> IdentitySessionStateMachine
@@ -151,5 +154,6 @@ internal var identitySessionStateMachineFactory: IdentitySessionStateMachineFact
             visualsProvider = { identity -> config.visualsFactory.create(identity) },
             scope = config.scope,
             logger = config.logger,
+            sessionStore = config.sessionStore,
         )
     }

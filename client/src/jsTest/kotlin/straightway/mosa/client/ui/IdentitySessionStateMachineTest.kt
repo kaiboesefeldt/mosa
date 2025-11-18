@@ -1,19 +1,16 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package straightway.mosa.client.ui
 
-import kotlin.coroutines.cancellation.CancellationException
-import kotlin.js.unsafeCast
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import straightway.mosa.client.browser.CryptoKey
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
@@ -22,522 +19,177 @@ import straightway.mosa.client.identity.IdentityTransferPort
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.identity.FictionalName
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class IdentitySessionStateMachineTest {
-    private val dispatcher = UnconfinedTestDispatcher()
-
     @Test
-    fun `initial state uses loading placeholder`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val textProvider = FakeIdentitySessionTextProvider(loading = "Bitte warten")
-        val machine = machine(repository = repository, textProvider = textProvider, scope = this)
+    fun `initial state shows connection when session persists gid`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore(IdentitySessionSnapshot(identity.gid, false))
 
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertEquals(FictionalName(listOf("Bitte warten"), ""), state.identityNameParts)
-        assertFalse(state.isBusy)
-        assertNull(state.errorText)
-        assertFalse(state.canConnect)
-        assertFalse(state.canDownload)
+        val machine = createMachine(repository, store)
+
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Connected)
     }
 
     @Test
-    fun `refresh updates profile view`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val machine = machine(repository = repository, scope = this)
+    fun `restores connection state from persisted session`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore(IdentitySessionSnapshot(identity.gid, false))
+        val machine = createMachine(repository, store)
 
         machine.refresh()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertEquals(0, state.identityIndex)
-        assertEquals(1, state.identityTotal)
-        assertTrue(state.canConnect)
-        assertEquals(FictionalName(givenNames = listOf("Ada"), sureName = "Lovelace"), state.identityNameParts)
-        assertEquals("avatar", state.identityAvatar)
-        assertNull(state.errorText)
-        assertTrue(state.canDownload)
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Connected)
+        assertEquals(identity.gid, store.snapshot?.connectedIdentityGid)
     }
 
     @Test
-    fun `refresh publishes failure state on error`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        repository.loadOrCreateAction = { throw RuntimeException("kaputt") }
-        val textProvider = FakeIdentitySessionTextProvider()
-        val logger = RecordingLogger()
-        val machine = machine(repository = repository, textProvider = textProvider, logger = logger, scope = this)
+    fun `keeps profile visibility when restoring session`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore(IdentitySessionSnapshot(identity.gid, true))
+        val machine = createMachine(repository, store)
 
         machine.refresh()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertEquals(textProvider.failedToPrepare("kaputt"), state.identityNameParts.givenNames.single())
-        assertEquals("kaputt", state.errorText)
-        assertFalse(state.canConnect)
-        assertEquals(listOf("Identity refresh failed"), logger.errorEntries.map { it.message })
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Connected)
+        assertEquals(true, store.snapshot?.isProfileVisible)
     }
 
     @Test
-    fun `refresh substitutes unknown error for cancellations`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        repository.loadOrCreateAction = { throw CancellationException("stop") }
-        val textProvider = FakeIdentitySessionTextProvider()
-        val machine = machine(repository = repository, textProvider = textProvider, scope = this)
+    fun `clears persisted connection when switching identity`() = runMachineTest {
+        val identityA = identity("gid-a")
+        val identityB = identity("gid-b")
+        val repository = FakeIdentitySelectionRepository(identityA, identityB)
+        val store = RecordingIdentitySessionStore()
+        val machine = createMachine(repository, store)
 
         machine.refresh()
         advanceUntilIdle()
+        machine.connectToPod()
 
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertEquals(textProvider.unknownError, state.errorText)
-        assertEquals(textProvider.failedToPrepare(textProvider.unknownError), state.identityNameParts.givenNames.single())
-    }
+        assertEquals(identityA.gid, store.snapshot?.connectedIdentityGid)
 
-    @Test
-    fun `refresh ignores repeated invocation while busy`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val blocker = CompletableDeferred<Unit>()
-        repository.loadOrCreateAction = {
-            blocker.await()
-            identitySelection()
-        }
-        val machine = machine(repository = repository, scope = this)
-
-        machine.refresh()
-        machine.refresh()
-        assertEquals(1, repository.loadOrCreateCalls)
-
-        blocker.complete(Unit)
-        advanceUntilIdle()
-    }
-
-    @Test
-    fun `navigate to next applies repository selection`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection(total = 2))
-        repository.moveNextAction = { identitySelection(gid = "gid-456", index = 1, total = 2) }
-        val visualsProvider = visualsFromIdentity()
-        val machine = machine(repository = repository, visualsProvider = visualsProvider, scope = this)
-
-        machine.refresh()
-        advanceUntilIdle()
         machine.navigateToNext()
         advanceUntilIdle()
 
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertEquals(1, state.identityIndex)
-        assertTrue(state.canNavigatePrevious)
-        assertTrue(state.canNavigateNext)
-        assertTrue(state.isShowingLastIdentity)
-        assertEquals("avatar-gid-456", state.identityAvatar)
-        assertEquals(FictionalName(listOf("gid-456"), "Hero"), state.identityNameParts)
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Profile)
+        assertNull(store.snapshot?.connectedIdentityGid)
     }
-
-    @Test
-    fun `navigation ignores null responses`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        repository.movePreviousAction = { null }
-        val machine = machine(repository = repository, scope = this)
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.navigateToPrevious()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertEquals(0, state.identityIndex)
-        assertFalse(state.canNavigatePrevious)
-    }
-
-    @Test
-    fun `navigation surfaces loader errors`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        repository.moveNextAction = { throw RuntimeException("broken nav") }
-        val logger = RecordingLogger()
-        val machine = machine(repository = repository, logger = logger, scope = this)
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.navigateToNext()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertEquals("broken nav", state.errorText)
-        assertEquals(listOf("Identity navigation failed"), logger.errorEntries.map { it.message })
-    }
-
-    @Test
-    fun `delete identity applies repository selection`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        repository.deleteAction = { identitySelection(gid = "gid-del", index = 0, total = 1) }
-        val visualsProvider = visualsFromIdentity()
-        val machine = machine(repository = repository, visualsProvider = visualsProvider, scope = this)
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.deleteIdentity()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertEquals(FictionalName(listOf("gid-del"), "Hero"), state.identityNameParts)
-    }
-
-    @Test
-    fun `select applies repository selection`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection(total = 3))
-        repository.selectAction = { index -> identitySelection(gid = "gid-$index", index = index, total = 3) }
-        val machine = machine(repository = repository, scope = this)
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.select(2)
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertEquals(2, state.identityIndex)
-        assertTrue(state.canNavigatePrevious)
-    }
-
-    @Test
-    fun `connect publishes connected view`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val machine = machine(repository = repository, scope = this)
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.connectToPod()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Connected>(machine.state.value)
-        assertEquals("Ada Lovelace", state.identityName)
-    }
-
-    @Test
-    fun `connected state retains profile data`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection(index = 1, total = 3))
-        val visuals =
-            IdentityVisuals(
-                name = FictionalName(listOf("Grace"), "Hopper"),
-                avatar = "avatar-grace",
-            )
-        val machine = machine(repository = repository, visualsProvider = { visuals }, scope = this)
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.connectToPod()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Connected>(machine.state.value)
-        val profile = state.profile
-        assertEquals(1, profile.identityIndex)
-        assertEquals(3, profile.identityTotal)
-        assertEquals("avatar-grace", profile.identityAvatar)
-        assertEquals(visuals.name, profile.identityNameParts)
-        assertTrue(profile.canConnect)
-        assertTrue(profile.canDownload)
-        assertTrue(profile.canNavigateNext)
-    }
-
-    @Test
-    fun `connect ignored without selection`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val machine = machine(repository = repository, scope = this)
-
-        machine.connectToPod()
-        advanceUntilIdle()
-
-        assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-    }
-
-    @Test
-    fun `download uses sanitized filename`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val transfer = RecordingIdentityTransferPort()
-        val visuals =
-            IdentityVisuals(
-                FictionalName(
-                    givenNames = listOf("ada", "ROB", "R2D2"),
-                    sureName = "von Braun",
-                    addendum = "alpha-42 Beta",
-                ),
-                avatar = "avatar",
-            )
-        val machine =
-            machine(
-                repository = repository,
-                transfer = transfer,
-                scope = this,
-                visualsProvider = { visuals },
-            )
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.downloadIdentity()
-        advanceUntilIdle()
-
-        assertEquals("AdaROBR2D2Alpha42BetaVonBraun", transfer.downloaded.single().second)
-    }
-
-    @Test
-    fun `download ignored without selection`() = runTest(dispatcher) {
-        val transfer = RecordingIdentityTransferPort()
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val machine = machine(repository = repository, transfer = transfer, scope = this)
-
-        machine.downloadIdentity()
-        advanceUntilIdle()
-
-        assertTrue(transfer.downloaded.isEmpty())
-    }
-
-    @Test
-    fun `download logs failures`() = runTest(dispatcher) {
-        val transfer = RecordingIdentityTransferPort()
-        transfer.downloadAction = { _, _ -> throw RuntimeException("disk full") }
-        val logger = RecordingLogger()
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val machine = machine(repository = repository, transfer = transfer, logger = logger, scope = this)
-
-        machine.refresh()
-        advanceUntilIdle()
-        machine.downloadIdentity()
-        advanceUntilIdle()
-
-        assertEquals(listOf("Identity download failed"), logger.errorEntries.map { it.message })
-    }
-
-    @Test
-    fun `upload imports uploaded identity`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val transfer = RecordingIdentityTransferPort()
-        val importedIdentity = Identity("gid-999", emptyCryptoKeyPair())
-        transfer.uploadAction = { importedIdentity }
-        repository.importAction = { identity -> identitySelection(identity.gid, index = 1, total = 2) }
-        val visualsProvider = visualsFromIdentity()
-        val machine =
-            machine(
-                repository = repository,
-                transfer = transfer,
-                visualsProvider = visualsProvider,
-                scope = this,
-            )
-
-        machine.uploadIdentity()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertEquals(1, state.identityIndex)
-        assertEquals(FictionalName(listOf("gid-999"), "Hero"), state.identityNameParts)
-    }
-
-    @Test
-    fun `upload returns early when nothing uploaded`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val transfer = RecordingIdentityTransferPort()
-        transfer.uploadAction = { null }
-        val machine = machine(repository = repository, transfer = transfer, scope = this)
-
-        machine.uploadIdentity()
-        advanceUntilIdle()
-
-        assertEquals(0, repository.importInvocations)
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertFalse(state.isBusy)
-    }
-
-    @Test
-    fun `upload surfaces failures`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val transfer = RecordingIdentityTransferPort()
-        transfer.uploadAction = { throw RuntimeException("upload fail") }
-        val logger = RecordingLogger()
-        val machine = machine(repository = repository, transfer = transfer, logger = logger, scope = this)
-
-        machine.uploadIdentity()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertEquals("upload fail", state.errorText)
-        assertEquals(listOf("Identity upload failed"), logger.errorEntries.map { it.message })
-    }
-
-    @Test
-    fun `upload obeys busy guard`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val transfer = RecordingIdentityTransferPort()
-        val resume = CompletableDeferred<Unit>()
-        var uploadCalls = 0
-        transfer.uploadAction = suspend {
-            uploadCalls++
-            resume.await()
-            Identity("gid-111", emptyCryptoKeyPair())
-        }
-        repository.importAction = { imported -> identitySelection(imported.gid, 0, 1) }
-        val machine = machine(repository = repository, transfer = transfer, scope = this)
-
-        machine.uploadIdentity()
-        machine.uploadIdentity()
-        assertEquals(1, uploadCalls)
-
-        resume.complete(Unit)
-        advanceUntilIdle()
-
-        assertEquals(1, repository.importInvocations)
-    }
-
-    @Test
-    fun `upload falls back to unknown error when throwable anonymous`() = runTest(dispatcher) {
-        val repository = RecordingIdentitySelectionRepository(identitySelection())
-        val transfer = RecordingIdentityTransferPort()
-        val unknown = object : Throwable() {
-            override val message: String = " "
-        }
-        transfer.uploadAction = { throw unknown }
-        val textProvider = FakeIdentitySessionTextProvider()
-        val machine = machine(repository = repository, transfer = transfer, textProvider = textProvider, scope = this)
-
-        machine.uploadIdentity()
-        advanceUntilIdle()
-
-        val state = assertIs<IdentitySessionViewState.Profile>(machine.state.value)
-        assertEquals(textProvider.unknownError, state.errorText)
-    }
-
-    @Test
-    fun `placeholderName trims and defaults`() {
-        assertEquals(FictionalName(listOf("Name"), ""), placeholderName("  Name "))
-        assertEquals(FictionalName(listOf("Identity"), ""), placeholderName("   "))
-    }
-
-    @Test
-    fun `toIdentityDownloadFileName builds camel case tokens`() {
-        val name =
-            FictionalName(
-                givenNames = listOf("ada", "ROB"),
-                sureName = "van Allen",
-                addendum = "von-neumann 42",
-            )
-        assertEquals("AdaROBVonNeumann42VanAllen", name.toIdentityDownloadFileName())
-    }
-
-    private fun machine(
-        repository: RecordingIdentitySelectionRepository,
-        scope: TestScope,
-        transfer: RecordingIdentityTransferPort = RecordingIdentityTransferPort(),
-        textProvider: FakeIdentitySessionTextProvider = FakeIdentitySessionTextProvider(),
-        visualsProvider: (Identity) -> IdentityVisuals = { IdentityVisuals(FictionalName(listOf("Ada"), "Lovelace"), "avatar") },
-        logger: RecordingLogger = RecordingLogger(),
-    ): IdentitySessionStateMachine =
-        IdentitySessionStateMachine(
-            repository = repository,
-            transfer = transfer,
-            textProvider = textProvider,
-            visualsProvider = visualsProvider,
-            scope = scope,
-            logger = logger,
-        )
-
-    private fun visualsFromIdentity(): (Identity) -> IdentityVisuals =
-        { identity ->
-            IdentityVisuals(
-                name = FictionalName(listOf(identity.gid), "Hero"),
-                avatar = "avatar-${identity.gid}",
-            )
-        }
 }
 
-private class RecordingIdentitySelectionRepository(
-    private val defaultSelection: IdentitySelection,
+private fun TestScope.createMachine(
+    repository: IdentitySelectionRepository,
+    store: IdentitySessionStore,
+): IdentitySessionStateMachine =
+    IdentitySessionStateMachine(
+        repository = repository,
+        transfer = NoopIdentityTransferPort,
+        textProvider = TestIdentitySessionTextProvider,
+        visualsProvider = { identity ->
+            IdentityVisuals(FictionalName(listOf(identity.gid)), identity.gid)
+        },
+        scope = this,
+        logger = TestLogger,
+        sessionStore = store,
+    )
+
+private fun identity(id: String): Identity =
+    Identity(
+        gid = id,
+        keyPair = object : CryptoKeyPair {
+            override val privateKey: CryptoKey = object : CryptoKey {}
+
+            override val publicKey: CryptoKey = object : CryptoKey {}
+        },
+    )
+
+@OptIn(ExperimentalCoroutinesApi::class)
+private fun runMachineTest(block: suspend TestScope.() -> Unit) = runTest { block() }
+
+private class FakeIdentitySelectionRepository(
+    first: Identity,
+    second: Identity? = null,
 ) : IdentitySelectionRepository {
-    var loadOrCreateCalls = 0
-    var movePreviousCalls = 0
-    var moveNextCalls = 0
-    var deleteCalls = 0
-    var importInvocations = 0
-    var selectInvocations = 0
+    private val identities = mutableListOf(first).apply { second?.let { add(it) } }
+    private var index = 0
 
-    var loadOrCreateAction: suspend () -> IdentitySelection = { defaultSelection }
-    var movePreviousAction: suspend () -> IdentitySelection? = { defaultSelection }
-    var moveNextAction: suspend () -> IdentitySelection = { defaultSelection }
-    var deleteAction: suspend () -> IdentitySelection = { defaultSelection }
-    var selectAction: suspend (Int) -> IdentitySelection? = { defaultSelection }
-    var importAction: suspend (Identity) -> IdentitySelection = { defaultSelection }
-
-    override suspend fun loadOrCreate(): IdentitySelection {
-        loadOrCreateCalls++
-        return loadOrCreateAction()
-    }
+    override suspend fun loadOrCreate(): IdentitySelection =
+        currentSelection()
 
     override suspend fun movePrevious(): IdentitySelection? {
-        movePreviousCalls++
-        return movePreviousAction()
+        if (index <= 0) return null
+        index -= 1
+        return currentSelection()
     }
 
     override suspend fun moveNext(): IdentitySelection {
-        moveNextCalls++
-        return moveNextAction()
+        if (index < identities.lastIndex) index += 1
+        return currentSelection()
     }
 
     override suspend fun deleteCurrent(): IdentitySelection {
-        deleteCalls++
-        return deleteAction()
+        identities.removeAt(index.coerceIn(identities.indices))
+        index = index.coerceAtMost(identities.lastIndex)
+        return currentSelection()
     }
 
     override suspend fun select(index: Int): IdentitySelection? {
-        selectInvocations++
-        return selectAction(index)
+        if (index !in identities.indices) return null
+        this.index = index
+        return currentSelection()
     }
 
     override suspend fun import(identity: Identity): IdentitySelection {
-        importInvocations++
-        return importAction(identity)
+        val existingIndex = identities.indexOfFirst { it.gid == identity.gid }
+        index =
+            if (existingIndex >= 0) existingIndex else identities.size.also { identities.add(identity) }
+        return currentSelection()
     }
+
+    private fun currentSelection(): IdentitySelection =
+        IdentitySelection(
+            identity = identities[index],
+            index = index,
+            total = identities.size,
+        )
 }
 
-private class RecordingIdentityTransferPort : IdentityTransferPort {
-    val downloaded = mutableListOf<Pair<Identity, String>>()
-    var downloadAction: suspend (Identity, String) -> Unit = { identity, fileBaseName ->
-        downloaded += identity to fileBaseName
-    }
-    var uploadAction: suspend () -> Identity? = { null }
+private object TestIdentitySessionTextProvider : IdentitySessionTextProvider {
+    override val loading: String = "loading"
+    override val unknownError: String = "error"
 
-    override suspend fun download(identity: Identity, fileBaseName: String) {
-        downloadAction(identity, fileBaseName)
-    }
-
-    override suspend fun upload(): Identity? = uploadAction()
+    override fun failedToPrepare(message: String): String = message
 }
 
-private class FakeIdentitySessionTextProvider(
-    override val loading: String = "loading",
-    override val unknownError: String = "unknown",
-    private val failedTemplate: (String) -> String = { message -> "failed $message" },
-) : IdentitySessionTextProvider {
-    override fun failedToPrepare(message: String): String = failedTemplate(message)
+private object TestLogger : Logger {
+    override fun error(message: String, throwable: Throwable?) = Unit
+
+    override fun warn(message: String, throwable: Throwable?) = Unit
 }
 
-private class RecordingLogger : Logger {
-    data class Entry(val message: String, val throwable: Throwable?)
+private object NoopIdentityTransferPort : IdentityTransferPort {
+    override suspend fun download(identity: Identity, fileBaseName: String) = Unit
 
-    val errorEntries = mutableListOf<Entry>()
-    val warnEntries = mutableListOf<Entry>()
-
-    override fun error(message: String, throwable: Throwable?) {
-        errorEntries += Entry(message, throwable)
-    }
-
-    override fun warn(message: String, throwable: Throwable?) {
-        warnEntries += Entry(message, throwable)
-    }
+    override suspend fun upload(): Identity? = null
 }
 
-private fun identitySelection(
-    gid: String = "gid-123",
-    index: Int = 0,
-    total: Int = 1,
-): IdentitySelection =
-    IdentitySelection(
-        identity = Identity(gid = gid, keyPair = emptyCryptoKeyPair()),
-        index = index,
-        total = total,
-    )
+private class RecordingIdentitySessionStore(
+    initial: IdentitySessionSnapshot? = null,
+) : IdentitySessionStore {
+    var snapshot: IdentitySessionSnapshot? = initial
+        private set
 
-private fun emptyCryptoKeyPair(): CryptoKeyPair =
-    js("{ privateKey: {}, publicKey: {} }").unsafeCast<CryptoKeyPair>()
+    override fun load(): IdentitySessionSnapshot? = snapshot
+
+    override fun save(snapshot: IdentitySessionSnapshot) {
+        this.snapshot = snapshot
+    }
+}

@@ -38,6 +38,8 @@ import straightway.mosa.client.topic.IndexedDbTopicStore
 import straightway.mosa.client.topic.TopicRepository
 import straightway.mosa.client.topic.TopicStore
 import straightway.mosa.identity.FictionalNameGenerator
+import straightway.mosa.client.ui.BrowserIdentitySessionStore
+import straightway.mosa.client.ui.IdentitySessionStore
 import web.idb.IDBFactory
 import web.idb.indexedDB
 
@@ -71,6 +73,7 @@ object AppModule : KoinComponent {
                             )
                         }
                         single<IdentitySelectionRepository> { IdentityRepository(get(), get<IdentityProvider>()) }
+                        single<IdentitySessionStore> { BrowserIdentitySessionStore() }
                         single {
                             HttpClient {
                                 install(ContentNegotiation) { json() }
