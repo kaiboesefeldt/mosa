@@ -16,22 +16,22 @@ class TopicPostFilterTest {
     }
 
     @Test
-    fun `keeps entries with higher score and the boundary entry`() {
+    fun `keeps entries with higher score only`() {
         val entries = listOf(entry("one", 0.95f), entry("two", 0.9f), entry("three", 0.7f))
 
         val result = filterEntriesByScore(entries, 0.9f)
 
-        assertEquals(listOf(entries[0], entries[1]), result.entries)
+        assertEquals(listOf(entries[0]), result.entries)
         assertEquals("two", result.filteredEntryId)
     }
 
     @Test
-    fun `shows only the highest filtered entry when everything is below the score`() {
+    fun `hides all entries when everything is below the score`() {
         val entries = listOf(entry("one", 0.9f), entry("two", 0.85f), entry("three", 0.8f))
 
         val result = filterEntriesByScore(entries, 0.95f)
 
-        assertEquals(listOf(entries[0]), result.entries)
+        assertEquals(emptyList(), result.entries)
         assertEquals("one", result.filteredEntryId)
     }
 

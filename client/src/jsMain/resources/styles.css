@@ -619,6 +619,56 @@ button:disabled {
     color: var(--color-muted);
 }
 
+.topic-board__filter-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.topic-board__filter-reset {
+    border: none;
+    background: transparent;
+    color: var(--color-muted);
+    cursor: pointer;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+
+.topic-board__filter-reset:hover {
+    color: var(--color-primary);
+    background: rgba(99, 102, 241, 0.12);
+}
+
+.topic-board__filter-reset-icon {
+    position: relative;
+}
+
+.topic-board__filter-reset-icon::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: -10%;
+    width: 120%;
+    height: 2px;
+    background: currentColor;
+    transform: rotate(-25deg);
+    transform-origin: center;
+}
+
+.topic-board__filter-value {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+}
+
 .topic-board__add-button {
     padding: 0.35rem 0.9rem;
     font-size: 0.85rem;

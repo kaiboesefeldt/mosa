@@ -26,6 +26,7 @@
   "connected.posts.timestamp": "Timestamp: {{value}}",
   "connected.posts.filter.apply": "Hide lower-scoring posts",
   "connected.posts.filter.clear": "Clear relevance filter",
+  "connected.posts.filter.active": "Score filter at {{value}}",
   "connected.composer.open": "New post",
   "connected.composer.title": "Create post",
   "connected.composer.placeholder": "What would you like to share?",

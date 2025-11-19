@@ -103,15 +103,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             }
         }.toMap()
 
-    fun persistFilters(updated: Map<String, Float>) {
-        val sanitized = TopicFilters.sanitize(updated)
-        updateTopicFilterState(sanitized)
-        setTopicFilters(sanitized)
-        scope.launch {
-            repository.applyFilters(sanitized)
-        }
-    }
-
     suspend fun refreshPosts(currentTopic: Topic?) {
         val nextVersion = (postsRequestVersion.current ?: 0) + 1
         postsRequestVersion.current = nextVersion
@@ -133,6 +124,18 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         if (postsRequestVersion.current != version) return
         setPosts(results)
         setLoadingPosts(false)
+    }
+
+    fun persistFilters(updated: Map<String, Float>) {
+        val sanitized = TopicFilters.sanitize(updated)
+        if (sanitized == topicFilters) return
+        updateTopicFilterState(sanitized)
+        setTopicFilters(sanitized)
+        val currentTopic = selectedTopic
+        scope.launch {
+            repository.applyFilters(sanitized)
+            refreshPosts(currentTopic)
+        }
     }
 
     fun selectTopic(topic: Topic?) {
@@ -256,6 +259,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         persistFilters(updated)
     }
 
+    fun clearTopicFilter(topic: Topic) {
+        if (!topicFilters.containsKey(topic.title)) return
+        persistFilters(topicFilters - topic.title)
+    }
+
     div {
         className = ClassName("connected-shell")
         div {
@@ -297,6 +305,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 isLoading = isLoadingPosts,
                 activeFilters = topicFilters,
                 onToggleFilter = ::toggleTopicFilter,
+                onClearFilter = ::clearTopicFilter,
             )
             placeholderColumn(
                 title = translator.translate("connected.replies.title"),
@@ -414,11 +423,45 @@ private fun ChildrenBuilder.postsColumn(
     isLoading: Boolean,
     activeFilters: Map<String, Float>,
     onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
+    onClearFilter: (Topic) -> Unit,
 ) = div {
     className = ClassName("topic-board__column topic-board__column--posts")
-    span {
-        className = ClassName("topic-board__column-title")
-        +translator.translate("connected.posts.title")
+    val activeFilterTopic =
+        posts.firstNotNullOfOrNull { topicPosts ->
+            activeFilters[topicPosts.topic.title]?.let { topicPosts.topic to it }
+        }
+    div {
+        className = ClassName("topic-board__column-header")
+        span {
+            className = ClassName("topic-board__column-title")
+            +translator.translate("connected.posts.title")
+        }
+        if (activeFilterTopic != null) {
+            val (filterTopic, filterScore) = activeFilterTopic
+            val filterLabel =
+                translator.translate(
+                    "connected.posts.filter.active",
+                    mapOf("value" to formatSimilarity(filterScore)),
+                )
+            val clearLabel = translator.translate("connected.posts.filter.clear")
+            div {
+                className = ClassName("topic-board__filter-indicator")
+                button {
+                    className = ClassName("topic-board__filter-reset")
+                    ariaLabel = clearLabel
+                    title = clearLabel
+                    onClick = { onClearFilter(filterTopic) }
+                    i {
+                        className =
+                            ClassName("fa fa-solid fa-arrows-up-to-line topic-board__filter-reset-icon")
+                    }
+                }
+                span {
+                    className = ClassName("topic-board__filter-value")
+                    +filterLabel
+                }
+            }
+        }
     }
     when {
         isLoading ->

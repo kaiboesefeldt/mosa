@@ -15,11 +15,6 @@ internal fun filterEntriesByScore(
     val index = entries.indexOfFirst { it.similarity <= filterScore }
     if (index < 0) return TopicFilterResult(entries, null)
     val boundaryEntry = entries[index]
-    val visibleEntries =
-        if (index == 0) {
-            listOf(boundaryEntry)
-        } else {
-            entries.take(index) + boundaryEntry
-        }
+    val visibleEntries = entries.take(index)
     return TopicFilterResult(visibleEntries, boundaryEntry.id)
 }
