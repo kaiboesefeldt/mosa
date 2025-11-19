@@ -639,6 +639,8 @@ button:disabled {
     color: var(--color-text);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     cursor: pointer;
+    position: relative;
+    padding-right: 2.25rem;
 }
 
 .topic-card:hover {
@@ -649,6 +651,29 @@ button:disabled {
 .topic-card--selected {
     border-color: rgba(99, 102, 241, 0.6);
     box-shadow: var(--shadow-soft);
+}
+
+.topic-card__delete {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    border: none;
+    background: transparent;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+}
+
+.topic-card__delete:hover {
+    color: var(--color-text);
+}
+
+.topic-card__title {
+    display: block;
+    word-break: break-word;
 }
 
 .post-card {

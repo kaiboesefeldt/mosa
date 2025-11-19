@@ -16,6 +16,7 @@
   "connected.topics.add": "Thema anlegen",
   "connected.topics.empty": "Noch keine Themen angelegt",
   "connected.topics.prompt": "Wie lautet das Thema?",
+  "connected.topics.delete": "Thema löschen",
   "connected.profile.avatar.aria": "Profil anzeigen",
   "connected.profile.avatar.title": "Profil anzeigen",
   "connected.posts.title": "Beiträge",

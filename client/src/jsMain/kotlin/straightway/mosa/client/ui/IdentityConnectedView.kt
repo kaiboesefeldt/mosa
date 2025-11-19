@@ -17,6 +17,7 @@ import react.dom.html.ReactHTML.img
 import react.dom.html.ReactHTML.span
 import react.dom.html.ReactHTML.textarea
 import react.dom.events.ChangeEvent
+import react.dom.events.MouseEvent
 import react.useEffect
 import react.useMemo
 import react.useRef
@@ -137,6 +138,19 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
+    fun removeTopic(topic: Topic) {
+        val removalIndex = topics.indexOfFirst { it.title == topic.title }
+        val wasSelected = selectedTopic?.title == topic.title
+        if (removalIndex < 0) return
+        scope.launch {
+            val updated = repository.remove(topic)
+            setTopics(updated)
+            if (wasSelected) {
+                selectTopic(updated.getOrNull(removalIndex))
+            }
+        }
+    }
+
     fun showProfile() {
         persistProfileVisibility(true)
     }
@@ -212,7 +226,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
         div {
             className = ClassName("topic-board")
-            topicColumn(translator, topics, selectedTopic, ::addTopic, ::selectTopic)
+            topicColumn(translator, topics, selectedTopic, ::addTopic, ::selectTopic, ::removeTopic)
             postsColumn(
                 translator = translator,
                 visualsFactory = visualsFactory,
@@ -262,6 +276,7 @@ private fun ChildrenBuilder.topicColumn(
     selectedTopic: Topic?,
     onAddTopic: () -> Unit,
     onSelectTopic: (Topic) -> Unit,
+    onRemoveTopic: (Topic) -> Unit,
 ) = div {
     className = ClassName("topic-board__column topic-board__column--topics")
     div {
@@ -293,7 +308,19 @@ private fun ChildrenBuilder.topicColumn(
                 key = topic.title
                 className = ClassName(cardClass)
                 onClick = { onSelectTopic(topic) }
-                +topic.title
+                button {
+                    className = ClassName("topic-card__delete")
+                    ariaLabel = translator.translate("connected.topics.delete")
+                    onClick = { event: MouseEvent<*, *> ->
+                        event.stopPropagation()
+                        onRemoveTopic(topic)
+                    }
+                    +"×"
+                }
+                span {
+                    className = ClassName("topic-card__title")
+                    +topic.title
+                }
             }
         }
     }

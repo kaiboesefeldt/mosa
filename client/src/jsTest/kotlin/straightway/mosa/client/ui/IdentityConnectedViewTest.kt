@@ -73,8 +73,8 @@ class IdentityConnectedViewTest {
         val button = addButton(view.container)
         user.click(button).await()
         waitForCondition { view.container.querySelectorAll(".topic-card").length >= 1 }
-        val cardText = view.container.querySelector(".topic-card")?.textContent?.trim()
-        assertEquals("New topic", cardText)
+        val cardTitle = view.container.querySelector(".topic-card__title")?.textContent?.trim()
+        assertEquals("New topic", cardTitle)
     }
 
     @Test
@@ -219,6 +219,61 @@ class IdentityConnectedViewTest {
         waitForCondition { view.container.querySelector(".composer-dialog") == null }
     }
 
+    @Test
+    fun `deleting selected topic selects next`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses =
+                    mapOf(
+                        "Alpha" to queryResult("p1"),
+                        "Beta" to queryResult("p2"),
+                    ),
+            )
+        overrideDependencies(
+            topics =
+                listOf(
+                    Topic("Alpha"),
+                    Topic("Beta"),
+                ),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { podAccess.queryInvocations.isNotEmpty() }
+        waitForCondition { view.container.querySelectorAll(".topic-card").length == 2 }
+        user.click(topicDeleteButton(view.container, "Alpha")).await()
+
+        waitForCondition { podAccess.queryInvocations.size == 2 }
+        assertEquals("Beta", podAccess.queryInvocations.last().topic)
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+        val topicTitle = view.container.querySelector(".post-card__topic")?.textContent?.trim()
+        assertEquals("Beta", topicTitle)
+    }
+
+    @Test
+    fun `deleting last topic clears posts`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+        user.click(topicDeleteButton(view.container, "Alpha")).await()
+
+        waitForCondition { podAccess.queryInvocations.size == 1 }
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 0 }
+        waitForCondition { view.container.querySelector(".topic-board__column--posts .topic-board__empty") != null }
+    }
+
     private suspend fun waitForCondition(condition: () -> Boolean) {
         repeat(200) {
             if (condition()) return
@@ -239,10 +294,15 @@ class IdentityConnectedViewTest {
         val nodes = container.querySelectorAll(".topic-card")
         repeat(nodes.length) { index ->
             val node = nodes.item(index) as? Element ?: return@repeat
-            if (node?.textContent?.trim() == title) return node
+            val label = node.querySelector(".topic-card__title")?.textContent?.trim()
+            if (label == title) return node
         }
         error("Topic card $title missing")
     }
+
+    private fun topicDeleteButton(container: Element, title: String): Element =
+        topicCard(container, title).querySelector(".topic-card__delete")
+            ?: error("Delete button for $title missing")
 
     private fun overrideDependencies(
         topics: List<Topic>,

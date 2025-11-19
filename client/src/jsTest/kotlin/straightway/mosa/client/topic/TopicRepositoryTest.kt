@@ -46,6 +46,24 @@ class TopicRepositoryTest {
 
         assertTrue(store.saveInvocations.isEmpty())
     }
+
+    @Test
+    fun `remove deletes topic and persists remaining`() = runTest {
+        val store =
+            RecordingTopicStore(
+                initial =
+                    listOf(
+                        Topic("Alpha"),
+                        Topic("Beta"),
+                    ),
+            )
+        val repository = TopicRepository(store)
+
+        repository.remove(Topic("Alpha"))
+
+        val saved = store.saveInvocations.lastOrNull().orEmpty()
+        assertEquals(listOf("Beta"), saved.map { it.title })
+    }
 }
 
 private class RecordingTopicStore(

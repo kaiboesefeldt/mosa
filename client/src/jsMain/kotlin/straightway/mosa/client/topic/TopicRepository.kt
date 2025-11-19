@@ -21,4 +21,11 @@ class TopicRepository(
         cache = updated
         return updated
     }
+
+    suspend fun remove(topic: Topic): List<Topic> {
+        val updated = all().filterNot { it.title == topic.title }
+        store.save(updated)
+        cache = updated
+        return updated
+    }
 }

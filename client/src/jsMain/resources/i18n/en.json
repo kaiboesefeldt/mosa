@@ -16,6 +16,7 @@
   "connected.topics.add": "Add topic",
   "connected.topics.empty": "No topics yet",
   "connected.topics.prompt": "Enter a topic",
+  "connected.topics.delete": "Delete topic",
   "connected.profile.avatar.aria": "Open profile",
   "connected.profile.avatar.title": "Open profile",
   "connected.posts.title": "Posts",
