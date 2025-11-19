@@ -41,7 +41,15 @@ class TopicSearchService(
             return emptyList()
         }
         return topics.mapNotNull { topic ->
-            runCatching { podAccess.query(QueryRequest(topic.title), jwt) }
+            runCatching {
+                podAccess.query(
+                    QueryRequest(
+                        topic = topic.title,
+                        scoreMustBeAbove = topic.scoreMustBeAbove,
+                    ),
+                    jwt,
+                )
+            }
                 .onFailure { logger.warn("Topic query failed for ${topic.title}", it) }
                 .getOrNull()
                 ?.entries

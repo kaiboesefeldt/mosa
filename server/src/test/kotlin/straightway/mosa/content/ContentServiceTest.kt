@@ -296,6 +296,36 @@ class ContentServiceTest {
             }
 
         @Test
+        fun `filters entries below score threshold`() =
+            runTest {
+                setupEmbedding("filtered topic")
+                val vectorStoreEntries =
+                    listOf(
+                        VectorStore.QueryResult(
+                            id = "above",
+                            text = "Above threshold",
+                            similarity = 0.81f,
+                            fields = mapOf("authorGID" to "author-a", "receivedAt" to "1609459200"),
+                        ),
+                        VectorStore.QueryResult(
+                            id = "equal",
+                            text = "Equal to threshold",
+                            similarity = 0.8f,
+                            fields = mapOf("authorGID" to "author-b", "receivedAt" to "1609459200"),
+                        ),
+                    )
+                setupVectorStore(createVectorStoreResults(entries = vectorStoreEntries))
+
+                val result =
+                    sut.query(
+                        testUserGID,
+                        QueryRequest(topic = "filtered topic", scoreMustBeAbove = 0.8f),
+                    )
+
+                assertEquals(listOf("above"), result.entries.map { it.id })
+            }
+
+        @Test
         fun `throws failure when authorGID field is missing`() =
             runTest {
                 setupEmbedding("missing author topic")

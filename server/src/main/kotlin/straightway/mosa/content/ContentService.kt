@@ -58,10 +58,14 @@ class ContentService(
                         fields = request.threadRootId?.let { mapOf(ROOT_ID_KEY to it) } ?: emptyMap(),
                     ),
                 )
+            val filteredEntries =
+                queryResults.resultsPage.filter { entry ->
+                    request.scoreMustBeAbove?.let { entry.similarity > it } ?: true
+                }
 
             return QueryResult(
                 queryOnId = queryResults.queryOnId?.toString() ?: "",
-                entries = queryResults.resultsPage.map { it.toQueryResultEntry() },
+                entries = filteredEntries.map { it.toQueryResultEntry() },
             )
         }
 

@@ -134,6 +134,18 @@ class TopicSearchServiceTest {
         assertEquals(listOf("second", "first", "third"), entryOrder)
     }
 
+    @Test
+    fun `passes score filter from topic`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        podAccess = FakePodAccess(responses = mapOf("Alpha" to queryResult("p1")))
+        val service = createService()
+        val topics = listOf(Topic("Alpha", scoreMustBeAbove = 0.9f))
+
+        service.fetchFor(topics)
+
+        assertEquals(0.9f, podAccess.queryInvocations.single().scoreMustBeAbove)
+    }
+
     private fun createService(): TopicSearchService =
         TopicSearchService(
             identityRepository = StaticIdentityRepository(identity),

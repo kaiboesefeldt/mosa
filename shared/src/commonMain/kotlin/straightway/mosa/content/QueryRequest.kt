@@ -8,4 +8,5 @@ data class QueryRequest(
     // epoch seconds; null means unset
     val minTime: Long? = null,
     val threadRootId: String? = null,
+    val scoreMustBeAbove: Float? = null,
 )

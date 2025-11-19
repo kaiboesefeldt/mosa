@@ -15,6 +15,7 @@ class SearchCommand(
     private val topic by option(type = ArgType.String, fullName = "topic", shortName = "t")
     private val rootId by option(type = ArgType.String, fullName = "root", shortName = "r")
     private val minTime by option(type = ArgType.String, fullName = "from", shortName = "f")
+    private val minScore by option(type = ArgType.Double, fullName = "score-above", shortName = "s")
 
     override fun execute() {
         runBlocking {
@@ -24,6 +25,7 @@ class SearchCommand(
                         topic = topic,
                         threadRootId = rootId,
                         minTime = minTime?.let { Instant.parse(it).epochSecond },
+                        scoreMustBeAbove = minScore?.toFloat(),
                     ),
                 )
             prettyPrint(response)

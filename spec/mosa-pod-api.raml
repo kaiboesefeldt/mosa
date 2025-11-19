@@ -72,10 +72,15 @@ types:
       threadRootId?:
         type: string
         description: Restrict results to a specific thread root
+      scoreMustBeAbove?:
+        type: number
+        format: float
+        description: Filter entries to those with similarity strictly above this value
     example:
       topic: 'Functional programming for data processing'
       minTime: 1700000000
       threadRootId: 'R0oTId42'
+      scoreMustBeAbove: 0.85
 
   QueryOnRequest:
     type: object
