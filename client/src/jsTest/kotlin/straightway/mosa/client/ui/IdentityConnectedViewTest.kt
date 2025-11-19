@@ -121,8 +121,8 @@ class IdentityConnectedViewTest {
         waitForCondition { podAccess.queryInvocations.isNotEmpty() }
         assertEquals(listOf("Alpha"), podAccess.queryInvocations.map { it.topic })
         waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
-        val topicTitle = view.container.querySelector(".post-card__topic")?.textContent?.trim()
-        assertEquals("Alpha", topicTitle)
+        val postContent = view.container.querySelector(".post-card__content")?.textContent?.trim()
+        assertEquals("content-p1", postContent)
     }
 
     @Test
@@ -154,8 +154,8 @@ class IdentityConnectedViewTest {
         waitForCondition { podAccess.queryInvocations.size == 2 }
         assertEquals("Beta", podAccess.queryInvocations.last().topic)
         waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
-        val topicTitle = view.container.querySelector(".post-card__topic")?.textContent?.trim()
-        assertEquals("Beta", topicTitle)
+        val postContent = view.container.querySelector(".post-card__content")?.textContent?.trim()
+        assertEquals("content-p2", postContent)
     }
 
     @Test
@@ -248,8 +248,8 @@ class IdentityConnectedViewTest {
         waitForCondition { podAccess.queryInvocations.size == 2 }
         assertEquals("Beta", podAccess.queryInvocations.last().topic)
         waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
-        val topicTitle = view.container.querySelector(".post-card__topic")?.textContent?.trim()
-        assertEquals("Beta", topicTitle)
+        val postContent = view.container.querySelector(".post-card__content")?.textContent?.trim()
+        assertEquals("content-p2", postContent)
     }
 
     @Test

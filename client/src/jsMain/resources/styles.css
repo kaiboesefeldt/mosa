@@ -701,14 +701,6 @@ button:disabled {
     gap: 0.65rem;
 }
 
-.post-card__topic {
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--color-muted);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
 .post-card__avatar {
     width: 32px;
     height: 32px;

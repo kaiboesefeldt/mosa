@@ -364,18 +364,17 @@ private fun ChildrenBuilder.postsColumn(
                 className = ClassName("topic-board__empty")
                 +translator.translate("connected.posts.empty")
             }
-        else -> posts.forEach { topicPosts ->
-            topicPosts.entries.forEach { entry ->
-                postCard(translator, visualsFactory, topicPosts.topic.title, entry)
+        else ->
+            posts.forEach { topicPosts ->
+                topicPosts.entries.forEach { entry ->
+                    postCard(visualsFactory, entry)
+                }
             }
-        }
     }
 }
 
 private fun ChildrenBuilder.postCard(
-    translator: Translator,
     visualsFactory: IdentityVisualsFactory,
-    topic: String,
     entry: QueryResult.Entry,
 ) {
     val authorVisuals = visualsFactory.createFromGid(entry.authorGID)
@@ -385,10 +384,6 @@ private fun ChildrenBuilder.postCard(
     div {
         key = entry.id
         className = ClassName("post-card")
-        span {
-            className = ClassName("post-card__topic")
-            +topic
-        }
         div {
             className = ClassName("post-card__author-row")
             img {
@@ -400,10 +395,7 @@ private fun ChildrenBuilder.postCard(
                 className = ClassName("post-card__author-details")
                 span {
                     className = ClassName("post-card__author-name")
-                    +translator.translate(
-                        "connected.posts.author",
-                        mapOf("name" to authorName),
-                    )
+                    +authorName
                 }
                 div {
                     className = ClassName("post-card__meta")

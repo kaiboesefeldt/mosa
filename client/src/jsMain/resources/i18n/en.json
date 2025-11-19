@@ -23,7 +23,6 @@
   "connected.posts.empty": "No posts found.",
   "connected.posts.loading": "Loading posts...",
   "connected.posts.similarity": "Similarity: {{value}}",
-  "connected.posts.author": "by {{name}}",
   "connected.posts.timestamp": "Timestamp: {{value}}",
   "connected.composer.open": "New post",
   "connected.composer.title": "Create post",

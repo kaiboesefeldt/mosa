@@ -23,7 +23,6 @@
   "connected.posts.empty": "Keine Beiträge gefunden.",
   "connected.posts.loading": "Beiträge werden geladen...",
   "connected.posts.similarity": "Ähnlichkeit: {{value}}",
-  "connected.posts.author": "von {{name}}",
   "connected.posts.timestamp": "Zeitstempel: {{value}}",
   "connected.composer.open": "Neuer Beitrag",
   "connected.composer.title": "Beitrag erstellen",
