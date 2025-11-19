@@ -5,16 +5,16 @@ import kotlin.test.assertEquals
 
 class TopicFiltersTest {
     @Test
-    fun `sanitizes blank entries`() {
+    fun `sanitizes invalid entries`() {
         val sanitized =
             TopicFilters.sanitize(
                 mapOf(
-                    " " to "value",
-                    "Topic" to "",
-                    "Valid" to " identifier ",
+                    " " to 0.7f,
+                    "Topic" to Float.NaN,
+                    "Valid" to 0.8f,
                 ),
             )
 
-        assertEquals(mapOf("Valid" to "identifier"), sanitized)
+        assertEquals(mapOf("Valid" to 0.8f), sanitized)
     }
 }

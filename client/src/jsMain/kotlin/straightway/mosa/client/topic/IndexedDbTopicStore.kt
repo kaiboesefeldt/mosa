@@ -72,7 +72,13 @@ class IndexedDbTopicStore(
             val entry = record[index]
             val title = (entry.description as? String)?.trim()
             if (title.isNullOrEmpty()) continue
-            val filter = (entry.filter as? String)?.trim()?.ifEmpty { null }
+            val filterCandidate: Float? =
+                when (val rawFilter = entry.filter) {
+                    is Number -> rawFilter.toFloat()
+                    is String -> rawFilter.trim().toFloatOrNull()
+                    else -> null
+                }
+            val filter = if (filterCandidate != null && filterCandidate.isFinite()) filterCandidate else null
             topics += Topic(title, filter)
         }
         return topics.toList()
@@ -81,8 +87,8 @@ class IndexedDbTopicStore(
     private fun encodeTopic(topic: Topic): dynamic {
         val payload = js("{}")
         payload.description = topic.title
-        val filter = topic.filter?.trim()
-        if (!filter.isNullOrEmpty()) {
+        val filter = topic.scoreMustBeAbove
+        if (filter != null && filter.isFinite()) {
             payload.filter = filter
         }
         return payload

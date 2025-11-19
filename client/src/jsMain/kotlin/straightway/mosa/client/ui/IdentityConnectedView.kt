@@ -57,7 +57,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (topics, setTopics) = useState<List<Topic>>(emptyList())
     val (selectedTopic, setSelectedTopic) = useState<Topic?>(null)
     val (posts, setPosts) = useState<List<TopicPosts>>(emptyList())
-    val (topicFilters, setTopicFilters) = useState<Map<String, String>>(emptyMap())
+    val (topicFilters, setTopicFilters) = useState<Map<String, Float>>(emptyMap())
     val (isLoadingPosts, setLoadingPosts) = useState(false)
     val postsRequestVersion = useRef(0)
     val (isProfileVisible, setProfileVisible) = useState(false)
@@ -73,15 +73,15 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    fun updateTopicFilterState(filters: Map<String, String>) {
+    fun updateTopicFilterState(filters: Map<String, Float>) {
         if (topics.isEmpty()) return
         val nextTopics =
             topics.map { topic ->
                 val nextFilter = filters[topic.title]
-                if (topic.filter == nextFilter) {
+                if (topic.scoreMustBeAbove == nextFilter) {
                     topic
                 } else {
-                    topic.copy(filter = nextFilter)
+                    topic.copy(scoreMustBeAbove = nextFilter)
                 }
             }
         if (nextTopics == topics) return
@@ -93,17 +93,17 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    fun filtersFromTopics(items: List<Topic>): Map<String, String> =
+    fun filtersFromTopics(items: List<Topic>): Map<String, Float> =
         items.mapNotNull { topic ->
-            val value = topic.filter?.trim()
-            if (value.isNullOrEmpty()) {
+            val value = topic.scoreMustBeAbove
+            if (value == null) {
                 null
             } else {
                 topic.title to value
             }
         }.toMap()
 
-    fun persistFilters(updated: Map<String, String>) {
+    fun persistFilters(updated: Map<String, Float>) {
         val sanitized = TopicFilters.sanitize(updated)
         updateTopicFilterState(sanitized)
         setTopicFilters(sanitized)
@@ -246,12 +246,12 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     fun toggleTopicFilter(topic: Topic, entry: QueryResult.Entry) {
-        val currentId = topicFilters[topic.title]
+        val currentScore = topicFilters[topic.title]
         val updated =
-            if (currentId == entry.id) {
+            if (currentScore != null && currentScore == entry.similarity) {
                 topicFilters - topic.title
             } else {
-                topicFilters + (topic.title to entry.id)
+                topicFilters + (topic.title to entry.similarity)
             }
         persistFilters(updated)
     }
@@ -412,7 +412,7 @@ private fun ChildrenBuilder.postsColumn(
     visualsFactory: IdentityVisualsFactory,
     posts: List<TopicPosts>,
     isLoading: Boolean,
-    activeFilters: Map<String, String>,
+    activeFilters: Map<String, Float>,
     onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
 ) = div {
     className = ClassName("topic-board__column topic-board__column--posts")
@@ -433,10 +433,10 @@ private fun ChildrenBuilder.postsColumn(
             }
         else ->
             posts.forEach { topicPosts ->
-                val filterEntryId = activeFilters[topicPosts.topic.title]
-                val entriesToRender = filterEntriesById(topicPosts.entries, filterEntryId)
-                entriesToRender.forEach { entry ->
-                    val isFilterEntry = filterEntryId != null && entry.id == filterEntryId
+                val filterScore = activeFilters[topicPosts.topic.title]
+                val filterResult = filterEntriesByScore(topicPosts.entries, filterScore)
+                filterResult.entries.forEach { entry ->
+                    val isFilterEntry = filterResult.filteredEntryId == entry.id
                     postCard(
                         translator = translator,
                         visualsFactory = visualsFactory,

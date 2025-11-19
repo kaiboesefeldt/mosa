@@ -35,7 +35,7 @@ class TopicRepositoryTest {
 
         val saved = store.saveInvocations.lastOrNull().orEmpty()
         assertEquals(listOf("Alpha", "Beta"), saved.map { it.title })
-        assertEquals(listOf(null, null), saved.map { it.filter })
+        assertEquals(listOf(null, null), saved.map { it.scoreMustBeAbove })
     }
 
     @Test
@@ -80,13 +80,13 @@ class TopicRepositoryTest {
 
         repository.applyFilters(
             mapOf(
-                "Alpha" to "id-1",
-                "Beta" to "  ",
+                "Alpha" to 0.95f,
+                "Beta" to Float.NaN,
             ),
         )
 
         val saved = store.saveInvocations.lastOrNull().orEmpty()
-        assertEquals(listOf("id-1", null), saved.map { it.filter })
+        assertEquals(listOf(0.95f, null), saved.map { it.scoreMustBeAbove })
     }
 }
 

@@ -29,15 +29,15 @@ class TopicRepository(
         return updated
     }
 
-    suspend fun applyFilters(filters: Map<String, String>) {
+    suspend fun applyFilters(filters: Map<String, Float>) {
         val sanitizedFilters = TopicFilters.sanitize(filters)
         val updated =
             all().map { topic ->
                 val nextFilter = sanitizedFilters[topic.title]
-                if (topic.filter == nextFilter) {
+                if (topic.scoreMustBeAbove == nextFilter) {
                     topic
                 } else {
-                    topic.copy(filter = nextFilter)
+                    topic.copy(scoreMustBeAbove = nextFilter)
                 }
             }
         store.save(updated)

@@ -2,12 +2,24 @@ package straightway.mosa.client.ui
 
 import straightway.mosa.content.QueryResult
 
-internal fun filterEntriesById(
+internal data class TopicFilterResult(
+    val entries: List<QueryResult.Entry>,
+    val filteredEntryId: String?,
+)
+
+internal fun filterEntriesByScore(
     entries: List<QueryResult.Entry>,
-    filterEntryId: String?,
-): List<QueryResult.Entry> {
-    if (filterEntryId.isNullOrEmpty()) return entries
-    val index = entries.indexOfFirst { it.id == filterEntryId }
-    if (index < 0) return entries
-    return entries.take(index + 1)
+    filterScore: Float?,
+): TopicFilterResult {
+    if (filterScore == null) return TopicFilterResult(entries, null)
+    val index = entries.indexOfFirst { it.similarity <= filterScore }
+    if (index < 0) return TopicFilterResult(entries, null)
+    val boundaryEntry = entries[index]
+    val visibleEntries =
+        if (index == 0) {
+            listOf(boundaryEntry)
+        } else {
+            entries.take(index) + boundaryEntry
+        }
+    return TopicFilterResult(visibleEntries, boundaryEntry.id)
 }
