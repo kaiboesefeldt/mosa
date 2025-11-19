@@ -20,16 +20,26 @@ class IdentitySessionStateMachine(
     private val logger: Logger,
     private val sessionStore: IdentitySessionStore,
 ) {
-    private val initialSnapshot = sessionStore.load()
     private var currentSelection: IdentitySelection? = null
     private var identityNameParts = placeholderName(textProvider.loading)
     private var identityAvatar: String? = null
     private var isBusy = false
     private var errorText: String? = null
-    private var isConnected = initialSnapshot?.connectedIdentityGid != null
+    private var isConnected = false
 
     private val _state = MutableStateFlow<IdentitySessionViewState>(initialViewState())
     val state: StateFlow<IdentitySessionViewState> = _state
+
+    init {
+        scope.launch {
+            val snapshot = runCatching { sessionStore.load() }.getOrNull()
+            val wasConnected = snapshot?.connectedIdentityGid != null
+            if (wasConnected) {
+                isConnected = true
+                publishState()
+            }
+        }
+    }
 
     fun refresh() {
         runExclusive(
@@ -54,7 +64,9 @@ class IdentitySessionStateMachine(
         if (currentSelection == null || isBusy) return
         isConnected = true
         errorText = null
-        persistSession(profileVisibleOverride = false)
+        scope.launch {
+            persistSession(profileVisibleOverride = false)
+        }
         publishState()
     }
 
@@ -88,7 +100,7 @@ class IdentitySessionStateMachine(
         }
     }
 
-    private fun applySelection(
+    private suspend fun applySelection(
         selection: IdentitySelection,
         profileVisibleOverride: Boolean? = false,
     ) {
@@ -190,12 +202,12 @@ class IdentitySessionStateMachine(
         publishState()
     }
 
-    private fun restoreConnection(selection: IdentitySelection) {
+    private suspend fun restoreConnection(selection: IdentitySelection) {
         val snapshot = sessionStore.load()
         isConnected = snapshot?.connectedIdentityGid == selection.identity.gid
     }
 
-    private fun persistSession(profileVisibleOverride: Boolean? = null) {
+    private suspend fun persistSession(profileVisibleOverride: Boolean? = null) {
         val connectedGid = currentSelection?.identity?.gid?.takeIf { isConnected }
         val current = sessionStore.load()
         val isProfileVisible = profileVisibleOverride ?: current?.isProfileVisible ?: false
@@ -204,7 +216,9 @@ class IdentitySessionStateMachine(
 
     private fun resetConnection() {
         isConnected = false
-        persistSession(profileVisibleOverride = false)
+        scope.launch {
+            persistSession(profileVisibleOverride = false)
+        }
     }
 
     private fun errorMessage(error: Throwable): String {

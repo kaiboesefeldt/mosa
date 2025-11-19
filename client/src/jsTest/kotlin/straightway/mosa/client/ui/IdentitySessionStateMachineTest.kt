@@ -27,7 +27,7 @@ class IdentitySessionStateMachineTest {
         val store = RecordingIdentitySessionStore(IdentitySessionSnapshot(identity.gid, false))
 
         val machine = createMachine(repository, store)
-
+        advanceUntilIdle()
         val state = machine.state.value
         assertTrue(state is IdentitySessionViewState.Connected)
     }
@@ -73,6 +73,7 @@ class IdentitySessionStateMachineTest {
         machine.refresh()
         advanceUntilIdle()
         machine.connectToPod()
+        advanceUntilIdle()
 
         assertEquals(identityA.gid, store.snapshot?.connectedIdentityGid)
 
@@ -187,9 +188,9 @@ private class RecordingIdentitySessionStore(
     var snapshot: IdentitySessionSnapshot? = initial
         private set
 
-    override fun load(): IdentitySessionSnapshot? = snapshot
+    override suspend fun load(): IdentitySessionSnapshot? = snapshot
 
-    override fun save(snapshot: IdentitySessionSnapshot) {
+    override suspend fun save(snapshot: IdentitySessionSnapshot) {
         this.snapshot = snapshot
     }
 }

@@ -1,10 +1,17 @@
 package straightway.mosa.client.ui
 
-import kotlinx.browser.window
-import kotlin.js.json
-import kotlin.runCatching
 import kotlin.js.JSON
-import org.w3c.dom.Storage
+import kotlin.js.json
+import straightway.mosa.client.identity.IndexedDbAsyncBridge
+import straightway.mosa.client.identity.IndexedDbSchemaManager
+import straightway.mosa.client.logging.Logger
+import straightway.mosa.client.util.getOrElseLogOrThrowCancellation
+import straightway.mosa.client.util.onFailureLogOrThrowCancellation
+import web.idb.IDBFactory
+import web.idb.IDBTransactionMode
+import web.idb.IDBValidKey
+import web.idb.readonly
+import web.idb.readwrite
 
 data class IdentitySessionSnapshot(
     val connectedIdentityGid: String?,
@@ -12,33 +19,75 @@ data class IdentitySessionSnapshot(
 )
 
 interface IdentitySessionStore {
-    fun load(): IdentitySessionSnapshot?
-    fun save(snapshot: IdentitySessionSnapshot)
+    suspend fun load(): IdentitySessionSnapshot?
+    suspend fun save(snapshot: IdentitySessionSnapshot)
 }
 
 class BrowserIdentitySessionStore(
-    private val storageProvider: () -> Storage? = ::browserStorage,
+    indexedDb: IDBFactory?,
+    private val asyncBridge: IndexedDbAsyncBridge,
+    private val logger: Logger,
 ) : IdentitySessionStore {
-    override fun load(): IdentitySessionSnapshot? {
-        val raw = runCatching { storageProvider()?.getItem(key) }.getOrNull() ?: return null
-        return parse(raw)
+    private val schemaManager =
+        IndexedDbSchemaManager(
+            indexedDb,
+            IndexedDbSchemaManager.Schema(
+                databaseName = "mosa-identity-session",
+                objectStoreName = "identity-session",
+                schemaVersion = 1,
+            ),
+        )
+    private var cachedSnapshot: IdentitySessionSnapshot? = null
+    private var cacheInitialized = false
+
+    override suspend fun load(): IdentitySessionSnapshot? {
+        if (!cacheInitialized) {
+            cachedSnapshot =
+                runCatching { loadInternal() }
+                    .getOrElseLogOrThrowCancellation(logger, "IndexedDB identity session load failed") {
+                        null
+                    }
+            cacheInitialized = true
+        }
+        return cachedSnapshot
     }
 
-    override fun save(snapshot: IdentitySessionSnapshot) {
-        runCatching {
-            val storage = storageProvider() ?: return
-            storage.setItem(key, encode(snapshot))
+    override suspend fun save(snapshot: IdentitySessionSnapshot) {
+        cachedSnapshot = snapshot
+        cacheInitialized = true
+        runCatching { storeInternal(snapshot) }
+            .onFailureLogOrThrowCancellation(logger, "IndexedDB identity session store failed")
+    }
+
+    private suspend fun loadInternal(): IdentitySessionSnapshot? {
+        val database = schemaManager.openDatabase(asyncBridge) ?: return null
+        try {
+            val transaction = database.transaction(schemaManager.objectStoreName, IDBTransactionMode.readonly)
+            val store = transaction.objectStore(schemaManager.objectStoreName)
+            val raw = asyncBridge.awaitRequest<String?>(store.get(validKey))
+            asyncBridge.awaitTransaction(transaction)
+            return raw?.let(::parse)
+        } finally {
+            database.close()
+        }
+    }
+
+    private suspend fun storeInternal(snapshot: IdentitySessionSnapshot) {
+        val encoded = encode(snapshot)
+        val database = schemaManager.openDatabase(asyncBridge) ?: return
+        try {
+            val transaction = database.transaction(schemaManager.objectStoreName, IDBTransactionMode.readwrite)
+            val store = transaction.objectStore(schemaManager.objectStoreName)
+            asyncBridge.awaitRequest<Any?>(store.put(encoded, validKey))
+            asyncBridge.awaitTransaction(transaction)
+        } finally {
+            database.close()
         }
     }
 
     private companion object {
         const val key = "identity-session"
-        fun browserStorage(): Storage? =
-            if (js("typeof window === 'undefined'") as Boolean) {
-                null
-            } else {
-                runCatching { window.localStorage }.getOrNull()
-            }
+        val validKey: IDBValidKey = IDBValidKey(key)
 
         private fun encode(snapshot: IdentitySessionSnapshot): String =
             JSON.stringify(

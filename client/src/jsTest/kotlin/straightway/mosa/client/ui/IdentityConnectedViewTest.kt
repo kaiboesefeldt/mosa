@@ -47,7 +47,7 @@ import straightway.mosa.identity.FictionalNameGenerator
 
 class IdentityConnectedViewTest {
     private var originalPrompt: dynamic = null
-    private lateinit var sessionStore: IdentitySessionStore
+    private lateinit var sessionStore: ConnectedViewIdentitySessionStore
 
     @BeforeTest
     fun setUp() {
@@ -59,7 +59,7 @@ class IdentityConnectedViewTest {
     fun tearDown() {
         cleanup()
         window.asDynamic().prompt = originalPrompt
-        sessionStore.save(IdentitySessionSnapshot(null, false))
+        sessionStore.prime(IdentitySessionSnapshot(null, false))
         window.asDynamic().MOSA_POD_BASE = null
         stopKoin()
     }
@@ -94,7 +94,7 @@ class IdentityConnectedViewTest {
 
         waitForCondition { view.container.querySelector(".profile-dialog") == null }
         user.click(avatarButton(view.container)).await()
-        waitForCondition { sessionStore.load()?.isProfileVisible == true }
+        waitForCondition { sessionStore.current()?.isProfileVisible == true }
     }
 
     @Test
@@ -320,12 +320,12 @@ class IdentityConnectedViewTest {
         val module =
             module {
                 single { Translator(emptyList()) }
-                single<IdentitySessionStore> { BrowserIdentitySessionStore() }
+                single<IdentitySessionStore> { ConnectedViewIdentitySessionStore() }
                 single { FictionalNameGenerator() }
                 single { DiceBearAvatarGenerator() }
                 single<TopicStore> { InMemoryTopicStore(topics) }
                 single { TopicRepository(get()) }
-                single<TopicFilterStore> { InMemoryTopicFilterStore() }
+                single<TopicFilterStore> { ConnectedViewTopicFilterStore() }
                 single<IdentitySelectionRepository> { StaticIdentityRepository(identityForTests) }
                 single { PodBaseProvider() }
                 single<PodAccessFactory> { { podAccess } }
@@ -334,9 +334,9 @@ class IdentityConnectedViewTest {
                 single { PostPublisher(get(), get(), get(), get(), get()) }
                 single { TopicSearchService(get(), get(), get(), get(), get()) }
             }
-        startKoin { modules(module) }
-        sessionStore = ConnectedViewTestInjector.get()
-        sessionStore.save(IdentitySessionSnapshot(null, false))
+                startKoin { modules(module) }
+        sessionStore = ConnectedViewTestInjector.get<IdentitySessionStore>() as ConnectedViewIdentitySessionStore
+        sessionStore.prime(IdentitySessionSnapshot(null, false))
     }
 
     private fun avatarButton(container: Element): Element =
@@ -398,12 +398,28 @@ private val identityForTests =
             ).unsafeCast<CryptoKeyPair>(),
     )
 
-private class InMemoryTopicFilterStore : TopicFilterStore {
+private class ConnectedViewIdentitySessionStore : IdentitySessionStore {
+    private var snapshot: IdentitySessionSnapshot? = null
+
+    override suspend fun load(): IdentitySessionSnapshot? = snapshot
+
+    override suspend fun save(snapshot: IdentitySessionSnapshot) {
+        this.snapshot = snapshot
+    }
+
+    fun prime(snapshot: IdentitySessionSnapshot?) {
+        this.snapshot = snapshot
+    }
+
+    fun current(): IdentitySessionSnapshot? = snapshot
+}
+
+private class ConnectedViewTopicFilterStore : TopicFilterStore {
     private var filters: Map<String, String> = emptyMap()
 
-    override fun load(): Map<String, String> = filters
+    override suspend fun load(): Map<String, String> = filters
 
-    override fun save(filters: Map<String, String>) {
+    override suspend fun save(filters: Map<String, String>) {
         this.filters = filters
     }
 }

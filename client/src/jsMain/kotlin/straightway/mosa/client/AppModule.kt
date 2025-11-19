@@ -81,7 +81,7 @@ object AppModule : KoinComponent {
                             )
                         }
                         single<IdentitySelectionRepository> { IdentityRepository(get(), get<IdentityProvider>()) }
-                        single<IdentitySessionStore> { BrowserIdentitySessionStore() }
+                        single<IdentitySessionStore> { BrowserIdentitySessionStore(get(), get(), get()) }
                         single {
                             HttpClient {
                                 install(ContentNegotiation) { json() }
@@ -115,7 +115,7 @@ object AppModule : KoinComponent {
                         single<IdentityTransferPort> { IdentityTransferService(get(), get()) }
                         single { FictionalNameGenerator() }
                         single<TopicStore> { IndexedDbTopicStore(get(), get(), get()) }
-                        single<TopicFilterStore> { BrowserTopicFilterStore() }
+                        single<TopicFilterStore> { BrowserTopicFilterStore(get(), get(), get()) }
                         single { TopicRepository(get()) }
                         single { PostPublisher(get(), get(), get(), get(), get()) }
                         single {

@@ -143,7 +143,7 @@ Create a thin `ApiClient` in the client module that:
 
 ### 8) State management
 
-Keep it simple: React `useState`/`useReducer`. Introduce a tiny store only if needed (e.g., `kotlin-redux` wrapper later). Persist lightweight UI prefs in `localStorage`; crypto in IndexedDB.
+Keep it simple: React `useState`/`useReducer`. Introduce a tiny store only if needed (e.g., `kotlin-redux` wrapper later). Persist lightweight UI prefs in IndexedDB alongside crypto material.
 
 ### 9) Testing strategy
 

@@ -58,26 +58,34 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (topics, setTopics) = useState<List<Topic>>(emptyList())
     val (selectedTopic, setSelectedTopic) = useState<Topic?>(null)
     val (posts, setPosts) = useState<List<TopicPosts>>(emptyList())
-    val initialFilters =
-        useMemo(filterStore) {
-            filterStore.load()
-        }
-    val (topicFilters, setTopicFilters) = useState<Map<String, String>>(initialFilters)
+    val (topicFilters, setTopicFilters) = useState<Map<String, String>>(emptyMap())
     val (isLoadingPosts, setLoadingPosts) = useState(false)
     val postsRequestVersion = useRef(0)
-    val initialProfileVisibility =
-        useMemo(sessionStore) {
-            sessionStore.load()?.isProfileVisible ?: false
-        }
-    val (isProfileVisible, setProfileVisible) = useState(initialProfileVisibility)
+    val (isProfileVisible, setProfileVisible) = useState(false)
     val (isComposerOpen, setComposerOpen) = useState(false)
     val (composerText, setComposerText) = useState("")
     val (isPublishing, setPublishing) = useState(false)
     val (publishError, setPublishError) = useState<String?>(null)
 
+    useEffect(filterStore) {
+        scope.launch {
+            val loaded = runCatching { filterStore.load() }.getOrElse { emptyMap() }
+            setTopicFilters(loaded)
+        }
+    }
+
+    useEffect(sessionStore) {
+        scope.launch {
+            val snapshot = runCatching { sessionStore.load() }.getOrNull()
+            setProfileVisible(snapshot?.isProfileVisible ?: false)
+        }
+    }
+
     fun persistFilters(updated: Map<String, String>) {
         setTopicFilters(updated)
-        filterStore.save(updated)
+        scope.launch {
+            filterStore.save(updated)
+        }
     }
 
     fun pruneFilters(availableTopics: List<Topic>) {
@@ -141,13 +149,15 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
 
     fun persistProfileVisibility(visible: Boolean) {
         setProfileVisible(visible)
-        val currentSnapshot = sessionStore.load()
-        sessionStore.save(
-            IdentitySessionSnapshot(
-                connectedIdentityGid = currentSnapshot?.connectedIdentityGid,
-                isProfileVisible = visible,
-            ),
-        )
+        scope.launch {
+            val currentSnapshot = runCatching { sessionStore.load() }.getOrNull()
+            sessionStore.save(
+                IdentitySessionSnapshot(
+                    connectedIdentityGid = currentSnapshot?.connectedIdentityGid,
+                    isProfileVisible = visible,
+                ),
+            )
+        }
     }
 
     fun addTopic() {

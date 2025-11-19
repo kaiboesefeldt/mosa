@@ -7,6 +7,9 @@ import kotlin.test.assertNotEquals
 import kotlinx.coroutines.await
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
+import org.koin.core.module.Module
+import org.koin.dsl.module
+import org.koin.core.context.GlobalContext
 import org.w3c.dom.Element
 import react.FC
 import react.Props
@@ -22,6 +25,9 @@ import straightway.mosa.client.testing.RenderResult
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.render
 import straightway.mosa.client.testing.userEvent
+import straightway.mosa.client.topic.TopicFilterStore
+import straightway.mosa.client.ui.IdentitySessionSnapshot
+import straightway.mosa.client.ui.IdentitySessionStore
 import straightway.mosa.client.util.Base64.toBase64Url
 
 class IdentitySmokeTest {
@@ -29,10 +35,21 @@ class IdentitySmokeTest {
     private lateinit var identityProvider: QueueIdentityProvider
     private lateinit var repository: IdentityRepository
     private var originalFactory: IdentitySessionStateMachineFactory? = null
+    private lateinit var sessionStore: SmokeIdentitySessionStore
+    private lateinit var topicFilterStore: SmokeTopicFilterStore
+    private lateinit var overrideModule: org.koin.core.module.Module
 
     @BeforeTest
     fun setUp() {
         AppModule.start()
+        sessionStore = SmokeIdentitySessionStore()
+        topicFilterStore = SmokeTopicFilterStore()
+        overrideModule =
+            module {
+                single<IdentitySessionStore> { sessionStore }
+                single<TopicFilterStore> { topicFilterStore }
+            }
+        GlobalContext.get().loadModules(listOf(overrideModule), allowOverride = true)
         identityStore = InMemoryIdentityStore()
         identityProvider =
             QueueIdentityProvider(
@@ -62,6 +79,9 @@ class IdentitySmokeTest {
     @AfterTest
     fun tearDown() {
         cleanup()
+        if (this::overrideModule.isInitialized) {
+            GlobalContext.get().unloadModules(listOf(overrideModule))
+        }
         originalFactory?.let { identitySessionStateMachineFactory = it }
     }
 
@@ -213,6 +233,26 @@ private val IdentitySmokeApp = FC<Props> {
             IdentityProfileView {
                 applyFrom(screen)
             }
+    }
+}
+
+private class SmokeIdentitySessionStore : IdentitySessionStore {
+    private var snapshot: IdentitySessionSnapshot? = null
+
+    override suspend fun load(): IdentitySessionSnapshot? = snapshot
+
+    override suspend fun save(snapshot: IdentitySessionSnapshot) {
+        this.snapshot = snapshot
+    }
+}
+
+private class SmokeTopicFilterStore : TopicFilterStore {
+    private var filters: Map<String, String> = emptyMap()
+
+    override suspend fun load(): Map<String, String> = filters
+
+    override suspend fun save(filters: Map<String, String>) {
+        this.filters = filters
     }
 }
 
