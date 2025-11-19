@@ -51,7 +51,7 @@ class IndexedDbTopicStore(
     }
 
     private suspend fun storeInternal(topics: List<Topic>) {
-        val payload = topics.map { it.title }.toTypedArray()
+        val payload = topics.map { encodeTopic(it) }.toTypedArray()
         val database = schemaManager.openDatabase(asyncBridge) ?: return
         try {
             val transaction = database.transaction(schemaManager.objectStoreName, IDBTransactionMode.readwrite)
@@ -69,10 +69,23 @@ class IndexedDbTopicStore(
         if (length <= 0) return emptyList()
         val topics = mutableListOf<Topic>()
         for (index in 0 until length) {
-            val value = record[index] as? String ?: continue
-            topics += Topic(value)
+            val entry = record[index]
+            val title = (entry.description as? String)?.trim()
+            if (title.isNullOrEmpty()) continue
+            val filter = (entry.filter as? String)?.trim()?.ifEmpty { null }
+            topics += Topic(title, filter)
         }
         return topics.toList()
+    }
+
+    private fun encodeTopic(topic: Topic): dynamic {
+        val payload = js("{}")
+        payload.description = topic.title
+        val filter = topic.filter?.trim()
+        if (!filter.isNullOrEmpty()) {
+            payload.filter = filter
+        }
+        return payload
     }
 
     private companion object {

@@ -35,6 +35,7 @@ class TopicRepositoryTest {
 
         val saved = store.saveInvocations.lastOrNull().orEmpty()
         assertEquals(listOf("Alpha", "Beta"), saved.map { it.title })
+        assertEquals(listOf(null, null), saved.map { it.filter })
     }
 
     @Test
@@ -63,6 +64,29 @@ class TopicRepositoryTest {
 
         val saved = store.saveInvocations.lastOrNull().orEmpty()
         assertEquals(listOf("Beta"), saved.map { it.title })
+    }
+
+    @Test
+    fun `apply filters overwrites filter state`() = runTest {
+        val store =
+            RecordingTopicStore(
+                initial =
+                    listOf(
+                        Topic("Alpha"),
+                        Topic("Beta"),
+                    ),
+            )
+        val repository = TopicRepository(store)
+
+        repository.applyFilters(
+            mapOf(
+                "Alpha" to "id-1",
+                "Beta" to "  ",
+            ),
+        )
+
+        val saved = store.saveInvocations.lastOrNull().orEmpty()
+        assertEquals(listOf("id-1", null), saved.map { it.filter })
     }
 }
 

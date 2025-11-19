@@ -30,7 +30,7 @@ import straightway.mosa.client.topic.TopicRepository
 import straightway.mosa.client.topic.TopicPosts
 import straightway.mosa.client.topic.TopicSearchService
 import straightway.mosa.client.topic.PostPublisher
-import straightway.mosa.client.topic.TopicFilterStore
+import straightway.mosa.client.topic.TopicFilters
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
 import web.cssom.ClassName
@@ -49,7 +49,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val nameGenerator = ConnectedViewInjector.get<FictionalNameGenerator>()
     val avatarGenerator = ConnectedViewInjector.get<DiceBearAvatarGenerator>()
     val postPublisher = ConnectedViewInjector.get<PostPublisher>()
-    val filterStore = ConnectedViewInjector.get<TopicFilterStore>()
     val visualsFactory =
         useMemo(nameGenerator, avatarGenerator) {
             IdentityVisualsFactory(nameGenerator, avatarGenerator)
@@ -67,13 +66,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (isPublishing, setPublishing) = useState(false)
     val (publishError, setPublishError) = useState<String?>(null)
 
-    useEffect(filterStore) {
-        scope.launch {
-            val loaded = runCatching { filterStore.load() }.getOrElse { emptyMap() }
-            setTopicFilters(loaded)
-        }
-    }
-
     useEffect(sessionStore) {
         scope.launch {
             val snapshot = runCatching { sessionStore.load() }.getOrNull()
@@ -81,19 +73,42 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    fun persistFilters(updated: Map<String, String>) {
-        setTopicFilters(updated)
-        scope.launch {
-            filterStore.save(updated)
+    fun updateTopicFilterState(filters: Map<String, String>) {
+        if (topics.isEmpty()) return
+        val nextTopics =
+            topics.map { topic ->
+                val nextFilter = filters[topic.title]
+                if (topic.filter == nextFilter) {
+                    topic
+                } else {
+                    topic.copy(filter = nextFilter)
+                }
+            }
+        if (nextTopics == topics) return
+        val selectedTitle = selectedTopic?.title
+        setTopics(nextTopics)
+        if (selectedTitle != null) {
+            val refreshed = nextTopics.firstOrNull { it.title == selectedTitle } ?: return
+            setSelectedTopic(refreshed)
         }
     }
 
-    fun pruneFilters(availableTopics: List<Topic>) {
-        if (topicFilters.isEmpty()) return
-        val allowed = availableTopics.map { it.title }.toSet()
-        val pruned = topicFilters.filterKeys { allowed.contains(it) }
-        if (pruned.size != topicFilters.size) {
-            persistFilters(pruned)
+    fun filtersFromTopics(items: List<Topic>): Map<String, String> =
+        items.mapNotNull { topic ->
+            val value = topic.filter?.trim()
+            if (value.isNullOrEmpty()) {
+                null
+            } else {
+                topic.title to value
+            }
+        }.toMap()
+
+    fun persistFilters(updated: Map<String, String>) {
+        val sanitized = TopicFilters.sanitize(updated)
+        updateTopicFilterState(sanitized)
+        setTopicFilters(sanitized)
+        scope.launch {
+            repository.applyFilters(sanitized)
         }
     }
 
@@ -132,7 +147,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         scope.launch {
             val loadedTopics = repository.all()
             setTopics(loadedTopics)
-            pruneFilters(loadedTopics)
+            val filters = filtersFromTopics(loadedTopics)
+            setTopicFilters(filters)
             selectTopic(loadedTopics.firstOrNull())
         }
     }

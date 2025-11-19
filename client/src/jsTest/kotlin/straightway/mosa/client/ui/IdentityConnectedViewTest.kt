@@ -39,7 +39,6 @@ import straightway.mosa.client.topic.TopicRepository
 import straightway.mosa.client.topic.TopicSearchService
 import straightway.mosa.client.topic.TopicStore
 import straightway.mosa.client.topic.PostPublisher
-import straightway.mosa.client.topic.TopicFilterStore
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalName
@@ -325,7 +324,6 @@ class IdentityConnectedViewTest {
                 single { DiceBearAvatarGenerator() }
                 single<TopicStore> { InMemoryTopicStore(topics) }
                 single { TopicRepository(get()) }
-                single<TopicFilterStore> { ConnectedViewTopicFilterStore() }
                 single<IdentitySelectionRepository> { StaticIdentityRepository(identityForTests) }
                 single { PodBaseProvider() }
                 single<PodAccessFactory> { { podAccess } }
@@ -412,16 +410,6 @@ private class ConnectedViewIdentitySessionStore : IdentitySessionStore {
     }
 
     fun current(): IdentitySessionSnapshot? = snapshot
-}
-
-private class ConnectedViewTopicFilterStore : TopicFilterStore {
-    private var filters: Map<String, String> = emptyMap()
-
-    override suspend fun load(): Map<String, String> = filters
-
-    override suspend fun save(filters: Map<String, String>) {
-        this.filters = filters
-    }
 }
 
 private class RecordingPodAccess(

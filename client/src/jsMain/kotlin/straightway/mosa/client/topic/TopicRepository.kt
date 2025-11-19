@@ -28,4 +28,19 @@ class TopicRepository(
         cache = updated
         return updated
     }
+
+    suspend fun applyFilters(filters: Map<String, String>) {
+        val sanitizedFilters = TopicFilters.sanitize(filters)
+        val updated =
+            all().map { topic ->
+                val nextFilter = sanitizedFilters[topic.title]
+                if (topic.filter == nextFilter) {
+                    topic
+                } else {
+                    topic.copy(filter = nextFilter)
+                }
+            }
+        store.save(updated)
+        cache = updated
+    }
 }
