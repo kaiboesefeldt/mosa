@@ -691,14 +691,6 @@ button:disabled {
     opacity: 0.6;
 }
 
-.post-card__similarity {
-    align-self: flex-end;
-    font-size: 0.8rem;
-    color: var(--color-muted);
-    font-weight: 600;
-    white-space: nowrap;
-}
-
 .post-card__author-row {
     display: flex;
     align-items: center;
@@ -728,12 +720,14 @@ button:disabled {
 .post-card__timestamp {
     font-size: 0.85rem;
     color: var(--color-muted);
+    line-height: 1;
 }
 
 .post-card__meta {
     display: flex;
     align-items: center;
     gap: 0.35rem;
+    line-height: 1;
 }
 
 .post-card__similarity {
@@ -741,6 +735,7 @@ button:disabled {
     color: var(--color-muted);
     font-weight: 600;
     white-space: nowrap;
+    line-height: 1;
 }
 
 .post-card__filter {

@@ -513,7 +513,7 @@ private fun ChildrenBuilder.postCard(
                             onToggleFilter(topic, entry)
                         }
                         i {
-                            className = ClassName("fa fa-solid fa-filter")
+                            className = ClassName("fa fa-solid fa-arrows-up-to-line")
                         }
                     }
                 }
