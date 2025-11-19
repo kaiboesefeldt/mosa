@@ -14,6 +14,7 @@ import react.Props
 import react.dom.html.ReactHTML.button
 import react.dom.html.ReactHTML.div
 import react.dom.html.ReactHTML.img
+import react.dom.html.ReactHTML.i
 import react.dom.html.ReactHTML.span
 import react.dom.html.ReactHTML.textarea
 import react.dom.events.ChangeEvent
@@ -29,6 +30,7 @@ import straightway.mosa.client.topic.TopicRepository
 import straightway.mosa.client.topic.TopicPosts
 import straightway.mosa.client.topic.TopicSearchService
 import straightway.mosa.client.topic.PostPublisher
+import straightway.mosa.client.topic.TopicFilterStore
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
 import web.cssom.ClassName
@@ -47,6 +49,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val nameGenerator = ConnectedViewInjector.get<FictionalNameGenerator>()
     val avatarGenerator = ConnectedViewInjector.get<DiceBearAvatarGenerator>()
     val postPublisher = ConnectedViewInjector.get<PostPublisher>()
+    val filterStore = ConnectedViewInjector.get<TopicFilterStore>()
     val visualsFactory =
         useMemo(nameGenerator, avatarGenerator) {
             IdentityVisualsFactory(nameGenerator, avatarGenerator)
@@ -55,17 +58,36 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (topics, setTopics) = useState<List<Topic>>(emptyList())
     val (selectedTopic, setSelectedTopic) = useState<Topic?>(null)
     val (posts, setPosts) = useState<List<TopicPosts>>(emptyList())
+    val initialFilters =
+        useMemo(filterStore) {
+            filterStore.load()
+        }
+    val (topicFilters, setTopicFilters) = useState<Map<String, String>>(initialFilters)
     val (isLoadingPosts, setLoadingPosts) = useState(false)
     val postsRequestVersion = useRef(0)
     val initialProfileVisibility =
         useMemo(sessionStore) {
             sessionStore.load()?.isProfileVisible ?: false
-    }
+        }
     val (isProfileVisible, setProfileVisible) = useState(initialProfileVisibility)
     val (isComposerOpen, setComposerOpen) = useState(false)
     val (composerText, setComposerText) = useState("")
     val (isPublishing, setPublishing) = useState(false)
     val (publishError, setPublishError) = useState<String?>(null)
+
+    fun persistFilters(updated: Map<String, String>) {
+        setTopicFilters(updated)
+        filterStore.save(updated)
+    }
+
+    fun pruneFilters(availableTopics: List<Topic>) {
+        if (topicFilters.isEmpty()) return
+        val allowed = availableTopics.map { it.title }.toSet()
+        val pruned = topicFilters.filterKeys { allowed.contains(it) }
+        if (pruned.size != topicFilters.size) {
+            persistFilters(pruned)
+        }
+    }
 
     suspend fun refreshPosts(currentTopic: Topic?) {
         val nextVersion = (postsRequestVersion.current ?: 0) + 1
@@ -102,6 +124,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         scope.launch {
             val loadedTopics = repository.all()
             setTopics(loadedTopics)
+            pruneFilters(loadedTopics)
             selectTopic(loadedTopics.firstOrNull())
         }
     }
@@ -145,6 +168,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         scope.launch {
             val updated = repository.remove(topic)
             setTopics(updated)
+            if (topicFilters.containsKey(topic.title)) {
+                persistFilters(topicFilters - topic.title)
+            }
             if (wasSelected) {
                 selectTopic(updated.getOrNull(removalIndex))
             }
@@ -193,6 +219,17 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
+    fun toggleTopicFilter(topic: Topic, entry: QueryResult.Entry) {
+        val currentId = topicFilters[topic.title]
+        val updated =
+            if (currentId == entry.id) {
+                topicFilters - topic.title
+            } else {
+                topicFilters + (topic.title to entry.id)
+            }
+        persistFilters(updated)
+    }
+
     div {
         className = ClassName("connected-shell")
         div {
@@ -232,6 +269,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 visualsFactory = visualsFactory,
                 posts = posts,
                 isLoading = isLoadingPosts,
+                activeFilters = topicFilters,
+                onToggleFilter = ::toggleTopicFilter,
             )
             placeholderColumn(
                 title = translator.translate("connected.replies.title"),
@@ -347,6 +386,8 @@ private fun ChildrenBuilder.postsColumn(
     visualsFactory: IdentityVisualsFactory,
     posts: List<TopicPosts>,
     isLoading: Boolean,
+    activeFilters: Map<String, String>,
+    onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
 ) = div {
     className = ClassName("topic-board__column topic-board__column--posts")
     span {
@@ -366,24 +407,50 @@ private fun ChildrenBuilder.postsColumn(
             }
         else ->
             posts.forEach { topicPosts ->
-                topicPosts.entries.forEach { entry ->
-                    postCard(visualsFactory, entry)
+                val filterEntryId = activeFilters[topicPosts.topic.title]
+                val entriesToRender = filterEntriesById(topicPosts.entries, filterEntryId)
+                entriesToRender.forEach { entry ->
+                    val isFilterEntry = filterEntryId != null && entry.id == filterEntryId
+                    postCard(
+                        translator = translator,
+                        visualsFactory = visualsFactory,
+                        entry = entry,
+                        topic = topicPosts.topic,
+                        isFilterEntry = isFilterEntry,
+                        onToggleFilter = onToggleFilter,
+                    )
                 }
             }
     }
 }
 
 private fun ChildrenBuilder.postCard(
+    translator: Translator,
     visualsFactory: IdentityVisualsFactory,
     entry: QueryResult.Entry,
+    topic: Topic,
+    isFilterEntry: Boolean,
+    onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
 ) {
     val authorVisuals = visualsFactory.createFromGid(entry.authorGID)
     val authorName = authorVisuals.name.toString().trim()
     val timestamp = formatTimestamp(entry.storedAt)
     val similarity = formatSimilarity(entry.similarity)
+    val cardClass =
+        if (isFilterEntry) {
+            "post-card post-card--dimmed"
+        } else {
+            "post-card"
+        }
+    val filterLabel =
+        if (isFilterEntry) {
+            translator.translate("connected.posts.filter.clear")
+        } else {
+            translator.translate("connected.posts.filter.apply")
+        }
     div {
         key = entry.id
-        className = ClassName("post-card")
+        className = ClassName(cardClass)
         div {
             className = ClassName("post-card__author-row")
             img {
@@ -406,6 +473,22 @@ private fun ChildrenBuilder.postCard(
                     span {
                         className = ClassName("post-card__similarity")
                         +similarity
+                    }
+                    button {
+                        className =
+                            if (isFilterEntry) {
+                                ClassName("post-card__filter post-card__filter--active")
+                            } else {
+                                ClassName("post-card__filter")
+                            }
+                        ariaLabel = filterLabel
+                        title = filterLabel
+                        onClick = {
+                            onToggleFilter(topic, entry)
+                        }
+                        i {
+                            className = ClassName("fa fa-solid fa-filter")
+                        }
                     }
                 }
             }

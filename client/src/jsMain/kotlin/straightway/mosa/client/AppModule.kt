@@ -36,12 +36,14 @@ import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodAccessImpl
 import straightway.mosa.client.pod.PodBaseProvider
+import straightway.mosa.client.topic.BrowserTopicFilterStore
 import straightway.mosa.client.topic.IndexedDbTopicStore
 import straightway.mosa.client.topic.JwtBuilder
 import straightway.mosa.client.topic.PodAccessFactory
 import straightway.mosa.client.topic.PostPublisher
 import straightway.mosa.client.topic.TopicRepository
 import straightway.mosa.client.topic.TopicSearchService
+import straightway.mosa.client.topic.TopicFilterStore
 import straightway.mosa.client.topic.TopicStore
 import straightway.mosa.client.ui.BrowserIdentitySessionStore
 import straightway.mosa.client.ui.IdentitySessionStore
@@ -113,6 +115,7 @@ object AppModule : KoinComponent {
                         single<IdentityTransferPort> { IdentityTransferService(get(), get()) }
                         single { FictionalNameGenerator() }
                         single<TopicStore> { IndexedDbTopicStore(get(), get(), get()) }
+                        single<TopicFilterStore> { BrowserTopicFilterStore() }
                         single { TopicRepository(get()) }
                         single { PostPublisher(get(), get(), get(), get(), get()) }
                         single {

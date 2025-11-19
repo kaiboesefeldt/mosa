@@ -24,6 +24,8 @@
   "connected.posts.loading": "Beiträge werden geladen...",
   "connected.posts.similarity": "Ähnlichkeit: {{value}}",
   "connected.posts.timestamp": "Zeitstempel: {{value}}",
+  "connected.posts.filter.apply": "Beiträge mit geringerem Score ausblenden",
+  "connected.posts.filter.clear": "Score-Filter aufheben",
   "connected.composer.open": "Neuer Beitrag",
   "connected.composer.title": "Beitrag erstellen",
   "connected.composer.placeholder": "Was möchtest du schreiben?",
