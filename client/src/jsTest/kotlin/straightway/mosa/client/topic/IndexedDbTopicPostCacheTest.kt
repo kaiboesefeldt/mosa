@@ -173,7 +173,9 @@ class IndexedDbTopicPostCacheTest {
     ) = runTest {
         clearDatabase()
         val logger = RecordingLogger()
-        val cache = IndexedDbTopicPostCache(indexedDb(), asyncBridge, logger, maxEntries)
+        val entryStore = TopicEntryStore(indexedDb(), asyncBridge, maxEntries)
+        val referenceStore = TopicReferenceStore(indexedDb(), asyncBridge, logger)
+        val cache = IndexedDbTopicPostCache(entryStore, referenceStore, logger)
         try {
             block(cache, logger)
             assertTrue(logger.errorMessages.isEmpty(), "Cache errors: ${logger.errorMessages}")
