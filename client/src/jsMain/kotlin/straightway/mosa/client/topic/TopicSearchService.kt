@@ -22,6 +22,7 @@ class TopicSearchService(
     private val podBaseProvider: PodBaseProvider,
     private val podAccessFactory: PodAccessFactory,
     private val jwtBuilder: JwtBuilder,
+    private val topicPostCache: TopicPostCache,
     private val logger: Logger,
 ) {
     suspend fun fetchFor(topics: List<Topic>): List<TopicPosts> {
@@ -41,20 +42,27 @@ class TopicSearchService(
             return emptyList()
         }
         return topics.mapNotNull { topic ->
-            runCatching {
+            val cachedSnapshot = topicPostCache.snapshot(topic.title)
+            val snapshot =
+                runCatching {
+                    val queryRequest =
+                        QueryRequest(
+                            topic = topic.title,
+                            scoreMustBeAbove = topic.scoreMustBeAbove,
+                            minTime = cachedSnapshot.lastFetchedAt,
+                    )
                 podAccess.query(
-                    QueryRequest(
-                        topic = topic.title,
-                        scoreMustBeAbove = topic.scoreMustBeAbove,
-                    ),
+                    queryRequest,
                     jwt,
                 )
-            }
-                .onFailure { logger.warn("Topic query failed for ${topic.title}", it) }
-                .getOrNull()
-                ?.entries
-                ?.sortedByDescending { it.similarity }
-                ?.takeIf { it.isNotEmpty() }
+                }
+                    .onFailure { logger.warn("Topic query failed for ${topic.title}", it) }
+                    .getOrNull()
+                    ?.let { topicPostCache.append(topic.title, it.entries) }
+                    ?: cachedSnapshot
+            val entries = snapshot.entries
+            entries
+                .takeIf { it.isNotEmpty() }
                 ?.let { TopicPosts(topic, it) }
         }
     }

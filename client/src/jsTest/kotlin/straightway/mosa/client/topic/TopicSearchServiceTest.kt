@@ -25,6 +25,7 @@ import kotlin.test.assertTrue
 class TopicSearchServiceTest {
     private lateinit var podAccess: FakePodAccess
     private lateinit var logger: RecordingLogger
+    private lateinit var cache: FakeTopicPostCache
     private val jwtInvocations = mutableListOf<Pair<Identity, PodCertificate>>()
     private val identity =
         Identity(
@@ -41,6 +42,7 @@ class TopicSearchServiceTest {
     @BeforeTest
     fun setup() {
         logger = RecordingLogger()
+        cache = FakeTopicPostCache()
         clearBase()
         jwtInvocations.clear()
     }
@@ -146,6 +148,55 @@ class TopicSearchServiceTest {
         assertEquals(0.9f, podAccess.queryInvocations.single().scoreMustBeAbove)
     }
 
+    @Test
+    fun `passes cached timestamp as minTime`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        cache.snapshots["Alpha"] =
+            TopicPostCacheSnapshot(
+                entries = emptyList(),
+                lastFetchedAt = 1234,
+            )
+        podAccess = FakePodAccess(responses = mapOf("Alpha" to queryResult("p1")))
+        val service = createService()
+
+        service.fetchFor(listOf(Topic("Alpha")))
+
+        val minTime = podAccess.queryInvocations.single().minTime
+        assertEquals(1234, minTime)
+    }
+
+    @Test
+    fun `returns cached entries when backend has none`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        cache.snapshots["Alpha"] =
+            TopicPostCacheSnapshot(
+                entries = listOf(
+                    QueryResult.Entry("cached", "cached-content", 0.7f, "author", 200),
+                ),
+                lastFetchedAt = 200,
+            )
+        podAccess =
+            FakePodAccess(
+                responses = mapOf("Alpha" to QueryResult(emptyList(), "ignored")),
+            )
+        val service = createService()
+
+        val results = service.fetchFor(listOf(Topic("Alpha")))
+
+        assertEquals(listOf("cached"), results.single().entries.map { it.id })
+    }
+
+    @Test
+    fun `stores new entries in cache`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        podAccess = FakePodAccess(responses = mapOf("Alpha" to queryResult("fresh")))
+        val service = createService()
+
+        service.fetchFor(listOf(Topic("Alpha")))
+
+        assertEquals(listOf("fresh"), cache.snapshots["Alpha"]?.entries?.map { it.id })
+    }
+
     private fun createService(): TopicSearchService =
         TopicSearchService(
             identityRepository = StaticIdentityRepository(identity),
@@ -155,6 +206,7 @@ class TopicSearchServiceTest {
                 jwtInvocations += identity to cert
                 "generated-jwt"
             },
+            topicPostCache = cache,
             logger = logger,
         )
 
@@ -230,5 +282,33 @@ private class RecordingLogger : Logger {
 
     override fun warn(message: String, throwable: Throwable?) {
         warnMessages += message
+    }
+}
+
+private class FakeTopicPostCache : TopicPostCache {
+    val snapshots = mutableMapOf<String, TopicPostCacheSnapshot>()
+
+    override suspend fun snapshot(topic: String): TopicPostCacheSnapshot =
+        snapshots[topic] ?: TopicPostCacheSnapshot(emptyList(), null)
+
+    override suspend fun append(topic: String, entries: List<QueryResult.Entry>): TopicPostCacheSnapshot {
+        val current = snapshots[topic]
+        if (entries.isEmpty()) {
+            return current ?: TopicPostCacheSnapshot(emptyList(), null)
+        }
+        val existing = current?.entries?.associateBy { it.id }?.toMutableMap() ?: mutableMapOf()
+        entries.forEach { entry ->
+            existing[entry.id] = entry
+        }
+        val merged =
+            existing.values
+                .sortedByDescending { it.similarity }
+        val lastFetchedAt =
+            entries.maxOfOrNull { it.storedAt } ?: current?.lastFetchedAt
+        return TopicPostCacheSnapshot(merged, lastFetchedAt).also { snapshots[topic] = it }
+    }
+
+    override suspend fun clear(topic: String) {
+        snapshots.remove(topic)
     }
 }

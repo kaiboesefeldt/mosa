@@ -36,6 +36,8 @@ import straightway.mosa.client.topic.JwtBuilder
 import straightway.mosa.client.topic.PodAccessFactory
 import straightway.mosa.client.topic.Topic
 import straightway.mosa.client.topic.TopicRepository
+import straightway.mosa.client.topic.TopicPostCache
+import straightway.mosa.client.topic.TopicPostCacheSnapshot
 import straightway.mosa.client.topic.TopicSearchService
 import straightway.mosa.client.topic.TopicStore
 import straightway.mosa.client.topic.PostPublisher
@@ -323,14 +325,15 @@ class IdentityConnectedViewTest {
                 single { FictionalNameGenerator() }
                 single { DiceBearAvatarGenerator() }
                 single<TopicStore> { InMemoryTopicStore(topics) }
-                single { TopicRepository(get()) }
+                single<TopicPostCache> { InMemoryTopicPostCache() }
+                single { TopicRepository(get(), get()) }
                 single<IdentitySelectionRepository> { StaticIdentityRepository(identityForTests) }
                 single { PodBaseProvider() }
                 single<PodAccessFactory> { { podAccess } }
                 single<JwtBuilder> { { _, _ -> "jwt" } }
                 single<Logger> { RecordingLogger() }
                 single { PostPublisher(get(), get(), get(), get(), get()) }
-                single { TopicSearchService(get(), get(), get(), get(), get()) }
+                single { TopicSearchService(get(), get(), get(), get(), get(), get()) }
             }
                 startKoin { modules(module) }
         sessionStore = ConnectedViewTestInjector.get<IdentitySessionStore>() as ConnectedViewIdentitySessionStore
@@ -452,6 +455,31 @@ private class InMemoryTopicStore(
 
     override suspend fun save(topics: List<Topic>) {
         this.topics = topics
+    }
+}
+
+private class InMemoryTopicPostCache : TopicPostCache {
+    private val snapshots = mutableMapOf<String, TopicPostCacheSnapshot>()
+
+    override suspend fun snapshot(topic: String): TopicPostCacheSnapshot =
+        snapshots[topic] ?: TopicPostCacheSnapshot(emptyList(), null)
+
+    override suspend fun append(topic: String, entries: List<QueryResult.Entry>): TopicPostCacheSnapshot {
+        val current = snapshots[topic]
+        if (entries.isEmpty()) {
+            return current ?: TopicPostCacheSnapshot(emptyList(), null)
+        }
+        val merged =
+            (current?.entries.orEmpty() + entries)
+                .associateBy { it.id }
+                .values
+                .sortedByDescending { it.similarity }
+        val lastFetchedAt = entries.maxOfOrNull { it.storedAt } ?: current?.lastFetchedAt
+        return TopicPostCacheSnapshot(merged, lastFetchedAt).also { snapshots[topic] = it }
+    }
+
+    override suspend fun clear(topic: String) {
+        snapshots.remove(topic)
     }
 }
 

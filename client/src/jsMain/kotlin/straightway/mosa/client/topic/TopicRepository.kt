@@ -2,6 +2,7 @@ package straightway.mosa.client.topic
 
 class TopicRepository(
     private val store: TopicStore,
+    private val postCache: TopicPostCache,
 ) {
     private var cache: List<Topic>? = null
 
@@ -23,8 +24,11 @@ class TopicRepository(
     }
 
     suspend fun remove(topic: Topic): List<Topic> {
-        val updated = all().filterNot { it.title == topic.title }
+        val current = all()
+        val updated = current.filterNot { it.title == topic.title }
+        if (updated.size == current.size) return current
         store.save(updated)
+        postCache.clear(topic.title)
         cache = updated
         return updated
     }
