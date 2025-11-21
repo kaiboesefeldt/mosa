@@ -103,7 +103,24 @@ class TopicRepositoryTest {
     }
 
     @Test
-    fun `apply filters clears cache when threshold changes`() = runTest {
+    fun `apply filters keeps cache when threshold relaxes`() = runTest {
+        val store =
+            RecordingTopicStore(
+                initial =
+                    listOf(
+                        Topic("Alpha", scoreMustBeAbove = 0.5f),
+                    ),
+            )
+        val cache = RecordingPostCache()
+        val repository = TopicRepository(store, cache)
+
+        repository.applyFilters(mapOf("Alpha" to 0.2f))
+
+        assertTrue(cache.clearInvocations.isEmpty())
+    }
+
+    @Test
+    fun `apply filters keeps cache when filter removed`() = runTest {
         val store =
             RecordingTopicStore(
                 initial =
@@ -115,9 +132,26 @@ class TopicRepositoryTest {
         val cache = RecordingPostCache()
         val repository = TopicRepository(store, cache)
 
+        repository.applyFilters(emptyMap())
+
+        assertTrue(cache.clearInvocations.isEmpty())
+    }
+
+    @Test
+    fun `apply filters keeps cache when threshold tightens`() = runTest {
+        val store =
+            RecordingTopicStore(
+                initial =
+                    listOf(
+                        Topic("Alpha", scoreMustBeAbove = 0.2f),
+                    ),
+            )
+        val cache = RecordingPostCache()
+        val repository = TopicRepository(store, cache)
+
         repository.applyFilters(mapOf("Alpha" to 0.5f))
 
-        assertEquals(listOf("Alpha"), cache.clearInvocations)
+        assertTrue(cache.clearInvocations.isEmpty())
     }
 }
 

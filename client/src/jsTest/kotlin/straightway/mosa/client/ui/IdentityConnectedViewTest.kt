@@ -188,7 +188,7 @@ class IdentityConnectedViewTest {
     }
 
     @Test
-    fun `reloads posts only when filter removed`() = runTest {
+    fun `shows cached posts when filter removed`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val podAccess =
             RecordingPodAccess(
@@ -209,7 +209,46 @@ class IdentityConnectedViewTest {
         assertEquals(1, podAccess.queryInvocations.size)
 
         user.click(filterResetButton(view.container)).await()
+        repeat(10) {
+            delay(20)
+            assertEquals(1, view.container.querySelectorAll(".post-card").length)
+        }
+        assertEquals(1, podAccess.queryInvocations.size)
+    }
+
+    @Test
+    fun `does not reload filtered topic when reselected`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses =
+                    mapOf(
+                        "Alpha" to queryResult("p1"),
+                        "Beta" to queryResult("p2"),
+                    ),
+            )
+        overrideDependencies(
+            topics =
+                listOf(
+                    Topic("Alpha"),
+                    Topic("Beta"),
+                ),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { podAccess.queryInvocations.size == 1 }
+        waitForCondition { view.container.querySelector(".post-card__filter") != null }
+        user.click(filterButton(view.container)).await()
+        waitForCondition { view.container.querySelector(".topic-board__filter-indicator") != null }
+        waitForCondition { view.container.querySelectorAll(".topic-card").length == 2 }
+        user.click(topicCard(view.container, "Beta")).await()
         waitForCondition { podAccess.queryInvocations.size == 2 }
+
+        user.click(topicCard(view.container, "Alpha")).await()
+        delay(100)
+        assertEquals(2, podAccess.queryInvocations.size)
     }
 
     @Test
