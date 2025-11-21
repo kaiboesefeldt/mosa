@@ -7,7 +7,6 @@ import kotlin.js.jsTypeOf
 import kotlin.js.unsafeCast
 import kotlin.math.max
 import straightway.mosa.client.identity.IndexedDbAsyncBridge
-import straightway.mosa.content.QueryResult
 import web.idb.IDBDatabase
 import web.idb.IDBFactory
 import web.idb.IDBTransactionMode
@@ -21,7 +20,7 @@ internal class TopicEntryStore(
     private val asyncBridge: IndexedDbAsyncBridge,
     private val maxEntries: Int,
 ) {
-    suspend fun store(entries: List<QueryResult.Entry>): Boolean {
+    suspend fun store(entries: List<CachedPost>): Boolean {
         val database = openDatabase() ?: return false
         try {
             val deduplicated = entries.associateBy { it.id }.values
@@ -38,15 +37,15 @@ internal class TopicEntryStore(
     suspend fun resolve(references: List<TopicEntryRef>): EntryResolution {
         if (references.isEmpty()) return EntryResolution(emptyList(), emptyList())
         val database = openDatabase() ?: return EntryResolution(emptyList(), references.map { it.id })
-        val resolved = mutableListOf<QueryResult.Entry>()
+        val resolved = mutableListOf<CachedPost>()
         val missing = mutableListOf<String>()
         try {
             val transaction =
-                database.transaction(topicPostEntriesStoreName, IDBTransactionMode.readonly)
-            val store = transaction.objectStore(topicPostEntriesStoreName)
+                database.transaction(postCacheEntriesStoreName, IDBTransactionMode.readonly)
+            val store = transaction.objectStore(postCacheEntriesStoreName)
             references.forEach { ref ->
                 val payload = asyncBridge.awaitRequest<dynamic?>(store.get(entryKey(ref.id)))
-                val decoded = decodeEntry(payload, ref.similarity)
+                val decoded = decodeEntry(payload)
                 if (decoded == null) {
                     missing += ref.id
                 } else {
@@ -62,12 +61,12 @@ internal class TopicEntryStore(
 
     private suspend fun storeEntry(
         database: IDBDatabase,
-        entry: QueryResult.Entry,
+        entry: CachedPost,
     ) {
         while (true) {
             val transaction =
-                database.transaction(topicPostEntriesStoreName, IDBTransactionMode.readwrite)
-            val store = transaction.objectStore(topicPostEntriesStoreName)
+                database.transaction(postCacheEntriesStoreName, IDBTransactionMode.readwrite)
+            val store = transaction.objectStore(postCacheEntriesStoreName)
             val request = store.put(encodeEntry(entry))
             val result =
                 runCatching {
@@ -94,8 +93,8 @@ internal class TopicEntryStore(
 
     private suspend fun countEntries(database: IDBDatabase): Int {
         val transaction =
-            database.transaction(topicPostEntriesStoreName, IDBTransactionMode.readonly)
-        val store = transaction.objectStore(topicPostEntriesStoreName)
+            database.transaction(postCacheEntriesStoreName, IDBTransactionMode.readonly)
+        val store = transaction.objectStore(postCacheEntriesStoreName)
         val count = asyncBridge.awaitRequest<Double>(store.count()).toInt()
         asyncBridge.awaitTransaction(transaction)
         return count
@@ -107,41 +106,41 @@ internal class TopicEntryStore(
     ) {
         if (limit <= 0) return
         val transaction =
-            database.transaction(topicPostEntriesStoreName, IDBTransactionMode.readwrite)
-        val store = transaction.objectStore(topicPostEntriesStoreName)
-        val index = store.index(topicPostStoredAtIndexName)
+            database.transaction(postCacheEntriesStoreName, IDBTransactionMode.readwrite)
+        val store = transaction.objectStore(postCacheEntriesStoreName)
+        val index = store.index(postCacheStoredAtIndexName)
         val keys = asyncBridge.awaitRequest<Array<IDBValidKey>>(index.getAllKeys(count = limit))
         keys.forEach { key -> asyncBridge.awaitRequest<Any?>(store.delete(key)) }
         asyncBridge.awaitTransaction(transaction)
     }
 
     private fun calculateEvictionCount(currentCount: Int): Int =
-        max(1, (currentCount * topicPostEvictionRatio).toInt())
+        max(1, (currentCount * postCacheEvictionRatio).toInt())
 
     private suspend fun openDatabase(): IDBDatabase? {
         val factory = indexedDb ?: return null
-        val request = factory.open(topicPostCacheDatabaseName, topicPostSchemaVersion.toDouble())
+        val request = factory.open(postCacheDatabaseName, postCacheSchemaVersion.toDouble())
         request.asDynamic().onupgradeneeded = {
             val db = request.result
-            if (!db.objectStoreNames.contains(topicPostEntriesStoreName)) {
+            if (!db.objectStoreNames.contains(postCacheEntriesStoreName)) {
                 val entriesStore =
                     db.createObjectStore(
-                        topicPostEntriesStoreName,
+                        postCacheEntriesStoreName,
                         js("{ keyPath: 'id' }"),
                     )
-                entriesStore.createIndex(topicPostStoredAtIndexName, "storedAt")
+                entriesStore.createIndex(postCacheStoredAtIndexName, "storedAt")
             }
         }
         val database = asyncBridge.awaitRequest<IDBDatabase>(request)
-        if (!database.objectStoreNames.contains(topicPostEntriesStoreName)) {
+        if (!database.objectStoreNames.contains(postCacheEntriesStoreName)) {
             database.close()
-            asyncBridge.awaitRequest<Any?>(factory.deleteDatabase(topicPostCacheDatabaseName))
+            asyncBridge.awaitRequest<Any?>(factory.deleteDatabase(postCacheDatabaseName))
             return openDatabase()
         }
         return database
     }
 
-    private fun encodeEntry(entry: QueryResult.Entry): dynamic {
+    private fun encodeEntry(entry: CachedPost): dynamic {
         val payload = js("{}")
         payload.id = entry.id
         payload.content = entry.content
@@ -151,14 +150,14 @@ internal class TopicEntryStore(
         return payload
     }
 
-    private fun decodeEntry(payload: dynamic, similarity: Float): QueryResult.Entry? {
+    private fun decodeEntry(payload: dynamic): CachedPost? {
         if (payload == null || jsTypeOf(payload) == "undefined") return null
         val id = payload.id as? String ?: return null
         val content = payload.content as? String ?: return null
         val author = payload.authorGID as? String ?: return null
         val storedAt = (payload.storedAt as? Number)?.toLong() ?: return null
         val rootId = payload.rootId as? String
-        return QueryResult.Entry(id, content, similarity, author, storedAt, rootId)
+        return CachedPost(id, content, author, storedAt, rootId)
     }
 
     private fun entryKey(value: String): IDBValidKey = value.unsafeCast<IDBValidKey>()
@@ -171,6 +170,6 @@ internal class TopicEntryStore(
 }
 
 internal data class EntryResolution(
-    val resolved: List<QueryResult.Entry>,
+    val resolved: List<CachedPost>,
     val missingIds: List<String>,
 )

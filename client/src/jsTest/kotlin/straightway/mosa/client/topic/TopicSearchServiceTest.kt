@@ -8,9 +8,9 @@ import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
+import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
-import straightway.mosa.client.logging.Logger
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
@@ -25,7 +25,7 @@ import kotlin.test.assertTrue
 class TopicSearchServiceTest {
     private lateinit var podAccess: FakePodAccess
     private lateinit var logger: RecordingLogger
-    private lateinit var cache: FakeTopicPostCache
+    private lateinit var cache: FakePostCache
     private val jwtInvocations = mutableListOf<Pair<Identity, PodCertificate>>()
     private val identity =
         Identity(
@@ -42,7 +42,7 @@ class TopicSearchServiceTest {
     @BeforeTest
     fun setup() {
         logger = RecordingLogger()
-        cache = FakeTopicPostCache()
+        cache = FakePostCache()
         clearBase()
         jwtInvocations.clear()
     }
@@ -152,7 +152,7 @@ class TopicSearchServiceTest {
     fun `passes cached timestamp as minTime`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         cache.snapshots["Alpha"] =
-            TopicPostCacheSnapshot(
+            PostCacheSnapshot(
                 entries = emptyList(),
                 lastFetchedAt = 1234,
             )
@@ -169,10 +169,11 @@ class TopicSearchServiceTest {
     fun `returns cached entries when backend has none`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         cache.snapshots["Alpha"] =
-            TopicPostCacheSnapshot(
-                entries = listOf(
-                    QueryResult.Entry("cached", "cached-content", 0.7f, "author", 200),
-                ),
+            PostCacheSnapshot(
+                entries =
+                    listOf(
+                        QueryResult.Entry("cached", "cached-content", 0.7f, "author", 200),
+                    ).map { it.toCacheEntry() },
                 lastFetchedAt = 200,
             )
         podAccess =
@@ -194,7 +195,7 @@ class TopicSearchServiceTest {
 
         service.fetchFor(listOf(Topic("Alpha")))
 
-        assertEquals(listOf("fresh"), cache.snapshots["Alpha"]?.entries?.map { it.id })
+        assertEquals(listOf("fresh"), cache.snapshots["Alpha"]?.entries?.map { it.post.id })
     }
 
     private fun createService(): TopicSearchService =
@@ -206,7 +207,7 @@ class TopicSearchServiceTest {
                 jwtInvocations += identity to cert
                 "generated-jwt"
             },
-            topicPostCache = cache,
+            postCache = cache,
             logger = logger,
         )
 
@@ -285,30 +286,47 @@ private class RecordingLogger : Logger {
     }
 }
 
-private class FakeTopicPostCache : TopicPostCache {
-    val snapshots = mutableMapOf<String, TopicPostCacheSnapshot>()
+private class FakePostCache : PostCache {
+    val snapshots = mutableMapOf<String, PostCacheSnapshot>()
 
-    override suspend fun snapshot(topic: String): TopicPostCacheSnapshot =
-        snapshots[topic] ?: TopicPostCacheSnapshot(emptyList(), null)
+    override suspend fun snapshot(topic: String): PostCacheSnapshot =
+        snapshots[topic] ?: PostCacheSnapshot(emptyList(), null)
 
-    override suspend fun append(topic: String, entries: List<QueryResult.Entry>): TopicPostCacheSnapshot {
+    override suspend fun append(topic: String, entries: List<QueryResult.Entry>): PostCacheSnapshot {
         val current = snapshots[topic]
         if (entries.isEmpty()) {
-            return current ?: TopicPostCacheSnapshot(emptyList(), null)
+            return current ?: PostCacheSnapshot(emptyList(), null)
         }
-        val existing = current?.entries?.associateBy { it.id }?.toMutableMap() ?: mutableMapOf()
+        val existing =
+            current
+                ?.entries
+                ?.associateBy { it.post.id }
+                ?.toMutableMap()
+                ?: mutableMapOf()
         entries.forEach { entry ->
-            existing[entry.id] = entry
+            existing[entry.id] = entry.toCacheEntry()
         }
         val merged =
             existing.values
                 .sortedByDescending { it.similarity }
         val lastFetchedAt =
             entries.maxOfOrNull { it.storedAt } ?: current?.lastFetchedAt
-        return TopicPostCacheSnapshot(merged, lastFetchedAt).also { snapshots[topic] = it }
+        return PostCacheSnapshot(merged, lastFetchedAt).also { snapshots[topic] = it }
     }
 
     override suspend fun clear(topic: String) {
         snapshots.remove(topic)
     }
 }
+
+private fun QueryResult.Entry.toCacheEntry(): TopicScopedPost =
+    TopicScopedPost(
+        CachedPost(
+            id = id,
+            content = content,
+            authorGID = authorGID,
+            storedAt = storedAt,
+            rootId = rootId,
+        ),
+        similarity,
+    )

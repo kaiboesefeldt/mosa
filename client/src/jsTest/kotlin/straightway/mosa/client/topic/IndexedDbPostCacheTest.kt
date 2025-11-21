@@ -21,10 +21,10 @@ import web.idb.IDBOpenDBRequest
 import web.idb.IDBTransactionMode
 import web.idb.IDBValidKey
 import web.idb.indexedDB
-import web.idb.readwrite
 import web.idb.readonly
+import web.idb.readwrite
 
-class IndexedDbTopicPostCacheTest {
+class IndexedDbPostCacheTest {
     private val asyncBridge = IndexedDbAsyncBridge()
 
     @BeforeTest
@@ -50,14 +50,14 @@ class IndexedDbTopicPostCacheTest {
                 )
 
             val appended = cache.append("topic", entries)
-            assertEquals(listOf("second", "first"), appended.entries.map { it.id })
+            assertEquals(listOf("second", "first"), appended.entries.map { it.post.id })
             assertEquals(listOf("first", "second"), storedEntryIds().sorted())
             val topicRecord =
                 storedTopicRecord("topic")
                     ?: fail("Missing topic record. Existing topics: ${storedTopicKeys().joinToString()}")
             val snapshot = cache.snapshot("topic")
 
-            assertEquals(listOf("second", "first"), snapshot.entries.map { it.id })
+            assertEquals(listOf("second", "first"), snapshot.entries.map { it.post.id })
             assertEquals(30, snapshot.lastFetchedAt)
         }
 
@@ -106,7 +106,7 @@ class IndexedDbTopicPostCacheTest {
             val snapshot = cache.snapshot("topic")
 
             assertEquals(5, snapshot.entries.size)
-            assertEquals(listOf("p7", "p6", "p5", "p4", "p3"), snapshot.entries.map { it.id })
+            assertEquals(listOf("p7", "p6", "p5", "p4", "p3"), snapshot.entries.map { it.post.id })
         }
 
     @Test
@@ -132,11 +132,11 @@ class IndexedDbTopicPostCacheTest {
 
     private suspend fun deleteEntry(id: String) {
         val factory = indexedDb()
-        val request = factory.open(topicPostCacheDatabaseName)
+        val request = factory.open(postCacheDatabaseName)
         val database = asyncBridge.awaitRequest<IDBDatabase>(request)
         try {
-            val transaction = database.transaction(topicPostEntriesStoreName, IDBTransactionMode.readwrite)
-            val store = transaction.objectStore(topicPostEntriesStoreName)
+            val transaction = database.transaction(postCacheEntriesStoreName, IDBTransactionMode.readwrite)
+            val store = transaction.objectStore(postCacheEntriesStoreName)
             asyncBridge.awaitRequest<Any?>(store.delete(IDBValidKey(id)))
             asyncBridge.awaitTransaction(transaction)
         } finally {
@@ -153,8 +153,8 @@ class IndexedDbTopicPostCacheTest {
 
     private suspend fun clearDatabase() {
         val factory = indexedDb()
-        suspendOnOpenRequest(factory.deleteDatabase(topicPostCacheDatabaseName))
-        suspendOnOpenRequest(factory.deleteDatabase(topicPostTopicsDatabaseName))
+        suspendOnOpenRequest(factory.deleteDatabase(postCacheDatabaseName))
+        suspendOnOpenRequest(factory.deleteDatabase(postCacheTopicsDatabaseName))
     }
 
     private suspend fun suspendOnOpenRequest(request: IDBOpenDBRequest) {
@@ -169,13 +169,13 @@ class IndexedDbTopicPostCacheTest {
 
     private fun runCacheTest(
         maxEntries: Int = 10_000,
-        block: suspend (IndexedDbTopicPostCache, RecordingLogger) -> Unit,
+        block: suspend (IndexedDbPostCache, RecordingLogger) -> Unit,
     ) = runTest {
         clearDatabase()
         val logger = RecordingLogger()
         val entryStore = TopicEntryStore(indexedDb(), asyncBridge, maxEntries)
         val referenceStore = TopicReferenceStore(indexedDb(), asyncBridge, logger)
-        val cache = IndexedDbTopicPostCache(entryStore, referenceStore, logger)
+        val cache = IndexedDbPostCache(entryStore, referenceStore, logger)
         try {
             block(cache, logger)
             assertTrue(logger.errorMessages.isEmpty(), "Cache errors: ${logger.errorMessages}")
@@ -187,11 +187,11 @@ class IndexedDbTopicPostCacheTest {
 
     private suspend fun storedEntryIds(): List<String> {
         val factory = indexedDb()
-        val database = asyncBridge.awaitRequest<IDBDatabase>(factory.open(topicPostCacheDatabaseName))
+        val database = asyncBridge.awaitRequest<IDBDatabase>(factory.open(postCacheDatabaseName))
         try {
-            if (!database.objectStoreNames.contains(topicPostEntriesStoreName)) return emptyList()
-            val transaction = database.transaction(topicPostEntriesStoreName, IDBTransactionMode.readonly)
-            val store = transaction.objectStore(topicPostEntriesStoreName)
+            if (!database.objectStoreNames.contains(postCacheEntriesStoreName)) return emptyList()
+            val transaction = database.transaction(postCacheEntriesStoreName, IDBTransactionMode.readonly)
+            val store = transaction.objectStore(postCacheEntriesStoreName)
             val records = asyncBridge.awaitRequest<Array<dynamic>>(store.getAll())
             asyncBridge.awaitTransaction(transaction)
             return records.mapNotNull { entry -> entry?.id as? String }
@@ -202,11 +202,11 @@ class IndexedDbTopicPostCacheTest {
 
     private suspend fun storedTopicRecord(topic: String): dynamic {
         val factory = indexedDb()
-        val database = asyncBridge.awaitRequest<IDBDatabase>(factory.open(topicPostTopicsDatabaseName))
+        val database = asyncBridge.awaitRequest<IDBDatabase>(factory.open(postCacheTopicsDatabaseName))
         try {
-            if (!database.objectStoreNames.contains(topicPostTopicsStoreName)) return null
-            val transaction = database.transaction(topicPostTopicsStoreName, IDBTransactionMode.readonly)
-            val store = transaction.objectStore(topicPostTopicsStoreName)
+            if (!database.objectStoreNames.contains(postCacheTopicsStoreName)) return null
+            val transaction = database.transaction(postCacheTopicsStoreName, IDBTransactionMode.readonly)
+            val store = transaction.objectStore(postCacheTopicsStoreName)
             val record = asyncBridge.awaitRequest<dynamic?>(store.get(IDBValidKey(topic)))
             asyncBridge.awaitTransaction(transaction)
             return record
@@ -217,11 +217,11 @@ class IndexedDbTopicPostCacheTest {
 
     private suspend fun storedTopicKeys(): List<String> {
         val factory = indexedDb()
-        val database = asyncBridge.awaitRequest<IDBDatabase>(factory.open(topicPostTopicsDatabaseName))
+        val database = asyncBridge.awaitRequest<IDBDatabase>(factory.open(postCacheTopicsDatabaseName))
         try {
-            if (!database.objectStoreNames.contains(topicPostTopicsStoreName)) return emptyList()
-            val transaction = database.transaction(topicPostTopicsStoreName, IDBTransactionMode.readonly)
-            val store = transaction.objectStore(topicPostTopicsStoreName)
+            if (!database.objectStoreNames.contains(postCacheTopicsStoreName)) return emptyList()
+            val transaction = database.transaction(postCacheTopicsStoreName, IDBTransactionMode.readonly)
+            val store = transaction.objectStore(postCacheTopicsStoreName)
             val records = asyncBridge.awaitRequest<Array<dynamic>>(store.getAll())
             asyncBridge.awaitTransaction(transaction)
             return records.mapNotNull { entry -> entry?.topic as? String }

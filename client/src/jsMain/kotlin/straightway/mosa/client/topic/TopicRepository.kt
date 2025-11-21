@@ -2,7 +2,7 @@ package straightway.mosa.client.topic
 
 class TopicRepository(
     private val store: TopicStore,
-    private val postCache: TopicPostCache,
+    private val postCache: PostCache,
 ) {
     private var cache: List<Topic>? = null
 

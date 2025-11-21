@@ -1,11 +1,10 @@
 package straightway.mosa.client.topic
 
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlinx.coroutines.test.runTest
 import straightway.mosa.content.QueryResult
-
 class TopicRepositoryTest {
     @Test
     fun `load returns topics from store`() = runTest {
@@ -17,7 +16,7 @@ class TopicRepositoryTest {
                         Topic("Zweites"),
                     ),
             )
-        val repository = TopicRepository(store, RecordingTopicPostCache())
+        val repository = TopicRepository(store, RecordingPostCache())
 
         val topics = repository.all()
 
@@ -29,7 +28,7 @@ class TopicRepositoryTest {
     @Test
     fun `add appends topic and persists order`() = runTest {
         val store = RecordingTopicStore()
-        val repository = TopicRepository(store, RecordingTopicPostCache())
+        val repository = TopicRepository(store, RecordingPostCache())
 
         repository.add("Alpha")
         repository.add("Beta")
@@ -42,7 +41,7 @@ class TopicRepositoryTest {
     @Test
     fun `add ignores blank input`() = runTest {
         val store = RecordingTopicStore()
-        val repository = TopicRepository(store, RecordingTopicPostCache())
+        val repository = TopicRepository(store, RecordingPostCache())
 
         repository.add("   ")
 
@@ -59,7 +58,7 @@ class TopicRepositoryTest {
                         Topic("Beta"),
                     ),
             )
-        val cache = RecordingTopicPostCache()
+        val cache = RecordingPostCache()
         val repository = TopicRepository(store, cache)
 
         repository.remove(Topic("Alpha"))
@@ -72,7 +71,7 @@ class TopicRepositoryTest {
     @Test
     fun `clear is not invoked when topic kept`() = runTest {
         val store = RecordingTopicStore(initial = listOf(Topic("Alpha")))
-        val cache = RecordingTopicPostCache()
+        val cache = RecordingPostCache()
         val repository = TopicRepository(store, cache)
 
         repository.remove(Topic("Missing"))
@@ -90,7 +89,7 @@ class TopicRepositoryTest {
                         Topic("Beta"),
                     ),
             )
-        val repository = TopicRepository(store, RecordingTopicPostCache())
+        val repository = TopicRepository(store, RecordingPostCache())
 
         repository.applyFilters(
             mapOf(
@@ -116,14 +115,14 @@ private class RecordingTopicStore(
     }
 }
 
-private class RecordingTopicPostCache : TopicPostCache {
+private class RecordingPostCache : PostCache {
     val clearInvocations = mutableListOf<String>()
 
-    override suspend fun snapshot(topic: String): TopicPostCacheSnapshot =
-        TopicPostCacheSnapshot(emptyList(), null)
+    override suspend fun snapshot(topic: String): PostCacheSnapshot =
+        PostCacheSnapshot(emptyList(), null)
 
-    override suspend fun append(topic: String, entries: List<QueryResult.Entry>): TopicPostCacheSnapshot =
-        TopicPostCacheSnapshot(emptyList(), null)
+    override suspend fun append(topic: String, entries: List<QueryResult.Entry>): PostCacheSnapshot =
+        PostCacheSnapshot(emptyList(), null)
 
     override suspend fun clear(topic: String) {
         clearInvocations += topic

@@ -34,10 +34,12 @@ import straightway.mosa.client.testing.render
 import straightway.mosa.client.testing.userEvent
 import straightway.mosa.client.topic.JwtBuilder
 import straightway.mosa.client.topic.PodAccessFactory
+import straightway.mosa.client.topic.CachedPost
+import straightway.mosa.client.topic.PostCache
+import straightway.mosa.client.topic.PostCacheSnapshot
+import straightway.mosa.client.topic.TopicScopedPost
 import straightway.mosa.client.topic.Topic
 import straightway.mosa.client.topic.TopicRepository
-import straightway.mosa.client.topic.TopicPostCache
-import straightway.mosa.client.topic.TopicPostCacheSnapshot
 import straightway.mosa.client.topic.TopicSearchService
 import straightway.mosa.client.topic.TopicStore
 import straightway.mosa.client.topic.PostPublisher
@@ -325,7 +327,7 @@ class IdentityConnectedViewTest {
                 single { FictionalNameGenerator() }
                 single { DiceBearAvatarGenerator() }
                 single<TopicStore> { InMemoryTopicStore(topics) }
-                single<TopicPostCache> { InMemoryTopicPostCache() }
+                single<PostCache> { InMemoryPostCache() }
                 single { TopicRepository(get(), get()) }
                 single<IdentitySelectionRepository> { StaticIdentityRepository(identityForTests) }
                 single { PodBaseProvider() }
@@ -458,29 +460,42 @@ private class InMemoryTopicStore(
     }
 }
 
-private class InMemoryTopicPostCache : TopicPostCache {
-    private val snapshots = mutableMapOf<String, TopicPostCacheSnapshot>()
+private class InMemoryPostCache : PostCache {
+    private val snapshots = mutableMapOf<String, PostCacheSnapshot>()
 
-    override suspend fun snapshot(topic: String): TopicPostCacheSnapshot =
-        snapshots[topic] ?: TopicPostCacheSnapshot(emptyList(), null)
+    override suspend fun snapshot(topic: String): PostCacheSnapshot =
+        snapshots[topic] ?: PostCacheSnapshot(emptyList(), null)
 
-    override suspend fun append(topic: String, entries: List<QueryResult.Entry>): TopicPostCacheSnapshot {
+    override suspend fun append(topic: String, entries: List<QueryResult.Entry>): PostCacheSnapshot {
         val current = snapshots[topic]
         if (entries.isEmpty()) {
-            return current ?: TopicPostCacheSnapshot(emptyList(), null)
+            return current ?: PostCacheSnapshot(emptyList(), null)
         }
         val merged =
-            (current?.entries.orEmpty() + entries)
+            (current?.entries.orEmpty().map { it.asQueryResultEntry() } + entries)
                 .associateBy { it.id }
                 .values
                 .sortedByDescending { it.similarity }
+                .map { entry -> entry.toCacheEntry() }
         val lastFetchedAt = entries.maxOfOrNull { it.storedAt } ?: current?.lastFetchedAt
-        return TopicPostCacheSnapshot(merged, lastFetchedAt).also { snapshots[topic] = it }
+        return PostCacheSnapshot(merged, lastFetchedAt).also { snapshots[topic] = it }
     }
 
     override suspend fun clear(topic: String) {
         snapshots.remove(topic)
     }
+
+    private fun QueryResult.Entry.toCacheEntry(): TopicScopedPost =
+        TopicScopedPost(
+            CachedPost(
+                id = id,
+                content = content,
+                authorGID = authorGID,
+                storedAt = storedAt,
+                rootId = rootId,
+            ),
+            similarity,
+        )
 }
 
 private class StaticIdentityRepository(

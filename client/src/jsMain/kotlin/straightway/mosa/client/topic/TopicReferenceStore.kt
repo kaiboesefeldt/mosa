@@ -26,8 +26,8 @@ internal class TopicReferenceStore(
         try {
             if (!ensureStore(database)) return null
             val transaction =
-                database.transaction(topicPostTopicsStoreName, IDBTransactionMode.readonly)
-            val store = transaction.objectStore(topicPostTopicsStoreName)
+                database.transaction(postCacheTopicsStoreName, IDBTransactionMode.readonly)
+            val store = transaction.objectStore(postCacheTopicsStoreName)
             val record = asyncBridge.awaitRequest<dynamic?>(store.get(topicKey(topic))) ?: run {
                 asyncBridge.awaitTransaction(transaction)
                 return null
@@ -47,8 +47,8 @@ internal class TopicReferenceStore(
         try {
             if (!ensureStore(database)) return
             val transaction =
-                database.transaction(topicPostTopicsStoreName, IDBTransactionMode.readwrite)
-            val store = transaction.objectStore(topicPostTopicsStoreName)
+                database.transaction(postCacheTopicsStoreName, IDBTransactionMode.readwrite)
+            val store = transaction.objectStore(postCacheTopicsStoreName)
             val record = asyncBridge.awaitRequest<dynamic?>(store.get(topicKey(topic)))
             val parsed = parseTopicRecord(record)
             val currentEntries = parsed?.entries?.associateBy { it.id }?.toMutableMap() ?: mutableMapOf()
@@ -75,8 +75,8 @@ internal class TopicReferenceStore(
         try {
             if (!ensureStore(database)) return
             val transaction =
-                database.transaction(topicPostTopicsStoreName, IDBTransactionMode.readwrite)
-            val store = transaction.objectStore(topicPostTopicsStoreName)
+                database.transaction(postCacheTopicsStoreName, IDBTransactionMode.readwrite)
+            val store = transaction.objectStore(postCacheTopicsStoreName)
             val record = asyncBridge.awaitRequest<dynamic?>(store.get(topicKey(topic))) ?: run {
                 asyncBridge.awaitTransaction(transaction)
                 return
@@ -100,8 +100,8 @@ internal class TopicReferenceStore(
         try {
             if (!ensureStore(database)) return
             val transaction =
-                database.transaction(topicPostTopicsStoreName, IDBTransactionMode.readwrite)
-            val store = transaction.objectStore(topicPostTopicsStoreName)
+                database.transaction(postCacheTopicsStoreName, IDBTransactionMode.readwrite)
+            val store = transaction.objectStore(postCacheTopicsStoreName)
             asyncBridge.awaitRequest<Any?>(store.delete(topicKey(topic)))
             asyncBridge.awaitTransaction(transaction)
         } finally {
@@ -111,27 +111,27 @@ internal class TopicReferenceStore(
 
     private suspend fun openDatabase(): IDBDatabase? {
         val factory = indexedDb ?: return null
-        val request = factory.open(topicPostTopicsDatabaseName, topicPostSchemaVersion.toDouble())
+        val request = factory.open(postCacheTopicsDatabaseName, postCacheSchemaVersion.toDouble())
         request.asDynamic().onupgradeneeded = {
             val db = request.result
-            if (!db.objectStoreNames.contains(topicPostTopicsStoreName)) {
+            if (!db.objectStoreNames.contains(postCacheTopicsStoreName)) {
                 db.createObjectStore(
-                    topicPostTopicsStoreName,
+                    postCacheTopicsStoreName,
                     js("{ keyPath: 'topic' }"),
                 )
             }
         }
         val database = asyncBridge.awaitRequest<IDBDatabase>(request)
-        if (!database.objectStoreNames.contains(topicPostTopicsStoreName)) {
+        if (!database.objectStoreNames.contains(postCacheTopicsStoreName)) {
             database.close()
-            asyncBridge.awaitRequest<Any?>(factory.deleteDatabase(topicPostTopicsDatabaseName))
+            asyncBridge.awaitRequest<Any?>(factory.deleteDatabase(postCacheTopicsDatabaseName))
             return openDatabase()
         }
         return database
     }
 
     private fun ensureStore(database: IDBDatabase): Boolean {
-        if (!database.objectStoreNames.contains(topicPostTopicsStoreName)) {
+        if (!database.objectStoreNames.contains(postCacheTopicsStoreName)) {
             logger.warn("Topic cache store unavailable", null)
             return false
         }
