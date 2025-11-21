@@ -188,6 +188,31 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `reloads posts only when filter removed`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { podAccess.queryInvocations.size == 1 }
+        waitForCondition { view.container.querySelector(".post-card__filter") != null }
+        user.click(filterButton(view.container)).await()
+        waitForCondition { view.container.querySelector(".topic-board__filter-indicator") != null }
+        delay(100)
+        assertEquals(1, podAccess.queryInvocations.size)
+
+        user.click(filterResetButton(view.container)).await()
+        waitForCondition { podAccess.queryInvocations.size == 2 }
+    }
+
+    @Test
     fun `opens composer dialog from floating button`() = runTest {
         val user = userEvent.setup()
         val view = renderConnectedView()
@@ -307,6 +332,12 @@ class IdentityConnectedViewTest {
     private fun topicDeleteButton(container: Element, title: String): Element =
         topicCard(container, title).querySelector(".topic-card__delete")
             ?: error("Delete button for $title missing")
+
+    private fun filterButton(container: Element): Element =
+        container.querySelector(".post-card__filter") ?: error("Filter button missing")
+
+    private fun filterResetButton(container: Element): Element =
+        container.querySelector(".topic-board__filter-reset") ?: error("Filter reset button missing")
 
     private fun overrideDependencies(
         topics: List<Topic>,

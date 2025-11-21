@@ -21,6 +21,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertNull
 
 class TopicSearchServiceTest {
     private lateinit var podAccess: FakePodAccess
@@ -149,6 +150,18 @@ class TopicSearchServiceTest {
     }
 
     @Test
+    fun `omits score filter when topic threshold removed`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        podAccess = FakePodAccess(responses = mapOf("Alpha" to queryResult("p1")))
+        val service = createService()
+        val topics = listOf(Topic("Alpha", scoreMustBeAbove = null))
+
+        service.fetchFor(topics)
+
+        assertNull(podAccess.queryInvocations.single().scoreMustBeAbove)
+    }
+
+    @Test
     fun `passes cached timestamp as minTime`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         cache.snapshots["Alpha"] =
@@ -185,6 +198,27 @@ class TopicSearchServiceTest {
         val results = service.fetchFor(listOf(Topic("Alpha")))
 
         assertEquals(listOf("cached"), results.single().entries.map { it.id })
+    }
+
+    @Test
+    fun `does not query pod when cache contains entries`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        cache.snapshots["Alpha"] =
+            PostCacheSnapshot(
+                entries =
+                    listOf(
+                        QueryResult.Entry("cached", "cached-content", 0.7f, "author", 200),
+                    ).map { it.toCacheEntry() },
+                lastFetchedAt = 200,
+            )
+        podAccess = FakePodAccess(responses = mapOf("Alpha" to queryResult("fresh")))
+        val service = createService()
+
+        val results = service.fetchFor(listOf(Topic("Alpha")))
+
+        assertEquals(listOf("cached"), results.single().entries.map { it.id })
+        assertTrue(podAccess.approveInvocations.isEmpty())
+        assertTrue(podAccess.queryInvocations.isEmpty())
     }
 
     @Test

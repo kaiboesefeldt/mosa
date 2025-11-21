@@ -101,6 +101,24 @@ class TopicRepositoryTest {
         val saved = store.saveInvocations.lastOrNull().orEmpty()
         assertEquals(listOf(0.95f, null), saved.map { it.scoreMustBeAbove })
     }
+
+    @Test
+    fun `apply filters clears cache when threshold changes`() = runTest {
+        val store =
+            RecordingTopicStore(
+                initial =
+                    listOf(
+                        Topic("Alpha", scoreMustBeAbove = 0.3f),
+                        Topic("Beta", scoreMustBeAbove = null),
+                    ),
+            )
+        val cache = RecordingPostCache()
+        val repository = TopicRepository(store, cache)
+
+        repository.applyFilters(mapOf("Alpha" to 0.5f))
+
+        assertEquals(listOf("Alpha"), cache.clearInvocations)
+    }
 }
 
 private class RecordingTopicStore(

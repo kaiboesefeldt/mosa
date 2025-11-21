@@ -129,12 +129,27 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     fun persistFilters(updated: Map<String, Float>) {
         val sanitized = TopicFilters.sanitize(updated)
         if (sanitized == topicFilters) return
+        val currentSelection = selectedTopic
+        val filterRemoved =
+            currentSelection?.let { topic ->
+                topicFilters.containsKey(topic.title) && !sanitized.containsKey(topic.title)
+            } ?: false
         updateTopicFilterState(sanitized)
         setTopicFilters(sanitized)
-        val currentTopic = selectedTopic
+        val refreshedTopic =
+            currentSelection?.let { topic ->
+                val nextFilter = sanitized[topic.title]
+                if (topic.scoreMustBeAbove == nextFilter) {
+                    topic
+                } else {
+                    topic.copy(scoreMustBeAbove = nextFilter)
+                }
+            }
         scope.launch {
             repository.applyFilters(sanitized)
-            refreshPosts(currentTopic)
+            if (filterRemoved) {
+                refreshPosts(refreshedTopic)
+            }
         }
     }
 

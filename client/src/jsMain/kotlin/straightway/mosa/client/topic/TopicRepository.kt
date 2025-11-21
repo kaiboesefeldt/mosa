@@ -35,16 +35,19 @@ class TopicRepository(
 
     suspend fun applyFilters(filters: Map<String, Float>) {
         val sanitizedFilters = TopicFilters.sanitize(filters)
+        val clearedTopics = mutableListOf<String>()
         val updated =
             all().map { topic ->
                 val nextFilter = sanitizedFilters[topic.title]
                 if (topic.scoreMustBeAbove == nextFilter) {
                     topic
                 } else {
+                    clearedTopics += topic.title
                     topic.copy(scoreMustBeAbove = nextFilter)
                 }
             }
         store.save(updated)
+        clearedTopics.forEach { topic -> postCache.clear(topic) }
         cache = updated
     }
 }
