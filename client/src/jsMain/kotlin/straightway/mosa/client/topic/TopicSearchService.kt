@@ -25,6 +25,11 @@ class TopicSearchService(
     private val postCache: PostCache,
     private val logger: Logger,
 ) {
+    suspend fun clearCache(topic: Topic) {
+        runCatching { postCache.clear(topic.title) }
+            .onFailure { logger.warn("Topic cache clear failed for ${topic.title}", it) }
+    }
+
     suspend fun fetchFor(topics: List<Topic>): List<TopicPosts> {
         if (topics.isEmpty()) return emptyList()
         val snapshots =

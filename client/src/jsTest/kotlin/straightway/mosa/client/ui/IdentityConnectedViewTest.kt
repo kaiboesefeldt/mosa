@@ -188,7 +188,7 @@ class IdentityConnectedViewTest {
     }
 
     @Test
-    fun `shows cached posts when filter removed`() = runTest {
+    fun `reloads posts when filter removed`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val podAccess =
             RecordingPodAccess(
@@ -209,11 +209,8 @@ class IdentityConnectedViewTest {
         assertEquals(1, podAccess.queryInvocations.size)
 
         user.click(filterResetButton(view.container)).await()
-        repeat(10) {
-            delay(20)
-            assertEquals(1, view.container.querySelectorAll(".post-card").length)
-        }
-        assertEquals(1, podAccess.queryInvocations.size)
+        waitForCondition { podAccess.queryInvocations.size == 2 }
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
     }
 
     @Test

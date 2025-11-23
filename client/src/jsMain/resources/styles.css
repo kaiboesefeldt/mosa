@@ -611,6 +611,12 @@ button:disabled {
     gap: 0.75rem;
 }
 
+.topic-board__column-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .topic-board__column-title {
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -667,6 +673,11 @@ button:disabled {
     text-transform: uppercase;
     letter-spacing: 0.04em;
     font-weight: 600;
+}
+
+.topic-board__reload {
+    width: 36px;
+    height: 36px;
 }
 
 .topic-board__add-button {

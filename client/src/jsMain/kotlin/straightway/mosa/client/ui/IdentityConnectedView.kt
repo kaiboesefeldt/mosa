@@ -246,20 +246,33 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    fun toggleTopicFilter(topic: Topic, entry: QueryResult.Entry) {
-        val currentScore = topicFilters[topic.title]
-        val updated =
-            if (currentScore != null && currentScore == entry.similarity) {
-                topicFilters - topic.title
-            } else {
-                topicFilters + (topic.title to entry.similarity)
-            }
-        persistFilters(updated)
-    }
-
     fun clearTopicFilter(topic: Topic) {
         if (!topicFilters.containsKey(topic.title)) return
         persistFilters(topicFilters - topic.title)
+        val clearedTopic = topic.copy(scoreMustBeAbove = null)
+        scope.launch {
+            searchService.clearCache(clearedTopic)
+            if (selectedTopic?.title == topic.title) {
+                refreshPosts(clearedTopic)
+            }
+        }
+    }
+
+    fun toggleTopicFilter(topic: Topic, entry: QueryResult.Entry) {
+        val currentScore = topicFilters[topic.title]
+        if (currentScore != null && currentScore == entry.similarity) {
+            clearTopicFilter(topic)
+            return
+        }
+        persistFilters(topicFilters + (topic.title to entry.similarity))
+    }
+
+    fun reloadActiveTopic() {
+        val topic = selectedTopic ?: return
+        scope.launch {
+            searchService.clearCache(topic)
+            refreshPosts(topic)
+        }
     }
 
     div {
@@ -304,6 +317,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 activeFilters = topicFilters,
                 onToggleFilter = ::toggleTopicFilter,
                 onClearFilter = ::clearTopicFilter,
+                onReload = ::reloadActiveTopic,
+                canReload = selectedTopic != null,
             )
             placeholderColumn(
                 title = translator.translate("connected.replies.title"),
@@ -422,41 +437,59 @@ private fun ChildrenBuilder.postsColumn(
     activeFilters: Map<String, Float>,
     onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
     onClearFilter: (Topic) -> Unit,
+    onReload: () -> Unit,
+    canReload: Boolean,
 ) = div {
     className = ClassName("topic-board__column topic-board__column--posts")
     val activeFilterTopic =
         posts.firstNotNullOfOrNull { topicPosts ->
             activeFilters[topicPosts.topic.title]?.let { topicPosts.topic to it }
         }
+    val reloadLabel = translator.translate("connected.posts.reload")
     div {
         className = ClassName("topic-board__column-header")
         span {
             className = ClassName("topic-board__column-title")
             +translator.translate("connected.posts.title")
         }
-        if (activeFilterTopic != null) {
-            val (filterTopic, filterScore) = activeFilterTopic
-            val filterLabel =
-                translator.translate(
-                    "connected.posts.filter.active",
-                    mapOf("value" to formatSimilarity(filterScore)),
-                )
-            val clearLabel = translator.translate("connected.posts.filter.clear")
-            div {
-                className = ClassName("topic-board__filter-indicator")
+        div {
+            className = ClassName("topic-board__column-actions")
+            if (canReload) {
                 button {
-                    className = ClassName("topic-board__filter-reset")
-                    ariaLabel = clearLabel
-                    title = clearLabel
-                    onClick = { onClearFilter(filterTopic) }
+                    className = ClassName("button button--icon topic-board__reload")
+                    ariaLabel = reloadLabel
+                    title = reloadLabel
+                    disabled = isLoading
+                    onClick = { onReload() }
                     i {
-                        className =
-                            ClassName("fa fa-solid fa-arrows-up-to-line topic-board__filter-reset-icon")
+                        className = ClassName("fa fa-solid fa-rotate-right")
                     }
                 }
-                span {
-                    className = ClassName("topic-board__filter-value")
-                    +filterLabel
+            }
+            if (activeFilterTopic != null) {
+                val (filterTopic, filterScore) = activeFilterTopic
+                val filterLabel =
+                    translator.translate(
+                        "connected.posts.filter.active",
+                        mapOf("value" to formatSimilarity(filterScore)),
+                    )
+                val clearLabel = translator.translate("connected.posts.filter.clear")
+                div {
+                    className = ClassName("topic-board__filter-indicator")
+                    button {
+                        className = ClassName("topic-board__filter-reset")
+                        ariaLabel = clearLabel
+                        title = clearLabel
+                        onClick = { onClearFilter(filterTopic) }
+                        i {
+                            className =
+                                ClassName("fa fa-solid fa-arrows-up-to-line topic-board__filter-reset-icon")
+                        }
+                    }
+                    span {
+                        className = ClassName("topic-board__filter-value")
+                        +filterLabel
+                    }
                 }
             }
         }

@@ -22,6 +22,7 @@
   "connected.posts.title": "Posts",
   "connected.posts.empty": "No posts found.",
   "connected.posts.loading": "Loading posts...",
+  "connected.posts.reload": "Reload posts",
   "connected.posts.similarity": "Similarity: {{value}}",
   "connected.posts.timestamp": "Timestamp: {{value}}",
   "connected.posts.filter.apply": "Hide lower-scoring posts",
