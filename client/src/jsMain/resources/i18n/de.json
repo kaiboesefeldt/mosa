@@ -22,7 +22,6 @@
   "connected.posts.title": "Beiträge",
   "connected.posts.empty": "Keine Beiträge gefunden.",
   "connected.posts.loading": "Beiträge werden geladen...",
-  "connected.posts.reload": "Beiträge neu laden",
   "connected.posts.similarity": "Ähnlichkeit: {{value}}",
   "connected.posts.timestamp": "Zeitstempel: {{value}}",
   "connected.posts.filter.apply": "Beiträge mit geringerem Score ausblenden",

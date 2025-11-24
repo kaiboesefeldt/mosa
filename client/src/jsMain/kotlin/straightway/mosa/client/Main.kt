@@ -26,6 +26,7 @@ fun main() {
 
 private val IdentityApp = FC<Props> {
     when (val screen = useIdentitySession()) {
+        IdentityScreen.Loading -> Unit
         is IdentityScreen.Connected ->
             IdentityConnectedView {
                 identityName = screen.identityName

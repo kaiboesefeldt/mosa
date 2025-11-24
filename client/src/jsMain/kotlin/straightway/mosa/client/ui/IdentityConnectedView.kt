@@ -267,14 +267,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         persistFilters(topicFilters + (topic.title to entry.similarity))
     }
 
-    fun reloadActiveTopic() {
-        val topic = selectedTopic ?: return
-        scope.launch {
-            searchService.clearCache(topic)
-            refreshPosts(topic)
-        }
-    }
-
     div {
         className = ClassName("connected-shell")
         div {
@@ -317,8 +309,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 activeFilters = topicFilters,
                 onToggleFilter = ::toggleTopicFilter,
                 onClearFilter = ::clearTopicFilter,
-                onReload = ::reloadActiveTopic,
-                canReload = selectedTopic != null,
             )
             placeholderColumn(
                 title = translator.translate("connected.replies.title"),
@@ -437,15 +427,12 @@ private fun ChildrenBuilder.postsColumn(
     activeFilters: Map<String, Float>,
     onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
     onClearFilter: (Topic) -> Unit,
-    onReload: () -> Unit,
-    canReload: Boolean,
 ) = div {
     className = ClassName("topic-board__column topic-board__column--posts")
     val activeFilterTopic =
         posts.firstNotNullOfOrNull { topicPosts ->
             activeFilters[topicPosts.topic.title]?.let { topicPosts.topic to it }
         }
-    val reloadLabel = translator.translate("connected.posts.reload")
     div {
         className = ClassName("topic-board__column-header")
         span {
@@ -454,18 +441,6 @@ private fun ChildrenBuilder.postsColumn(
         }
         div {
             className = ClassName("topic-board__column-actions")
-            if (canReload) {
-                button {
-                    className = ClassName("button button--icon topic-board__reload")
-                    ariaLabel = reloadLabel
-                    title = reloadLabel
-                    disabled = isLoading
-                    onClick = { onReload() }
-                    i {
-                        className = ClassName("fa fa-solid fa-rotate-right")
-                    }
-                }
-            }
             if (activeFilterTopic != null) {
                 val (filterTopic, filterScore) = activeFilterTopic
                 val filterLabel =

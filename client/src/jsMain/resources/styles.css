@@ -675,11 +675,6 @@ button:disabled {
     font-weight: 600;
 }
 
-.topic-board__reload {
-    width: 36px;
-    height: 36px;
-}
-
 .topic-board__add-button {
     padding: 0.35rem 0.9rem;
     font-size: 0.85rem;

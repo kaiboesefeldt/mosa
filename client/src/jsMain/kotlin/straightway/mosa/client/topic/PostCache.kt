@@ -5,42 +5,6 @@ import straightway.mosa.client.util.getOrElseLogOrThrowCancellation
 import straightway.mosa.client.util.onFailureLogOrThrowCancellation
 import straightway.mosa.content.QueryResult
 
-internal const val postCacheDatabaseName = "mosa-topic-post-cache"
-internal const val postCacheTopicsDatabaseName = "mosa-topic-post-cache-topics"
-internal const val postCacheEntriesStoreName = "topic-post-cache-entries"
-internal const val postCacheTopicsStoreName = "topic-post-cache-topics"
-internal const val postCacheStoredAtIndexName = "stored-at-index"
-internal const val postCacheSchemaVersion: Short = 1
-internal const val postCacheEvictionRatio = 0.05
-
-data class CachedPost(
-    val id: String,
-    val content: String,
-    val authorGID: String,
-    val storedAt: Long,
-    val rootId: String? = null,
-)
-
-data class TopicScopedPost(
-    val post: CachedPost,
-    val similarity: Float,
-) {
-    fun asQueryResultEntry(): QueryResult.Entry =
-        QueryResult.Entry(
-            id = post.id,
-            content = post.content,
-            similarity = similarity,
-            authorGID = post.authorGID,
-            storedAt = post.storedAt,
-            rootId = post.rootId,
-        )
-}
-
-data class PostCacheSnapshot(
-    val entries: List<TopicScopedPost>,
-    val lastFetchedAt: Long?,
-)
-
 interface PostCache {
     suspend fun snapshot(topic: String): PostCacheSnapshot
     suspend fun append(topic: String, entries: List<QueryResult.Entry>): PostCacheSnapshot
@@ -75,7 +39,10 @@ internal class IndexedDbPostCache(
 
     override suspend fun clear(topic: String) {
         runCatching { topicStore.clear(topic) }
-            .onFailureLogOrThrowCancellation(logger, "IndexedDB topic cache clear failed for $topic")
+            .onFailureLogOrThrowCancellation(
+                logger,
+                "IndexedDB topic cache clear failed for $topic"
+            )
     }
 
     private suspend fun snapshotInternal(topic: String): PostCacheSnapshot {
@@ -118,13 +85,13 @@ internal class IndexedDbPostCache(
         val lastFetchedAt = entries.maxOfOrNull { it.storedAt }
         return PostCacheSnapshot(deduped, lastFetchedAt)
     }
-}
 
-private fun QueryResult.Entry.toCachedPost(): CachedPost =
-    CachedPost(
-        id = id,
-        content = content,
-        authorGID = authorGID,
-        storedAt = storedAt,
-        rootId = rootId,
-    )
+    private fun QueryResult.Entry.toCachedPost(): CachedPost =
+        CachedPost(
+            id = id,
+            content = content,
+            authorGID = authorGID,
+            storedAt = storedAt,
+            rootId = rootId,
+        )
+}

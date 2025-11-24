@@ -167,6 +167,15 @@ internal class TopicEntryStore(
         val name = dynamic?.name as? String
         return name == "QuotaExceededError"
     }
+
+    companion object {
+        internal const val postCacheDatabaseName = "mosa-topic-post-cache"
+        internal const val postCacheEntriesStoreName = "topic-post-cache-entries"
+        internal const val postCacheStoredAtIndexName = "stored-at-index"
+        internal const val postCacheSchemaVersion: Short = 1
+        internal const val postCacheEvictionRatio = 0.05
+
+    }
 }
 
 internal data class EntryResolution(

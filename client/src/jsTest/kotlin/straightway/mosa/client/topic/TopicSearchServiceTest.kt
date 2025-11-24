@@ -300,7 +300,7 @@ private class StaticIdentityRepository(
 
     override suspend fun deleteCurrent(): IdentitySelection = identitySelection()
 
-    override suspend fun select(index: Int): IdentitySelection? = identitySelection()
+    override suspend fun select(index: Int): IdentitySelection = identitySelection()
 
     override suspend fun import(identity: Identity): IdentitySelection = identitySelection()
 

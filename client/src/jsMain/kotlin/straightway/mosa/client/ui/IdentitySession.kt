@@ -19,6 +19,8 @@ import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
 
 sealed interface IdentityScreen {
+    data object Loading : IdentityScreen
+
     data class Profile(
         val identityNameParts: FictionalName,
         val identityAvatar: String?,
@@ -126,6 +128,8 @@ fun useIdentitySession(): IdentityScreen {
             )
         is IdentitySessionViewState.Profile ->
             viewState.toScreen()
+        IdentitySessionViewState.Loading ->
+            IdentityScreen.Loading
     }
 }
 

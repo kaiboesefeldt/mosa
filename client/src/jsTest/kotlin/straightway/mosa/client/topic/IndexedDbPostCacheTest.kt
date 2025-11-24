@@ -1,11 +1,12 @@
 package straightway.mosa.client.topic
 
-import kotlinx.browser.window
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.runTest
 import straightway.mosa.client.identity.IndexedDbAsyncBridge
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.test.ensureStacktraceMapperInstalled
+import straightway.mosa.client.topic.TopicEntryStore.Companion.postCacheDatabaseName
+import straightway.mosa.client.topic.TopicEntryStore.Companion.postCacheEntriesStoreName
 import straightway.mosa.content.QueryResult
 import kotlin.coroutines.resume
 import kotlin.js.asDynamic
@@ -34,7 +35,7 @@ class IndexedDbPostCacheTest {
 
     @Test
     fun `snapshot returns empty view without persisted data`() =
-        runCacheTest { cache, _ ->
+        runCacheTest { cache, _, _ ->
             val snapshot = cache.snapshot("topic")
             assertTrue(snapshot.entries.isEmpty())
             assertNull(snapshot.lastFetchedAt)
@@ -42,7 +43,7 @@ class IndexedDbPostCacheTest {
 
     @Test
     fun `append stores entries and snapshot loads them`() =
-        runCacheTest { cache, _ ->
+        runCacheTest { cache, _, _ ->
             val entries =
                 listOf(
                     entry("first", similarity = 0.2f, storedAt = 20),
@@ -52,9 +53,6 @@ class IndexedDbPostCacheTest {
             val appended = cache.append("topic", entries)
             assertEquals(listOf("second", "first"), appended.entries.map { it.post.id })
             assertEquals(listOf("first", "second"), storedEntryIds().sorted())
-            val topicRecord =
-                storedTopicRecord("topic")
-                    ?: fail("Missing topic record. Existing topics: ${storedTopicKeys().joinToString()}")
             val snapshot = cache.snapshot("topic")
 
             assertEquals(listOf("second", "first"), snapshot.entries.map { it.post.id })
@@ -63,7 +61,7 @@ class IndexedDbPostCacheTest {
 
     @Test
     fun `topic specific similarity overrides entry payload`() =
-        runCacheTest { cache, _ ->
+        runCacheTest { cache, _, _ ->
             cache.append("alpha", listOf(entry("shared", similarity = 0.2f, storedAt = 10)))
             cache.append("beta", listOf(entry("shared", similarity = 0.85f, storedAt = 15)))
 
@@ -74,7 +72,7 @@ class IndexedDbPostCacheTest {
 
     @Test
     fun `snapshot removes missing entry references`() =
-        runCacheTest { cache, _ ->
+        runCacheTest { cache, _, _ ->
             cache.append("topic", listOf(entry("orphaned", similarity = 0.4f, storedAt = 10)))
             deleteEntry("orphaned")
 
@@ -85,7 +83,7 @@ class IndexedDbPostCacheTest {
 
     @Test
     fun `append updates similarity for existing ids`() =
-        runCacheTest { cache, _ ->
+        runCacheTest { cache, _, _ ->
             cache.append("topic", listOf(entry("post", similarity = 0.1f, storedAt = 10)))
 
             cache.append("topic", listOf(entry("post", similarity = 0.8f, storedAt = 12)))
@@ -97,7 +95,7 @@ class IndexedDbPostCacheTest {
 
     @Test
     fun `evicts oldest entries when exceeding limit`() =
-        runCacheTest(maxEntries = 5) { cache, _ ->
+        runCacheTest(maxEntries = 5) { cache, _, _ ->
             val entries = (1..7).map { index ->
                 entry("p$index", similarity = index.toFloat(), storedAt = index.toLong())
             }
@@ -111,7 +109,7 @@ class IndexedDbPostCacheTest {
 
     @Test
     fun `clear removes cached topic data`() =
-        runCacheTest { cache, _ ->
+        runCacheTest { cache, _, _ ->
             cache.append("topic", listOf(entry("post", similarity = 0.5f, storedAt = 10)))
 
             cache.clear("topic")
@@ -119,6 +117,18 @@ class IndexedDbPostCacheTest {
 
             assertTrue(snapshot.entries.isEmpty())
             assertNull(snapshot.lastFetchedAt)
+        }
+
+    @Test
+    fun `topic cache resets after creating fresh reference store`() =
+        runCacheTest { cache, logger, entryStore ->
+            cache.append("topic", listOf(entry("post", similarity = 0.6f, storedAt = 10)))
+
+            val freshStore = TopicReferenceStore()
+            val reloadedCache = IndexedDbPostCache(entryStore, freshStore, logger)
+            val snapshot = reloadedCache.snapshot("topic")
+
+            assertTrue(snapshot.entries.isEmpty())
         }
 
     private fun entry(id: String, similarity: Float, storedAt: Long): QueryResult.Entry =
@@ -154,7 +164,6 @@ class IndexedDbPostCacheTest {
     private suspend fun clearDatabase() {
         val factory = indexedDb()
         suspendOnOpenRequest(factory.deleteDatabase(postCacheDatabaseName))
-        suspendOnOpenRequest(factory.deleteDatabase(postCacheTopicsDatabaseName))
     }
 
     private suspend fun suspendOnOpenRequest(request: IDBOpenDBRequest) {
@@ -169,15 +178,15 @@ class IndexedDbPostCacheTest {
 
     private fun runCacheTest(
         maxEntries: Int = 10_000,
-        block: suspend (IndexedDbPostCache, RecordingLogger) -> Unit,
+        block: suspend (IndexedDbPostCache, RecordingLogger, TopicEntryStore) -> Unit,
     ) = runTest {
         clearDatabase()
         val logger = RecordingLogger()
         val entryStore = TopicEntryStore(indexedDb(), asyncBridge, maxEntries)
-        val referenceStore = TopicReferenceStore(indexedDb(), asyncBridge, logger)
+        val referenceStore = TopicReferenceStore()
         val cache = IndexedDbPostCache(entryStore, referenceStore, logger)
         try {
-            block(cache, logger)
+            block(cache, logger, entryStore)
             assertTrue(logger.errorMessages.isEmpty(), "Cache errors: ${logger.errorMessages}")
             assertTrue(logger.warningMessages.isEmpty(), "Cache warnings: ${logger.warningMessages}")
         } finally {
@@ -195,36 +204,6 @@ class IndexedDbPostCacheTest {
             val records = asyncBridge.awaitRequest<Array<dynamic>>(store.getAll())
             asyncBridge.awaitTransaction(transaction)
             return records.mapNotNull { entry -> entry?.id as? String }
-        } finally {
-            database.close()
-        }
-    }
-
-    private suspend fun storedTopicRecord(topic: String): dynamic {
-        val factory = indexedDb()
-        val database = asyncBridge.awaitRequest<IDBDatabase>(factory.open(postCacheTopicsDatabaseName))
-        try {
-            if (!database.objectStoreNames.contains(postCacheTopicsStoreName)) return null
-            val transaction = database.transaction(postCacheTopicsStoreName, IDBTransactionMode.readonly)
-            val store = transaction.objectStore(postCacheTopicsStoreName)
-            val record = asyncBridge.awaitRequest<dynamic?>(store.get(IDBValidKey(topic)))
-            asyncBridge.awaitTransaction(transaction)
-            return record
-        } finally {
-            database.close()
-        }
-    }
-
-    private suspend fun storedTopicKeys(): List<String> {
-        val factory = indexedDb()
-        val database = asyncBridge.awaitRequest<IDBDatabase>(factory.open(postCacheTopicsDatabaseName))
-        try {
-            if (!database.objectStoreNames.contains(postCacheTopicsStoreName)) return emptyList()
-            val transaction = database.transaction(postCacheTopicsStoreName, IDBTransactionMode.readonly)
-            val store = transaction.objectStore(postCacheTopicsStoreName)
-            val records = asyncBridge.awaitRequest<Array<dynamic>>(store.getAll())
-            asyncBridge.awaitTransaction(transaction)
-            return records.mapNotNull { entry -> entry?.topic as? String }
         } finally {
             database.close()
         }

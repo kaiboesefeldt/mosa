@@ -26,8 +26,9 @@ class IdentitySessionStateMachine(
     private var isBusy = false
     private var errorText: String? = null
     private var isConnected = false
+    private var isRestoring = true
 
-    private val _state = MutableStateFlow<IdentitySessionViewState>(initialViewState())
+    private val _state = MutableStateFlow<IdentitySessionViewState>(IdentitySessionViewState.Loading)
     val state: StateFlow<IdentitySessionViewState> = _state
 
     init {
@@ -110,6 +111,7 @@ class IdentitySessionStateMachine(
         identityAvatar = visuals.avatar
         errorText = null
         restoreConnection(selection)
+        finishRestoring()
         publishState()
         persistSession(profileVisibleOverride = profileVisibleOverride)
     }
@@ -120,28 +122,14 @@ class IdentitySessionStateMachine(
     }
 
     private fun publishState() {
+        if (isRestoring) return
         _state.value = if (isConnected) connectedState() else profileViewState()
     }
 
-    private fun initialViewState(): IdentitySessionViewState =
-        if (isConnected) connectedState() else initialProfileState()
-
-    private fun initialProfileState(): IdentitySessionViewState.Profile =
-        IdentitySessionViewState.Profile(
-            identityNameParts = identityNameParts,
-            identityAvatar = identityAvatar,
-            isBusy = isBusy,
-            errorText = null,
-            canDelete = false,
-            canNavigatePrevious = false,
-            canNavigateNext = false,
-            isShowingLastIdentity = false,
-            identityIndex = 0,
-            identityTotal = 1,
-            canConnect = false,
-            canDownload = false,
-            canUpload = true,
-        )
+    private fun finishRestoring() {
+        if (!isRestoring) return
+        isRestoring = false
+    }
 
     private fun profileViewState(): IdentitySessionViewState.Profile =
         IdentitySessionViewState.Profile(
@@ -189,6 +177,7 @@ class IdentitySessionStateMachine(
 
     private fun handleFailure(error: Throwable) {
         errorText = errorMessage(error)
+        finishRestoring()
         publishState()
     }
 
@@ -199,6 +188,7 @@ class IdentitySessionStateMachine(
         resetConnection()
         identityNameParts = placeholderName(textProvider.failedToPrepare(message))
         errorText = message
+        finishRestoring()
         publishState()
     }
 
@@ -210,7 +200,7 @@ class IdentitySessionStateMachine(
     private suspend fun persistSession(profileVisibleOverride: Boolean? = null) {
         val connectedGid = currentSelection?.identity?.gid?.takeIf { isConnected }
         val current = sessionStore.load()
-        val isProfileVisible = profileVisibleOverride ?: current?.isProfileVisible ?: false
+        val isProfileVisible: Boolean = profileVisibleOverride ?: current?.isProfileVisible ?: false
         sessionStore.save(IdentitySessionSnapshot(connectedGid, isProfileVisible))
     }
 
