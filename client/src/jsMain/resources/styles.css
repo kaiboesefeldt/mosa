@@ -347,7 +347,7 @@ button:disabled {
 
 .connected-shell {
     width: 100%;
-    min-height: 100vh;
+    height: 100vh;
     padding: var(--page-padding);
     border-radius: 0;
     border: none;
@@ -358,6 +358,7 @@ button:disabled {
     grid-template-rows: auto 1fr;
     align-content: start;
     gap: 1.75rem;
+    overflow: hidden;
 }
 
 .connected-shell__header {
@@ -463,6 +464,9 @@ button:disabled {
     gap: 1.5rem;
     width: min(1200px, 100%);
     margin: 0 auto;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .composer-button {
@@ -597,7 +601,9 @@ button:disabled {
     border-radius: 22px;
     border: 1px solid var(--color-border);
     background: rgba(248, 250, 252, 0.95);
-    min-height: 320px;
+    min-height: 0;
+    height: 100%;
+    overflow-y: auto;
 }
 
 .topic-board__column--topics {
