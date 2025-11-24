@@ -1,4 +1,4 @@
-package straightway.mosa.client.topic
+package straightway.mosa.client.content
 
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlin.js.asDynamic
@@ -15,7 +15,7 @@ import web.idb.readonly
 import web.idb.readwrite
 
 @OptIn(ExperimentalWasmJsInterop::class)
-internal class TopicEntryStore(
+class TopicEntryStore(
     private val indexedDb: IDBFactory?,
     private val asyncBridge: IndexedDbAsyncBridge,
     private val maxEntries: Int,
@@ -41,8 +41,8 @@ internal class TopicEntryStore(
         val missing = mutableListOf<String>()
         try {
             val transaction =
-                database.transaction(postCacheEntriesStoreName, IDBTransactionMode.readonly)
-            val store = transaction.objectStore(postCacheEntriesStoreName)
+                database.transaction(POST_CACHE_ENTRIES_STORE_NAME, IDBTransactionMode.readonly)
+            val store = transaction.objectStore(POST_CACHE_ENTRIES_STORE_NAME)
             references.forEach { ref ->
                 val payload = asyncBridge.awaitRequest<dynamic?>(store.get(entryKey(ref.id)))
                 val decoded = decodeEntry(payload)
@@ -65,16 +65,15 @@ internal class TopicEntryStore(
     ) {
         while (true) {
             val transaction =
-                database.transaction(postCacheEntriesStoreName, IDBTransactionMode.readwrite)
-            val store = transaction.objectStore(postCacheEntriesStoreName)
+                database.transaction(POST_CACHE_ENTRIES_STORE_NAME, IDBTransactionMode.readwrite)
+            val store = transaction.objectStore(POST_CACHE_ENTRIES_STORE_NAME)
             val request = store.put(encodeEntry(entry))
             val result =
                 runCatching {
                     asyncBridge.awaitRequest<Any?>(request)
                     asyncBridge.awaitTransaction(transaction)
                 }
-            val failure = result.exceptionOrNull()
-            if (failure == null) return
+            val failure = result.exceptionOrNull() ?: return
             if (!isQuotaError(failure)) throw failure
             val currentCount = countEntries(database)
             val removalCount = calculateEvictionCount(currentCount)
@@ -93,8 +92,8 @@ internal class TopicEntryStore(
 
     private suspend fun countEntries(database: IDBDatabase): Int {
         val transaction =
-            database.transaction(postCacheEntriesStoreName, IDBTransactionMode.readonly)
-        val store = transaction.objectStore(postCacheEntriesStoreName)
+            database.transaction(POST_CACHE_ENTRIES_STORE_NAME, IDBTransactionMode.readonly)
+        val store = transaction.objectStore(POST_CACHE_ENTRIES_STORE_NAME)
         val count = asyncBridge.awaitRequest<Double>(store.count()).toInt()
         asyncBridge.awaitTransaction(transaction)
         return count
@@ -106,35 +105,35 @@ internal class TopicEntryStore(
     ) {
         if (limit <= 0) return
         val transaction =
-            database.transaction(postCacheEntriesStoreName, IDBTransactionMode.readwrite)
-        val store = transaction.objectStore(postCacheEntriesStoreName)
-        val index = store.index(postCacheStoredAtIndexName)
+            database.transaction(POST_CACHE_ENTRIES_STORE_NAME, IDBTransactionMode.readwrite)
+        val store = transaction.objectStore(POST_CACHE_ENTRIES_STORE_NAME)
+        val index = store.index(POST_CACHE_STORED_AT_INDEX_NAME)
         val keys = asyncBridge.awaitRequest<Array<IDBValidKey>>(index.getAllKeys(count = limit))
         keys.forEach { key -> asyncBridge.awaitRequest<Any?>(store.delete(key)) }
         asyncBridge.awaitTransaction(transaction)
     }
 
     private fun calculateEvictionCount(currentCount: Int): Int =
-        max(1, (currentCount * postCacheEvictionRatio).toInt())
+        max(1, (currentCount * POST_CACHE_EVICTION_RATIO).toInt())
 
     private suspend fun openDatabase(): IDBDatabase? {
         val factory = indexedDb ?: return null
-        val request = factory.open(postCacheDatabaseName, postCacheSchemaVersion.toDouble())
+        val request = factory.open(POST_CACHE_DATABASE_NAME, POST_CACHE_SCHEMA_VERSION.toDouble())
         request.asDynamic().onupgradeneeded = {
             val db = request.result
-            if (!db.objectStoreNames.contains(postCacheEntriesStoreName)) {
+            if (!db.objectStoreNames.contains(POST_CACHE_ENTRIES_STORE_NAME)) {
                 val entriesStore =
                     db.createObjectStore(
-                        postCacheEntriesStoreName,
+                        POST_CACHE_ENTRIES_STORE_NAME,
                         js("{ keyPath: 'id' }"),
                     )
-                entriesStore.createIndex(postCacheStoredAtIndexName, "storedAt")
+                entriesStore.createIndex(POST_CACHE_STORED_AT_INDEX_NAME, "storedAt")
             }
         }
         val database = asyncBridge.awaitRequest<IDBDatabase>(request)
-        if (!database.objectStoreNames.contains(postCacheEntriesStoreName)) {
+        if (!database.objectStoreNames.contains(POST_CACHE_ENTRIES_STORE_NAME)) {
             database.close()
-            asyncBridge.awaitRequest<Any?>(factory.deleteDatabase(postCacheDatabaseName))
+            asyncBridge.awaitRequest<Any?>(factory.deleteDatabase(POST_CACHE_DATABASE_NAME))
             return openDatabase()
         }
         return database
@@ -169,16 +168,12 @@ internal class TopicEntryStore(
     }
 
     companion object {
-        internal const val postCacheDatabaseName = "mosa-topic-post-cache"
-        internal const val postCacheEntriesStoreName = "topic-post-cache-entries"
-        internal const val postCacheStoredAtIndexName = "stored-at-index"
-        internal const val postCacheSchemaVersion: Short = 1
-        internal const val postCacheEvictionRatio = 0.05
+        internal const val POST_CACHE_DATABASE_NAME = "mosa-topic-post-cache"
+        internal const val POST_CACHE_ENTRIES_STORE_NAME = "topic-post-cache-entries"
+        internal const val POST_CACHE_STORED_AT_INDEX_NAME = "stored-at-index"
+        internal const val POST_CACHE_SCHEMA_VERSION: Short = 1
+        internal const val POST_CACHE_EVICTION_RATIO = 0.05
 
     }
 }
 
-internal data class EntryResolution(
-    val resolved: List<CachedPost>,
-    val missingIds: List<String>,
-)

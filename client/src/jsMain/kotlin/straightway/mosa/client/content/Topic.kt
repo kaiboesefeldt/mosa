@@ -1,4 +1,4 @@
-package straightway.mosa.client.topic
+package straightway.mosa.client.content
 
 data class Topic(
     val title: String,

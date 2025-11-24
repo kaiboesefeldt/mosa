@@ -1,8 +1,8 @@
-package straightway.mosa.client.topic
+package straightway.mosa.client.content
 
 import straightway.mosa.content.QueryResult
 
-internal class TopicReferenceStore {
+class TopicReferenceStore {
     private val topics = mutableMapOf<String, TopicRecord>()
 
     fun load(topic: String): TopicRecord? = topics[topic]
@@ -39,12 +39,3 @@ internal class TopicReferenceStore {
     }
 }
 
-internal data class TopicEntryRef(
-    val id: String,
-    val similarity: Float,
-)
-
-internal data class TopicRecord(
-    val entries: List<TopicEntryRef>,
-    val lastFetchedAt: Long?,
-)

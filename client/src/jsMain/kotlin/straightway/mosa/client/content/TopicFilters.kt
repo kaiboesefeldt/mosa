@@ -1,4 +1,4 @@
-package straightway.mosa.client.topic
+package straightway.mosa.client.content
 
 object TopicFilters {
     fun sanitize(filters: Map<String, Float>): Map<String, Float> =

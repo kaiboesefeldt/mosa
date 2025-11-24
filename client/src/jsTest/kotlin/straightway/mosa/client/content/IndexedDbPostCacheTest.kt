@@ -1,12 +1,12 @@
-package straightway.mosa.client.topic
+package straightway.mosa.client.content
 
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.runTest
 import straightway.mosa.client.identity.IndexedDbAsyncBridge
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.test.ensureStacktraceMapperInstalled
-import straightway.mosa.client.topic.TopicEntryStore.Companion.postCacheDatabaseName
-import straightway.mosa.client.topic.TopicEntryStore.Companion.postCacheEntriesStoreName
+import straightway.mosa.client.content.TopicEntryStore.Companion.POST_CACHE_DATABASE_NAME
+import straightway.mosa.client.content.TopicEntryStore.Companion.POST_CACHE_ENTRIES_STORE_NAME
 import straightway.mosa.content.QueryResult
 import kotlin.coroutines.resume
 import kotlin.js.asDynamic
@@ -142,11 +142,11 @@ class IndexedDbPostCacheTest {
 
     private suspend fun deleteEntry(id: String) {
         val factory = indexedDb()
-        val request = factory.open(postCacheDatabaseName)
+        val request = factory.open(POST_CACHE_DATABASE_NAME)
         val database = asyncBridge.awaitRequest<IDBDatabase>(request)
         try {
-            val transaction = database.transaction(postCacheEntriesStoreName, IDBTransactionMode.readwrite)
-            val store = transaction.objectStore(postCacheEntriesStoreName)
+            val transaction = database.transaction(POST_CACHE_ENTRIES_STORE_NAME, IDBTransactionMode.readwrite)
+            val store = transaction.objectStore(POST_CACHE_ENTRIES_STORE_NAME)
             asyncBridge.awaitRequest<Any?>(store.delete(IDBValidKey(id)))
             asyncBridge.awaitTransaction(transaction)
         } finally {
@@ -163,7 +163,7 @@ class IndexedDbPostCacheTest {
 
     private suspend fun clearDatabase() {
         val factory = indexedDb()
-        suspendOnOpenRequest(factory.deleteDatabase(postCacheDatabaseName))
+        suspendOnOpenRequest(factory.deleteDatabase(POST_CACHE_DATABASE_NAME))
     }
 
     private suspend fun suspendOnOpenRequest(request: IDBOpenDBRequest) {
@@ -196,11 +196,11 @@ class IndexedDbPostCacheTest {
 
     private suspend fun storedEntryIds(): List<String> {
         val factory = indexedDb()
-        val database = asyncBridge.awaitRequest<IDBDatabase>(factory.open(postCacheDatabaseName))
+        val database = asyncBridge.awaitRequest<IDBDatabase>(factory.open(POST_CACHE_DATABASE_NAME))
         try {
-            if (!database.objectStoreNames.contains(postCacheEntriesStoreName)) return emptyList()
-            val transaction = database.transaction(postCacheEntriesStoreName, IDBTransactionMode.readonly)
-            val store = transaction.objectStore(postCacheEntriesStoreName)
+            if (!database.objectStoreNames.contains(POST_CACHE_ENTRIES_STORE_NAME)) return emptyList()
+            val transaction = database.transaction(POST_CACHE_ENTRIES_STORE_NAME, IDBTransactionMode.readonly)
+            val store = transaction.objectStore(POST_CACHE_ENTRIES_STORE_NAME)
             val records = asyncBridge.awaitRequest<Array<dynamic>>(store.getAll())
             asyncBridge.awaitTransaction(transaction)
             return records.mapNotNull { entry -> entry?.id as? String }

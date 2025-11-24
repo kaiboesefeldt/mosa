@@ -1,21 +1,10 @@
-package straightway.mosa.client.topic
+package straightway.mosa.client.content
 
-import straightway.mosa.auth.PodCertificate
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.logging.Logger
-import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.content.QueryRequest
-import straightway.mosa.content.QueryResult
-
-typealias PodAccessFactory = (String) -> PodAccess
-typealias JwtBuilder = suspend (Identity, PodCertificate) -> String
-
-data class TopicPosts(
-    val topic: Topic,
-    val entries: List<QueryResult.Entry>,
-)
 
 class TopicSearchService(
     private val identityRepository: IdentitySelectionRepository,

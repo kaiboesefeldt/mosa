@@ -1,17 +1,11 @@
-package straightway.mosa.client.topic
+package straightway.mosa.client.content
 
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.util.getOrElseLogOrThrowCancellation
 import straightway.mosa.client.util.onFailureLogOrThrowCancellation
 import straightway.mosa.content.QueryResult
 
-interface PostCache {
-    suspend fun snapshot(topic: String): PostCacheSnapshot
-    suspend fun append(topic: String, entries: List<QueryResult.Entry>): PostCacheSnapshot
-    suspend fun clear(topic: String)
-}
-
-internal class IndexedDbPostCache(
+class IndexedDbPostCache(
     private val entryStore: TopicEntryStore,
     private val topicStore: TopicReferenceStore,
     private val logger: Logger,

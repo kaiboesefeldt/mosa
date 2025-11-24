@@ -1,4 +1,4 @@
-package straightway.mosa.client.topic
+package straightway.mosa.client.content
 
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
