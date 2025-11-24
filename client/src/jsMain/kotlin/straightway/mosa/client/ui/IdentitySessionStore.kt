@@ -16,6 +16,7 @@ import web.idb.readwrite
 data class IdentitySessionSnapshot(
     val connectedIdentityGid: String?,
     val isProfileVisible: Boolean,
+    val selectedTopicTitle: String? = null,
 )
 
 interface IdentitySessionStore {
@@ -94,6 +95,7 @@ class BrowserIdentitySessionStore(
                 json(
                     "connectedIdentityGid" to snapshot.connectedIdentityGid,
                     "isProfileVisible" to snapshot.isProfileVisible,
+                    "selectedTopicTitle" to snapshot.selectedTopicTitle,
                 )
             )
 
@@ -112,7 +114,13 @@ class BrowserIdentitySessionStore(
                     isObject -> (parsed.isProfileVisible as? Boolean) ?: false
                     else -> false
                 }
-            return IdentitySessionSnapshot(gid, isProfileVisible)
+            val selectedTopicTitle =
+                when {
+                    parsed is String -> null
+                    isObject -> (parsed.selectedTopicTitle as? String)?.takeUnless(String::isBlank)
+                    else -> null
+                }
+            return IdentitySessionSnapshot(gid, isProfileVisible, selectedTopicTitle)
         }
     }
 }

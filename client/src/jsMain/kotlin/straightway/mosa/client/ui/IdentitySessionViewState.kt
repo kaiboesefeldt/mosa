@@ -3,6 +3,8 @@ package straightway.mosa.client.ui
 import straightway.mosa.identity.FictionalName
 
 sealed interface IdentitySessionViewState {
+    data object Loading : IdentitySessionViewState
+
     data class Profile(
         val identityNameParts: FictionalName,
         val identityAvatar: String?,

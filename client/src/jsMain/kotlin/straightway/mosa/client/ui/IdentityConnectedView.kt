@@ -25,12 +25,12 @@ import react.useRef
 import react.useState
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
-import straightway.mosa.client.topic.Topic
-import straightway.mosa.client.topic.TopicRepository
-import straightway.mosa.client.topic.TopicPosts
-import straightway.mosa.client.topic.TopicSearchService
-import straightway.mosa.client.topic.PostPublisher
-import straightway.mosa.client.topic.TopicFilters
+import straightway.mosa.client.content.Topic
+import straightway.mosa.client.content.TopicRepository
+import straightway.mosa.client.content.TopicPosts
+import straightway.mosa.client.content.TopicSearchService
+import straightway.mosa.client.content.PostPublisher
+import straightway.mosa.client.content.TopicFilters
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
 import web.cssom.ClassName
@@ -71,6 +71,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             val snapshot = runCatching { sessionStore.load() }.getOrNull()
             setProfileVisible(snapshot?.isProfileVisible ?: false)
         }
+    }
+
+    suspend fun persistSessionSnapshot(
+        builder: (IdentitySessionSnapshot?) -> IdentitySessionSnapshot,
+    ) {
+        val currentSnapshot = runCatching { sessionStore.load() }.getOrNull()
+        sessionStore.save(builder(currentSnapshot))
     }
 
     fun updateTopicFilterState(filters: Map<String, Float>) {
@@ -131,10 +138,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         if (sanitized == topicFilters) return
         updateTopicFilterState(sanitized)
         setTopicFilters(sanitized)
-        val currentTopic = selectedTopic
         scope.launch {
             repository.applyFilters(sanitized)
-            refreshPosts(currentTopic)
         }
     }
 
@@ -142,6 +147,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         if (topic == selectedTopic) return
         setSelectedTopic(topic)
         scope.launch {
+            persistSessionSnapshot { snapshot ->
+                IdentitySessionSnapshot(
+                    connectedIdentityGid = snapshot?.connectedIdentityGid,
+                    isProfileVisible = snapshot?.isProfileVisible ?: false,
+                    selectedTopicTitle = topic?.title,
+                )
+            }
             refreshPosts(topic)
         }
     }
@@ -152,7 +164,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             setTopics(loadedTopics)
             val filters = filtersFromTopics(loadedTopics)
             setTopicFilters(filters)
-            selectTopic(loadedTopics.firstOrNull())
+            val snapshot = runCatching { sessionStore.load() }.getOrNull()
+            val storedSelection = snapshot?.selectedTopicTitle
+            val initialSelection =
+                loadedTopics.firstOrNull { it.title == storedSelection } ?: loadedTopics.firstOrNull()
+            selectTopic(initialSelection)
         }
     }
 
@@ -169,13 +185,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     fun persistProfileVisibility(visible: Boolean) {
         setProfileVisible(visible)
         scope.launch {
-            val currentSnapshot = runCatching { sessionStore.load() }.getOrNull()
-            sessionStore.save(
+            persistSessionSnapshot { snapshot ->
                 IdentitySessionSnapshot(
-                    connectedIdentityGid = currentSnapshot?.connectedIdentityGid,
+                    connectedIdentityGid = snapshot?.connectedIdentityGid,
                     isProfileVisible = visible,
-                ),
-            )
+                    selectedTopicTitle = snapshot?.selectedTopicTitle,
+                )
+            }
         }
     }
 
@@ -248,20 +264,25 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    fun toggleTopicFilter(topic: Topic, entry: QueryResult.Entry) {
-        val currentScore = topicFilters[topic.title]
-        val updated =
-            if (currentScore != null && currentScore == entry.similarity) {
-                topicFilters - topic.title
-            } else {
-                topicFilters + (topic.title to entry.similarity)
-            }
-        persistFilters(updated)
-    }
-
     fun clearTopicFilter(topic: Topic) {
         if (!topicFilters.containsKey(topic.title)) return
         persistFilters(topicFilters - topic.title)
+        val clearedTopic = topic.copy(scoreMustBeAbove = null)
+        scope.launch {
+            searchService.clearCache(clearedTopic)
+            if (selectedTopic?.title == topic.title) {
+                refreshPosts(clearedTopic)
+            }
+        }
+    }
+
+    fun toggleTopicFilter(topic: Topic, entry: QueryResult.Entry) {
+        val currentScore = topicFilters[topic.title]
+        if (currentScore != null && currentScore == entry.similarity) {
+            clearTopicFilter(topic)
+            return
+        }
+        persistFilters(topicFilters + (topic.title to entry.similarity))
     }
 
     div {
@@ -436,29 +457,32 @@ private fun ChildrenBuilder.postsColumn(
             className = ClassName("topic-board__column-title")
             +translator.translate("connected.posts.title")
         }
-        if (activeFilterTopic != null) {
-            val (filterTopic, filterScore) = activeFilterTopic
-            val filterLabel =
-                translator.translate(
-                    "connected.posts.filter.active",
-                    mapOf("value" to formatSimilarity(filterScore)),
-                )
-            val clearLabel = translator.translate("connected.posts.filter.clear")
-            div {
-                className = ClassName("topic-board__filter-indicator")
-                button {
-                    className = ClassName("topic-board__filter-reset")
-                    ariaLabel = clearLabel
-                    title = clearLabel
-                    onClick = { onClearFilter(filterTopic) }
-                    i {
-                        className =
-                            ClassName("fa fa-solid fa-arrows-up-to-line topic-board__filter-reset-icon")
+        div {
+            className = ClassName("topic-board__column-actions")
+            if (activeFilterTopic != null) {
+                val (filterTopic, filterScore) = activeFilterTopic
+                val filterLabel =
+                    translator.translate(
+                        "connected.posts.filter.active",
+                        mapOf("value" to formatSimilarity(filterScore)),
+                    )
+                val clearLabel = translator.translate("connected.posts.filter.clear")
+                div {
+                    className = ClassName("topic-board__filter-indicator")
+                    button {
+                        className = ClassName("topic-board__filter-reset")
+                        ariaLabel = clearLabel
+                        title = clearLabel
+                        onClick = { onClearFilter(filterTopic) }
+                        i {
+                            className =
+                                ClassName("fa fa-solid fa-arrows-up-to-line topic-board__filter-reset-icon")
+                        }
                     }
-                }
-                span {
-                    className = ClassName("topic-board__filter-value")
-                    +filterLabel
+                    span {
+                        className = ClassName("topic-board__filter-value")
+                        +filterLabel
+                    }
                 }
             }
         }

@@ -4,6 +4,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.browser.window
 import kotlinx.coroutines.await
 import kotlinx.coroutines.delay
@@ -32,13 +33,17 @@ import straightway.mosa.client.testing.RenderResult
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.render
 import straightway.mosa.client.testing.userEvent
-import straightway.mosa.client.topic.JwtBuilder
-import straightway.mosa.client.topic.PodAccessFactory
-import straightway.mosa.client.topic.Topic
-import straightway.mosa.client.topic.TopicRepository
-import straightway.mosa.client.topic.TopicSearchService
-import straightway.mosa.client.topic.TopicStore
-import straightway.mosa.client.topic.PostPublisher
+import straightway.mosa.client.content.JwtBuilder
+import straightway.mosa.client.content.PodAccessFactory
+import straightway.mosa.client.content.CachedPost
+import straightway.mosa.client.content.PostCache
+import straightway.mosa.client.content.PostCacheSnapshot
+import straightway.mosa.client.content.TopicScopedPost
+import straightway.mosa.client.content.Topic
+import straightway.mosa.client.content.TopicRepository
+import straightway.mosa.client.content.TopicSearchService
+import straightway.mosa.client.content.TopicStore
+import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalName
@@ -159,6 +164,37 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `restores selected topic from session store`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses =
+                    mapOf(
+                        "Alpha" to queryResult("p1"),
+                        "Beta" to queryResult("p2"),
+                    ),
+            )
+        overrideDependencies(
+            topics =
+                listOf(
+                    Topic("Alpha"),
+                    Topic("Beta"),
+                ),
+            podAccess = podAccess,
+        )
+        sessionStore.save(IdentitySessionSnapshot("gid-1", false, "Beta"))
+
+        val view = renderConnectedView()
+
+        waitForCondition { podAccess.queryInvocations.isNotEmpty() }
+        waitForCondition { view.container.querySelectorAll(".topic-card").length == 2 }
+        assertEquals(listOf("Beta"), podAccess.queryInvocations.map { it.topic })
+        waitForCondition { topicCard(view.container, "Beta").classList.contains("topic-card--selected") }
+        val selected = topicCard(view.container, "Beta")
+        assertTrue(selected.classList.contains("topic-card--selected"))
+    }
+
+    @Test
     fun `queries pod only when selection changes`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val podAccess =
@@ -181,6 +217,67 @@ class IdentityConnectedViewTest {
         delay(50)
 
         assertEquals(1, podAccess.queryInvocations.size)
+    }
+
+    @Test
+    fun `reloads posts when filter removed`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { podAccess.queryInvocations.size == 1 }
+        waitForCondition { view.container.querySelector(".post-card__filter") != null }
+        user.click(filterButton(view.container)).await()
+        waitForCondition { view.container.querySelector(".topic-board__filter-indicator") != null }
+        delay(100)
+        assertEquals(1, podAccess.queryInvocations.size)
+
+        user.click(filterResetButton(view.container)).await()
+        waitForCondition { podAccess.queryInvocations.size == 2 }
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+    }
+
+    @Test
+    fun `does not reload filtered topic when reselected`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses =
+                    mapOf(
+                        "Alpha" to queryResult("p1"),
+                        "Beta" to queryResult("p2"),
+                    ),
+            )
+        overrideDependencies(
+            topics =
+                listOf(
+                    Topic("Alpha"),
+                    Topic("Beta"),
+                ),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { podAccess.queryInvocations.size == 1 }
+        waitForCondition { view.container.querySelector(".post-card__filter") != null }
+        user.click(filterButton(view.container)).await()
+        waitForCondition { view.container.querySelector(".topic-board__filter-indicator") != null }
+        waitForCondition { view.container.querySelectorAll(".topic-card").length == 2 }
+        user.click(topicCard(view.container, "Beta")).await()
+        waitForCondition { podAccess.queryInvocations.size == 2 }
+
+        user.click(topicCard(view.container, "Alpha")).await()
+        delay(100)
+        assertEquals(2, podAccess.queryInvocations.size)
     }
 
     @Test
@@ -304,6 +401,12 @@ class IdentityConnectedViewTest {
         topicCard(container, title).querySelector(".topic-card__delete")
             ?: error("Delete button for $title missing")
 
+    private fun filterButton(container: Element): Element =
+        container.querySelector(".post-card__filter") ?: error("Filter button missing")
+
+    private fun filterResetButton(container: Element): Element =
+        container.querySelector(".topic-board__filter-reset") ?: error("Filter reset button missing")
+
     private fun overrideDependencies(
         topics: List<Topic>,
         podAccess: RecordingPodAccess,
@@ -323,14 +426,15 @@ class IdentityConnectedViewTest {
                 single { FictionalNameGenerator() }
                 single { DiceBearAvatarGenerator() }
                 single<TopicStore> { InMemoryTopicStore(topics) }
-                single { TopicRepository(get()) }
+                single<PostCache> { InMemoryPostCache() }
+                single { TopicRepository(get(), get()) }
                 single<IdentitySelectionRepository> { StaticIdentityRepository(identityForTests) }
                 single { PodBaseProvider() }
                 single<PodAccessFactory> { { podAccess } }
                 single<JwtBuilder> { { _, _ -> "jwt" } }
                 single<Logger> { RecordingLogger() }
                 single { PostPublisher(get(), get(), get(), get(), get()) }
-                single { TopicSearchService(get(), get(), get(), get(), get()) }
+                single { TopicSearchService(get(), get(), get(), get(), get(), get()) }
             }
                 startKoin { modules(module) }
         sessionStore = ConnectedViewTestInjector.get<IdentitySessionStore>() as ConnectedViewIdentitySessionStore
@@ -453,6 +557,44 @@ private class InMemoryTopicStore(
     override suspend fun save(topics: List<Topic>) {
         this.topics = topics
     }
+}
+
+private class InMemoryPostCache : PostCache {
+    private val snapshots = mutableMapOf<String, PostCacheSnapshot>()
+
+    override suspend fun snapshot(topic: String): PostCacheSnapshot =
+        snapshots[topic] ?: PostCacheSnapshot(emptyList(), null)
+
+    override suspend fun append(topic: String, entries: List<QueryResult.Entry>): PostCacheSnapshot {
+        val current = snapshots[topic]
+        if (entries.isEmpty()) {
+            return current ?: PostCacheSnapshot(emptyList(), null)
+        }
+        val merged =
+            (current?.entries.orEmpty().map { it.asQueryResultEntry() } + entries)
+                .associateBy { it.id }
+                .values
+                .sortedByDescending { it.similarity }
+                .map { entry -> entry.toCacheEntry() }
+        val lastFetchedAt = entries.maxOfOrNull { it.storedAt } ?: current?.lastFetchedAt
+        return PostCacheSnapshot(merged, lastFetchedAt).also { snapshots[topic] = it }
+    }
+
+    override suspend fun clear(topic: String) {
+        snapshots.remove(topic)
+    }
+
+    private fun QueryResult.Entry.toCacheEntry(): TopicScopedPost =
+        TopicScopedPost(
+            CachedPost(
+                id = id,
+                content = content,
+                authorGID = authorGID,
+                storedAt = storedAt,
+                rootId = rootId,
+            ),
+            similarity,
+        )
 }
 
 private class StaticIdentityRepository(

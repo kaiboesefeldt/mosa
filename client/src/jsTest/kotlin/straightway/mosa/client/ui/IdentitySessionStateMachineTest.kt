@@ -21,15 +21,22 @@ import straightway.mosa.identity.FictionalName
 
 class IdentitySessionStateMachineTest {
     @Test
-    fun `initial state shows connection when session persists gid`() = runMachineTest {
+    fun `initial state stays loading until refresh completes`() = runMachineTest {
         val identity = identity("gid-a")
         val repository = FakeIdentitySelectionRepository(identity)
         val store = RecordingIdentitySessionStore(IdentitySessionSnapshot(identity.gid, false))
 
         val machine = createMachine(repository, store)
         advanceUntilIdle()
-        val state = machine.state.value
-        assertTrue(state is IdentitySessionViewState.Connected)
+
+        val initialState = machine.state.value
+        assertTrue(initialState is IdentitySessionViewState.Loading)
+
+        machine.refresh()
+        advanceUntilIdle()
+
+        val restoringState = machine.state.value
+        assertTrue(restoringState is IdentitySessionViewState.Connected)
     }
 
     @Test

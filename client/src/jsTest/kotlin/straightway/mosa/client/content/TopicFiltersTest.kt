@@ -1,4 +1,4 @@
-package straightway.mosa.client.topic
+package straightway.mosa.client.content
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

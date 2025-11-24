@@ -1,4 +1,4 @@
-package straightway.mosa.client.topic
+package straightway.mosa.client.content
 
 import kotlin.js.ExperimentalWasmJsInterop
 import straightway.mosa.client.identity.IndexedDbAsyncBridge

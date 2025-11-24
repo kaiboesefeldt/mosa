@@ -1,7 +1,8 @@
-package straightway.mosa.client.topic
+package straightway.mosa.client.content
 
 class TopicRepository(
     private val store: TopicStore,
+    private val postCache: PostCache,
 ) {
     private var cache: List<Topic>? = null
 
@@ -23,8 +24,11 @@ class TopicRepository(
     }
 
     suspend fun remove(topic: Topic): List<Topic> {
-        val updated = all().filterNot { it.title == topic.title }
+        val current = all()
+        val updated = current.filterNot { it.title == topic.title }
+        if (updated.size == current.size) return current
         store.save(updated)
+        postCache.clear(topic.title)
         cache = updated
         return updated
     }
@@ -34,11 +38,8 @@ class TopicRepository(
         val updated =
             all().map { topic ->
                 val nextFilter = sanitizedFilters[topic.title]
-                if (topic.scoreMustBeAbove == nextFilter) {
-                    topic
-                } else {
-                    topic.copy(scoreMustBeAbove = nextFilter)
-                }
+                if (topic.scoreMustBeAbove == nextFilter) return@map topic
+                topic.copy(scoreMustBeAbove = nextFilter)
             }
         store.save(updated)
         cache = updated

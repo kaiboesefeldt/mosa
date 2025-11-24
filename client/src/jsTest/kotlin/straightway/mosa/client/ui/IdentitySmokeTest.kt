@@ -7,7 +7,6 @@ import kotlin.test.assertNotEquals
 import kotlinx.coroutines.await
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
-import org.koin.core.module.Module
 import org.koin.dsl.module
 import org.koin.core.context.GlobalContext
 import org.w3c.dom.Element
@@ -25,8 +24,6 @@ import straightway.mosa.client.testing.RenderResult
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.render
 import straightway.mosa.client.testing.userEvent
-import straightway.mosa.client.ui.IdentitySessionSnapshot
-import straightway.mosa.client.ui.IdentitySessionStore
 import straightway.mosa.client.util.Base64.toBase64Url
 
 class IdentitySmokeTest {
@@ -219,6 +216,7 @@ private data class IdentitySnapshot(
 
 private val IdentitySmokeApp = FC<Props> {
     when (val screen = useIdentitySession()) {
+        IdentityScreen.Loading -> Unit
         is IdentityScreen.Connected ->
             IdentityConnectedView {
                 identityName = screen.identityName
