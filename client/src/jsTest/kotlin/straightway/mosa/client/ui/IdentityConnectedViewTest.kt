@@ -4,6 +4,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.browser.window
 import kotlinx.coroutines.await
 import kotlinx.coroutines.delay
@@ -160,6 +161,37 @@ class IdentityConnectedViewTest {
         waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
         val postContent = view.container.querySelector(".post-card__content")?.textContent?.trim()
         assertEquals("content-p2", postContent)
+    }
+
+    @Test
+    fun `restores selected topic from session store`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses =
+                    mapOf(
+                        "Alpha" to queryResult("p1"),
+                        "Beta" to queryResult("p2"),
+                    ),
+            )
+        overrideDependencies(
+            topics =
+                listOf(
+                    Topic("Alpha"),
+                    Topic("Beta"),
+                ),
+            podAccess = podAccess,
+        )
+        sessionStore.save(IdentitySessionSnapshot("gid-1", false, "Beta"))
+
+        val view = renderConnectedView()
+
+        waitForCondition { podAccess.queryInvocations.isNotEmpty() }
+        waitForCondition { view.container.querySelectorAll(".topic-card").length == 2 }
+        assertEquals(listOf("Beta"), podAccess.queryInvocations.map { it.topic })
+        waitForCondition { topicCard(view.container, "Beta").classList.contains("topic-card--selected") }
+        val selected = topicCard(view.container, "Beta")
+        assertTrue(selected.classList.contains("topic-card--selected"))
     }
 
     @Test

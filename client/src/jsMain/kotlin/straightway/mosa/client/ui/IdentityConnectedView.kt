@@ -73,6 +73,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
+    suspend fun persistSessionSnapshot(
+        builder: (IdentitySessionSnapshot?) -> IdentitySessionSnapshot,
+    ) {
+        val currentSnapshot = runCatching { sessionStore.load() }.getOrNull()
+        sessionStore.save(builder(currentSnapshot))
+    }
+
     fun updateTopicFilterState(filters: Map<String, Float>) {
         if (topics.isEmpty()) return
         val nextTopics =
@@ -140,6 +147,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         if (topic == selectedTopic) return
         setSelectedTopic(topic)
         scope.launch {
+            persistSessionSnapshot { snapshot ->
+                IdentitySessionSnapshot(
+                    connectedIdentityGid = snapshot?.connectedIdentityGid,
+                    isProfileVisible = snapshot?.isProfileVisible ?: false,
+                    selectedTopicTitle = topic?.title,
+                )
+            }
             refreshPosts(topic)
         }
     }
@@ -150,7 +164,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             setTopics(loadedTopics)
             val filters = filtersFromTopics(loadedTopics)
             setTopicFilters(filters)
-            selectTopic(loadedTopics.firstOrNull())
+            val snapshot = runCatching { sessionStore.load() }.getOrNull()
+            val storedSelection = snapshot?.selectedTopicTitle
+            val initialSelection =
+                loadedTopics.firstOrNull { it.title == storedSelection } ?: loadedTopics.firstOrNull()
+            selectTopic(initialSelection)
         }
     }
 
@@ -167,13 +185,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     fun persistProfileVisibility(visible: Boolean) {
         setProfileVisible(visible)
         scope.launch {
-            val currentSnapshot = runCatching { sessionStore.load() }.getOrNull()
-            sessionStore.save(
+            persistSessionSnapshot { snapshot ->
                 IdentitySessionSnapshot(
-                    connectedIdentityGid = currentSnapshot?.connectedIdentityGid,
+                    connectedIdentityGid = snapshot?.connectedIdentityGid,
                     isProfileVisible = visible,
-                ),
-            )
+                    selectedTopicTitle = snapshot?.selectedTopicTitle,
+                )
+            }
         }
     }
 

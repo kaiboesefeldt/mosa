@@ -201,7 +201,13 @@ class IdentitySessionStateMachine(
         val connectedGid = currentSelection?.identity?.gid?.takeIf { isConnected }
         val current = sessionStore.load()
         val isProfileVisible: Boolean = profileVisibleOverride ?: current?.isProfileVisible ?: false
-        sessionStore.save(IdentitySessionSnapshot(connectedGid, isProfileVisible))
+        sessionStore.save(
+            IdentitySessionSnapshot(
+                connectedIdentityGid = connectedGid,
+                isProfileVisible = isProfileVisible,
+                selectedTopicTitle = current?.selectedTopicTitle,
+            )
+        )
     }
 
     private fun resetConnection() {
