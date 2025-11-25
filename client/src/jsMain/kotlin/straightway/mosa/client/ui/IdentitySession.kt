@@ -40,6 +40,8 @@ sealed interface IdentityScreen {
         val onSelect: (Int) -> Unit,
         val canDownload: Boolean,
         val onDownload: () -> Unit,
+        val canCopy: Boolean,
+        val onCopy: () -> Unit,
         val canUpload: Boolean,
         val onUpload: () -> Unit,
     ) : IdentityScreen
@@ -116,6 +118,8 @@ fun useIdentitySession(): IdentityScreen {
             onSelect = { index -> machine.select(index) },
             canDownload = canDownload,
             onDownload = { machine.downloadIdentity() },
+            canCopy = canCopy,
+            onCopy = { machine.copyIdentityToClipboard() },
             canUpload = canUpload,
             onUpload = { machine.uploadIdentity() },
         )

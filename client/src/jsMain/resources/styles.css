@@ -76,6 +76,7 @@ button:disabled {
     box-shadow: var(--shadow-elevated);
     display: grid;
     gap: 1.75rem;
+    position: relative;
 }
 
 .profile-dialog__header {
@@ -267,6 +268,31 @@ button:disabled {
 .profile-dialog__actions {
     display: grid;
     gap: 0.75rem;
+}
+
+.profile-dialog__toast {
+    position: absolute;
+    left: 50%;
+    bottom: -1.25rem;
+    transform: translate(-50%, 100%);
+    padding: 0.75rem 1.15rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.92);
+    color: var(--color-text-inverse);
+    font-weight: 600;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.3);
+    animation: toast-rise 200ms ease-out;
+}
+
+@keyframes toast-rise {
+    from {
+        transform: translate(-50%, 130%);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, 100%);
+        opacity: 1;
+    }
 }
 
 .button {

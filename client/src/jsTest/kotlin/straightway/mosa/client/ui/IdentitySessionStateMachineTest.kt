@@ -186,6 +186,8 @@ private object TestLogger : Logger {
 private object NoopIdentityTransferPort : IdentityTransferPort {
     override suspend fun download(identity: Identity, fileBaseName: String) = Unit
 
+    override suspend fun copyToClipboard(identity: Identity) = Unit
+
     override suspend fun upload(): Identity? = null
 }
 

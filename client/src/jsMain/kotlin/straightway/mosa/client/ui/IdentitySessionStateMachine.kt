@@ -83,6 +83,17 @@ class IdentitySessionStateMachine(
         }
     }
 
+    fun copyIdentityToClipboard() {
+        val selection = currentSelection ?: return
+        scope.launch {
+            runCatching {
+                transfer.copyToClipboard(selection.identity)
+            }.onFailure {
+                logger.error("Identity copy failed", it)
+            }
+        }
+    }
+
     fun uploadIdentity() {
         runExclusive("Identity upload failed") {
             val imported = transfer.upload() ?: return@runExclusive
@@ -145,6 +156,7 @@ class IdentitySessionStateMachine(
             identityTotal = currentSelection?.total ?: 1,
             canConnect = currentSelection != null,
             canDownload = currentSelection != null,
+            canCopy = currentSelection != null,
             canUpload = true,
         )
 

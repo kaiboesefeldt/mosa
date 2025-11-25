@@ -1,6 +1,7 @@
 package straightway.mosa.client.ui
 
 import kotlinx.browser.document
+import kotlinx.browser.window
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.w3c.dom.events.Event
@@ -29,6 +30,7 @@ external interface IdentityProfileViewProps : Props {
     var identityTotal: Int
     var canConnect: Boolean
     var canDownload: Boolean
+    var canCopy: Boolean
     var canUpload: Boolean
     var onConnect: () -> Unit
     var onPrevious: () -> Unit
@@ -36,6 +38,7 @@ external interface IdentityProfileViewProps : Props {
     var onDelete: () -> Unit
     var onSelect: (Int) -> Unit
     var onDownload: () -> Unit
+    var onCopy: () -> Unit
     var onUpload: () -> Unit
     var onClose: (() -> Unit)?
 }
@@ -46,7 +49,19 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
     val boundedIndex = props.identityIndex.coerceIn(0, totalItems - 1)
     val activeSegment = if (totalItems <= 1) 0 else boundedIndex
     val (areToolsVisible, setToolsVisible) = useState(false)
+    val (isCopyFeedbackVisible, setCopyFeedbackVisible) = useState(false)
     val toolActions = IdentityToolsPresenter.present(props.toIdentityToolsCapabilities())
+    val toolActionsWithFeedback =
+        toolActions.map { action ->
+            if (action.ariaKey == "button.identity.copy.aria") {
+                action.copy(onTrigger = {
+                    action.onTrigger()
+                    setCopyFeedbackVisible(true)
+                })
+            } else {
+                action
+            }
+        }
 
     useEffect(arrayOf(areToolsVisible)) {
         if (!areToolsVisible) return@useEffect
@@ -58,6 +73,10 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
             }
         document.addEventListener("pointerdown", listener)
         { document.removeEventListener("pointerdown", listener) }
+    }
+    useEffect(arrayOf(isCopyFeedbackVisible)) {
+        if (!isCopyFeedbackVisible) return@useEffect
+        window.setTimeout({ setCopyFeedbackVisible(false) }, 1800)
     }
     div {
         className = ClassName("profile-overlay")
@@ -74,7 +93,7 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
             identityCarousel(
                 translator = translator,
                 props = props,
-                toolActions = toolActions,
+                toolActions = toolActionsWithFeedback,
                 areToolsVisible = areToolsVisible,
                 onToggleTools = { setToolsVisible { current -> !current } },
                 onCloseTools = { setToolsVisible(false) },
@@ -99,6 +118,12 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                     +translator.translate("button.connect.label")
                 }
             }
+            if (isCopyFeedbackVisible) {
+                div {
+                    className = ClassName("profile-dialog__toast")
+                    +translator.translate("identity.copy.success")
+                }
+            }
         }
     }
 }
@@ -109,9 +134,11 @@ private fun IdentityProfileViewProps.toIdentityToolsCapabilities(): IdentityTool
     IdentityToolsCapabilities(
         canDelete = canDelete,
         canDownload = canDownload,
+        canCopy = canCopy,
         canUpload = canUpload,
         onDelete = onDelete,
         onDownload = onDownload,
+        onCopy = onCopy,
         onUpload = onUpload,
     )
 
@@ -128,6 +155,7 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
     identityTotal = screen.identityTotal
     canConnect = screen.canConnect
     canDownload = screen.canDownload
+    canCopy = screen.canCopy
     canUpload = screen.canUpload
     onConnect = screen.onConnect
     onPrevious = screen.onPrevious
@@ -135,5 +163,6 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
     onDelete = screen.onDelete
     onSelect = screen.onSelect
     onDownload = screen.onDownload
+    onCopy = screen.onCopy
     onUpload = screen.onUpload
 }

@@ -484,6 +484,8 @@ private fun placeholderProfile(): IdentityScreen.Profile =
         onSelect = {},
         canDownload = false,
         onDownload = {},
+        canCopy = false,
+        onCopy = {},
         canUpload = false,
         onUpload = {},
     )

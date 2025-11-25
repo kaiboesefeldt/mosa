@@ -1,6 +1,7 @@
 package straightway.mosa.client.identity
 
 import kotlinx.browser.document
+import kotlinx.coroutines.await
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.w3c.dom.HTMLAnchorElement
 import org.w3c.dom.HTMLInputElement
@@ -12,17 +13,29 @@ import org.w3c.files.FileReader
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.js.Promise
+import kotlin.js.unsafeCast
 import straightway.mosa.client.browser.ObjectUrlFactory
+import web.clipboard.writeText
+import web.navigator.Navigator
+import web.navigator.navigator
 
 interface IdentityTransferPort {
     suspend fun download(identity: Identity, fileBaseName: String)
     suspend fun upload(): Identity?
+    suspend fun copyToClipboard(identity: Identity)
 }
 
 class IdentityTransferService(
     private val codec: IdentityTransferCodec,
     private val urlFactory: ObjectUrlFactory,
 ) : IdentityTransferPort {
+    override suspend fun copyToClipboard(identity: Identity) {
+        val clipboard = navigatorOrNull()?.clipboard ?: error("Clipboard not available")
+        val json = codec.encode(identity)
+        clipboard.writeText(json).unsafeCast<Promise<Unit>>().await()
+    }
+
     override suspend fun download(identity: Identity, fileBaseName: String) {
         val json = codec.encode(identity)
         val blob = Blob(arrayOf(json), BlobPropertyBag(type = "application/json"))
@@ -97,4 +110,14 @@ class IdentityTransferService(
             }
             reader.readAsText(file)
         }
+
+    private companion object {
+        @Suppress("UnsafeCastFromDynamic")
+        private fun navigatorOrNull(): Navigator? =
+            if (js("typeof navigator === 'undefined'") as Boolean) {
+                null
+            } else {
+                navigator
+            }
+    }
 }
