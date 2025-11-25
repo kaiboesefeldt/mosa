@@ -11,16 +11,12 @@ import react.Props
 import react.dom.events.MouseEvent
 import react.dom.html.ReactHTML.button
 import react.dom.html.ReactHTML.div
-import react.dom.html.ReactHTML.input
 import react.useEffect
-import react.useRef
 import react.useState
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.identity.FictionalName
 import web.cssom.ClassName
 import web.clipboard.ClipboardEvent
-import web.events.EventType
-import web.html.HTMLInputElement
 
 external interface IdentityProfileViewProps : Props {
     var identityNameParts: FictionalName
@@ -58,7 +54,6 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
     val activeSegment = if (totalItems <= 1) 0 else boundedIndex
     val (areToolsVisible, setToolsVisible) = useState(false)
     val (isCopyFeedbackVisible, setCopyFeedbackVisible) = useState(false)
-    val pasteTargetRef = useRef<HTMLInputElement>()
     val toolActions = IdentityToolsPresenter.present(props.toIdentityToolsCapabilities())
     val toolActionsWithFeedback =
         toolActions.map { action ->
@@ -68,14 +63,7 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                     setCopyFeedbackVisible(true)
                 })
             } else if (action.ariaKey == "button.identity.paste.aria") {
-                action.copy(onTrigger = {
-                    if (!triggerNativePaste(pasteTargetRef.current) { content ->
-                            props.onPasteContent(content)
-                        }
-                    ) {
-                        action.onTrigger()
-                    }
-                })
+                action.copy(onTrigger = action.onTrigger)
             } else {
                 action
             }
@@ -154,13 +142,6 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                     +translator.translate("identity.copy.success")
                 }
             }
-            input {
-                ref = pasteTargetRef
-                className = ClassName("profile-dialog__paste-target")
-                ariaHidden = true
-                tabIndex = -1
-                hidden = true
-            }
         }
     }
 }
@@ -211,28 +192,3 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
 
 private fun Event.asPasteEvent(): ClipboardEvent? =
     this as? ClipboardEvent
-
-private fun triggerNativePaste(target: HTMLInputElement?, onContent: (String) -> Unit): Boolean {
-    if (target == null) return false
-    var handled = false
-    val listener: (ClipboardEvent) -> Unit = { event ->
-        val content = event.clipboardData?.getData("text/plain").orEmpty()
-        if (content.isNotBlank()) {
-            event.preventDefault()
-            handled = true
-            onContent(content)
-        }
-    }
-    target.hidden = false
-    target.style.position = "fixed"
-    target.style.left = "-10000px"
-    target.style.top = "-10000px"
-    target.style.opacity = "0"
-    target.style.pointerEvents = "none"
-    target.asDynamic().addEventListener("paste", listener)
-    target.focus()
-    val executed = runCatching { document.execCommand("paste") }.getOrDefault(false)
-    target.asDynamic().removeEventListener("paste", listener)
-    target.hidden = true
-    return handled || executed
-}
