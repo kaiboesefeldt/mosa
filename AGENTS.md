@@ -77,6 +77,7 @@
 - In KotlinJs tests, use `runTest`.
 - Strictly handle one minimal test case per test.
 - Make sure, tests DON'T succeed, only because preconditions are NOT met (e.g. `val c = createComponent() ?: return@runTest)`.
+- Always finish work by running `./gradlew check`.
 - Name tests using kotlin's backtick notation, e.g. "fun `invokes connect handler when interaction finishes`()"
 - It is OK to make minor, functionally neutral changes to production code to simplify testing
 
