@@ -6,6 +6,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.w3c.dom.events.Event
 import org.w3c.dom.events.EventListener
+import org.w3c.dom.events.KeyboardEvent
 import react.FC
 import react.Props
 import react.dom.events.MouseEvent
@@ -95,6 +96,18 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
         }
         window.addEventListener("paste", listener)
         { window.removeEventListener("paste", listener) }
+    }
+    useEffect(arrayOf(props.onCopy, props.canCopy, props.isBusy)) {
+        val listener: (Event) -> Unit = listener@ { event ->
+            val keyboardEvent = event.asKeyboardEvent() ?: return@listener
+            if (keyboardEvent.repeat || !keyboardEvent.isSystemCopyShortcut()) return@listener
+            if (props.isBusy || !props.canCopy) return@listener
+            keyboardEvent.preventDefault()
+            props.onCopy()
+            setCopyFeedbackVisible(true)
+        }
+        window.addEventListener("keydown", listener)
+        { window.removeEventListener("keydown", listener) }
     }
     div {
         className = ClassName("profile-overlay")
@@ -192,3 +205,9 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
 
 private fun Event.asPasteEvent(): ClipboardEvent? =
     this as? ClipboardEvent
+
+private fun Event.asKeyboardEvent(): KeyboardEvent? =
+    this as? KeyboardEvent
+
+private fun KeyboardEvent.isSystemCopyShortcut(): Boolean =
+    (ctrlKey || metaKey) && !altKey && key.lowercase() == "c"

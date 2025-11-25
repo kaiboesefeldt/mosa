@@ -5,6 +5,7 @@ import kotlinx.coroutines.await
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.w3c.dom.HTMLAnchorElement
 import org.w3c.dom.HTMLInputElement
+import org.w3c.dom.HTMLTextAreaElement
 import org.w3c.dom.events.Event
 import org.w3c.files.Blob
 import org.w3c.files.BlobPropertyBag
@@ -35,9 +36,10 @@ class IdentityTransferService(
     private val urlFactory: ObjectUrlFactory,
 ) : IdentityTransferPort {
     override suspend fun copyToClipboard(identity: Identity) {
-        val clipboard = navigatorOrNull()?.clipboard ?: error("Clipboard not available")
+        val clipboard = navigatorOrNull()?.clipboard
         val json = codec.encode(identity)
-        clipboard.writeText(json).unsafeCast<Promise<Unit>>().await()
+        if (copyTextToClipboard(json, clipboard)) return
+        throw InvalidIdentityTransferException("Clipboard write is not allowed")
     }
 
     override suspend fun pasteFromClipboard(): Identity {
@@ -171,3 +173,36 @@ class InvalidIdentityTransferException(
     message: String,
     cause: Throwable? = null,
 ) : RuntimeException(message, cause)
+
+internal suspend fun awaitClipboardWrite(writeResult: Any?) {
+    val promise = writeResult as? Promise<*>
+    promise?.unsafeCast<Promise<Unit>>()?.await()
+}
+
+internal suspend fun copyTextToClipboard(content: String, clipboard: Clipboard?): Boolean {
+    if (clipboard != null && tryWriteClipboard(clipboard, content)) return true
+    return copyViaSelection(content)
+}
+
+private suspend fun tryWriteClipboard(clipboard: Clipboard, content: String): Boolean =
+    runCatching {
+        val result = clipboard.writeText(content)
+        awaitClipboardWrite(result)
+        true
+    }.getOrDefault(false)
+
+internal fun copyViaSelection(content: String): Boolean {
+    val body = document.body ?: return false
+    val textarea = document.createElement("textarea") as HTMLTextAreaElement
+    textarea.value = content
+    textarea.style.position = "fixed"
+    textarea.style.opacity = "0"
+    body.appendChild(textarea)
+    val success =
+        runCatching {
+            textarea.select()
+            document.asDynamic().execCommand("copy") as? Boolean ?: false
+        }.getOrDefault(false)
+    textarea.remove()
+    return success
+}
