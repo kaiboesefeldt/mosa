@@ -2,7 +2,9 @@ package straightway.mosa.vectorstore
 
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.junit.jupiter.api.Test
 import straightway.mosa.VectorStore
@@ -136,6 +138,24 @@ class LuceneLocalVectorStoreTest {
                 assertFailsWith<IllegalStateException> {
                     fixture.store.query(Query())
                 }
+            }
+        }
+
+    @Test
+    fun `dumpAll emits all documents and completes after last page`() =
+        runTest {
+            val clock = TestClock(Instant.ofEpochSecond(1))
+            newFixture(pageSize = 1, clock = clock).use { fixture ->
+                fixture.store.addDocument("first-id", "first", emptyMap(), floatArrayOf(1f, 0f))
+                clock.advance(1.seconds)
+                fixture.store.addDocument("second-id", "second", emptyMap(), floatArrayOf(0f, 1f))
+
+                val results =
+                    withTimeout(2_000) {
+                        fixture.store.dumpAll().toList()
+                    }
+
+                assertEquals(listOf("second-id", "first-id"), results.map { it.id })
             }
         }
 

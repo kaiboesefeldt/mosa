@@ -1,10 +1,13 @@
 package straightway.mosa.vectorstore
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import org.apache.lucene.document.Document
 import org.apache.lucene.document.DocumentStoredFieldVisitor
 import org.apache.lucene.index.DirectoryReader
 import org.apache.lucene.index.IndexNotFoundException
 import org.apache.lucene.search.IndexSearcher
+import org.apache.lucene.search.MatchAllDocsQuery
 import org.apache.lucene.search.ScoreDoc
 import org.apache.lucene.search.TopDocs
 import org.apache.lucene.search.TotalHits
@@ -111,6 +114,36 @@ class LuceneLocalVectorStore private constructor(
                 }
 
             QueryResults(resultsPage = resultsPage, queryOnId = nextSearchOnId)
+        }
+    }
+
+    override fun dumpAll(): Flow<QueryResult> {
+        checkClosed()
+
+        return flow {
+            var after: ScoreDoc? = null
+            while (true) {
+                val page =
+                    runCatching {
+                        indexAccess.read {
+                            val searcher = IndexSearcher(this)
+                            val topDocs =
+                                searcher.searchAfter(
+                                    after,
+                                    MatchAllDocsQuery(),
+                                    pageSize,
+                                    SORT_BY_TIME_ADDED,
+                                )
+                            after = topDocs.scoreDocs.lastOrNull()
+                            topDocs.scoreDocs.map { it.toSearchResult(this) }
+                        }
+                    }.onFailure { if (it !is IndexNotFoundException) throw it }
+                        .getOrDefault(emptyList())
+
+                if (page.isEmpty()) break
+                page.forEach { emit(it) }
+                if (page.size < pageSize) break
+            }
         }
     }
 

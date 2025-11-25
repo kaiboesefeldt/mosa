@@ -1,5 +1,6 @@
 package straightway.mosa
 
+import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import java.util.UUID
 
@@ -70,4 +71,6 @@ interface VectorStore : AutoCloseable {
     suspend fun query(query: Query): QueryResults
 
     suspend fun queryOn(queryOnId: UUID?): QueryResults
+
+    fun dumpAll(): Flow<QueryResult>
 }

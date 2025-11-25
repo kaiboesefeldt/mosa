@@ -1,6 +1,7 @@
 package straightway.mosa
 
 import kotlinx.cli.ArgParser
+import straightway.mosa.commandline.ServeCommand
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -50,7 +51,7 @@ class MainArgumentsTest {
     private fun parseStore(vararg args: String): CommandLineArgumentStore? {
         var capturedStore: CommandLineArgumentStore? = null
         val parser = ArgParser("mosa")
-        val serveCommand = ServeCommand { capturedStore = it }
+        val serveCommand = ServeCommand(startServer = { capturedStore = it })
 
         parser.subcommands(serveCommand)
         parser.parse(args)
