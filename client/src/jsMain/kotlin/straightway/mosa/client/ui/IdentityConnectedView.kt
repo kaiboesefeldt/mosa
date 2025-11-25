@@ -290,6 +290,18 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         div {
             className = ClassName("connected-shell__header")
             div {
+                className = ClassName("connected-shell__brand")
+                img {
+                    className = ClassName("connected-shell__brand-logo")
+                    src = "/logo.png"
+                    alt = translator.translate("connected.brand.alt")
+                }
+                span {
+                    className = ClassName("connected-shell__brand-name")
+                    +translator.translate("connected.brand.name")
+                }
+            }
+            div {
                 className = ClassName("connected-shell__profile")
                 span {
                     className = ClassName("connected-shell__identity-name")

@@ -28,6 +28,8 @@
   "connected.posts.loading": "Loading posts...",
   "connected.posts.similarity": "Similarity: {{value}}",
   "connected.posts.timestamp": "Timestamp: {{value}}",
+  "connected.brand.alt": "Mosa logo",
+  "connected.brand.name": "Mosa",
   "connected.posts.filter.apply": "Hide lower-scoring posts",
   "connected.posts.filter.clear": "Clear relevance filter",
   "connected.posts.filter.active": "Score filter at {{value}}",
