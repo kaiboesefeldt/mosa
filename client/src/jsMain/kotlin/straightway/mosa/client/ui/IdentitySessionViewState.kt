@@ -20,6 +20,7 @@ sealed interface IdentitySessionViewState {
         val canDownload: Boolean,
         val canCopy: Boolean,
         val canUpload: Boolean,
+        val canPaste: Boolean,
     ) : IdentitySessionViewState
 
     data class Connected(

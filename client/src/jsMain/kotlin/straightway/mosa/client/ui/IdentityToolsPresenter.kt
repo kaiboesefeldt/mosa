@@ -5,10 +5,12 @@ internal data class IdentityToolsCapabilities(
     val canDownload: Boolean,
     val canCopy: Boolean,
     val canUpload: Boolean,
+    val canPaste: Boolean,
     val onDelete: () -> Unit,
     val onDownload: () -> Unit,
     val onCopy: () -> Unit,
     val onUpload: () -> Unit,
+    val onPaste: () -> Unit,
 )
 
 internal object IdentityToolsPresenter {
@@ -27,6 +29,13 @@ internal object IdentityToolsPresenter {
                 titleKey = "button.identity.copy.label",
                 iconClass = "fa fa-solid fa-copy",
                 onTrigger = capabilities.onCopy,
+            ),
+            IdentityToolAction(
+                isEnabled = capabilities.canPaste,
+                ariaKey = "button.identity.paste.aria",
+                titleKey = "button.identity.paste.label",
+                iconClass = "fa fa-solid fa-paste",
+                onTrigger = capabilities.onPaste,
             ),
             IdentityToolAction(
                 isEnabled = capabilities.canDownload,

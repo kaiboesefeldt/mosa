@@ -2,6 +2,7 @@ package straightway.mosa.client.ui
 
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -9,6 +10,7 @@ import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.identity.IdentityTransferPort
+import straightway.mosa.client.identity.InvalidIdentityTransferException
 import straightway.mosa.client.logging.Logger
 
 class IdentitySessionStateMachine(
@@ -95,8 +97,33 @@ class IdentitySessionStateMachine(
     }
 
     fun uploadIdentity() {
-        runExclusive("Identity upload failed") {
+        runExclusive(
+            failureMessage = "Identity upload failed",
+            onFailure = ::handleImportFailure,
+        ) {
             val imported = transfer.upload() ?: return@runExclusive
+            val updated = repository.import(imported)
+            applySelection(updated)
+        }
+    }
+
+    fun pasteIdentityFromClipboard() {
+        runExclusive(
+            failureMessage = "Identity paste failed",
+            onFailure = ::handleImportFailure,
+        ) {
+            val imported = transfer.pasteFromClipboard()
+            val updated = repository.import(imported)
+            applySelection(updated)
+        }
+    }
+
+    fun pasteIdentityFromContent(serialized: String) {
+        runExclusive(
+            failureMessage = "Identity paste failed",
+            onFailure = ::handleImportFailure,
+        ) {
+            val imported = transfer.decode(serialized)
             val updated = repository.import(imported)
             applySelection(updated)
         }
@@ -158,6 +185,7 @@ class IdentitySessionStateMachine(
             canDownload = currentSelection != null,
             canCopy = currentSelection != null,
             canUpload = true,
+            canPaste = true,
         )
 
     private fun connectedState(): IdentitySessionViewState.Connected =
@@ -175,7 +203,7 @@ class IdentitySessionStateMachine(
         if (isBusy) return
         beforeRun()
         setBusy(true)
-        scope.launch {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
                 block()
             } catch (error: Throwable) {
@@ -191,6 +219,16 @@ class IdentitySessionStateMachine(
         errorText = errorMessage(error)
         finishRestoring()
         publishState()
+    }
+
+    private fun handleImportFailure(error: Throwable) {
+        if (error is InvalidIdentityTransferException) {
+            errorText = textProvider.invalidIdentity
+            finishRestoring()
+            publishState()
+            return
+        }
+        handleFailure(error)
     }
 
     private fun handlePreparationFailure(error: Throwable) {

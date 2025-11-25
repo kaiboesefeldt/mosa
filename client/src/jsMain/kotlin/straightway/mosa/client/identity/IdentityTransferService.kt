@@ -16,6 +16,8 @@ import kotlin.coroutines.resumeWithException
 import kotlin.js.Promise
 import kotlin.js.unsafeCast
 import straightway.mosa.client.browser.ObjectUrlFactory
+import web.clipboard.Clipboard
+import web.clipboard.readText
 import web.clipboard.writeText
 import web.navigator.Navigator
 import web.navigator.navigator
@@ -24,6 +26,8 @@ interface IdentityTransferPort {
     suspend fun download(identity: Identity, fileBaseName: String)
     suspend fun upload(): Identity?
     suspend fun copyToClipboard(identity: Identity)
+    suspend fun pasteFromClipboard(): Identity
+    suspend fun decode(serialized: String): Identity
 }
 
 class IdentityTransferService(
@@ -35,6 +39,20 @@ class IdentityTransferService(
         val json = codec.encode(identity)
         clipboard.writeText(json).unsafeCast<Promise<Unit>>().await()
     }
+
+    override suspend fun pasteFromClipboard(): Identity {
+        val clipboard = navigatorOrNull()?.clipboard ?: error("Clipboard not available")
+        val content =
+            runCatching { readClipboardText(clipboard) }
+                .getOrElse { error ->
+                    throw InvalidIdentityTransferException("Clipboard read failed", error)
+                }
+                .trim()
+        if (content.isEmpty()) throw InvalidIdentityTransferException("Clipboard is empty")
+        return decode(content)
+    }
+
+    override suspend fun decode(serialized: String): Identity = decodeSerialized(serialized)
 
     override suspend fun download(identity: Identity, fileBaseName: String) {
         val json = codec.encode(identity)
@@ -55,8 +73,15 @@ class IdentityTransferService(
     override suspend fun upload(): Identity? {
         val file = selectFile() ?: return null
         val content = readFile(file)
-        return codec.decode(content)
+        return decodeSerialized(content)
     }
+
+    private suspend fun decodeSerialized(serialized: String): Identity =
+        try {
+            codec.decode(serialized)
+        } catch (error: Throwable) {
+            throw InvalidIdentityTransferException(error.message ?: "Identity parse failed", error)
+        }
 
     private suspend fun selectFile(): File? =
         suspendCancellableCoroutine { continuation ->
@@ -85,6 +110,26 @@ class IdentityTransferService(
             input.click()
             continuation.invokeOnCancellation { cleanup() }
         }
+
+    private suspend fun readClipboardText(clipboard: Clipboard): String {
+        val result =
+            try {
+                clipboard.readText()
+            } catch (error: Throwable) {
+                val dynamicClipboard = clipboard.asDynamic()
+                val readTextFunction = dynamicClipboard.readText
+                if (readTextFunction != undefined) {
+                    readTextFunction.call(clipboard)
+                } else {
+                    throw InvalidIdentityTransferException("Clipboard read is not supported", error)
+                }
+            }
+        val promise = result as? Promise<*>
+        if (promise != null) return promise.unsafeCast<Promise<String>>().await()
+        val value = result as? String
+        if (value != null) return value
+        throw InvalidIdentityTransferException("Clipboard read is not supported")
+    }
 
     private suspend fun readFile(file: File): String =
         suspendCancellableCoroutine { continuation ->
@@ -121,3 +166,8 @@ class IdentityTransferService(
             }
     }
 }
+
+class InvalidIdentityTransferException(
+    message: String,
+    cause: Throwable? = null,
+) : RuntimeException(message, cause)

@@ -16,6 +16,7 @@ import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.identity.IdentityTransferPort
+import straightway.mosa.client.identity.InvalidIdentityTransferException
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.identity.FictionalName
 
@@ -91,15 +92,79 @@ class IdentitySessionStateMachineTest {
         assertTrue(state is IdentitySessionViewState.Profile)
         assertNull(store.snapshot?.connectedIdentityGid)
     }
+
+    @Test
+    fun `imports identity from clipboard`() = runMachineTest {
+        val initialIdentity = identity("gid-a")
+        val pastedIdentity = identity("gid-b")
+        val repository = FakeIdentitySelectionRepository(initialIdentity)
+        val store = RecordingIdentitySessionStore()
+        val transfer =
+            object : IdentityTransferPort {
+                override suspend fun download(identity: Identity, fileBaseName: String) = Unit
+
+                override suspend fun copyToClipboard(identity: Identity) = Unit
+
+                override suspend fun upload(): Identity? = null
+
+                override suspend fun pasteFromClipboard(): Identity = pastedIdentity
+
+                override suspend fun decode(serialized: String): Identity = pastedIdentity
+            }
+        val machine = createMachine(repository, store, transfer)
+
+        machine.refresh()
+        advanceUntilIdle()
+
+        machine.pasteIdentityFromClipboard()
+        advanceUntilIdle()
+
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Profile)
+        assertEquals(pastedIdentity.gid, state.identityNameParts.givenNames.first())
+    }
+
+    @Test
+    fun `shows error when clipboard identity is invalid`() = runMachineTest {
+        val initialIdentity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(initialIdentity)
+        val store = RecordingIdentitySessionStore()
+        val transfer =
+            object : IdentityTransferPort {
+                override suspend fun download(identity: Identity, fileBaseName: String) = Unit
+
+                override suspend fun copyToClipboard(identity: Identity) = Unit
+
+                override suspend fun upload(): Identity? = null
+
+                override suspend fun pasteFromClipboard(): Identity =
+                    throw InvalidIdentityTransferException("corrupted")
+
+                override suspend fun decode(serialized: String): Identity =
+                    throw InvalidIdentityTransferException("corrupted")
+            }
+        val machine = createMachine(repository, store, transfer)
+
+        machine.refresh()
+        advanceUntilIdle()
+
+        machine.pasteIdentityFromClipboard()
+        advanceUntilIdle()
+
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Profile)
+        assertEquals(TestIdentitySessionTextProvider.invalidIdentity, state.errorText)
+    }
 }
 
 private fun TestScope.createMachine(
     repository: IdentitySelectionRepository,
     store: IdentitySessionStore,
+    transfer: IdentityTransferPort = NoopIdentityTransferPort,
 ): IdentitySessionStateMachine =
     IdentitySessionStateMachine(
         repository = repository,
-        transfer = NoopIdentityTransferPort,
+        transfer = transfer,
         textProvider = TestIdentitySessionTextProvider,
         visualsProvider = { identity ->
             IdentityVisuals(FictionalName(listOf(identity.gid)), identity.gid)
@@ -173,6 +238,7 @@ private class FakeIdentitySelectionRepository(
 private object TestIdentitySessionTextProvider : IdentitySessionTextProvider {
     override val loading: String = "loading"
     override val unknownError: String = "error"
+    override val invalidIdentity: String = "invalid"
 
     override fun failedToPrepare(message: String): String = message
 }
@@ -189,6 +255,12 @@ private object NoopIdentityTransferPort : IdentityTransferPort {
     override suspend fun copyToClipboard(identity: Identity) = Unit
 
     override suspend fun upload(): Identity? = null
+
+    override suspend fun pasteFromClipboard(): Identity =
+        throw UnsupportedOperationException("Not used in test")
+
+    override suspend fun decode(serialized: String): Identity =
+        throw UnsupportedOperationException("Not used in test")
 }
 
 private class RecordingIdentitySessionStore(

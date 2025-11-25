@@ -44,6 +44,9 @@ sealed interface IdentityScreen {
         val onCopy: () -> Unit,
         val canUpload: Boolean,
         val onUpload: () -> Unit,
+        val canPaste: Boolean,
+        val onPaste: () -> Unit,
+        val onPasteContent: (String) -> Unit,
     ) : IdentityScreen
 
     data class Connected(
@@ -122,6 +125,9 @@ fun useIdentitySession(): IdentityScreen {
             onCopy = { machine.copyIdentityToClipboard() },
             canUpload = canUpload,
             onUpload = { machine.uploadIdentity() },
+            canPaste = canPaste,
+            onPaste = { machine.pasteIdentityFromClipboard() },
+            onPasteContent = { content -> machine.pasteIdentityFromContent(content) },
         )
 
     return when (viewState) {

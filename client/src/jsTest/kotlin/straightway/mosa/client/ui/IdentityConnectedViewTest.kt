@@ -488,6 +488,9 @@ private fun placeholderProfile(): IdentityScreen.Profile =
         onCopy = {},
         canUpload = false,
         onUpload = {},
+        canPaste = false,
+        onPaste = {},
+        onPasteContent = {},
     )
 
 private val identityForTests =
