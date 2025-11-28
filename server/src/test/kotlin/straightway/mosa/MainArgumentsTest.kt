@@ -1,10 +1,12 @@
 package straightway.mosa
 
 import kotlinx.cli.ArgParser
+import kotlinx.cli.ExperimentalCli
 import straightway.mosa.commandline.ServeCommand
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+@OptIn(ExperimentalCli::class)
 class MainArgumentsTest {
     @Test
     fun `store returns null when serve-source-maps argument omitted`() {

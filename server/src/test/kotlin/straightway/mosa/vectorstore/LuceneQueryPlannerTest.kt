@@ -3,13 +3,13 @@ package straightway.mosa.vectorstore
 import org.apache.lucene.search.BooleanClause
 import org.apache.lucene.search.BooleanQuery
 import org.apache.lucene.search.KnnFloatVectorQuery
+import org.apache.lucene.search.MatchAllDocsQuery
 import org.apache.lucene.search.PointRangeQuery
 import org.junit.jupiter.api.Test
 import straightway.mosa.VectorStore
 import java.time.Instant
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 class LuceneQueryPlannerTest {
     private val planner = LuceneQueryPlanner(maxResults = 4)
@@ -35,11 +35,10 @@ class LuceneQueryPlannerTest {
     }
 
     @Test
-    fun `create omits knn clause when vector missing`() {
+    fun `create returns match all when vector missing`() {
         val query = planner.create(VectorStore.Query())
 
-        val booleanQuery = assertIs<BooleanQuery>(query)
-        assertTrue(booleanQuery.clauses().isEmpty())
+        assertIs<MatchAllDocsQuery>(query)
     }
 
     @Test
