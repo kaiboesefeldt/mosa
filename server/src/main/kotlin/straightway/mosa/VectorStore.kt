@@ -17,6 +17,12 @@ interface VectorStore : AutoCloseable {
         val fields: Map<String, String>,
     )
 
+    data class PostDump(
+        val id: String,
+        val text: String,
+        val fields: Map<String, String>,
+    )
+
     data class Query(
         val id: String? = null,
         val vector: FloatArray? = null,
@@ -72,5 +78,5 @@ interface VectorStore : AutoCloseable {
 
     suspend fun queryOn(queryOnId: UUID?): QueryResults
 
-    fun dumpAll(): Flow<QueryResult>
+    fun dumpAll(): Flow<PostDump>
 }

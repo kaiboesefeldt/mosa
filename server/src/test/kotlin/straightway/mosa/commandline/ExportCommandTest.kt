@@ -46,16 +46,17 @@ class ExportCommandTest {
         rootLogger().level = originalRootLevel
     }
 
+    @Suppress("UnusedFlow")
     @Test
     fun `exports all stored entries`() {
         val firstResult =
-            VectorStore.QueryResult("first-id", "first text", 0.9f, mapOf("thread" to "alpha"))
-        val secondResult = VectorStore.QueryResult("second-id", "second text", 0.8f, emptyMap())
+            VectorStore.PostDump("first-id", "first text", mapOf("thread" to "alpha"))
+        val secondResult = VectorStore.PostDump("second-id", "second text", emptyMap())
 
         every { vectorStore.dumpAll() } returns flowOf(firstResult, secondResult)
 
         val output = captureOutput { ExportCommand(exit = ::throwingExit).execute() }
-        val parsedResults = objectMapper.readValue<List<VectorStore.QueryResult>>(output)
+        val parsedResults = objectMapper.readValue<List<VectorStore.PostDump>>(output)
 
         assertEquals(listOf(firstResult, secondResult), parsedResults)
         io.mockk.verify { vectorStore.dumpAll() }

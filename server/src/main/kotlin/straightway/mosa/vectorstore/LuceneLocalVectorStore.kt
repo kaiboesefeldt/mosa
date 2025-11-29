@@ -117,7 +117,7 @@ class LuceneLocalVectorStore private constructor(
         }
     }
 
-    override fun dumpAll(): Flow<QueryResult> {
+    override fun dumpAll(): Flow<VectorStore.PostDump> {
         checkClosed()
 
         return flow {
@@ -135,7 +135,7 @@ class LuceneLocalVectorStore private constructor(
                                     SORT_BY_TIME_ADDED,
                                 )
                             after = topDocs.scoreDocs.lastOrNull()
-                            topDocs.scoreDocs.map { it.toSearchResult(this) }
+                            topDocs.scoreDocs.map { it.toPostDump(this) }
                         }
                     }.onFailure { if (it !is IndexNotFoundException) throw it }
                         .getOrDefault(emptyList())
@@ -161,6 +161,16 @@ class LuceneLocalVectorStore private constructor(
             id = doc[ID_FIELD_NAME],
             text = doc[TEXT_FIELD_NAME],
             similarity = this.score,
+            fields = fields,
+        )
+    }
+
+    private fun ScoreDoc.toPostDump(reader: DirectoryReader): VectorStore.PostDump {
+        val doc = getDocument(reader)
+        val fields = doc.getFieldMap()
+        return VectorStore.PostDump(
+            id = doc[ID_FIELD_NAME],
+            text = doc[TEXT_FIELD_NAME],
             fields = fields,
         )
     }

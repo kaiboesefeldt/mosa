@@ -34,6 +34,8 @@ internal class ExportCommand(
                 vectorStore.dumpAll().collect {
                     println(if (notFirst) "," else "")
                     print(objectMapper.writeValueAsString(it))
+
+                    @Suppress("AssignedValueIsNeverRead")
                     notFirst = true
                 }
                 println("\n]")
