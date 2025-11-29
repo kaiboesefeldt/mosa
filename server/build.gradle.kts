@@ -135,4 +135,5 @@ tasks.named("shadowJar") {
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     archiveBaseName.set("mosa-server")
     archiveClassifier.set("all")
+    mergeServiceFiles()
 }
