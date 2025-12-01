@@ -4,6 +4,9 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.plugins.BadRequestException
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
@@ -100,8 +103,8 @@ class ContentService(
                 text = request.text,
                 fields =
                     mapOf(
-                        "authorGID" to userGID,
-                        "receivedAt" to clock.instant().epochSecond.toString(),
+                        AUTHOR_GID_KEY to userGID,
+                        RECEIVED_AT_KEY to clock.instant().epochSecond.toString(),
                     ) + additionalFields,
                 vector = embeddingVector,
             )
@@ -114,9 +117,9 @@ class ContentService(
             content = text,
             similarity = similarity,
             rootId = fields[ROOT_ID_KEY],
-            authorGID = fields.requireMetadata(id, "authorGID"),
+            authorGID = fields.requireMetadata(id, AUTHOR_GID_KEY),
             storedAt =
-                fields.requireMetadata(id, "receivedAt").toLong(),
+                fields.requireMetadata(id, RECEIVED_AT_KEY).toLong(),
         )
 
     private fun String.hashId(): String =
@@ -141,7 +144,6 @@ class ContentService(
     private companion object {
         private val log = KotlinLogging.logger { }
         private const val MAX_LOG_LEN_FOR_REQUESTS = 100
-        private const val ROOT_ID_KEY = "rootId"
         private val nilQueryRequest = QueryRequest()
 
         private fun Map<String, String>.requireMetadata(

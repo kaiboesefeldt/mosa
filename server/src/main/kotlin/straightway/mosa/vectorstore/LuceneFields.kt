@@ -17,3 +17,9 @@ internal val SPECIAL_FIELDS =
     )
 
 internal val SORT_BY_TIME_ADDED = Sort(SortField(TIME_ADDED_FIELD_NAME, SortField.Type.LONG, true))
+
+internal object ContentMetadataKeys {
+    const val ROOT_ID_KEY = "rootId"
+    const val AUTHOR_GID_KEY = "authorGID"
+    const val RECEIVED_AT_KEY = "receivedAt"
+}
