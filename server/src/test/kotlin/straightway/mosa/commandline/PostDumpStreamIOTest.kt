@@ -7,7 +7,9 @@ import straightway.mosa.VectorStore
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
+import java.io.BufferedWriter
 import java.io.ByteArrayOutputStream
+import java.io.Writer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
@@ -318,6 +320,36 @@ class PostDumpStreamIOTest {
         }
 
     @Test
+    fun `writerTo leaves flushing to caller`() =
+        runTest {
+            val writer =
+                CountingWriter().let {
+                    BufferedWriter(it) to it
+                }
+            val postDump =
+                VectorStore.PostDump(
+                    "id",
+                    "text",
+                    mapOf(
+                        AUTHOR_GID_KEY to "author",
+                        RECEIVED_AT_KEY to "1234",
+                    ),
+                )
+            try {
+                PostDumpStreamIO().writerTo(writer.first).write(postDump)
+
+                assertEquals(0, writer.second.flushCount)
+
+                writer.first.flush()
+
+                assertEquals("id,1234,author,,text\n", writer.second.written())
+                assertEquals(1, writer.second.flushCount)
+            } finally {
+                writer.first.close()
+            }
+        }
+
+    @Test
     fun `writerTo writes dumps readable by readerFrom`() =
         runTest {
             val dumps =
@@ -455,5 +487,27 @@ class PostDumpStreamIOTest {
                 testBody(sut.readerFrom(bufferedStream))
             }
         }
+    }
+
+    private class CountingWriter : Writer() {
+        private val target = StringBuilder()
+        var flushCount = 0
+            private set
+
+        override fun write(
+            cbuf: CharArray,
+            off: Int,
+            len: Int,
+        ) {
+            target.append(cbuf, off, len)
+        }
+
+        override fun flush() {
+            flushCount++
+        }
+
+        override fun close() {}
+
+        fun written(): String = target.toString()
     }
 }

@@ -22,7 +22,6 @@ class PostDumpStreamIO(
         StreamWriter {
             withContext(ioDispatcher) {
                 output.appendLine(generateLine((it)))
-                output.flush()
             }
         }
 
