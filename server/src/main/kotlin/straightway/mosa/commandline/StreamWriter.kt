@@ -6,5 +6,4 @@ fun interface StreamWriter<T> {
     suspend fun write(obj: T)
 }
 
-suspend fun <T> StreamWriter<T>.writeAll(flow: Flow<T>) =
-    flow.collect { write(it) }
+suspend fun <T> StreamWriter<T>.writeAll(flow: Flow<T>) = flow.collect { write(it) }
