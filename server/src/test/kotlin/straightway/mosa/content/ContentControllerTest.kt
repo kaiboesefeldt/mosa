@@ -12,9 +12,7 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.authentication
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.just
 import io.mockk.mockk
-import io.mockk.runs
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -53,7 +51,7 @@ class ContentControllerTest {
                         )
                     coEvery {
                         contentService.publish(env.gid, request)
-                    } just runs
+                    } returns ""
 
                     val response =
                         client.post("/v1/publish") {
@@ -128,7 +126,7 @@ class ContentControllerTest {
                                 ),
                             rootId = "01234567",
                         )
-                    coEvery { contentService.reply(env.gid, request) } just runs
+                    coEvery { contentService.reply(env.gid, request) } returns ""
 
                     val response =
                         client.post("/v1/reply") {

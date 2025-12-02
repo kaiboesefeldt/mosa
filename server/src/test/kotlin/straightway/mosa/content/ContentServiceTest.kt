@@ -381,9 +381,10 @@ class ContentServiceTest {
                 setupWriteAccess()
 
                 // When
-                sut.publish(testUserGID, PublishRequest(content))
+                val contentId = sut.publish(testUserGID, PublishRequest(content))
 
                 // Then
+                assertEquals("AQIDBA", contentId)
                 coVerify { embeddingService.embed(content) }
                 coVerify { hasherFactory() }
                 coVerify { messageDigest.digest(content.toByteArray(Charsets.UTF_8)) }
@@ -417,9 +418,10 @@ class ContentServiceTest {
                     createParentQueryResult(rootId, null)
 
                 // When
-                sut.reply(testUserGID, ReplyRequest(PublishRequest(content), rootId))
+                val contentId = sut.reply(testUserGID, ReplyRequest(PublishRequest(content), rootId))
 
                 // Then
+                assertEquals("BQYHCA", contentId)
                 coVerify { embeddingService.embed(content) }
                 coVerify {
                     transaction.add(

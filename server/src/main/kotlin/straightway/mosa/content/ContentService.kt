@@ -23,28 +23,30 @@ class ContentService(
     suspend fun publish(
         userGID: String,
         request: PublishRequest,
-    ) = trace(userGID, request) {
-        writeContent(userGID, request)
-    }
+    ): String =
+        trace(userGID, request) {
+            writeContent(userGID, request)
+        }
 
     suspend fun reply(
         userGID: String,
         request: ReplyRequest,
-    ) = trace(userGID, request) {
-        val root =
-            vectorStore
-                .query(VectorStore.Query(id = request.rootId))
-                .resultsPage
-                .singleOrNull() ?: throw BadRequestException("Root not found")
-        if (root.fields[ROOT_ID_KEY] != null) throw BadRequestException("Replies must target root posts")
-        writeContent(
-            userGID,
-            request.content,
-            mapOf(
-                ROOT_ID_KEY to request.rootId,
-            ),
-        )
-    }
+    ): String =
+        trace(userGID, request) {
+            val root =
+                vectorStore
+                    .query(VectorStore.Query(id = request.rootId))
+                    .resultsPage
+                    .singleOrNull() ?: throw BadRequestException("Root not found")
+            if (root.fields[ROOT_ID_KEY] != null) throw BadRequestException("Replies must target root posts")
+            writeContent(
+                userGID,
+                request.content,
+                mapOf(
+                    ROOT_ID_KEY to request.rootId,
+                ),
+            )
+        }
 
     suspend fun query(
         userGID: String,
@@ -94,7 +96,7 @@ class ContentService(
         userGID: String,
         request: PublishRequest,
         additionalFields: Map<String, String> = emptyMap(),
-    ) {
+    ): String {
         val embeddingVector = embeddingService.embed(request.text)
         val id = request.text.hashId()
         vectorStore.writeAccess {
@@ -109,6 +111,7 @@ class ContentService(
                 vector = embeddingVector,
             )
         }
+        return id
     }
 
     private fun VectorStore.QueryResult.toQueryResultEntry(): QueryResult.Entry =
