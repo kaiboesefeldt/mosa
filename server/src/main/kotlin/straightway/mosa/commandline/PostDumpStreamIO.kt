@@ -10,10 +10,12 @@ import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import java.io.BufferedReader
 
 class PostDumpStreamIO(
-    private val input: BufferedReader,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-) : StreamReader<VectorStore.PostDump> {
-    override suspend fun readNext(): VectorStore.PostDump? = withContext(ioDispatcher) { input.readLine() }?.let { parseLine(it) }
+) {
+    fun readerFrom(input: BufferedReader): StreamReader<VectorStore.PostDump> =
+        StreamReader {
+            withContext(ioDispatcher) { input.readLine() }?.let { parseLine(it) }
+        }
 
     private fun parseLine(nextLine: String): VectorStore.PostDump =
         runCatching {

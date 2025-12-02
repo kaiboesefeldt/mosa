@@ -212,12 +212,12 @@ class PostDumpStreamIOTest {
 
     private fun runTest(
         input: String,
-        testBody: suspend (PostDumpStreamIO) -> Unit,
+        testBody: suspend (StreamReader<VectorStore.PostDump>) -> Unit,
     ) = runTest {
         input.byteInputStream().use { stream ->
             stream.bufferedReader().use { bufferedStream ->
-                val sut = PostDumpStreamIO(bufferedStream)
-                testBody(sut)
+                val sut = PostDumpStreamIO()
+                testBody(sut.readerFrom(bufferedStream))
             }
         }
     }
