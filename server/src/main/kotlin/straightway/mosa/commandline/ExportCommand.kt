@@ -1,6 +1,5 @@
 package straightway.mosa.commandline
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.coroutines.runBlocking
@@ -9,10 +8,13 @@ import org.koin.dsl.module
 import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.VectorStore
 import straightway.mosa.configureMosaAppModule
+import java.io.OutputStream
 import kotlin.system.exitProcess
 
 @OptIn(ExperimentalCli::class)
 internal class ExportCommand(
+    private val streamIO: PostDumpStreamIO,
+    private val outputStream: OutputStream,
     private val exit: (Int) -> Nothing = ::exitProcess,
 ) : Subcommand("export", "Export the mosa posts and replies to stdout") {
     override fun execute() {
@@ -21,19 +23,10 @@ internal class ExportCommand(
                 modules(module { configureMosaAppModule(CommandLineArgumentStore.EMPTY) })
             }
         val vectorStore = koinApplication.koin.get<VectorStore>()
-        val objectMapper = ObjectMapper()
         try {
-            runBlocking {
-                print("[")
-                var notFirst = false
-                vectorStore.dumpAll().collect {
-                    println(if (notFirst) "," else "")
-                    print(objectMapper.writeValueAsString(it))
-
-                    @Suppress("AssignedValueIsNeverRead")
-                    notFirst = true
-                }
-                println("\n]")
+            outputStream.bufferedWriter().use { stdout ->
+                val writer = streamIO.writerTo(stdout)
+                runBlocking { writer.writeAll(vectorStore.dumpAll()) }
             }
         } finally {
             koinApplication.close()
