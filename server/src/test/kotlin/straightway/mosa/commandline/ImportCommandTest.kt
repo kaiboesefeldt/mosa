@@ -1,7 +1,7 @@
 package straightway.mosa.commandline
 
 import io.mockk.clearMocks
-import io.mockk.coJustRun
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -29,11 +29,17 @@ class ImportCommandTest {
     private val contentService = mockk<ContentService>()
     private val koin = mockk<Koin>()
     private val koinApplication = mockk<KoinApplication>(relaxed = true)
-    val post =
+    val rootPost =
         VectorStore.PostDump(
-            "id",
-            "text",
-            mapOf(AUTHOR_GID_KEY to "author", ROOT_ID_KEY to "root"),
+            "rootId",
+            "root",
+            mapOf(AUTHOR_GID_KEY to "author"),
+        )
+    val replyPost =
+        VectorStore.PostDump(
+            "replyId",
+            "reply",
+            mapOf(AUTHOR_GID_KEY to "author", ROOT_ID_KEY to "rootId"),
         )
 
     @BeforeEach
@@ -45,8 +51,8 @@ class ImportCommandTest {
             koinApplication.apply(arg(0))
         }
         every { koin.get<ContentService>() } returns contentService
-        coJustRun { contentService.publish(any(), any()) }
-        coJustRun { contentService.reply(any(), any()) }
+        coEvery { contentService.publish(any(), any()) } returns "storedPostId"
+        coEvery { contentService.reply(any(), any()) } returns "storedReplyId"
     }
 
     @AfterEach
@@ -57,13 +63,13 @@ class ImportCommandTest {
 
     @Test
     fun `publishes posts without root id and exits with zero`() {
-        setupStreamReader(post.copy(fields = post.fields - ROOT_ID_KEY))
+        setupStreamReader(rootPost)
         val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
 
         val exit = assertFailsWith<ExitSignal> { command.execute() }
 
         assertEquals(0, exit.code)
-        coVerify(exactly = 1) { contentService.publish("author", PublishRequest("text")) }
+        coVerify(exactly = 1) { contentService.publish("author", PublishRequest("root")) }
         coVerify(exactly = 0) { contentService.reply(any(), any()) }
         verify(exactly = 1) { streamIO.readerFrom(any()) }
         verify(exactly = 1) { koinApplication.close() }
@@ -71,21 +77,79 @@ class ImportCommandTest {
 
     @Test
     fun `replies for posts with root id`() {
-        setupStreamReader(post)
+        setupStreamReader(replyPost)
         val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
 
         assertFailsWith<ExitSignal> { command.execute() }
 
         coVerify(exactly = 0) { contentService.publish(any(), any()) }
         coVerify(exactly = 1) {
-            contentService.reply("author", ReplyRequest(PublishRequest("text"), "root"))
+            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "rootId"))
+        }
+        verify(exactly = 1) { koinApplication.close() }
+    }
+
+    @Test
+    fun `retries posting failed posts with recoverable exceptions`() {
+        setupStreamReader(replyPost)
+        coEvery {
+            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "rootId"))
+        } throws ContentService.RootNotFoundException()
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+
+        val ex = assertFailsWith<IllegalStateException> { command.execute() }
+
+        assertEquals(
+            "Could not import these posts: [PostDump(id=replyId, text=reply, fields={authorGID=author, rootId=rootId})]",
+            ex.message,
+        )
+        coVerify(exactly = 0) { contentService.publish(any(), any()) }
+        coVerify(exactly = 2) {
+            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "rootId"))
+        }
+        verify(exactly = 1) { koinApplication.close() }
+    }
+
+    @Test
+    fun `aborts import if the error is not recoverable`() {
+        setupStreamReader(replyPost)
+        coEvery {
+            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "rootId"))
+        } throws UnsupportedOperationException("Test Error")
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+
+        val ex = assertFailsWith<UnsupportedOperationException> { command.execute() }
+
+        assertEquals(
+            "Test Error",
+            ex.message,
+        )
+        coVerify(exactly = 0) { contentService.publish(any(), any()) }
+        coVerify(exactly = 1) {
+            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "rootId"))
+        }
+        verify(exactly = 1) { koinApplication.close() }
+    }
+
+    @Test
+    fun `replies for posts with symbolic root id`() {
+        setupStreamReader(rootPost, replyPost)
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+
+        assertFailsWith<ExitSignal> { command.execute() }
+
+        coVerify(exactly = 1) {
+            contentService.publish("author", PublishRequest("root"))
+        }
+        coVerify(exactly = 1) {
+            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "storedPostId"))
         }
         verify(exactly = 1) { koinApplication.close() }
     }
 
     @Test
     fun `fails when author gid is missing and does not exit`() {
-        setupStreamReader(post.copy(fields = emptyMap()))
+        setupStreamReader(replyPost.copy(fields = emptyMap()))
         val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
 
         val ex = assertFailsWith<RuntimeException> { command.execute() }

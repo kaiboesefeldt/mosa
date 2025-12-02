@@ -9,6 +9,7 @@ import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.VectorStore
 import straightway.mosa.configureMosaAppModule
 import straightway.mosa.content.ContentService
+import straightway.mosa.content.ContentService.RootNotFoundException
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
@@ -29,11 +30,29 @@ internal class ImportCommand(
             }
         val contentService: ContentService = koinApplication.koin.get()
         try {
-            input.bufferedReader().use { stdin ->
-                val reader = streamIO.readerFrom(stdin)
-                runBlocking {
-                    reader.asFlow().collect { contentService.import(it) }
+            runBlocking {
+                val idTable = mutableMapOf<String, String>()
+                val postponed = mutableListOf<VectorStore.PostDump>()
+                input.bufferedReader().use { stdin ->
+                    val reader = streamIO.readerFrom(stdin)
+                    reader.asFlow().collect { postDump ->
+                        if (contentService.import(postDump, idTable) == ImportState.Failure) {
+                            postponed.add(postDump)
+                        }
+                    }
                 }
+                var lastPostponedSize = Int.MAX_VALUE
+                while (postponed.size < lastPostponedSize) {
+                    lastPostponedSize = postponed.size
+                    val p = postponed.toList()
+                    postponed.clear()
+                    p.forEach { postDump ->
+                        if (contentService.import(postDump, idTable) == ImportState.Failure) {
+                            postponed.add(postDump)
+                        }
+                    }
+                }
+                check(postponed.isEmpty()) { "Could not import these posts: $postponed" }
             }
         } finally {
             koinApplication.close()
@@ -41,15 +60,35 @@ internal class ImportCommand(
         exit(0)
     }
 
-    private suspend fun ContentService.import(post: VectorStore.PostDump) {
+    private enum class ImportState { Success, Failure }
+
+    private suspend fun ContentService.import(
+        post: VectorStore.PostDump,
+        idTable: MutableMap<String, String>,
+    ): ImportState {
         val authorGid =
             post.fields[AUTHOR_GID_KEY]
                 ?: throw RuntimeException("user without field value for `${AUTHOR_GID_KEY}`")
         val rootId = post.fields[ROOT_ID_KEY]
-        if (rootId == null) {
-            publish(authorGid, PublishRequest(post.text))
-        } else {
-            reply(authorGid, ReplyRequest(PublishRequest(post.text), rootId))
-        }
+        val id =
+            try {
+                if (rootId == null) {
+                    publish(authorGid, PublishRequest(post.text))
+                } else {
+                    val realRootId = idTable.getOrDefault(rootId, rootId)
+                    reply(
+                        authorGid,
+                        ReplyRequest(
+                            PublishRequest(post.text),
+                            realRootId,
+                        ),
+                    )
+                }
+            } catch (_: RootNotFoundException) {
+                return ImportState.Failure
+            }
+
+        if (id != post.id) idTable[post.id] = id
+        return ImportState.Success
     }
 }

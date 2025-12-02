@@ -28,6 +28,10 @@ class ContentService(
             writeContent(userGID, request)
         }
 
+    class RootNotFoundException : BadRequestException("Root not found")
+
+    class MissingRootIdInReplyException : BadRequestException("Replies must target root posts")
+
     suspend fun reply(
         userGID: String,
         request: ReplyRequest,
@@ -37,8 +41,8 @@ class ContentService(
                 vectorStore
                     .query(VectorStore.Query(id = request.rootId))
                     .resultsPage
-                    .singleOrNull() ?: throw BadRequestException("Root not found")
-            if (root.fields[ROOT_ID_KEY] != null) throw BadRequestException("Replies must target root posts")
+                    .singleOrNull() ?: throw RootNotFoundException()
+            if (root.fields[ROOT_ID_KEY] != null) throw MissingRootIdInReplyException()
             writeContent(
                 userGID,
                 request.content,
