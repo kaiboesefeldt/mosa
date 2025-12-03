@@ -39,7 +39,6 @@ class QualityTest {
             embeddingService,
             vectorStore,
             { MessageDigest.getInstance("SHA-256") },
-            clock,
         )
     val gid = "gid"
 
@@ -61,7 +60,7 @@ class QualityTest {
                 print(".")
                 System.out.flush()
                 published.values.forEach {
-                    contentService.publish(gid, PublishRequest(it.text))
+                    contentService.publish(gid, PublishRequest(it.text), 0L)
                 }
             }
         }.also {

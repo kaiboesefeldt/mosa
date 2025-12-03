@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
-import straightway.mosa.testutils.TestClock
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
@@ -23,8 +22,7 @@ class ContentServiceTest {
     private val messageDigest = mockk<MessageDigest>()
     private val hasherFactory = mockk<() -> MessageDigest>()
     private val transaction = mockk<VectorStore.Transaction>(relaxed = true)
-    private val clock = TestClock(Instant.ofEpochSecond(170000000))
-    private val sut = ContentService(embeddingService, vectorStore, hasherFactory, clock)
+    private val sut = ContentService(embeddingService, vectorStore, hasherFactory)
 
     private val testUserGID = "test-user-gid"
     private val testEmbedding = floatArrayOf(0.1f, 0.2f, 0.3f)
@@ -381,7 +379,7 @@ class ContentServiceTest {
                 setupWriteAccess()
 
                 // When
-                val contentId = sut.publish(testUserGID, PublishRequest(content))
+                val contentId = sut.publish(testUserGID, PublishRequest(content), TEST_TIME)
 
                 // Then
                 assertEquals("AQIDBA", contentId)
@@ -418,7 +416,7 @@ class ContentServiceTest {
                     createParentQueryResult(rootId, null)
 
                 // When
-                val contentId = sut.reply(testUserGID, ReplyRequest(PublishRequest(content), rootId))
+                val contentId = sut.reply(testUserGID, ReplyRequest(PublishRequest(content), rootId), TEST_TIME)
 
                 // Then
                 assertEquals("BQYHCA", contentId)
@@ -449,7 +447,7 @@ class ContentServiceTest {
                     VectorStore.QueryResults(resultsPage = emptyList(), queryOnId = null)
 
                 assertThrows<BadRequestException> {
-                    sut.reply(testUserGID, ReplyRequest(PublishRequest("ignored"), unknownRootId))
+                    sut.reply(testUserGID, ReplyRequest(PublishRequest("ignored"), unknownRootId), TEST_TIME)
                 }
             }
 
@@ -465,7 +463,7 @@ class ContentServiceTest {
                     createParentQueryResult("child-123", "root-123")
 
                 // Then
-                assertThrows<BadRequestException> { sut.reply(testUserGID, ReplyRequest(PublishRequest(content), "child-123")) }
+                assertThrows<BadRequestException> { sut.reply(testUserGID, ReplyRequest(PublishRequest(content), "child-123"), TEST_TIME) }
             }
     }
 
@@ -601,4 +599,8 @@ class ContentServiceTest {
         queryOnId = queryOnId,
         resultsPage = entries,
     )
+
+    private companion object {
+        const val TEST_TIME = 170000000L
+    }
 }

@@ -11,20 +11,30 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.RoutingContext
 import io.ktor.util.reflect.typeInfo
 import straightway.mosa.base.BaseController
+import java.time.Clock
 
 class ContentController(
     private val contentService: ContentService,
+    private val clock: Clock,
 ) : BaseController() {
     override fun Route.register() {
         authenticate {
             postRoute("/publish") {
                 val gid = userGidOrRespondUnauthorized() ?: return@postRoute
-                contentService.publish(gid, call.receive<PublishRequest>())
+                contentService.publish(
+                    gid,
+                    call.receive<PublishRequest>(),
+                    clock.instant().epochSecond,
+                )
                 call.respond(HttpStatusCode.Created, null)
             }
             postRoute("/reply") {
                 val gid = userGidOrRespondUnauthorized() ?: return@postRoute
-                contentService.reply(gid, call.receive<ReplyRequest>())
+                contentService.reply(
+                    gid,
+                    call.receive<ReplyRequest>(),
+                    clock.instant().epochSecond,
+                )
                 call.respond(HttpStatusCode.Created, null)
             }
             postRoute("/query") {

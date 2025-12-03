@@ -8,7 +8,6 @@ import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import java.security.MessageDigest
-import java.time.Clock
 import java.time.Instant
 import java.util.UUID
 import kotlin.io.encoding.Base64
@@ -18,14 +17,14 @@ class ContentService(
     private val embeddingService: EmbeddingService,
     private val vectorStore: VectorStore,
     private val hasherFactory: () -> MessageDigest,
-    private val clock: Clock,
 ) {
     suspend fun publish(
         userGID: String,
         request: PublishRequest,
+        receiveTimestamp: Long,
     ): String =
         trace(userGID, request) {
-            writeContent(userGID, request)
+            writeContent(userGID, request, emptyMap(), receiveTimestamp)
         }
 
     class RootNotFoundException : BadRequestException("Root not found")
@@ -35,6 +34,7 @@ class ContentService(
     suspend fun reply(
         userGID: String,
         request: ReplyRequest,
+        receiveTimestamp: Long,
     ): String =
         trace(userGID, request) {
             val root =
@@ -49,6 +49,7 @@ class ContentService(
                 mapOf(
                     ROOT_ID_KEY to request.rootId,
                 ),
+                receiveTimestamp,
             )
         }
 
@@ -99,7 +100,8 @@ class ContentService(
     private suspend fun writeContent(
         userGID: String,
         request: PublishRequest,
-        additionalFields: Map<String, String> = emptyMap(),
+        additionalFields: Map<String, String>,
+        receiveTimestamp: Long,
     ): String {
         val embeddingVector = embeddingService.embed(request.text)
         val id = request.text.hashId()
@@ -110,7 +112,7 @@ class ContentService(
                 fields =
                     mapOf(
                         AUTHOR_GID_KEY to userGID,
-                        RECEIVED_AT_KEY to clock.instant().epochSecond.toString(),
+                        RECEIVED_AT_KEY to receiveTimestamp.toString(),
                     ) + additionalFields,
                 vector = embeddingVector,
             )

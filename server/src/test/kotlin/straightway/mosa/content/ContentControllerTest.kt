@@ -15,6 +15,9 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
 import kotlin.test.assertEquals
 
 class ContentControllerTest {
@@ -23,7 +26,15 @@ class ContentControllerTest {
             val contentService =
                 mockk<ContentService>()
             val env =
-                ControllerHttpTestEnvironment(ContentController(contentService)) {
+                ControllerHttpTestEnvironment(
+                    ContentController(
+                        contentService,
+                        Clock.fixed(
+                            Instant.ofEpochSecond(170000000L),
+                            ZoneId.of("UTC"),
+                        ),
+                    ),
+                ) {
                     single<ContentService> { contentService }
                 }
         }
@@ -35,7 +46,7 @@ class ContentControllerTest {
                 env = it.env
                 serviceVerification = {
                     coVerify(exactly = 0) {
-                        it.contentService.publish(any(), any())
+                        it.contentService.publish(any(), any(), any())
                     }
                 }
             }
@@ -50,7 +61,7 @@ class ContentControllerTest {
                             text = "Text to publish",
                         )
                     coEvery {
-                        contentService.publish(env.gid, request)
+                        contentService.publish(env.gid, request, any())
                     } returns ""
 
                     val response =
@@ -62,7 +73,7 @@ class ContentControllerTest {
 
                     assertEquals(HttpStatusCode.Created, response.status)
                     coVerify(exactly = 1) {
-                        contentService.publish(env.gid, request)
+                        contentService.publish(env.gid, request, any())
                     }
                 }
             }
@@ -97,7 +108,7 @@ class ContentControllerTest {
 
                     assertEquals(HttpStatusCode.Unauthorized, response.status)
                     coVerify(exactly = 0) {
-                        contentService.publish(any(), any())
+                        contentService.publish(any(), any(), any())
                     }
                 }
             }
@@ -109,7 +120,7 @@ class ContentControllerTest {
             test.also {
                 env = it.env
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.reply(any(), any()) }
+                    coVerify(exactly = 0) { it.contentService.reply(any(), any(), any()) }
                 }
             }
         }
@@ -126,7 +137,7 @@ class ContentControllerTest {
                                 ),
                             rootId = "01234567",
                         )
-                    coEvery { contentService.reply(env.gid, request) } returns ""
+                    coEvery { contentService.reply(env.gid, request, any()) } returns ""
 
                     val response =
                         client.post("/v1/reply") {
@@ -136,7 +147,7 @@ class ContentControllerTest {
                         }
 
                     assertEquals(HttpStatusCode.Created, response.status)
-                    coVerify(exactly = 1) { contentService.reply(env.gid, request) }
+                    coVerify(exactly = 1) { contentService.reply(env.gid, request, any()) }
                 }
             }
     }

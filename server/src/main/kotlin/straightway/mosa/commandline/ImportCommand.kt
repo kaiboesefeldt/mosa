@@ -13,6 +13,7 @@ import straightway.mosa.content.ContentService.RootNotFoundException
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import java.io.InputStream
 import kotlin.system.exitProcess
@@ -70,10 +71,11 @@ internal class ImportCommand(
             post.fields[AUTHOR_GID_KEY]
                 ?: throw RuntimeException("user without field value for `${AUTHOR_GID_KEY}`")
         val rootId = post.fields[ROOT_ID_KEY]
+        val receiveTimestamp = post.fields[RECEIVED_AT_KEY]?.toLong() ?: 0L
         val id =
             try {
                 if (rootId == null) {
-                    publish(authorGid, PublishRequest(post.text))
+                    publish(authorGid, PublishRequest(post.text), receiveTimestamp)
                 } else {
                     val realRootId = idTable.getOrDefault(rootId, rootId)
                     reply(
@@ -82,6 +84,7 @@ internal class ImportCommand(
                             PublishRequest(post.text),
                             realRootId,
                         ),
+                        receiveTimestamp,
                     )
                 }
             } catch (_: RootNotFoundException) {

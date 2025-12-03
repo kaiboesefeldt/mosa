@@ -47,13 +47,13 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     single<Crypto> { CryptoEd25519() }
     single<TokenUtil> { Auth0TokenUtil(get(), get(), get(), get(), get()) }
 
-    single<ContentService> { ContentService(get(), get(), get(), get()) }
+    single<ContentService> { ContentService(get(), get(), get()) }
 
     single<PodCertificateService> { PodCertificateService(get()) }
 
     single<CommandLineArgumentStore> { arguments }
 
-    single { ContentController(get()) } bind BaseController::class
+    single { ContentController(get(), get()) } bind BaseController::class
     single { AuthenticationController(get()) } bind BaseController::class
     single {
         val cliArguments: CommandLineArgumentStore = get()

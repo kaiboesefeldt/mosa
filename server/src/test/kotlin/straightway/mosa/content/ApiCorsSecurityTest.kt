@@ -11,6 +11,9 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.mockk.mockk
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -19,7 +22,15 @@ import kotlin.test.assertTrue
 class ApiCorsSecurityTest {
     private val contentService = mockk<ContentService>(relaxed = true)
     private val environment =
-        ControllerHttpTestEnvironment(ContentController(contentService)) {
+        ControllerHttpTestEnvironment(
+            ContentController(
+                contentService,
+                Clock.fixed(
+                    Instant.ofEpochSecond(170000000L),
+                    ZoneId.of("UTC"),
+                ),
+            ),
+        ) {
             single<ContentService> { contentService }
         }
 
