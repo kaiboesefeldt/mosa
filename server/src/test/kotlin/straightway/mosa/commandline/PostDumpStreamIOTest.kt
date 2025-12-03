@@ -24,6 +24,28 @@ class PostDumpStreamIOTest {
         }
 
     @Test
+    fun `readNext skips header line`() =
+        runTest(
+            """
+            ${PostDumpStreamIO.HEADER_LINE}
+            id,1234,author,,text
+            """.trimIndent(),
+        ) { sut ->
+            assertEquals(
+                VectorStore.PostDump(
+                    "id",
+                    "text",
+                    mapOf(
+                        AUTHOR_GID_KEY to "author",
+                        RECEIVED_AT_KEY to "1234",
+                    ),
+                ),
+                sut.readNext(),
+            )
+            assertNull(sut.readNext())
+        }
+
+    @Test
     fun `readNext reads first complete line with root ID`() =
         runTest("id,1234,authorGid,rootId,This,is,the,text") { sut ->
             assertEquals(
@@ -291,7 +313,13 @@ class PostDumpStreamIOTest {
                         output.toByteArray()
                     }.toString(Charsets.UTF_8)
 
-            assertEquals("id,1234,author,rootId,Text\n", written)
+            assertEquals(
+                """
+                ${PostDumpStreamIO.HEADER_LINE}
+                id,1234,author,rootId,Text
+                """.trimIndent() + "\n",
+                written,
+            )
         }
 
     @Test
@@ -316,7 +344,13 @@ class PostDumpStreamIOTest {
                         output.toByteArray()
                     }.toString(Charsets.UTF_8)
 
-            assertEquals("id,1234,author,,First\\\\\\\\Line\\nSecond,line\n", written)
+            assertEquals(
+                """
+                ${PostDumpStreamIO.HEADER_LINE}
+                id,1234,author,,First\\\\Line\nSecond,line
+                """.trimIndent() + "\n",
+                written,
+            )
         }
 
     @Test
@@ -342,11 +376,61 @@ class PostDumpStreamIOTest {
 
                 writer.first.flush()
 
-                assertEquals("id,1234,author,,text\n", writer.second.written())
+                assertEquals(
+                    """
+                    ${PostDumpStreamIO.HEADER_LINE}
+                    id,1234,author,,text
+                    """.trimIndent() + "\n",
+                    writer.second.written(),
+                )
                 assertEquals(1, writer.second.flushCount)
             } finally {
                 writer.first.close()
             }
+        }
+
+    @Test
+    fun `writerTo writes header once for multiple posts`() =
+        runTest {
+            val first =
+                VectorStore.PostDump(
+                    "id1",
+                    "First",
+                    mapOf(
+                        AUTHOR_GID_KEY to "author-1",
+                        RECEIVED_AT_KEY to "1",
+                    ),
+                )
+            val second =
+                VectorStore.PostDump(
+                    "id2",
+                    "Second",
+                    mapOf(
+                        ROOT_ID_KEY to "root-id",
+                        AUTHOR_GID_KEY to "author-2",
+                        RECEIVED_AT_KEY to "2",
+                    ),
+                )
+            val sut = PostDumpStreamIO()
+            val written =
+                ByteArrayOutputStream()
+                    .use { output ->
+                        output.bufferedWriter().use { writer ->
+                            val streamWriter = sut.writerTo(writer)
+                            streamWriter.write(first)
+                            streamWriter.write(second)
+                        }
+                        output.toByteArray()
+                    }.toString(Charsets.UTF_8)
+
+            assertEquals(
+                """
+                ${PostDumpStreamIO.HEADER_LINE}
+                id1,1,author-1,,First
+                id2,2,author-2,root-id,Second
+                """.trimIndent() + "\n",
+                written,
+            )
         }
 
     @Test

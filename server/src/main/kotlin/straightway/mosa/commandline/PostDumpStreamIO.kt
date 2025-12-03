@@ -15,15 +15,25 @@ class PostDumpStreamIO(
 ) {
     fun readerFrom(input: BufferedReader): StreamReader<VectorStore.PostDump> =
         StreamReader {
-            withContext(ioDispatcher) { input.readLine() }?.let { parseLine(it) }
+            withContext(ioDispatcher) {
+                input.readNonCommentLine()
+            }?.let { parseLine(it) }
         }
 
-    fun writerTo(output: BufferedWriter): StreamWriter<VectorStore.PostDump> =
-        StreamWriter {
+    fun writerTo(output: BufferedWriter): StreamWriter<VectorStore.PostDump> {
+        output.appendLine(HEADER_LINE)
+        return StreamWriter {
             withContext(ioDispatcher) {
                 output.appendLine(generateLine((it)))
             }
         }
+    }
+
+    private tailrec fun BufferedReader.readNonCommentLine(): String? {
+        val nextLine = readLine()
+        if (nextLine?.startsWith(COMMENT_PREFIX) != true) return nextLine
+        return readNonCommentLine()
+    }
 
     private fun generateLine(postDump: VectorStore.PostDump): String {
         val receivedAt = postDump.fields[RECEIVED_AT_KEY] ?: error("Missing received-at metadata")
@@ -81,4 +91,12 @@ class PostDumpStreamIO(
                 }
             }
         }
+
+    companion object {
+        internal const val HEADER_LINE =
+            "# columns: id=post id, receivedAt=epoch millis when received, authorGid=author gid, " +
+                "rootId=root post id or blank for roots, text=content encoded with \\n for " +
+                "newline and \\\\ for backslash"
+        private const val COMMENT_PREFIX = "#"
+    }
 }
