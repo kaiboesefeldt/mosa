@@ -96,7 +96,7 @@ class PostDumpStreamIO(
 
     companion object {
         internal const val HEADER_LINE =
-            "# columns: id=post id, receivedAt=epoch millis when received, authorGid=author gid, " +
+            "# columns: id=post id, receivedAt=epoch seconds when received, authorGid=author gid, " +
                 "rootId=root post id or blank for roots, text=content encoded with \\n for " +
                 "newline and \\\\ for backslash"
         private const val COMMENT_PREFIX = "#"
