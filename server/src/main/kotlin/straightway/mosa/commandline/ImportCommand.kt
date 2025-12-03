@@ -16,6 +16,7 @@ import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import java.io.InputStream
+import kotlin.io.encoding.Base64
 import kotlin.system.exitProcess
 
 @OptIn(ExperimentalCli::class)
@@ -68,8 +69,7 @@ internal class ImportCommand(
         idTable: MutableMap<String, String>,
     ): ImportState {
         val authorGid =
-            post.fields[AUTHOR_GID_KEY]
-                ?: throw RuntimeException("user without field value for `${AUTHOR_GID_KEY}`")
+            post.getAuthorGid()
         val rootId = post.fields[ROOT_ID_KEY]
         val receiveTimestamp = post.fields[RECEIVED_AT_KEY]?.toLong() ?: 0L
         val id =
@@ -94,4 +94,13 @@ internal class ImportCommand(
         if (id != post.id) idTable[post.id] = id
         return ImportState.Success
     }
+
+    private fun VectorStore.PostDump.getAuthorGid(): String =
+        fields[AUTHOR_GID_KEY]
+            ?.let { authorGid: String ->
+                runCatching {
+                    Base64.UrlSafe.decode(authorGid)
+                    authorGid
+                }.getOrElse { Base64.UrlSafe.encode(authorGid.toByteArray()) }
+            } ?: throw RuntimeException("user without field value for `${AUTHOR_GID_KEY}`")
 }

@@ -21,6 +21,7 @@ import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import java.io.ByteArrayInputStream
+import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -30,12 +31,13 @@ class ImportCommandTest {
     private val contentService = mockk<ContentService>()
     private val koin = mockk<Koin>()
     private val koinApplication = mockk<KoinApplication>(relaxed = true)
+    val authorBase64 = Base64.UrlSafe.encode("author".toByteArray())
     val rootPost =
         VectorStore.PostDump(
             "rootId",
             "root",
             mapOf(
-                AUTHOR_GID_KEY to "author",
+                AUTHOR_GID_KEY to authorBase64,
                 RECEIVED_AT_KEY to "12345",
             ),
         )
@@ -44,7 +46,7 @@ class ImportCommandTest {
             "replyId",
             "reply",
             mapOf(
-                AUTHOR_GID_KEY to "author",
+                AUTHOR_GID_KEY to authorBase64,
                 ROOT_ID_KEY to "rootId",
                 RECEIVED_AT_KEY to "12345",
             ),
@@ -77,10 +79,21 @@ class ImportCommandTest {
         val exit = assertFailsWith<ExitSignal> { command.execute() }
 
         assertEquals(0, exit.code)
-        coVerify(exactly = 1) { contentService.publish("author", PublishRequest("root"), 12345L) }
+        coVerify(exactly = 1) { contentService.publish(authorBase64, PublishRequest("root"), 12345L) }
         coVerify(exactly = 0) { contentService.reply(any(), any(), any()) }
         verify(exactly = 1) { streamIO.readerFrom(any()) }
         verify(exactly = 1) { koinApplication.close() }
+    }
+
+    @Test
+    fun `converts non base64 gids automatically to base64`() {
+        setupStreamReader(rootPost.copy(fields = rootPost.fields - AUTHOR_GID_KEY + (AUTHOR_GID_KEY to "otherAuthor")))
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+
+        assertFailsWith<ExitSignal> { command.execute() }
+
+        val otherAuthorBase64 = Base64.UrlSafe.encode("otherAuthor".toByteArray())
+        coVerify(exactly = 1) { contentService.publish(otherAuthorBase64, PublishRequest("root"), 12345L) }
     }
 
     @Test
@@ -90,7 +103,7 @@ class ImportCommandTest {
 
         assertFailsWith<ExitSignal> { command.execute() }
 
-        coVerify(exactly = 1) { contentService.publish("author", PublishRequest("root"), 0L) }
+        coVerify(exactly = 1) { contentService.publish(authorBase64, PublishRequest("root"), 0L) }
     }
 
     @Test
@@ -102,7 +115,7 @@ class ImportCommandTest {
 
         coVerify(exactly = 0) { contentService.publish(any(), any(), any()) }
         coVerify(exactly = 1) {
-            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "rootId"), 12345L)
+            contentService.reply(authorBase64, ReplyRequest(PublishRequest("reply"), "rootId"), 12345L)
         }
         verify(exactly = 1) { koinApplication.close() }
     }
@@ -115,7 +128,7 @@ class ImportCommandTest {
         assertFailsWith<ExitSignal> { command.execute() }
 
         coVerify(exactly = 1) {
-            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "rootId"), 0L)
+            contentService.reply(authorBase64, ReplyRequest(PublishRequest("reply"), "rootId"), 0L)
         }
     }
 
@@ -123,19 +136,19 @@ class ImportCommandTest {
     fun `retries posting failed posts with recoverable exceptions`() {
         setupStreamReader(replyPost)
         coEvery {
-            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "rootId"), any())
+            contentService.reply(authorBase64, ReplyRequest(PublishRequest("reply"), "rootId"), any())
         } throws ContentService.RootNotFoundException()
         val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
 
         val ex = assertFailsWith<IllegalStateException> { command.execute() }
 
         assertEquals(
-            "Could not import these posts: [PostDump(id=replyId, text=reply, fields={authorGID=author, rootId=rootId, receivedAt=12345})]",
+            "Could not import these posts: [PostDump(id=replyId, text=reply, fields={authorGID=$authorBase64, rootId=rootId, receivedAt=12345})]",
             ex.message,
         )
         coVerify(exactly = 0) { contentService.publish(any(), any(), any()) }
         coVerify(exactly = 2) {
-            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "rootId"), 12345L)
+            contentService.reply(authorBase64, ReplyRequest(PublishRequest("reply"), "rootId"), 12345L)
         }
         verify(exactly = 1) { koinApplication.close() }
     }
@@ -144,7 +157,7 @@ class ImportCommandTest {
     fun `aborts import if the error is not recoverable`() {
         setupStreamReader(replyPost)
         coEvery {
-            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "rootId"), any())
+            contentService.reply(authorBase64, ReplyRequest(PublishRequest("reply"), "rootId"), any())
         } throws UnsupportedOperationException("Test Error")
         val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
 
@@ -156,7 +169,7 @@ class ImportCommandTest {
         )
         coVerify(exactly = 0) { contentService.publish(any(), any(), any()) }
         coVerify(exactly = 1) {
-            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "rootId"), 12345L)
+            contentService.reply(authorBase64, ReplyRequest(PublishRequest("reply"), "rootId"), 12345L)
         }
         verify(exactly = 1) { koinApplication.close() }
     }
@@ -169,10 +182,10 @@ class ImportCommandTest {
         assertFailsWith<ExitSignal> { command.execute() }
 
         coVerify(exactly = 1) {
-            contentService.publish("author", PublishRequest("root"), 12345L)
+            contentService.publish(authorBase64, PublishRequest("root"), 12345L)
         }
         coVerify(exactly = 1) {
-            contentService.reply("author", ReplyRequest(PublishRequest("reply"), "storedPostId"), 12345L)
+            contentService.reply(authorBase64, ReplyRequest(PublishRequest("reply"), "storedPostId"), 12345L)
         }
         verify(exactly = 1) { koinApplication.close() }
     }
