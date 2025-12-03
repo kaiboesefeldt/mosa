@@ -1,0 +1,102 @@
+# columns: id=post id, receivedAt=epoch seconds when received, authorGid=author gid, rootId=root post id or blank for roots, text=content encoded with \n for newline and \\ for backslash
+post_root_001,1609459200,swiftFan_anna,,Ich höre seit Tagen nichts anderes als Taylor Swifts Album "1989 (Taylor's Version)"\nund entdecke in jedem Song neue Details im Arrangement.
+post_root_002,1609480800,swiftFan_ben,,Wie krass ist bitte die Entwicklung von Tayler Swift von Country-Newcomerin zu globalem Pop-Superstar mit ausverkaufter Eras Tour?
+post_root_003,1609502400,swiftFan_caro,,Ich finde es faszinierend, wie Taylor Swift in ihren Texten ganz konkrete Szenen beschreibt, sodass man sich direkt in ihre Beziehungen hineinversetzt fühlt.
+post_root_004,1609524000,swiftFan_dave,,Man kann von Charts und Hypes halten, was man will, aber der Erfolg von Taylor Swift zeigt, wie stark gute Storytelling-Songs noch funktionieren.
+post_root_005,1609545600,swiftFan_elin,,Seit ich das erste Mal "All Too Well (10 Minute Version)" gehört habe, vergleiche ich jede andere Ballade mit dieser emotionalen Intensität.
+post_root_006,1609567200,swiftFan_felix,,Mir gefällt an Taylor Swift, dass sie ihre alten Alben noch einmal aufnimmt und damit ein Statement gegen ungerechte Musikrechte setzt.
+post_root_007,1609588800,swiftFan_greta,,Ich war nie ein großer Fan von Pop, aber das Songwriting auf "folklore" und "evermore" hat mich komplett umgehauen.
+post_root_008,1609610400,swiftFan_hans,,Die Art, wie Taylor Swift immer wieder musikalisch die Richtung wechselt und trotzdem ihren Stil behält, ist schon ziemlich beeindruckend.
+post_root_009,1609632000,swiftFan_ilia,,Man merkt in Interviews, wie genau Taylor Swift ihre Veröffentlichungstermine, Easter Eggs und Promoaktionen plant – das ist fast schon Projektmanagement.
+post_root_010,1609653600,swiftFan_jule,,Ich liebe es, wie die Eras Tour jede Phase von Taylor Swifts Karriere mit eigenen Farben, Kostümen und Setlisten inszeniert.
+post_root_011,1609675200,swiftFan_kai,,Wenn ich schlechte Laune habe, reicht meistens eine laute Runde "Shake It Off" und plötlich fühlt sich der Tag halb so schlimm an.
+post_root_012,1609696800,swiftFan_lena,,Die Debatte, ob Taylor Swift eher Country, Pop oder Indie ist, geht meiner Meinung nach am Punkt vorbei – am Ende zählt, dass die Songs berühren.
+post_root_013,1609718400,swiftFan_mo,,Ich finde spannend, wie Taylor Swift in vielen Songs auch Machtverhältnisse in der Musikindustrie anspricht, zum Beispiel in "The Man".
+post_root_014,1609740000,swiftFan_nina,,Als Songwriter*in kann man extrem viel von ihren Perspektivwechseln lernen, etwa wenn sie in "cardigan", "august" und "betty" dieselbe Story aus drei Blickwinkeln erzählt.
+post_root_015,1609761600,swiftFan_olli,,Mir ist aufgefallen, dass Taylor Swift musikalisch oft sehr einfache Akkorde benutzt, aber mit Melodie und Text trotzdem komplexe Gefühle ausdrückt.
+post_root_016,1609783200,swiftFan_anna,,Ich verstehe, dass manche Leute den Hype nervig finden, aber der wirtschaftliche Einfluss der Eras Tour auf ganze Städte ist schon enorm.
+post_root_017,1609804800,swiftFan_ben,,Taylor Swift schafft es, sehr persönliche Geschichten zu erzählen, die trotzdem universell wirken – das ist für mich das Geheimnis ihres Erfolgs.
+post_root_018,1609826400,swiftFan_caro,,Man darf nicht vergessen, dass Taylor Swift schon als Teenager in Nashville mit Profis geschrieben hat und sich dort durchsetzen musste.
+post_root_019,1609848000,swiftFan_dave,,Ich finde es spannend, wie viele Bezüge zu Literatur und Filmen in ihren neueren Texten stecken, zum Beispiel bei "tolerate it".
+post_root_020,1609869600,swiftFan_elin,,Die Fan-Kultur rund um Taylor Swift mit Friendship Bracelets, Theorien und versteckten Botschaften ist teilweise verrückt, aber auch sehr kreativ.
+post_root_021,1609891200,swiftFan_felix,,Mich nervt ein bischen, dass in jeder zweiten Playlist nur noch Taylor-Songs vorkommen, obwohl es natürlich viele gute Tracks gibt.
+post_root_022,1609912800,swiftFan_greta,,Was ich an Taylor Swift kritisiere: Manchmal wirken die Releases schon sehr kalkuliert, zum Beispiel mit zig Special Editions einer Platte.
+post_root_023,1609934400,swiftFan_hans,,Auch wenn Tailor Swift sehr präsent ist, finde ich bemerkenswert, wie konsequent sie sich politisch äußert, etwa zu Frauenrechten und Wahlen in den USA.
+post_root_024,1609956000,swiftFan_ilia,,Ich musste lachen, als jemand meinte, Taylor Swift sei die "Chefin des internationalen Herzschmerz-Amtes" – irgendwie passt das.
+post_root_025,1609977600,swiftFan_jule,,Für mich ist Taylor Swift eine der wenigen Künstlerinnen, bei denen die Bridges der Songs regelmäßig Gänsehaut auslösen.
+post_root_026,1609999200,swiftFan_kai,,Ich war zuerst skeptisch, aber nach ein paar Live-Videos der Eras Tour bin ich echt beeindruckt, wie stabil sie über drei Stunden performt.
+post_root_027,1610020800,swiftFan_lena,,Die Diskussion, ob Taylor Swift zu viel Medienaufmerksamkeit bekommt, blendet oft aus, wie hart sie seit Jahren arbeitet.
+post_root_028,1610042400,swiftFan_mo,,Ich mag besonders die ruhigeren Songs wie "mirrorball" oder "marjorie", weil sie so eine zerbrechliche Stimung aufbauen.
+post_root_029,1610064000,swiftFan_nina,,Die Kombination aus Tagebuch-Ästhetik und Pop-Hooks macht Taylor-Swift-Songs für mich zu perfekten Autofahr-Soundtracks.
+post_root_030,1610085600,swiftFan_olli,,Eine Freundin meinte neulich, ohne Taylor Swift hätte sie nie angefangen, selbst Songs zu schreiben – das zeigt, wie inspirierend Vorbilder sein können.
+post_reply_001,1610107200,swiftFan_anna,post_root_001,Ich stimme dir zu, gerade auf "1989 (Taylor's Version)" hört man, wie sauber die Produktion\nim Vergleich zu den alten Versionen klingt.
+post_reply_002,1610128800,swiftFan_ben,post_root_002,Mir ging es ähnlich, erst mit "folklore" habe ich gemerkt, wie stark Taylor Swift textlich ist.
+post_reply_003,1610150400,swiftFan_caro,post_root_003,Was ich krass finde: Viele Leute sind erst durch die Eras Tour so richtig auf ihre älteren Country-Sachen aufmerksam geworden.
+post_reply_004,1610172000,swiftFan_dave,post_root_004,Ich finde auch, dass "All Too Well" einer der wenigen Songs ist, die in der 10-Minuten-Version nicht langwelig werden.
+post_reply_005,1610193600,swiftFan_elin,post_root_005,Besonders spannend finde ich bei Taylor Swift, wie der Bass und die kleinen Synth-Sounds oft erst mit Kopfhörern richtig zur Geltung kommen.
+post_reply_006,1610215200,swiftFan_felix,post_root_006,Mich beeindruckt, dass sie es geschafft hat, so viele Alben neu aufzunehmen, ohne dass die Qualität darunter leidet.
+post_reply_007,1610236800,swiftFan_greta,post_root_007,Bei mir läuft "cruel summer" in Dauerschleife, obwohl der Song eigentlich schon ein paar Jahre alt ist.
+post_reply_008,1610258400,swiftFan_hans,post_root_008,Ich finde, dass Taylor Swift gerade jüngeren Künstlerinnen zeigt, wie wichtig Kontrolle über die eigenen Masterrechte ist.
+post_reply_009,1610280000,swiftFan_ilia,post_root_009,Man merkt in den Lyrics, dass Taylor Swift wahnsinnig viel liest und beobachtet, das ist kein Zufall.
+post_reply_010,1610301600,swiftFan_jule,post_root_010,Ich war zuerst genervt von dem Hype, habe dann aber aus Neugier das komplette "Midnights"-Album gehört und mag es jetzt sehr.
+post_reply_011,1610323200,swiftFan_kai,post_root_011,Der Humor in manchen Taylor-Swift-Songs wird total unterschätzt, viele achten nur auf die dramatishen Zeilen.
+post_reply_012,1610344800,swiftFan_lena,post_root_012,Für mich ist "Style" einer der besten Popsongs der letzten zehn Jahre, vom Gitarrenriff bis zum Refrain.
+post_reply_013,1610366400,swiftFan_mo,post_root_013,Ich höre Taylor Swift oft beim Arbeiten, weil viele Songs einen Flow haben, der mich konzentriert hält.
+post_reply_014,1610388000,swiftFan_nina,post_root_014,Als sie angefangen hat, versteckte Botschaften in den Booklets zu markieren, war ich als Teenie komplett im Detektivmodus.
+post_reply_015,1610409600,swiftFan_olli,post_root_015,Ich finde, Taylor Swift zeigt, dass man sich als Künstlerin weiterentwickeln darf, ohne die alten Fans zu verlieren.
+post_reply_016,1610431200,swiftFan_anna,post_root_016,Viele unterschätzen, wie schwierig es ist, über sehr persönliche Themen zu schreiben, ohne dass es kitschig wirkt.
+post_reply_017,1610452800,swiftFan_ben,post_root_017,Was mich nervt, sind eher die toxischen Online-Diskussionen zwischen Fans und Hatern, Taylor selbst bleibt meistens sachlich.
+post_reply_018,1610474400,swiftFan_caro,post_root_018,Ich finde es spannend, wie oft Taylor Swift in Songs über Zeit, Jahreszeiten und Erinnerungen schreibt.
+post_reply_019,1610496000,swiftFan_dave,post_root_019,Wenn ich lange Zug fahre, höre ich am liebsten die ruhigeren Taylor-Songs und schaue einfach aus dem Fenster.
+post_reply_020,1610517600,swiftFan_elin,post_root_020,Einige deutsche Medien tun so, als sei Taylor Swift nur ein Teenie-Phänomen, dabei sind viele Fans längst älter als 30.
+post_reply_021,1610539200,swiftFan_felix,post_root_021,Ich mag an "the 1", dass der Song melancholisch ist, aber trotzdem irgendwie tröstlich wirkt.
+post_reply_022,1610560800,swiftFan_greta,post_root_022,Interessant ist auch, dass Taylor Swift ihre Setlisten je nach Land leicht anpasst.
+post_reply_023,1610582400,swiftFan_hans,post_root_023,Was sagst du zu den ganzen Fan-Theorien, dass einzelne Songs geheime Botschaften an bestimmte Ex-Partner enthalten?
+post_reply_024,1610604000,swiftFan_ilia,post_root_024,Ich hätte nie gedacht, dass eine einzige Tour so viel Einfluss auf Flugpreise und Hotelbuchungen haben kann.
+post_reply_025,1610625600,swiftFan_jule,post_root_025,Mir fällt auf, dass viele Leute zuerst über Taylor Swift lästern und dann heimlich doch die bekanntesten Songs mitsingen.
+post_reply_026,1610647200,swiftFan_kai,post_root_026,Meine Lieblingsline ist warscheinlich "I remember it all too well", weil sie so simpel und gleichzeitig so schwer wiegt.
+post_reply_027,1610668800,swiftFan_lena,post_root_027,Bei "Getaway Car" bekomme ich jedes Mal Lust, nachts Auto zu fahren, obwohl ich eigentlich früh schlafen gehe.
+post_reply_028,1610690400,swiftFan_mo,post_root_028,Ich finde, man hört bei Taylor Swift gut, wie stark ein guter Bridge-Teil einen Song noch einmal hochziehen kann.
+post_reply_029,1610712000,swiftFan_nina,post_root_029,Mein kleiner Bruder kann eigentlich nichts mit Pop anfangen, aber "Anti-Hero" feiert er komplett.
+post_reply_030,1610733600,swiftFan_olli,post_root_030,Die Zusammenarbeit von Taylor Swift mit Produzenten wie Jack Antonoff hat ihren Sound sehr geprägt.
+post_reply_031,1610755200,swiftFan_anna,post_root_001,Ich würde mir wünschen, dass sie irgendwann ein komplett reduziertes Akustik-Album nur mit Gitarre und Stimme macht.
+post_reply_032,1610776800,swiftFan_ben,post_root_002,Was ich cool finde: Taylor Swift nutzt TikTok & Co. eher sparsam und verlässt sich mehr auf ihre Musik und Storys.
+post_reply_033,1610798400,swiftFan_caro,post_root_003,Manchmal habe ich das Gefühl, dass Taylor-Songs wie kleine Kurzfilme sind, vor allem mit den ausführlichen Bridges.
+post_reply_034,1610820000,swiftFan_dave,post_root_004,Taylor Swift ist eine der wenigen Künstlerinnen, bei der ich die Deluxe-Versionen wirklich gern höre, weil die Extra-Songs oft sehr stark sind.
+post_reply_035,1610841600,swiftFan_elin,post_root_005,Ich kenne Leute, die extra Englisch gelernt haben, um ihre Texte besser zu verstehen – das ist doch verrückt schön.
+post_reply_036,1610863200,swiftFan_felix,post_root_006,Ich glaube, der Hype wird noch eine Weile anhalten, weil sie ständig neue Kapitel in ihrer Karriere aufschlägt.
+post_reply_037,1610884800,swiftFan_greta,post_root_007,Für mich zeigt Taylor Swift, dass Popkultur politisch sein kann, ohne plump belehrend zu sein.
+post_reply_038,1610906400,swiftFan_hans,post_root_008,Manchmal wünschte ich mir, es gäbe mehr Berichte über ihre Songwriting-Sessions statt nur über ihr Privatleben.
+post_reply_039,1610928000,swiftFan_ilia,post_root_009,Wenn ich an Taylor-Swift-Songs denke, habe ich oft ganz konkrete Farben im Kopf, vielleicht wegen der Albumkonzepte.
+post_reply_040,1610949600,swiftFan_jule,post_root_010,Ich muss zugeben, ich habe Tailor Swift früher unterschätzt und sie nur als Mainstram-Pop wahrgenommen.
+post_reply_041,1610971200,swiftFan_kai,post_root_011,Mir gefällt, dass sie zwischendurch auch ironisch und selbstreflexiv über ihren Status als Celebrity singt.
+post_reply_042,1610992800,swiftFan_lena,post_root_012,Besonders live merkt man, wie routiniert sie mit einem riesigen Publikum umgeht.
+post_reply_043,1611014400,swiftFan_mo,post_root_013,Ich bin gespannt, wie ihre Musik in zehn Jahren klingt und ob sie dann vielleicht mehr in Richtung Folk geht.
+post_reply_044,1611036000,swiftFan_nina,post_root_014,Man kann viel über ihre Fanbase sagen, aber die Kreativität bei Schildern und Outfits auf Konzerten ist beeindruckend.
+post_reply_045,1611057600,swiftFan_olli,post_root_015,Ich finde es mutig, wie klar sie in Dokus über ihre Essstörung und den Druck im Business spricht.
+post_reply_046,1611079200,swiftFan_anna,post_root_016,Man sieht an Taylor Swift gut, wie stark Streamingzahlen mittlerweile Karrieren beeinflussen.
+post_reply_047,1611100800,swiftFan_ben,post_root_017,Meine Playlist für lange Autofahrten besteht zu etwa einem Drittel aus Taylor-Songs.
+post_reply_048,1611122400,swiftFan_caro,post_root_018,Ich liebe die Art, wie sie bestimmte Wörter betont, etwa wenn sie ein einzelnes Wort länger zieht als erwartet.
+post_reply_049,1611144000,swiftFan_dave,post_root_019,Was ich richtig gut finde: Viele Taylor-Songs haben einfache Refrains, die man schon nach einmal Hören mitsingen kann.
+post_reply_050,1611165600,swiftFan_elin,post_root_020,Ich hätte nie gedacht, dass eine Künstlerin so viele Alben in so kurzer Zeit veröffentlichen kann, ohne dass die Qualität leidet.
+post_reply_051,1611187200,swiftFan_felix,post_root_021,😍
+post_reply_052,1611208800,swiftFan_greta,post_root_022,😍😍
+post_reply_053,1611230400,swiftFan_hans,post_root_023,✨😍
+post_reply_054,1611252000,swiftFan_ilia,post_root_024,😍✨
+post_reply_055,1611273600,swiftFan_jule,post_root_025,🔥
+post_reply_056,1611295200,swiftFan_kai,post_root_026,🔥🔥
+post_reply_057,1611316800,swiftFan_lena,post_root_027,✨
+post_reply_058,1611338400,swiftFan_mo,post_root_028,😭
+post_reply_059,1611360000,swiftFan_nina,post_root_029,🥲
+post_reply_060,1611381600,swiftFan_olli,post_root_030,🥹
+post_reply_061,1611403200,swiftFan_anna,post_root_001,🤯
+post_reply_062,1611424800,swiftFan_ben,post_root_002,🙌
+post_reply_063,1611446400,swiftFan_caro,post_root_003,🙌🙌
+post_reply_064,1611468000,swiftFan_dave,post_root_004,🫶
+post_reply_065,1611489600,swiftFan_elin,post_root_005,🫶🏻
+post_reply_066,1611511200,swiftFan_felix,post_root_006,🫶🏽
+post_reply_067,1611532800,swiftFan_greta,post_root_007,🎶
+post_reply_068,1611554400,swiftFan_hans,post_root_008,🎤
+post_reply_069,1611576000,swiftFan_ilia,post_root_009,Ich liebe diese Diskussion über Taylor Swift hier im Feed, so viele unterschiedliche Perspektiven!
+post_reply_070,1611597600,swiftFan_jule,post_root_010,Ich freue mich schon darauf, wenn Tailor Swift das nächste Kapitel ihrer Karriere aufschlägt und wieder alle überrascht.
+
