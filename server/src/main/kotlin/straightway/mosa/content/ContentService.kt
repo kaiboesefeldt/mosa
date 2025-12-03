@@ -37,6 +37,7 @@ class ContentService(
         receiveTimestamp: Long,
     ): String =
         trace(userGID, request) {
+            validateLength(request.content.text)
             val root =
                 vectorStore
                     .query(VectorStore.Query(id = request.rootId))
@@ -103,6 +104,7 @@ class ContentService(
         additionalFields: Map<String, String>,
         receiveTimestamp: Long,
     ): String {
+        validateLength(request.text)
         val embeddingVector = embeddingService.embed(request.text)
         val id = request.text.hashId()
         vectorStore.writeAccess {
@@ -152,6 +154,7 @@ class ContentService(
 
     private companion object {
         private val log = KotlinLogging.logger { }
+        private const val MAX_POST_LENGTH = 1800
         private const val MAX_LOG_LEN_FOR_REQUESTS = 100
         private val nilQueryRequest = QueryRequest()
 
@@ -166,6 +169,12 @@ class ContentService(
         ): Nothing {
             log.error { "Vector store entry $entryId is missing metadata field $fieldName" }
             throw MissingVectorMetadataException(entryId, fieldName)
+        }
+
+        private fun validateLength(text: String) {
+            if (text.length > MAX_POST_LENGTH) {
+                throw BadRequestException("text must be at most $MAX_POST_LENGTH characters")
+            }
         }
 
         private fun Any.logString(): String =

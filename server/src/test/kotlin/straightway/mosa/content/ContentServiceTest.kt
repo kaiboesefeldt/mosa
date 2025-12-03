@@ -369,6 +369,18 @@ class ContentServiceTest {
     @Nested
     inner class Publish {
         @Test
+        fun `throws BadRequest when text exceeds max length`() =
+            runTest {
+                val tooLongText = "a".repeat(1801)
+
+                assertThrows<BadRequestException> {
+                    sut.publish(testUserGID, PublishRequest(tooLongText), TEST_TIME)
+                }
+
+                coVerify(exactly = 0) { embeddingService.embed(any()) }
+            }
+
+        @Test
         fun `publishes content with correct parameters`() =
             runTest {
                 // Given
@@ -404,6 +416,18 @@ class ContentServiceTest {
 
     @Nested
     inner class Reply {
+        @Test
+        fun `throws BadRequest when reply text exceeds max length`() =
+            runTest {
+                val tooLongText = "a".repeat(1801)
+
+                assertThrows<BadRequestException> {
+                    sut.reply(testUserGID, ReplyRequest(PublishRequest(tooLongText), "root-123"), TEST_TIME)
+                }
+
+                coVerify(exactly = 0) { embeddingService.embed(any()) }
+            }
+
         private fun testReplyToRoot(rootId: String) =
             runTest {
                 // Given
