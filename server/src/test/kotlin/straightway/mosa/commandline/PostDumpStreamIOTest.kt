@@ -46,6 +46,31 @@ class PostDumpStreamIOTest {
         }
 
     @Test
+    fun `readNext skips blank lines`() =
+        runTest(
+            listOf(
+                "",
+                PostDumpStreamIO.HEADER_LINE,
+                "",
+                "id,1234,author,,text",
+                "",
+            ).joinToString("\n"),
+        ) { sut ->
+            assertEquals(
+                VectorStore.PostDump(
+                    "id",
+                    "text",
+                    mapOf(
+                        AUTHOR_GID_KEY to "author",
+                        RECEIVED_AT_KEY to "1234",
+                    ),
+                ),
+                sut.readNext(),
+            )
+            assertNull(sut.readNext())
+        }
+
+    @Test
     fun `readNext reads first complete line with root ID`() =
         runTest("id,1234,authorGid,rootId,This,is,the,text") { sut ->
             assertEquals(

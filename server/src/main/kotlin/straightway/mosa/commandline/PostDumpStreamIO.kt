@@ -31,9 +31,11 @@ class PostDumpStreamIO(
 
     private tailrec fun BufferedReader.readNonCommentLine(): String? {
         val nextLine = readLine()
-        if (nextLine?.startsWith(COMMENT_PREFIX) != true) return nextLine
+        if (nextLine?.shouldLineBeSkipped() != true) return nextLine
         return readNonCommentLine()
     }
+
+    private fun String.shouldLineBeSkipped() = startsWith(COMMENT_PREFIX) || isBlank()
 
     private fun generateLine(postDump: VectorStore.PostDump): String {
         val receivedAt = postDump.fields[RECEIVED_AT_KEY] ?: error("Missing received-at metadata")
