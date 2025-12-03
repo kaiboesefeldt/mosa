@@ -66,7 +66,7 @@ class ContentService(
                     VectorStore.Query(
                         vector = topicEmbedding,
                         fromTime = request.minTime?.let { Instant.ofEpochSecond(it) },
-                        fields = request.threadRootId?.let { mapOf(ROOT_ID_KEY to it) } ?: emptyMap(),
+                        fields = mapOf(ROOT_ID_KEY to request.threadRootId),
                     ),
                 )
             val filteredEntries =

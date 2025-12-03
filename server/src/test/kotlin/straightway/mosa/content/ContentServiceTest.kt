@@ -81,7 +81,7 @@ class ContentServiceTest {
             }
 
         @Test
-        fun `queries without threadRootId uses empty fields map`() =
+        fun `queries without threadRootId filter for missing rootId`() =
             runTest {
                 setupEmbedding("topic without thread")
                 setupVectorStore()
@@ -92,7 +92,7 @@ class ContentServiceTest {
                     VectorStore.Query(
                         vector = testEmbedding,
                         fromTime = null,
-                        fields = emptyMap(),
+                        fields = mapOf("rootId" to null),
                     ),
                 )
             }
@@ -102,7 +102,7 @@ class ContentServiceTest {
             runTest {
                 testQuery(
                     request = QueryRequest(topic = "test topic"),
-                    expectedQuery = VectorStore.Query(vector = testEmbedding, fromTime = null, fields = emptyMap()),
+                    expectedQuery = VectorStore.Query(vector = testEmbedding, fromTime = null, fields = mapOf("rootId" to null)),
                     needsEmbedding = true,
                 )
             }
@@ -112,7 +112,12 @@ class ContentServiceTest {
             runTest {
                 testQuery(
                     request = QueryRequest(minTime = testMinTime),
-                    expectedQuery = VectorStore.Query(vector = null, fromTime = Instant.ofEpochSecond(testMinTime), fields = emptyMap()),
+                    expectedQuery =
+                        VectorStore.Query(
+                            vector = null,
+                            fromTime = Instant.ofEpochSecond(testMinTime),
+                            fields = mapOf("rootId" to null),
+                        ),
                 )
             }
 
@@ -134,7 +139,7 @@ class ContentServiceTest {
                         VectorStore.Query(
                             vector = testEmbedding,
                             fromTime = Instant.ofEpochSecond(testMinTime),
-                            fields = emptyMap(),
+                            fields = mapOf("rootId" to null),
                         ),
                     needsEmbedding = true,
                 )

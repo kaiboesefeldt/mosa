@@ -8,6 +8,7 @@ import org.apache.lucene.search.KnnFloatVectorQuery
 import org.apache.lucene.search.MatchAllDocsQuery
 import org.apache.lucene.search.Query
 import org.apache.lucene.search.TermQuery
+import org.apache.lucene.search.WildcardQuery
 import straightway.mosa.VectorStore
 import java.time.Instant
 
@@ -17,11 +18,12 @@ class LuceneQueryPlanner(
     fun create(query: VectorStore.Query): Query =
         BooleanQuery
             .Builder()
-            .addKnnQuery(query.vector)
-            .addTermQuery(ID_FIELD_NAME, query.id)
-            .addTimeRangeQuery(TIME_ADDED_FIELD_NAME, query.fromTime, query.toTime)
-            .apply { query.fields.forEach { (key, value) -> addTermQuery(key, value) } }
-            .build()
+            .apply {
+                addKnnQuery(query.vector)
+                query.id?.let { addTermQuery(ID_FIELD_NAME, it) }
+                addTimeRangeQuery(TIME_ADDED_FIELD_NAME, query.fromTime, query.toTime)
+                query.fields.forEach { (key, value) -> addTermQuery(key, value) }
+            }.build()
             .takeUnless { it.clauses().isEmpty() } ?: MatchAllDocsQuery()
 
     private fun BooleanQuery.Builder.addKnnQuery(vector: FloatArray?) =
@@ -38,11 +40,23 @@ class LuceneQueryPlanner(
         fieldName: String,
         value: String?,
     ) = also {
-        if (value != null) {
-            add(
-                TermQuery(Term(fieldName, value)),
-                BooleanClause.Occur.FILTER,
-            )
+        when (value) {
+            null -> {
+                add(
+                    MatchAllDocsQuery(),
+                    BooleanClause.Occur.FILTER,
+                )
+                add(
+                    WildcardQuery(Term(fieldName, "*")),
+                    BooleanClause.Occur.MUST_NOT,
+                )
+            }
+
+            else ->
+                add(
+                    TermQuery(Term(fieldName, value)),
+                    BooleanClause.Occur.FILTER,
+                )
         }
     }
 

@@ -260,6 +260,36 @@ class LuceneLocalVectorStoreSubIntegrationTest {
             }
 
         @Test
+        fun `querying for null field value excludes documents with field set`() =
+            test {
+                sut.writeAccess {
+                    add(
+                        id = "withoutField",
+                        text = "Text",
+                        fields = emptyMap(),
+                        vector = vector,
+                    )
+                    testClock.advance(1.seconds)
+                    add(
+                        id = "withField",
+                        text = "Text",
+                        fields = mapOf("tag" to "value"),
+                        vector = vector,
+                    )
+                }
+
+                val searchResult =
+                    sut.query(
+                        Query(fields = mapOf("tag" to null)),
+                    )
+
+                assertEquals(
+                    listOf("withoutField"),
+                    searchResult.resultsPage.map { it.id },
+                )
+            }
+
+        @Test
         fun `items can be filtered by min time`() =
             test {
                 val itemTimes = mutableListOf<Instant>()

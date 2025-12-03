@@ -5,6 +5,7 @@ import org.apache.lucene.search.BooleanQuery
 import org.apache.lucene.search.KnnFloatVectorQuery
 import org.apache.lucene.search.MatchAllDocsQuery
 import org.apache.lucene.search.PointRangeQuery
+import org.apache.lucene.search.WildcardQuery
 import org.junit.jupiter.api.Test
 import straightway.mosa.VectorStore
 import java.time.Instant
@@ -71,5 +72,22 @@ class LuceneQueryPlannerTest {
         assertEquals(BooleanClause.Occur.FILTER, rangeClause.occur)
         val pointRange = assertIs<PointRangeQuery>(rangeClause.query)
         assertEquals("timeadded:[-9223372036854775808 TO 11]", pointRange.toString())
+    }
+
+    @Test
+    fun `null field value filters out documents where field is set`() {
+        val query =
+            planner.create(
+                VectorStore.Query(
+                    fields = mapOf("fieldName" to null),
+                ),
+            )
+
+        val booleanQuery = assertIs<BooleanQuery>(query)
+        assertEquals(2, booleanQuery.clauses().size)
+        val matchAllClause = booleanQuery.clauses().single { it.query is MatchAllDocsQuery }
+        assertEquals(BooleanClause.Occur.FILTER, matchAllClause.occur)
+        val mustNotClause = booleanQuery.clauses().single { it.query is WildcardQuery }
+        assertEquals(BooleanClause.Occur.MUST_NOT, mustNotClause.occur)
     }
 }
