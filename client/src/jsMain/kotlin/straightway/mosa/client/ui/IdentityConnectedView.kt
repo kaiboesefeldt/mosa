@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalWasmJsInterop::class)
+
 package straightway.mosa.client.ui
 
 import kotlinx.browser.window
@@ -6,6 +8,9 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlin.js.Date
+import kotlin.js.ExperimentalWasmJsInterop
+import kotlin.js.JsName
+import kotlin.js.unsafeCast
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import react.ChildrenBuilder
@@ -21,8 +26,11 @@ import react.dom.events.ChangeEvent
 import react.dom.events.MouseEvent
 import react.useEffect
 import react.useMemo
+import react.Ref
 import react.useRef
 import react.useState
+import web.dom.Element
+import web.html.HTMLDivElement
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.content.Topic
@@ -39,6 +47,25 @@ import web.html.HTMLTextAreaElement
 external interface IdentityConnectedViewProps : Props {
     var identityName: String
     var profile: IdentityScreen.Profile
+}
+
+private external interface JsIntersectionObserverEntry {
+    val isIntersecting: Boolean
+}
+
+private external interface JsIntersectionObserverOptions {
+    var root: Element?
+    var rootMargin: String?
+    var threshold: dynamic
+}
+
+@JsName("IntersectionObserver")
+private external class JsIntersectionObserver(
+    callback: (Array<JsIntersectionObserverEntry>, JsIntersectionObserver) -> Unit,
+    options: JsIntersectionObserverOptions = definedExternally,
+) {
+    fun observe(target: Element)
+    fun disconnect()
 }
 
 val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
@@ -59,6 +86,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (posts, setPosts) = useState<List<TopicPosts>>(emptyList())
     val (topicFilters, setTopicFilters) = useState<Map<String, Float>>(emptyMap())
     val (isLoadingPosts, setLoadingPosts) = useState(false)
+    val postsContainerRef = useRef<HTMLDivElement>()
+    val loadMoreRef = useRef<HTMLDivElement>()
+    val (isAppendingPosts, setAppendingPosts) = useState(false)
+    val isAppendingPostsRef = useRef(false)
     val postsRequestVersion = useRef(0)
     val (isProfileVisible, setProfileVisible) = useState(false)
     val (isComposerOpen, setComposerOpen) = useState(false)
@@ -110,15 +141,41 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             }
         }.toMap()
 
+    fun setAppendingState(active: Boolean) {
+        isAppendingPostsRef.current = active
+        setAppendingPosts(active)
+    }
+
+    fun updateTopicPosts(updated: TopicPosts) {
+        setPosts { current ->
+            val replaced =
+                current
+                    .map { topicPosts ->
+                        if (topicPosts.topic.title == updated.topic.title) {
+                            updated
+                        } else {
+                            topicPosts
+                        }
+                    }
+            if (replaced.any { it.topic.title == updated.topic.title }) {
+                replaced
+            } else {
+                replaced + updated
+            }
+        }
+    }
+
     suspend fun refreshPosts(currentTopic: Topic?) {
         val nextVersion = (postsRequestVersion.current ?: 0) + 1
         postsRequestVersion.current = nextVersion
         val version = nextVersion
+        postsContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
         if (currentTopic == null) {
             setPosts(emptyList())
             setLoadingPosts(false)
             return
         }
+        setAppendingState(false)
         setLoadingPosts(true)
         val results =
             runCatching { searchService.fetchFor(listOf(currentTopic)) }
@@ -285,6 +342,55 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         persistFilters(topicFilters + (topic.title to entry.similarity))
     }
 
+    fun loadMorePosts() {
+        val topic = selectedTopic ?: return
+        if (isLoadingPosts || isAppendingPostsRef.current == true) return
+        val currentPosts = posts.firstOrNull { it.topic.title == topic.title } ?: return
+        if (currentPosts.entries.isEmpty()) return
+        val hasAnchorEntry =
+            currentPosts.entries.any { entry ->
+                val threshold = topic.scoreMustBeAbove
+                threshold == null || entry.similarity > threshold
+            }
+        if (!hasAnchorEntry) return
+        setAppendingState(true)
+        scope.launch {
+            try {
+                val additionalPosts = searchService.fetchMore(topic)
+                if (additionalPosts != null) {
+                    updateTopicPosts(additionalPosts)
+                }
+            } finally {
+                setAppendingState(false)
+            }
+        }
+    }
+
+    useEffect(arrayOf(posts, selectedTopic)) {
+        val target = loadMoreRef.current ?: return@useEffect
+        val container = postsContainerRef.current ?: return@useEffect
+        val observerAvailable = js("typeof IntersectionObserver !== 'undefined'") as Boolean
+        if (!observerAvailable) return@useEffect
+        val options = js("{}").unsafeCast<JsIntersectionObserverOptions>()
+        options.root = container
+        options.rootMargin = "48px"
+        options.threshold = 1.0
+        val observer =
+            JsIntersectionObserver(
+                { entries, _ ->
+                    val shouldLoadMore = entries.any { entry -> entry.isIntersecting }
+                    val hasScrollIntent = container.dataset["mosaScrollReady"] == "true"
+                    if (shouldLoadMore && hasScrollIntent) {
+                        loadMorePosts()
+                    }
+                },
+                options,
+            )
+        observer.observe(target)
+        val disconnect: () -> Unit = { observer.disconnect() }
+        disconnect
+    }
+
     div {
         className = ClassName("connected-shell")
         div {
@@ -336,9 +442,12 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 visualsFactory = visualsFactory,
                 posts = posts,
                 isLoading = isLoadingPosts,
+                isAppending = isAppendingPosts,
                 activeFilters = topicFilters,
                 onToggleFilter = ::toggleTopicFilter,
                 onClearFilter = ::clearTopicFilter,
+                containerRef = postsContainerRef,
+                loadMoreRef = loadMoreRef,
             )
             placeholderColumn(
                 title = translator.translate("connected.replies.title"),
@@ -454,11 +563,18 @@ private fun ChildrenBuilder.postsColumn(
     visualsFactory: IdentityVisualsFactory,
     posts: List<TopicPosts>,
     isLoading: Boolean,
+    isAppending: Boolean,
     activeFilters: Map<String, Float>,
     onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
     onClearFilter: (Topic) -> Unit,
+    containerRef: Ref<HTMLDivElement>,
+    loadMoreRef: Ref<HTMLDivElement>,
 ) = div {
     className = ClassName("topic-board__column topic-board__column--posts")
+    ref = containerRef
+    onScroll = { event ->
+        event.currentTarget.dataset["mosaScrollReady"] = "true"
+    }
     val activeFilterTopic =
         posts.firstNotNullOfOrNull { topicPosts ->
             activeFilters[topicPosts.topic.title]?.let { topicPosts.topic to it }
@@ -526,6 +642,18 @@ private fun ChildrenBuilder.postsColumn(
                     )
                 }
             }
+    }
+    if (!isLoading && posts.isNotEmpty()) {
+        div {
+            ref = loadMoreRef
+            className = ClassName("topic-board__load-sentinel")
+            if (isAppending) {
+                span {
+                    className = ClassName("topic-board__load-indicator")
+                    +translator.translate("connected.posts.loading")
+                }
+            }
+        }
     }
 }
 

@@ -232,6 +232,87 @@ class TopicSearchServiceTest {
         assertEquals(listOf("fresh"), cache.snapshots["Alpha"]?.entries?.map { it.post.id })
     }
 
+    @Test
+    fun `fetches additional posts with score upper bound from last entry`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        cache.snapshots["Alpha"] =
+            PostCacheSnapshot(
+                entries =
+                    listOf(
+                        QueryResult.Entry("first", "content-1", 0.92f, "author", 0),
+                        QueryResult.Entry("second", "content-2", 0.84f, "author", 0),
+                    ).map { it.toCacheEntry() },
+                lastFetchedAt = 0,
+            )
+        podAccess =
+            FakePodAccess(
+                responses =
+                    mapOf(
+                        "Alpha" to QueryResult(listOf(QueryResult.Entry("third", "c3", 0.8f, "author", 0)), ""),
+                    ),
+            )
+        val service = createService()
+
+        val result = service.fetchMore(Topic("Alpha"))
+
+        val request = podAccess.queryInvocations.single()
+        assertEquals(0.84f, request.scoreMustBeBelow)
+        assertEquals(listOf("first", "second", "third"), result?.entries?.map { it.id })
+    }
+
+    @Test
+    fun `passes manual score filter when paginating`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        cache.snapshots["Alpha"] =
+            PostCacheSnapshot(
+                entries =
+                    listOf(
+                        QueryResult.Entry("first", "content-1", 0.95f, "author", 0),
+                        QueryResult.Entry("second", "content-2", 0.9f, "author", 0),
+                    ).map { it.toCacheEntry() },
+                lastFetchedAt = 0,
+            )
+        podAccess =
+            FakePodAccess(
+                responses =
+                    mapOf(
+                        "Alpha" to QueryResult(listOf(QueryResult.Entry("third", "c3", 0.88f, "author", 0)), ""),
+                    ),
+            )
+        val service = createService()
+
+        service.fetchMore(Topic("Alpha", scoreMustBeAbove = 0.87f))
+
+        val request = podAccess.queryInvocations.single()
+        assertEquals(0.9f, request.scoreMustBeBelow)
+        assertEquals(0.87f, request.scoreMustBeAbove)
+    }
+
+    @Test
+    fun `stops pagination after empty response`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        cache.snapshots["Alpha"] =
+            PostCacheSnapshot(
+                entries =
+                    listOf(
+                        QueryResult.Entry("first", "content-1", 0.92f, "author", 0),
+                    ).map { it.toCacheEntry() },
+                lastFetchedAt = 0,
+            )
+        podAccess =
+            FakePodAccess(
+                responses = mapOf("Alpha" to QueryResult(emptyList(), "")),
+            )
+        val service = createService()
+
+        val first = service.fetchMore(Topic("Alpha"))
+        val second = service.fetchMore(Topic("Alpha"))
+
+        assertEquals(listOf("first"), first?.entries?.map { it.id })
+        assertNull(second)
+        assertEquals(1, podAccess.queryInvocations.size)
+    }
+
     private fun createService(): TopicSearchService =
         TopicSearchService(
             identityRepository = StaticIdentityRepository(identity),
@@ -294,7 +375,7 @@ private class StaticIdentityRepository(
     override suspend fun loadOrCreate(): IdentitySelection =
         IdentitySelection(identity, 0, 1)
 
-    override suspend fun movePrevious(): IdentitySelection? = identitySelection()
+    override suspend fun movePrevious(): IdentitySelection = identitySelection()
 
     override suspend fun moveNext(): IdentitySelection = identitySelection()
 

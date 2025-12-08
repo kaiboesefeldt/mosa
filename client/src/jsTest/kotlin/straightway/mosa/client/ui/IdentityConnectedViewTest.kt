@@ -51,18 +51,21 @@ import straightway.mosa.identity.FictionalNameGenerator
 
 class IdentityConnectedViewTest {
     private var originalPrompt: dynamic = null
+    private var originalObserver: dynamic = null
     private lateinit var sessionStore: ConnectedViewIdentitySessionStore
 
     @BeforeTest
     fun setUp() {
         startKoinForTest(emptyList(), RecordingPodAccess(emptyMap()))
         originalPrompt = window.asDynamic().prompt
+        originalObserver = window.asDynamic().IntersectionObserver
     }
 
     @AfterTest
     fun tearDown() {
         cleanup()
         window.asDynamic().prompt = originalPrompt
+        window.asDynamic().IntersectionObserver = originalObserver
         sessionStore.prime(IdentitySessionSnapshot(null, false))
         window.asDynamic().MOSA_POD_BASE = null
         stopKoin()
@@ -161,6 +164,91 @@ class IdentityConnectedViewTest {
         waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
         val postContent = view.container.querySelector(".post-card__content")?.textContent?.trim()
         assertEquals("content-p2", postContent)
+    }
+
+    @Test
+    fun `appends posts when reaching list end`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val triggers = stubIntersectionObserver()
+        val podAccess =
+            RecordingPodAccess(
+                responses =
+                    mapOf(
+                        "Alpha" to
+                            QueryResult(
+                                entries =
+                                    listOf(
+                                        QueryResult.Entry("p1", "content-1", 0.95f, "author", 0),
+                                        QueryResult.Entry("p2", "content-2", 0.9f, "author", 0),
+                                    ),
+                                queryOnId = "q1",
+                            ),
+                    ),
+                additionalResponses =
+                    mapOf(
+                        "Alpha" to
+                            listOf(
+                                QueryResult(
+                                    entries =
+                                        listOf(
+                                            QueryResult.Entry("p3", "content-3", 0.82f, "author", 0),
+                                        ),
+                                    queryOnId = "q2",
+                                ),
+                            ),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+
+        val view = renderConnectedView()
+
+        waitForCondition("initial posts") { view.container.querySelectorAll(".post-card").length == 2 }
+        waitForCondition("observer registered") { triggers.isNotEmpty() }
+        scrollPostsToEnd(view.container)
+        triggers.toList().forEach { it() }
+        waitForCondition("pagination query sent") { podAccess.queryInvocations.size == 2 }
+        waitForCondition("posts appended") { view.container.querySelectorAll(".post-card").length == 3 }
+        assertEquals(0.9f, podAccess.queryInvocations.last().scoreMustBeBelow)
+    }
+
+    @Test
+    fun `does not paginate after empty page`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val triggers = stubIntersectionObserver()
+        val podAccess =
+            RecordingPodAccess(
+                responses =
+                    mapOf(
+                        "Alpha" to
+                            QueryResult(
+                                entries =
+                                    listOf(
+                                        QueryResult.Entry("p1", "content-1", 0.95f, "author", 0),
+                                        QueryResult.Entry("p2", "content-2", 0.9f, "author", 0),
+                                    ),
+                                queryOnId = "q1",
+                            ),
+                    ),
+                additionalResponses = mapOf("Alpha" to listOf(QueryResult(emptyList(), "q2"))),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+
+        val view = renderConnectedView()
+
+        waitForCondition("initial posts") { view.container.querySelectorAll(".post-card").length == 2 }
+        waitForCondition("observer registered") { triggers.isNotEmpty() }
+        scrollPostsToEnd(view.container)
+        triggers.toList().forEach { it() }
+        waitForCondition("pagination query sent") { podAccess.queryInvocations.size == 2 }
+        triggers.toList().forEach { it() }
+        delay(100)
+        assertEquals(2, podAccess.queryInvocations.size)
     }
 
     @Test
@@ -371,13 +459,43 @@ class IdentityConnectedViewTest {
         waitForCondition { view.container.querySelector(".topic-board__column--posts .topic-board__empty") != null }
     }
 
-    private suspend fun waitForCondition(condition: () -> Boolean) {
+    private suspend fun waitForCondition(label: String? = null, condition: () -> Boolean) {
         repeat(200) {
             if (condition()) return
             delay(20)
         }
-        error("condition not met")
+        val suffix = label?.let { ": $it" } ?: ""
+        error("condition not met$suffix")
     }
+
+    private fun stubIntersectionObserver(): MutableList<() -> Unit> {
+        val triggers = mutableListOf<() -> Unit>()
+        window.asDynamic().IntersectionObserver =
+            { callback: dynamic, _: dynamic ->
+                val observer = js("{}")
+                observer.observe = { target: dynamic ->
+                    triggers += {
+                        callback(
+                            arrayOf(
+                                js(
+                                    "{ isIntersecting: true, target: target }"
+                                )
+                            ),
+                            observer,
+                        )
+                    }
+                }
+                observer.disconnect = {}
+                observer
+            }
+        return triggers
+    }
+
+private fun scrollPostsToEnd(container: Element) {
+    val column = container.querySelector(".topic-board__column--posts") ?: error("Posts column missing")
+    column.setAttribute("data-mosa-scroll-ready", "true")
+    column.asDynamic().scrollTop = 10
+}
 
     private fun addButton(container: Element): Element =
         container.querySelector(".topic-board__add-button") ?: error("Add button missing")
@@ -522,12 +640,22 @@ private class ConnectedViewIdentitySessionStore : IdentitySessionStore {
 }
 
 private class RecordingPodAccess(
-    private val responses: Map<String, QueryResult>,
+    responses: Map<String, QueryResult>,
+    private val additionalResponses: Map<String, List<QueryResult>> = emptyMap(),
 ) : PodAccess {
     val approveInvocations = mutableListOf<String>()
     val queryInvocations = mutableListOf<QueryRequest>()
     val publishRequests = mutableListOf<straightway.mosa.content.PublishRequest>()
     var shouldFailPublish = false
+    private val responsesByTopic: MutableMap<String, MutableList<QueryResult>> =
+        (responses.keys + additionalResponses.keys)
+            .associateWith { topic ->
+                mutableListOf<QueryResult>().apply {
+                    responses[topic]?.let { add(it) }
+                    addAll(additionalResponses[topic].orEmpty())
+                    if (isEmpty()) error("no response for $topic")
+                }
+            }.toMutableMap()
 
     override suspend fun approveGid(gid: String): PodCertificate {
         approveInvocations += gid
@@ -546,7 +674,12 @@ private class RecordingPodAccess(
     override suspend fun query(request: QueryRequest, jwt: String): QueryResult {
         queryInvocations += request
         val topic = request.topic ?: error("topic missing")
-        return responses[topic] ?: error("no response for $topic")
+        val queue = responsesByTopic[topic] ?: error("no response for $topic")
+        val response = queue.first()
+        if (queue.size > 1) {
+            queue.removeAt(0)
+        }
+        return response
     }
 
     override suspend fun queryOn(request: straightway.mosa.content.QueryOnRequest, jwt: String): QueryResult {
