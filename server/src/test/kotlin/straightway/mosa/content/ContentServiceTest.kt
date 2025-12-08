@@ -8,9 +8,11 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNull
 import org.junit.jupiter.api.assertThrows
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
+import straightway.mosa.VectorStore.Query
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
@@ -89,7 +91,7 @@ class ContentServiceTest {
                 sut.query(testUserGID, QueryRequest(topic = "topic without thread", threadRootId = null))
 
                 verifyQueryCall(
-                    VectorStore.Query(
+                    Query(
                         vector = testEmbedding,
                         fromTime = null,
                         fields = mapOf("rootId" to null),
@@ -102,7 +104,7 @@ class ContentServiceTest {
             runTest {
                 testQuery(
                     request = QueryRequest(topic = "test topic"),
-                    expectedQuery = VectorStore.Query(vector = testEmbedding, fromTime = null, fields = mapOf("rootId" to null)),
+                    expectedQuery = Query(vector = testEmbedding, fromTime = null, fields = mapOf("rootId" to null)),
                     needsEmbedding = true,
                 )
             }
@@ -113,7 +115,7 @@ class ContentServiceTest {
                 testQuery(
                     request = QueryRequest(minTime = testMinTime),
                     expectedQuery =
-                        VectorStore.Query(
+                        Query(
                             vector = null,
                             fromTime = Instant.ofEpochSecond(testMinTime),
                             fields = mapOf("rootId" to null),
@@ -126,7 +128,7 @@ class ContentServiceTest {
             runTest {
                 testQuery(
                     request = QueryRequest(threadRootId = "root-123"),
-                    expectedQuery = VectorStore.Query(vector = null, fromTime = null, fields = mapOf("rootId" to "root-123")),
+                    expectedQuery = Query(vector = null, fromTime = null, fields = mapOf("rootId" to "root-123")),
                 )
             }
 
@@ -136,7 +138,7 @@ class ContentServiceTest {
                 testQuery(
                     request = QueryRequest(topic = "test topic", minTime = testMinTime),
                     expectedQuery =
-                        VectorStore.Query(
+                        Query(
                             vector = testEmbedding,
                             fromTime = Instant.ofEpochSecond(testMinTime),
                             fields = mapOf("rootId" to null),
@@ -150,7 +152,7 @@ class ContentServiceTest {
             runTest {
                 testQuery(
                     request = QueryRequest(topic = "test topic", threadRootId = "root-123"),
-                    expectedQuery = VectorStore.Query(vector = testEmbedding, fromTime = null, fields = mapOf("rootId" to "root-123")),
+                    expectedQuery = Query(vector = testEmbedding, fromTime = null, fields = mapOf("rootId" to "root-123")),
                     needsEmbedding = true,
                 )
             }
@@ -161,7 +163,7 @@ class ContentServiceTest {
                 testQuery(
                     request = QueryRequest(minTime = testMinTime, threadRootId = "root-123"),
                     expectedQuery =
-                        VectorStore.Query(
+                        Query(
                             vector = null,
                             fromTime = Instant.ofEpochSecond(testMinTime),
                             fields =
@@ -176,13 +178,63 @@ class ContentServiceTest {
                 testQuery(
                     request = QueryRequest(topic = "test topic", minTime = testMinTime, threadRootId = "root-123"),
                     expectedQuery =
-                        VectorStore.Query(
+                        Query(
                             vector = testEmbedding,
                             fromTime = Instant.ofEpochSecond(testMinTime),
                             fields = mapOf("rootId" to "root-123"),
                         ),
                     needsEmbedding = true,
                 )
+            }
+
+        @Test
+        fun `queries with scoreMustBeAbove`() =
+            runTest {
+                setupEmbedding("above topic")
+                var capturedQuery: VectorStore.Query? = null
+                setupVectorStoreWithCapture(capture = { capturedQuery = it })
+
+                sut.query(
+                    testUserGID,
+                    QueryRequest(
+                        topic = "above topic",
+                        scoreMustBeAbove = 0.42f,
+                    ),
+                )
+
+                coVerify { vectorStore.query(any()) }
+                with(capturedQuery!!) {
+                    assertEquals(true, vector?.contentEquals(testEmbedding))
+                    assertEquals(0.42f, scoreMustBeAbove)
+                    assertNull(scoreMustBeBelow)
+                    assertNull(fromTime)
+                    assertEquals(mapOf("rootId" to null), fields)
+                }
+            }
+
+        @Test
+        fun `queries with scoreMustBeBelow`() =
+            runTest {
+                setupEmbedding("below topic")
+                var capturedQuery: VectorStore.Query? = null
+                setupVectorStoreWithCapture(capture = { capturedQuery = it })
+
+                sut.query(
+                    testUserGID,
+                    QueryRequest(
+                        topic = "below topic",
+                        scoreMustBeBelow = 0.13f,
+                    ),
+                )
+
+                coVerify { vectorStore.query(any()) }
+                with(capturedQuery!!) {
+                    assertEquals(true, vector?.contentEquals(testEmbedding))
+                    assertEquals(null, scoreMustBeAbove)
+                    assertEquals(0.13f, scoreMustBeBelow)
+                    assertEquals(null, fromTime)
+                    assertEquals(mapOf("rootId" to null), fields)
+                }
             }
 
         private suspend fun testQuery(
@@ -299,36 +351,6 @@ class ContentServiceTest {
             }
 
         @Test
-        fun `filters entries below score threshold`() =
-            runTest {
-                setupEmbedding("filtered topic")
-                val vectorStoreEntries =
-                    listOf(
-                        VectorStore.QueryResult(
-                            id = "above",
-                            text = "Above threshold",
-                            similarity = 0.81f,
-                            fields = mapOf("authorGID" to "author-a", "receivedAt" to "1609459200"),
-                        ),
-                        VectorStore.QueryResult(
-                            id = "equal",
-                            text = "Equal to threshold",
-                            similarity = 0.8f,
-                            fields = mapOf("authorGID" to "author-b", "receivedAt" to "1609459200"),
-                        ),
-                    )
-                setupVectorStore(createVectorStoreResults(entries = vectorStoreEntries))
-
-                val result =
-                    sut.query(
-                        testUserGID,
-                        QueryRequest(topic = "filtered topic", scoreMustBeAbove = 0.8f),
-                    )
-
-                assertEquals(listOf("above"), result.entries.map { it.id })
-            }
-
-        @Test
         fun `throws failure when authorGID field is missing`() =
             runTest {
                 setupEmbedding("missing author topic")
@@ -433,7 +455,8 @@ class ContentServiceTest {
                 coVerify(exactly = 0) { embeddingService.embed(any()) }
             }
 
-        private fun testReplyToRoot(rootId: String) =
+        @Test
+        fun `replies with rootId field set for top level root`() =
             runTest {
                 // Given
                 val content = "Reply text"
@@ -441,11 +464,12 @@ class ContentServiceTest {
                 setupEmbedding(content)
                 setupHasher(testHash)
                 setupWriteAccess()
-                coEvery { vectorStore.query(VectorStore.Query(id = rootId)) } returns
-                    createParentQueryResult(rootId, null)
+                coEvery { vectorStore.query(Query(id = "root-123")) } returns
+                    createParentQueryResult("root-123", null)
 
                 // When
-                val contentId = sut.reply(testUserGID, ReplyRequest(PublishRequest(content), rootId), TEST_TIME)
+                val contentId =
+                    sut.reply(testUserGID, ReplyRequest(PublishRequest(content), "root-123"), TEST_TIME)
 
                 // Then
                 assertEquals("BQYHCA", contentId)
@@ -458,7 +482,7 @@ class ContentServiceTest {
                             mapOf(
                                 "authorGID" to testUserGID,
                                 "receivedAt" to "170000000",
-                                "rootId" to rootId,
+                                "rootId" to "root-123",
                             ),
                         vector = testEmbedding,
                     )
@@ -466,13 +490,10 @@ class ContentServiceTest {
             }
 
         @Test
-        fun `replies with rootId field set for top level root`() = testReplyToRoot("root-123")
-
-        @Test
         fun `throws BadRequest when root is not found`() =
             runTest {
                 val unknownRootId = "unknown-root"
-                coEvery { vectorStore.query(VectorStore.Query(id = unknownRootId)) } returns
+                coEvery { vectorStore.query(Query(id = unknownRootId)) } returns
                     VectorStore.QueryResults(resultsPage = emptyList(), queryOnId = null)
 
                 assertThrows<BadRequestException> {
@@ -488,7 +509,7 @@ class ContentServiceTest {
                 val testHash = byteArrayOf(5, 6, 7, 8)
                 setupEmbedding(content)
                 setupHasher(testHash)
-                coEvery { vectorStore.query(VectorStore.Query(id = "child-123")) } returns
+                coEvery { vectorStore.query(Query(id = "child-123")) } returns
                     createParentQueryResult("child-123", "root-123")
 
                 // Then
@@ -628,6 +649,16 @@ class ContentServiceTest {
         queryOnId = queryOnId,
         resultsPage = entries,
     )
+
+    private fun setupVectorStoreWithCapture(
+        capture: (VectorStore.Query) -> Unit,
+        result: VectorStore.QueryResults = createDefaultQueryResults(),
+    ) {
+        coEvery { vectorStore.query(any()) } coAnswers {
+            capture(firstArg())
+            result
+        }
+    }
 
     private companion object {
         const val TEST_TIME = 170000000L

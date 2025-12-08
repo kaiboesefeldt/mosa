@@ -66,17 +66,15 @@ class ContentService(
                     VectorStore.Query(
                         vector = topicEmbedding,
                         fromTime = request.minTime?.let { Instant.ofEpochSecond(it) },
+                        scoreMustBeAbove = request.scoreMustBeAbove,
+                        scoreMustBeBelow = request.scoreMustBeBelow,
                         fields = mapOf(ROOT_ID_KEY to request.threadRootId),
                     ),
                 )
-            val filteredEntries =
-                queryResults.resultsPage.filter { entry ->
-                    request.scoreMustBeAbove?.let { entry.similarity > it } ?: true
-                }
 
             return QueryResult(
                 queryOnId = queryResults.queryOnId?.toString() ?: "",
-                entries = filteredEntries.map { it.toQueryResultEntry() },
+                entries = queryResults.resultsPage.map { it.toQueryResultEntry() },
             )
         }
 

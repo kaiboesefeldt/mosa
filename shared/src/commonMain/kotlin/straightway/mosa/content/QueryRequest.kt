@@ -9,4 +9,5 @@ data class QueryRequest(
     val minTime: Long? = null,
     val threadRootId: String? = null,
     val scoreMustBeAbove: Float? = null,
+    val scoreMustBeBelow: Float? = null,
 )

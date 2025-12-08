@@ -28,6 +28,8 @@ interface VectorStore : AutoCloseable {
         val vector: FloatArray? = null,
         val fromTime: Instant? = null,
         val toTime: Instant? = null,
+        val scoreMustBeAbove: Float? = null,
+        val scoreMustBeBelow: Float? = null,
         val fields: Map<String, String?> = emptyMap(),
     ) {
         @Suppress("IDENTITY_SENSITIVE_OPERATIONS_WITH_VALUE_TYPE")

@@ -8,6 +8,7 @@ import org.apache.lucene.index.DirectoryReader
 import org.apache.lucene.index.IndexNotFoundException
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.search.MatchAllDocsQuery
+import org.apache.lucene.search.Query
 import org.apache.lucene.search.ScoreDoc
 import org.apache.lucene.search.TopDocs
 import org.apache.lucene.search.TotalHits
@@ -46,31 +47,37 @@ class LuceneLocalVectorStore private constructor(
             indexAccess.read {
                 val searcher = IndexSearcher(this)
                 val luceneQuery = queryPlanner.create(query)
-                val topDocs =
+                val searchResult =
                     if (query.vector == null) {
-                        searcher.search(luceneQuery, pageSize, SORT_BY_TIME_ADDED)
+                        searcher
+                            .search(luceneQuery, pageSize, SORT_BY_TIME_ADDED)
+                            .unfilteredSearchResult()
                     } else {
-                        searcher.search(luceneQuery, pageSize)
+                        with(searcher) {
+                            afterKnnFilter(search(luceneQuery, pageSize), query, luceneQuery, 0)
+                        }
                     }
-                val resultsPage =
-                    topDocs
-                        .scoreDocs
-                        .map { it.toSearchResult(this) }
+
+                val resultsPage = searchResult.filtered.scoreDocs.map { it.toSearchResult(this) }
                 val searchOnId =
-                    if (resultsPage.isNotFullPage() || topDocs.areResultsExhausted()) {
+                    if (searchResult.unfilteredDocs == 0) {
                         null
                     } else {
-                        paginationRegistry.register(
-                            topDocs,
-                            luceneQuery,
-                            if (query.vector == null) SORT_BY_TIME_ADDED else null,
-                        )
+                        paginationRegistry
+                            .register(
+                                query,
+                                searchResult.filtered,
+                                luceneQuery,
+                                if (query.vector == null) SORT_BY_TIME_ADDED else null,
+                                hitsSoFar = searchResult.unfilteredDocs,
+                            ).takeIf { searchResult.isFurtherPaginationPossible }
                     }
 
                 QueryResults(resultsPage, searchOnId)
             }
-        }.onFailure { if (it !is IndexNotFoundException) throw it }
-            .getOrDefault(QueryResults(resultsPage = emptyList(), queryOnId = null))
+        }.onFailure {
+            if (it !is IndexNotFoundException) throw it
+        }.getOrDefault(QueryResults(resultsPage = emptyList(), queryOnId = null))
     }
 
     override suspend fun queryOn(queryOnId: UUID?): QueryResults {
@@ -84,37 +91,48 @@ class LuceneLocalVectorStore private constructor(
             paginationRegistry.get(queryOnId)
                 ?: return QueryResults(emptyList(), null)
 
-        return indexAccess.read {
-            val searcher = IndexSearcher(this)
-            val topDocs =
-                with(queryOnRecord) {
-                    if (sort == null) {
-                        searcher.searchAfter(after, query, n)
-                    } else {
-                        searcher.searchAfter(after, query, n, sort)
+        return runCatching {
+            indexAccess.read {
+                val searcher = IndexSearcher(this)
+                val docs =
+                    with(queryOnRecord) {
+                        if (sort != null) {
+                            searcher.searchAfter(after, query, n, sort).unfilteredSearchResult()
+                        } else {
+                            with(searcher) {
+                                afterKnnFilter(
+                                    searcher.searchAfter(after, query, n),
+                                    queryOnRecord.vectorStoreQuery,
+                                    queryOnRecord.query,
+                                    queryOnRecord.hitsSoFar,
+                                )
+                            }
+                        }
                     }
-                }
 
-            paginationRegistry.clear(queryOnId)
+                paginationRegistry.clear(queryOnId)
 
-            val resultsPage =
-                topDocs
-                    .scoreDocs
-                    .map { it.toSearchResult(this) }
+                val resultsPage = docs.filtered.scoreDocs.map { it.toSearchResult(this) }
 
-            val nextSearchOnId =
-                if (resultsPage.isNotFullPage() || topDocs.areResultsExhausted(resultsSoFar = queryOnRecord.n)) {
-                    null
-                } else {
-                    paginationRegistry.register(
-                        topDocs,
-                        queryOnRecord.query,
-                        queryOnRecord.sort,
-                    )
-                }
+                val nextSearchOnId =
+                    if (docs.unfilteredDocs == 0) {
+                        null
+                    } else {
+                        paginationRegistry
+                            .register(
+                                queryOnRecord.vectorStoreQuery,
+                                docs.filtered,
+                                queryOnRecord.query,
+                                queryOnRecord.sort,
+                                hitsSoFar = queryOnRecord.hitsSoFar + docs.unfilteredDocs,
+                            ).takeIf { docs.isFurtherPaginationPossible }
+                    }
 
-            QueryResults(resultsPage = resultsPage, queryOnId = nextSearchOnId)
-        }
+                QueryResults(resultsPage = resultsPage, queryOnId = nextSearchOnId)
+            }
+        }.onFailure {
+            if (it !is IndexNotFoundException) throw it
+        }.getOrDefault(QueryResults(resultsPage = emptyList(), queryOnId = null))
     }
 
     override fun dumpAll(): Flow<VectorStore.PostDump> {
@@ -137,8 +155,9 @@ class LuceneLocalVectorStore private constructor(
                             after = topDocs.scoreDocs.lastOrNull()
                             topDocs.scoreDocs.map { it.toPostDump(this) }
                         }
-                    }.onFailure { if (it !is IndexNotFoundException) throw it }
-                        .getOrDefault(emptyList())
+                    }.onFailure {
+                        if (it !is IndexNotFoundException) throw it
+                    }.getOrDefault(emptyList())
 
                 if (page.isEmpty()) break
                 page.forEach { emit(it) }
@@ -149,10 +168,82 @@ class LuceneLocalVectorStore private constructor(
 
     private val pageSize = paginationRegistry.pageSize
 
-    private fun List<QueryResult>.isNotFullPage(): Boolean = size < pageSize
+    private fun TopDocs.isFullPage(): Boolean = pageSize <= scoreDocs.size
+
+    private data class FilteredSearchResult(
+        val filtered: TopDocs,
+        val unfilteredDocs: Int,
+        val isFurtherPaginationPossible: Boolean,
+    ) {
+        companion object {
+            val EMPTY =
+                FilteredSearchResult(
+                    TopDocs(TotalHits(0, TotalHits.Relation.EQUAL_TO), emptyArray()),
+                    unfilteredDocs = 0,
+                    isFurtherPaginationPossible = false,
+                )
+        }
+    }
+
+    private fun TopDocs.unfilteredSearchResult() =
+        FilteredSearchResult(
+            this,
+            unfilteredDocs = scoreDocs.size,
+            isFurtherPaginationPossible = isFullPage() && !areResultsExhausted(0),
+        )
+
+    private tailrec fun IndexSearcher.afterKnnFilter(
+        docs: TopDocs,
+        query: VectorStore.Query,
+        luceneQuery: Query,
+        resultsSoFar: Int,
+    ): FilteredSearchResult {
+        val firstDocMatch by lazy { query.matchesScoreRangeFor(docs.scoreDocs.first()) }
+        val lastDocMatch by lazy { query.matchesScoreRangeFor(docs.scoreDocs.last()) }
+
+        return when {
+            docs.scoreDocs.isEmpty() -> FilteredSearchResult.EMPTY
+            firstDocMatch == ScoreRangeMatch.ScoreTooLow -> FilteredSearchResult.EMPTY
+            else -> {
+                val matches =
+                    docs.scoreDocs
+                        .filter { query.matchesScoreRangeFor(it) == ScoreRangeMatch.ScoreMatches }
+                        .toTypedArray()
+                if (matches.any()) {
+                    FilteredSearchResult(
+                        TopDocs(
+                            TotalHits(
+                                matches.size.toLong(),
+                                TotalHits.Relation.GREATER_THAN_OR_EQUAL_TO,
+                            ),
+                            matches,
+                        ),
+                        isFurtherPaginationPossible =
+                            (lastDocMatch == ScoreRangeMatch.ScoreMatches) && !docs.areResultsExhausted(resultsSoFar),
+                        unfilteredDocs = docs.scoreDocs.size,
+                    )
+                } else {
+                    afterKnnFilter(
+                        searchAfter(docs.scoreDocs.last(), luceneQuery, pageSize),
+                        query,
+                        luceneQuery,
+                        resultsSoFar + docs.scoreDocs.size,
+                    )
+                }
+            }
+        }
+    }
+
+    private enum class ScoreRangeMatch { ScoreTooHigh, ScoreMatches, ScoreTooLow }
+
+    private fun VectorStore.Query.matchesScoreRangeFor(doc: ScoreDoc): ScoreRangeMatch {
+        scoreMustBeAbove?.let { if (doc.score <= it) return ScoreRangeMatch.ScoreTooLow }
+        scoreMustBeBelow?.let { if (it <= doc.score) return ScoreRangeMatch.ScoreTooHigh }
+        return ScoreRangeMatch.ScoreMatches
+    }
 
     private fun TopDocs.areResultsExhausted(resultsSoFar: Int = 0): Boolean =
-        totalHits.value == (resultsSoFar + pageSize.toLong()) && totalHits.relation == TotalHits.Relation.EQUAL_TO
+        totalHits.value == (resultsSoFar + scoreDocs.size.toLong()) && totalHits.relation == TotalHits.Relation.EQUAL_TO
 
     private fun ScoreDoc.toSearchResult(reader: DirectoryReader): QueryResult {
         val doc = getDocument(reader)

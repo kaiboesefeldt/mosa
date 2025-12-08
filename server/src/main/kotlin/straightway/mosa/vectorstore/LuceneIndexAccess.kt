@@ -20,7 +20,7 @@ class LuceneIndexAccess(
     private var reader: DirectoryReader? = null
     private val lock = Mutex()
 
-    suspend fun <T> read(block: DirectoryReader.() -> T): T =
+    suspend fun <T> read(block: suspend DirectoryReader.() -> T): T =
         lock.withLock {
             val activeReader = ensureReader()
             activeReader.block()

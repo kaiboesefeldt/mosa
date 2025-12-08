@@ -1,31 +1,34 @@
 package straightway.mosa.vectorstore
 
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
+import org.apache.lucene.index.IndexNotFoundException
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.junit.jupiter.api.Test
 import straightway.mosa.VectorStore
 import straightway.mosa.VectorStore.Query
 import straightway.mosa.testutils.TestClock
-import java.time.Clock
 import java.time.Instant
-import java.time.ZoneOffset
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
+import kotlin.use
 
 class LuceneLocalVectorStoreTest {
     @Test
     fun `query returns empty results when index missing`() =
         runTest {
-            newFixture(pageSize = 2, clock = Clock.fixed(Instant.ofEpochSecond(1), ZoneOffset.UTC)).use { fixture ->
+            newFixture(pageSize = 2).use { fixture ->
                 val result = fixture.store.query(Query())
                 assertTrue(result.resultsPage.isEmpty())
                 assertNull(result.queryOnId)
@@ -33,12 +36,260 @@ class LuceneLocalVectorStoreTest {
         }
 
     @Test
+    fun `query with empty result from lucene`() =
+        runTest {
+            newFixture(pageSize = 10).use { fixture ->
+                fixture.store.addDocument("doc-1", "first", emptyMap(), floatArrayOf(1f, 0f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("doc-2", "second", emptyMap(), floatArrayOf(0f, 1f))
+                fixture.clock.advance(1.seconds)
+
+                val result =
+                    fixture.store.query(
+                        Query(
+                            vector = floatArrayOf(0f, 1f),
+                            fromTime = fixture.clock.instant(), // Is in the future
+                        ),
+                    )
+
+                assertEquals(emptyList(), result.resultsPage)
+                assertNull(result.queryOnId)
+            }
+        }
+
+    @Test
+    fun `query post-filters for scoreMustBeAbove`() =
+        runTest {
+            newFixture(pageSize = 10).use { fixture ->
+                fixture.store.addDocument("doc-1", "first", emptyMap(), floatArrayOf(1f, 0f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("doc-2", "second", emptyMap(), floatArrayOf(0f, 1f))
+
+                val result =
+                    fixture.store.query(
+                        Query(
+                            vector = floatArrayOf(0f, 1f),
+                            scoreMustBeAbove = 0.75f,
+                        ),
+                    )
+
+                assertEquals(
+                    listOf(
+                        VectorStore.QueryResult("doc-2", "second", similarity = 1.0f, fields = emptyMap()),
+                    ),
+                    result.resultsPage,
+                )
+                assertNull(result.queryOnId)
+            }
+        }
+
+    @Test
+    fun `query post-filters for scoreMustBeAbove with all results below`() =
+        runTest {
+            newFixture(pageSize = 10).use { fixture ->
+                fixture.store.addDocument("doc-1", "first", emptyMap(), floatArrayOf(1f, 0f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("doc-2", "second", emptyMap(), floatArrayOf(0f, 1f))
+
+                val result =
+                    fixture.store.query(
+                        Query(
+                            vector = floatArrayOf(0f, 1f),
+                            scoreMustBeAbove = 1.1f,
+                        ),
+                    )
+
+                assertEquals(emptyList(), result.resultsPage)
+                assertNull(result.queryOnId)
+            }
+        }
+
+    @Test
+    fun `query post-filters for scoreMustBeBelow`() =
+        runTest {
+            newFixture(pageSize = 10).use { fixture ->
+                fixture.store.addDocument("doc-1", "first", emptyMap(), floatArrayOf(1f, 0f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("doc-2", "second", emptyMap(), floatArrayOf(0f, 1f))
+
+                val result =
+                    fixture.store.query(
+                        Query(
+                            vector = floatArrayOf(0f, 1f),
+                            scoreMustBeBelow = 0.75f,
+                        ),
+                    )
+
+                assertEquals(
+                    listOf(
+                        VectorStore.QueryResult("doc-1", "first", similarity = 0.5f, fields = emptyMap()),
+                    ),
+                    result.resultsPage,
+                )
+                assertNull(result.queryOnId)
+            }
+        }
+
+    @Test
+    fun `query post-filters for scoreMustBeBelow with internal requery for next page`() =
+        runTest {
+            newFixture(pageSize = 2).use { fixture ->
+                (1..9).forEach { docId ->
+                    fixture.store.addDocument("doc-$docId", "Text $docId", emptyMap(), floatArrayOf(1f, docId.toFloat()))
+                    fixture.clock.advance(1.seconds)
+                }
+
+                val result =
+                    fixture.store.query(
+                        Query(
+                            vector = floatArrayOf(1f, 1f),
+                            scoreMustBeBelow = 0.92f,
+                        ),
+                    )
+
+                assertEquals(
+                    listOf("doc-5", "doc-6"),
+                    result.resultsPage.map { it.id },
+                    "actual result: $result",
+                )
+                assertNotNull(result.queryOnId)
+            }
+        }
+
+    @Test
+    fun `query post-filters for scoreWindow`() =
+        runTest {
+            newFixture(pageSize = 10).use { fixture ->
+                (1..9).forEach { docId ->
+                    fixture.store.addDocument("doc-$docId", "Text $docId", emptyMap(), floatArrayOf(1f, docId.toFloat()))
+                    fixture.clock.advance(1.seconds)
+                }
+
+                val result =
+                    fixture.store.query(
+                        Query(
+                            vector = floatArrayOf(1f, 1f),
+                            scoreMustBeBelow = 0.98f,
+                            scoreMustBeAbove = 0.92f,
+                        ),
+                    )
+
+                assertEquals(
+                    listOf("doc-2", "doc-3", "doc-4"),
+                    result.resultsPage.map { it.id },
+                    "actual result: $result",
+                )
+                assertNull(result.queryOnId)
+            }
+        }
+
+    @Test
+    fun `query post-filters for scoreWindow with paging, last page empty`() =
+        runTest {
+            newFixture(pageSize = 2).use { fixture ->
+                (1..9).forEach { docId ->
+                    fixture.store.addDocument("doc-$docId", "Text $docId", emptyMap(), floatArrayOf(1f, docId.toFloat()))
+                    fixture.clock.advance(1.seconds)
+                }
+
+                val firstPage =
+                    fixture.store.query(
+                        Query(
+                            vector = floatArrayOf(1f, 1f),
+                            scoreMustBeBelow = 0.98f,
+                            scoreMustBeAbove = 0.92f,
+                        ),
+                    )
+
+                assertEquals(
+                    listOf("doc-2"),
+                    firstPage.resultsPage.map { it.id },
+                    "actual first page: $firstPage",
+                )
+                assertNotNull(firstPage.queryOnId)
+
+                val secondPage = fixture.store.queryOn(firstPage.queryOnId)
+
+                assertEquals(
+                    listOf("doc-3", "doc-4"),
+                    secondPage.resultsPage.map { it.id },
+                    "actual second page: $secondPage",
+                )
+                assertNotNull(secondPage.queryOnId)
+
+                val thirdPage = fixture.store.queryOn(secondPage.queryOnId)
+                assertEquals(
+                    emptyList(),
+                    thirdPage.resultsPage.map { it.id },
+                    "actual third page: $secondPage",
+                )
+                assertNull(thirdPage.queryOnId)
+            }
+        }
+
+    @Test
+    fun `query post-filters for scoreWindow with paging, last page not empty`() =
+        runTest {
+            newFixture(pageSize = 2).use { fixture ->
+                (1..9).forEach { docId ->
+                    fixture.store.addDocument("doc-$docId", "Text $docId", emptyMap(), floatArrayOf(1f, docId.toFloat()))
+                    fixture.clock.advance(1.seconds)
+                }
+
+                val firstPage =
+                    fixture.store.query(
+                        Query(
+                            vector = floatArrayOf(1f, 1f),
+                            scoreMustBeBelow = 0.98f,
+                            scoreMustBeAbove = 0.93f,
+                        ),
+                    )
+
+                assertEquals(
+                    listOf("doc-2"),
+                    firstPage.resultsPage.map { it.id },
+                    "actual first page: $firstPage",
+                )
+                assertNotNull(firstPage.queryOnId)
+
+                val secondPage = fixture.store.queryOn(firstPage.queryOnId)
+
+                assertEquals(
+                    listOf("doc-3"),
+                    secondPage.resultsPage.map { it.id },
+                    "actual second page: $secondPage",
+                )
+                assertNull(secondPage.queryOnId)
+            }
+        }
+
+    @Test
+    fun `query continues to later pages when high scores are filtered out`() =
+        runTest {
+            newFixture(pageSize = 1).use { fixture ->
+                fixture.store.addDocument("doc-1", "north", emptyMap(), floatArrayOf(1f, 0f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("doc-2", "south", emptyMap(), floatArrayOf(0f, 1f))
+
+                val result =
+                    fixture.store.query(
+                        Query(
+                            vector = floatArrayOf(1f, 0f),
+                            scoreMustBeBelow = 0.9f,
+                        ),
+                    )
+
+                assertEquals(listOf("doc-2"), result.resultsPage.map { it.id })
+                assertNull(result.queryOnId)
+            }
+        }
+
+    @Test
     fun `query registers pagination with time sort when vector missing`() =
         runTest {
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            newFixture(pageSize = 1, clock = clock).use { fixture ->
+            newFixture(pageSize = 1).use { fixture ->
                 fixture.store.addDocument("doc-1", "first", mapOf("category" to "shared", "topic" to "news-1"), floatArrayOf(1f, 0f))
-                clock.advance(1.seconds)
+                fixture.clock.advance(1.seconds)
                 fixture.store.addDocument("doc-2", "second", mapOf("category" to "shared", "topic" to "news-2"), floatArrayOf(0f, 1f))
 
                 val result =
@@ -59,8 +310,7 @@ class LuceneLocalVectorStoreTest {
     @Test
     fun `query does not paginate when exactly one page available`() =
         runTest {
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            newFixture(pageSize = 2, clock = clock).use { fixture ->
+            newFixture(pageSize = 2).use { fixture ->
                 fixture.store.addDocument("doc-1", "first", mapOf("category" to "shared"), floatArrayOf(1f, 0f))
                 fixture.store.addDocument("doc-2", "second", mapOf("category" to "shared"), floatArrayOf(0f, 1f))
 
@@ -79,10 +329,9 @@ class LuceneLocalVectorStoreTest {
     @Test
     fun `query registers pagination without sort when vector provided`() =
         runTest {
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            newFixture(pageSize = 1, clock = clock).use { fixture ->
+            newFixture(pageSize = 1).use { fixture ->
                 fixture.store.addDocument("doc-1", "first", mapOf("category" to "shared", "topic" to "news-1"), floatArrayOf(1f, 0f))
-                clock.advance(1.seconds)
+                fixture.clock.advance(1.seconds)
                 fixture.store.addDocument("doc-2", "second", mapOf("category" to "shared", "topic" to "news-2"), floatArrayOf(0f, 1f))
 
                 val result =
@@ -103,8 +352,7 @@ class LuceneLocalVectorStoreTest {
     @Test
     fun `query registers pagination when more hits available`() =
         runTest {
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            newFixture(pageSize = 2, clock = clock).use { fixture ->
+            newFixture(pageSize = 2).use { fixture ->
                 repeat(5) { index ->
                     fixture.store.addDocument(
                         id = "bulk-${index + 1}",
@@ -112,7 +360,7 @@ class LuceneLocalVectorStoreTest {
                         fields = mapOf("category" to "bulk"),
                         vector = floatArrayOf(1f, 0f),
                     )
-                    clock.advance(1.seconds)
+                    fixture.clock.advance(1.seconds)
                 }
 
                 val result =
@@ -132,8 +380,7 @@ class LuceneLocalVectorStoreTest {
         runTest {
             val failingPlanner = mockk<LuceneQueryPlanner>()
             every { failingPlanner.create(any()) } throws IllegalStateException("boom")
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            newFixture(pageSize = 1, clock = clock, queryPlanner = failingPlanner).use { fixture ->
+            newFixture(pageSize = 1, queryPlanner = failingPlanner).use { fixture ->
                 fixture.store.addDocument("doc-1", "seed", emptyMap(), floatArrayOf(1f, 0f))
                 assertFailsWith<IllegalStateException> {
                     fixture.store.query(Query())
@@ -142,28 +389,9 @@ class LuceneLocalVectorStoreTest {
         }
 
     @Test
-    fun `dumpAll emits all documents and completes after last page`() =
-        runTest {
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            newFixture(pageSize = 1, clock = clock).use { fixture ->
-                fixture.store.addDocument("first-id", "first", emptyMap(), floatArrayOf(1f, 0f))
-                clock.advance(1.seconds)
-                fixture.store.addDocument("second-id", "second", emptyMap(), floatArrayOf(0f, 1f))
-
-                val results =
-                    withTimeout(2_000) {
-                        fixture.store.dumpAll().toList()
-                    }
-
-                assertEquals(listOf("second-id", "first-id"), results.map { it.id })
-            }
-        }
-
-    @Test
     fun `query omits pagination when result page smaller than capacity`() =
         runTest {
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            newFixture(pageSize = 2, clock = clock).use { fixture ->
+            newFixture(pageSize = 2).use { fixture ->
                 fixture.store.addDocument("doc-1", "single", mapOf("category" to "shared"), floatArrayOf(1f, 0f))
 
                 val result =
@@ -179,14 +407,83 @@ class LuceneLocalVectorStoreTest {
         }
 
     @Test
+    fun `query re-throws exceptions other than IndexNotFoundException`() =
+        runTest {
+            val exception = RuntimeException("Test")
+            val indexAccess =
+                mockk<LuceneIndexAccess>(relaxUnitFun = true) {
+                    coEvery { read<VectorStore.QueryResult>(any()) } throws exception
+                }
+
+            newFixture(pageSize = 1, indexAccess = indexAccess).use { fixture ->
+                val ex =
+                    assertFails {
+                        fixture.store.query(Query())
+                    }
+
+                assertSame(exception, ex)
+            }
+        }
+
+    @Test
+    fun `dumpAll emits all documents and completes after last page`() =
+        runTest {
+            newFixture(pageSize = 1).use { fixture ->
+                fixture.store.addDocument("first-id", "first", emptyMap(), floatArrayOf(1f, 0f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("second-id", "second", emptyMap(), floatArrayOf(0f, 1f))
+
+                val results =
+                    withTimeout(2_000) {
+                        fixture.store.dumpAll().toList()
+                    }
+
+                assertEquals(listOf("second-id", "first-id"), results.map { it.id })
+            }
+        }
+
+    @Test
+    fun `dumpAll re-throws exceptions other than IndexNotFoundException`() =
+        runTest {
+            val exception = RuntimeException("Test")
+            val indexAccess =
+                mockk<LuceneIndexAccess>(relaxUnitFun = true) {
+                    coEvery { read<List<VectorStore.PostDump>>(any()) } throws exception
+                }
+
+            newFixture(pageSize = 1, indexAccess = indexAccess).use { fixture ->
+                val ex =
+                    assertFails {
+                        fixture.store.dumpAll().toList()
+                    }
+
+                assertSame(exception, ex)
+            }
+        }
+
+    @Test
+    fun `dumpAll ignores IndexNotFoundException`() =
+        runTest {
+            val exception = IndexNotFoundException("Test")
+            val indexAccess =
+                mockk<LuceneIndexAccess>(relaxUnitFun = true) {
+                    coEvery { read<List<VectorStore.PostDump>>(any()) } throws exception
+                }
+
+            newFixture(pageSize = 1, indexAccess = indexAccess).use { fixture ->
+                val result = fixture.store.dumpAll().toList()
+                assertEquals(emptyList(), result)
+            }
+        }
+
+    @Test
     fun `queryOn uses time sorting when registry stored sort`() =
         runTest {
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            newFixture(pageSize = 1, clock = clock).use { fixture ->
+            newFixture(pageSize = 1).use { fixture ->
                 fixture.store.addDocument("doc-1", "first", mapOf("category" to "shared"), floatArrayOf(1f, 0f))
-                clock.advance(1.seconds)
+                fixture.clock.advance(1.seconds)
                 fixture.store.addDocument("doc-2", "second", mapOf("category" to "shared"), floatArrayOf(1f, 0f))
-                clock.advance(1.seconds)
+                fixture.clock.advance(1.seconds)
                 fixture.store.addDocument("doc-3", "third", mapOf("category" to "shared"), floatArrayOf(1f, 0f))
 
                 val initial =
@@ -208,8 +505,7 @@ class LuceneLocalVectorStoreTest {
     @Test
     fun `queryOn clears pagination after full final page`() =
         runTest {
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            newFixture(pageSize = 2, clock = clock).use { fixture ->
+            newFixture(pageSize = 2).use { fixture ->
                 repeat(4) { index ->
                     fixture.store.addDocument(
                         id = "full-${index + 1}",
@@ -217,7 +513,7 @@ class LuceneLocalVectorStoreTest {
                         fields = mapOf("category" to "full"),
                         vector = floatArrayOf(1f, 0f),
                     )
-                    clock.advance(1.seconds)
+                    fixture.clock.advance(1.seconds)
                 }
 
                 val initial =
@@ -227,23 +523,21 @@ class LuceneLocalVectorStoreTest {
                         ),
                     )
                 val firstPageId = initial.queryOnId!!
-
                 val followUp = fixture.store.queryOn(firstPageId)
 
                 assertEquals(2, followUp.resultsPage.size)
-                assertNull(followUp.queryOnId)
+                assertNotNull(followUp.queryOnId)
             }
         }
 
     @Test
     fun `queryOn stops pagination when final page incomplete`() =
         runTest {
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            newFixture(pageSize = 2, clock = clock).use { fixture ->
+            newFixture(pageSize = 2).use { fixture ->
                 fixture.store.addDocument("doc-1", "first", mapOf("category" to "shared"), floatArrayOf(1f, 0f))
-                clock.advance(1.seconds)
+                fixture.clock.advance(1.seconds)
                 fixture.store.addDocument("doc-2", "second", mapOf("category" to "shared"), floatArrayOf(1f, 0f))
-                clock.advance(1.seconds)
+                fixture.clock.advance(1.seconds)
                 fixture.store.addDocument("doc-3", "third", mapOf("category" to "shared"), floatArrayOf(1f, 0f))
 
                 val initial =
@@ -264,12 +558,11 @@ class LuceneLocalVectorStoreTest {
     @Test
     fun `queryOn uses knn continuation when registry stored vector query`() =
         runTest {
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            newFixture(pageSize = 1, clock = clock).use { fixture ->
+            newFixture(pageSize = 1).use { fixture ->
                 fixture.store.addDocument("doc-1", "north", mapOf("category" to "shared"), floatArrayOf(1f, 0f))
-                clock.advance(1.seconds)
+                fixture.clock.advance(1.seconds)
                 fixture.store.addDocument("doc-2", "east", mapOf("category" to "shared"), floatArrayOf(0f, 1f))
-                clock.advance(1.seconds)
+                fixture.clock.advance(1.seconds)
                 fixture.store.addDocument("doc-3", "north-east", mapOf("category" to "shared"), floatArrayOf(0.7f, 0.7f))
 
                 val initial =
@@ -301,8 +594,7 @@ class LuceneLocalVectorStoreTest {
     @Test
     fun `queryOn returns empty result when id missing`() =
         runTest {
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            newFixture(pageSize = 1, clock = clock).use { fixture ->
+            newFixture(pageSize = 1).use { fixture ->
                 val result = fixture.store.queryOn(null)
                 assertTrue(result.resultsPage.isEmpty())
                 assertNull(result.queryOnId)
@@ -314,10 +606,29 @@ class LuceneLocalVectorStoreTest {
         }
 
     @Test
+    fun `queryOn re-throws exceptions other than IndexNotFoundException`() =
+        runTest {
+            val exception = RuntimeException("Test")
+            val indexAccess =
+                mockk<LuceneIndexAccess>(relaxUnitFun = true) {
+                    coEvery { read<VectorStore.QueryResults>(any()) } throws exception
+                }
+            val queryOnRegistry = mockk<QueryOnRegistry>(relaxed = true)
+
+            newFixture(pageSize = 1, indexAccess = indexAccess, queryOnRegistry = queryOnRegistry).use { fixture ->
+                val ex =
+                    assertFails {
+                        fixture.store.queryOn(UUID.randomUUID())
+                    }
+
+                assertSame(exception, ex)
+            }
+        }
+
+    @Test
     fun `operations fail after close`() =
         runTest {
-            val clock = TestClock(Instant.ofEpochSecond(1))
-            val fixture = newFixture(pageSize = 1, clock = clock)
+            val fixture = newFixture(pageSize = 1)
             fixture.store.close()
 
             assertFailsWith<RuntimeException> {
@@ -329,17 +640,22 @@ class LuceneLocalVectorStoreTest {
             assertFailsWith<RuntimeException> {
                 fixture.store.queryOn(UUID.randomUUID())
             }
+            assertFailsWith<RuntimeException> {
+                fixture.store.dumpAll().toList()
+            }
             fixture.close()
         }
 
     private fun newFixture(
         pageSize: Int,
-        clock: Clock,
         vectorSize: Int = 2,
         queryPlanner: LuceneQueryPlanner = LuceneQueryPlanner(maxResults = 10),
+        indexAccess: LuceneIndexAccess? = null,
+        queryOnRegistry: QueryOnRegistry? = null,
     ): StoreFixture {
-        val registry = QueryOnRegistry(pageSize = pageSize, maxNotFinishedQueries = 10)
-        val indexAccess = LuceneIndexAccess { ByteBuffersDirectory() }
+        val registry = queryOnRegistry ?: QueryOnRegistry(pageSize = pageSize, maxNotFinishedQueries = 10)
+        val indexAccess = indexAccess ?: LuceneIndexAccess { ByteBuffersDirectory() }
+        val clock = TestClock(Instant.ofEpochSecond(1))
         val store =
             LuceneLocalVectorStore.create(
                 indexAccess = indexAccess,
@@ -348,12 +664,13 @@ class LuceneLocalVectorStoreTest {
                 clock = clock,
                 vectorSize = vectorSize,
             ) as LuceneLocalVectorStore
-        return StoreFixture(store, registry)
+        return StoreFixture(store, registry, clock)
     }
 
     private class StoreFixture(
         val store: LuceneLocalVectorStore,
         val registry: QueryOnRegistry,
+        val clock: TestClock,
     ) : AutoCloseable {
         override fun close() {
             store.close()

@@ -4,6 +4,7 @@ import org.apache.lucene.search.Query
 import org.apache.lucene.search.ScoreDoc
 import org.apache.lucene.search.Sort
 import org.apache.lucene.search.TopDocs
+import straightway.mosa.VectorStore
 import java.util.ArrayDeque
 import java.util.LinkedHashMap
 import java.util.UUID
@@ -26,9 +27,11 @@ class QueryOnRegistry(
     private val lock = ReentrantLock()
 
     fun register(
+        vectorStoreQuery: VectorStore.Query,
         topDocs: TopDocs,
         query: Query,
         sort: Sort?,
+        hitsSoFar: Int,
     ): UUID {
         val scoreDoc =
             topDocs.scoreDocs.lastOrNull()
@@ -42,10 +45,12 @@ class QueryOnRegistry(
                     history.addLast(id)
                     records[id] =
                         QueryOnRecord(
+                            vectorStoreQuery = vectorStoreQuery,
                             after = scoreDoc,
                             query = query,
                             n = pageSize,
                             sort = sort,
+                            hitsSoFar = hitsSoFar,
                         )
                     check(records.size == history.size)
                 }
@@ -69,9 +74,11 @@ class QueryOnRegistry(
     }
 
     data class QueryOnRecord(
+        val vectorStoreQuery: VectorStore.Query,
         val after: ScoreDoc,
         val query: Query,
         val n: Int,
         val sort: Sort?,
+        val hitsSoFar: Int,
     )
 }

@@ -9,6 +9,7 @@ import org.apache.lucene.search.TopDocs
 import org.apache.lucene.search.TotalHits
 import org.apache.lucene.search.TotalHits.Relation
 import org.junit.jupiter.api.Test
+import straightway.mosa.VectorStore
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
@@ -16,6 +17,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class QueryOnRegistryTest {
+    private val vectorStoreQuery = VectorStore.Query(id = "vectorStoreQuery")
     private val query = TermQuery(Term("id", "42"))
     private val sort = Sort(SortField("time", SortField.Type.LONG))
 
@@ -23,11 +25,12 @@ class QueryOnRegistryTest {
     fun `register stores query on record`() {
         val registry = QueryOnRegistry(pageSize = 2, maxNotFinishedQueries = 5)
 
-        val searchOnId = registry.register(topDocsWithTwoResults(), query, sort)
+        val searchOnId = registry.register(vectorStoreQuery, topDocsWithTwoResults(), query, sort, 0)
 
         val record = registry.get(searchOnId)
 
         assertNotNull(record)
+        assertEquals(vectorStoreQuery, record.vectorStoreQuery)
         assertEquals(query, record.query)
         assertEquals(sort, record.sort)
         assertEquals(2, record.n)
@@ -37,9 +40,9 @@ class QueryOnRegistryTest {
     fun `register removes oldest query when capacity exceeded`() {
         val registry = QueryOnRegistry(pageSize = 2, maxNotFinishedQueries = 2)
 
-        val firstId = registry.register(topDocsWithTwoResults(), query, sort)
-        val secondId = registry.register(topDocsWithTwoResults(), query, sort)
-        val thirdId = registry.register(topDocsWithTwoResults(), query, sort)
+        val firstId = registry.register(vectorStoreQuery, topDocsWithTwoResults(), query, sort, 2)
+        val secondId = registry.register(vectorStoreQuery, topDocsWithTwoResults(), query, sort, 4)
+        val thirdId = registry.register(vectorStoreQuery, topDocsWithTwoResults(), query, sort, 5)
 
         assertNotEquals(firstId, secondId)
         assertNotEquals(secondId, thirdId)
@@ -52,7 +55,7 @@ class QueryOnRegistryTest {
     @Test
     fun `clear removes entries`() {
         val registry = QueryOnRegistry(pageSize = 2, maxNotFinishedQueries = 3)
-        val searchOnId = registry.register(topDocsWithTwoResults(), query, sort)
+        val searchOnId = registry.register(vectorStoreQuery, topDocsWithTwoResults(), query, sort, 2)
 
         registry.clear(searchOnId)
 
@@ -66,7 +69,7 @@ class QueryOnRegistryTest {
             TopDocs(TotalHits(0, Relation.EQUAL_TO), emptyArray())
 
         assertFailsWith<IllegalStateException> {
-            registry.register(emptyTopDocs, query, sort)
+            registry.register(vectorStoreQuery, emptyTopDocs, query, sort, 2)
         }
     }
 
