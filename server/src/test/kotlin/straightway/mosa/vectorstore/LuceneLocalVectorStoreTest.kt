@@ -477,6 +477,76 @@ class LuceneLocalVectorStoreTest {
         }
 
     @Test
+    fun `fetch returns posts in request order`() =
+        runTest {
+            newFixture(pageSize = 4).use { fixture ->
+                fixture.store.addDocument("doc-1", "first", mapOf("tag" to "a"), floatArrayOf(1f, 0f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("doc-2", "second", mapOf("tag" to "b"), floatArrayOf(0f, 1f))
+
+                val result = fixture.store.fetch(listOf("doc-2", "doc-1"))
+
+                assertEquals(
+                    listOf(
+                        VectorStore.PostDump("doc-2", "second", mapOf("tag" to "b")),
+                        VectorStore.PostDump("doc-1", "first", mapOf("tag" to "a")),
+                    ),
+                    result,
+                )
+            }
+        }
+
+    @Test
+    fun `fetch ignores missing ids`() =
+        runTest {
+            newFixture(pageSize = 4).use { fixture ->
+                fixture.store.addDocument("doc-1", "only", mapOf("tag" to "present"), floatArrayOf(1f, 0f))
+
+                val result = fixture.store.fetch(listOf("missing", "doc-1"))
+
+                assertEquals(
+                    listOf(VectorStore.PostDump("doc-1", "only", mapOf("tag" to "present"))),
+                    result,
+                )
+            }
+        }
+
+    @Test
+    fun `fetch ignores IndexNotFoundException`() =
+        runTest {
+            val exception = IndexNotFoundException("Test")
+            val indexAccess =
+                mockk<LuceneIndexAccess>(relaxUnitFun = true) {
+                    coEvery { read<List<VectorStore.PostDump>>(any()) } throws exception
+                }
+
+            newFixture(pageSize = 1, indexAccess = indexAccess).use { fixture ->
+                val result = fixture.store.fetch(listOf("id-1"))
+
+                assertEquals(emptyList(), result)
+            }
+        }
+
+    @Test
+    fun `fetch re-throws exceptions other than IndexNotFoundException`() =
+        runTest {
+            val exception = RuntimeException("Test")
+            val indexAccess =
+                mockk<LuceneIndexAccess>(relaxUnitFun = true) {
+                    coEvery { read<List<VectorStore.PostDump>>(any()) } throws exception
+                }
+
+            newFixture(pageSize = 1, indexAccess = indexAccess).use { fixture ->
+                val ex =
+                    assertFails {
+                        fixture.store.fetch(listOf("id-1"))
+                    }
+
+                assertSame(exception, ex)
+            }
+        }
+
+    @Test
     fun `queryOn uses time sorting when registry stored sort`() =
         runTest {
             newFixture(pageSize = 1).use { fixture ->
@@ -642,6 +712,9 @@ class LuceneLocalVectorStoreTest {
             }
             assertFailsWith<RuntimeException> {
                 fixture.store.dumpAll().toList()
+            }
+            assertFailsWith<RuntimeException> {
+                fixture.store.fetch(emptyList())
             }
             fixture.close()
         }

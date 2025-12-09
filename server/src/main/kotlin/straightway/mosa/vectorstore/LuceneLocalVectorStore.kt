@@ -10,9 +10,12 @@ import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.search.MatchAllDocsQuery
 import org.apache.lucene.search.Query
 import org.apache.lucene.search.ScoreDoc
+import org.apache.lucene.search.TermInSetQuery
 import org.apache.lucene.search.TopDocs
 import org.apache.lucene.search.TotalHits
+import org.apache.lucene.util.BytesRef
 import straightway.mosa.VectorStore
+import straightway.mosa.VectorStore.PostDump
 import straightway.mosa.VectorStore.QueryResult
 import straightway.mosa.VectorStore.QueryResults
 import java.time.Clock
@@ -135,7 +138,32 @@ class LuceneLocalVectorStore private constructor(
         }.getOrDefault(QueryResults(resultsPage = emptyList(), queryOnId = null))
     }
 
-    override fun dumpAll(): Flow<VectorStore.PostDump> {
+    override suspend fun fetch(ids: List<String>): List<PostDump> {
+        checkClosed()
+        if (ids.isEmpty()) return emptyList()
+
+        return runCatching {
+            indexAccess.read {
+                val searcher = IndexSearcher(this)
+                val query =
+                    TermInSetQuery(
+                        ID_FIELD_NAME,
+                        ids.map(::BytesRef),
+                    )
+                val postsById =
+                    searcher
+                        .search(query, ids.size)
+                        .scoreDocs
+                        .map { it.toPostDump(this) }
+                        .associateBy { it.id }
+                ids.mapNotNull(postsById::get)
+            }
+        }.onFailure {
+            if (it !is IndexNotFoundException) throw it
+        }.getOrDefault(emptyList())
+    }
+
+    override fun dumpAll(): Flow<PostDump> {
         checkClosed()
 
         return flow {
@@ -256,10 +284,10 @@ class LuceneLocalVectorStore private constructor(
         )
     }
 
-    private fun ScoreDoc.toPostDump(reader: DirectoryReader): VectorStore.PostDump {
+    private fun ScoreDoc.toPostDump(reader: DirectoryReader): PostDump {
         val doc = getDocument(reader)
         val fields = doc.getFieldMap()
-        return VectorStore.PostDump(
+        return PostDump(
             id = doc[ID_FIELD_NAME],
             text = doc[TEXT_FIELD_NAME],
             fields = fields,

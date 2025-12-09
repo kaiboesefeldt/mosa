@@ -105,6 +105,23 @@ class ContentService(
         request: QueryOnRequest,
     ): SearchResult = queryOn(userGID, request).toSearchResult()
 
+    suspend fun fetch(
+        userGID: String,
+        request: FetchRequest,
+    ) = trace(userGID, request) {
+        FetchResult(
+            vectorStore.fetch(request.itemIds).map {
+                FetchResult.Entry(
+                    it.id,
+                    it.text,
+                    authorGID = it.fields.requireMetadata(it.id, AUTHOR_GID_KEY),
+                    storedAt = it.fields.requireMetadata(it.id, RECEIVED_AT_KEY).toLong(),
+                    rootId = it.fields[ROOT_ID_KEY],
+                )
+            },
+        )
+    }
+
     private fun QueryResult.toSearchResult(): SearchResult =
         SearchResult(
             queryOnId = queryOnId,

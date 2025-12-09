@@ -80,5 +80,7 @@ interface VectorStore : AutoCloseable {
 
     suspend fun queryOn(queryOnId: UUID?): QueryResults
 
+    suspend fun fetch(ids: List<String>): List<PostDump>
+
     fun dumpAll(): Flow<PostDump>
 }

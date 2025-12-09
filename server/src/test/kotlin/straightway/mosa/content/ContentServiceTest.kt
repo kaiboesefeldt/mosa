@@ -13,10 +13,14 @@ import org.junit.jupiter.api.assertThrows
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import straightway.mosa.VectorStore.Query
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class ContentServiceTest {
     private val embeddingService = mockk<EmbeddingService>()
@@ -909,6 +913,81 @@ class ContentServiceTest {
                         queryOnId = testQueryOnId.toString(),
                     )
                 assertEquals(expectedResult, result)
+            }
+    }
+
+    @Nested
+    inner class Fetch {
+        @Test
+        fun `fetching multiple of IDs returns according content`() =
+            runTest {
+                val fetchResult =
+                    listOf(
+                        VectorStore.PostDump(
+                            "id1",
+                            "content1",
+                            mapOf(
+                                AUTHOR_GID_KEY to "author1",
+                                RECEIVED_AT_KEY to "12345",
+                            ),
+                        ),
+                        VectorStore.PostDump(
+                            "id2",
+                            "content2",
+                            mapOf(
+                                AUTHOR_GID_KEY to "author2",
+                                RECEIVED_AT_KEY to "23456",
+                                ROOT_ID_KEY to "root2",
+                            ),
+                        ),
+                    )
+                val idsToFetch = fetchResult.map { it.id }
+                coEvery { vectorStore.fetch(idsToFetch) } returns fetchResult
+
+                val result = sut.fetch(testUserGID, FetchRequest(idsToFetch))
+
+                val expected =
+                    FetchResult(
+                        entries =
+                            fetchResult.map {
+                                FetchResult.Entry(
+                                    it.id,
+                                    it.text,
+                                    authorGID = it.fields[AUTHOR_GID_KEY]!!,
+                                    storedAt = it.fields[RECEIVED_AT_KEY]!!.toLong(),
+                                    rootId = it.fields[ROOT_ID_KEY],
+                                )
+                            },
+                    )
+                assertEquals(expected, result)
+            }
+
+        @Test
+        fun `missing mandatory fields raises exception`() =
+            runTest {
+                listOf(AUTHOR_GID_KEY, RECEIVED_AT_KEY).forEach { missingField ->
+                    val fetchResult =
+                        listOf(
+                            VectorStore.PostDump(
+                                "id1",
+                                "content1",
+                                mapOf(
+                                    AUTHOR_GID_KEY to "author1",
+                                    RECEIVED_AT_KEY to "12345",
+                                ) - missingField,
+                            ),
+                        )
+                    val idsToFetch = fetchResult.map { it.id }
+                    coEvery { vectorStore.fetch(idsToFetch) } returns fetchResult
+
+                    val ex =
+                        assertFailsWith<MissingVectorMetadataException> {
+                            sut.fetch(testUserGID, FetchRequest(idsToFetch))
+                        }
+
+                    assertEquals("id1", ex.entryId)
+                    assertEquals(missingField, ex.fieldName)
+                }
             }
     }
 

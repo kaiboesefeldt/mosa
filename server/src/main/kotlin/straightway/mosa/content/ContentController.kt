@@ -57,6 +57,11 @@ class ContentController(
                 val result = contentService.searchOn(gid, call.receive<QueryOnRequest>())
                 call.respond(HttpStatusCode.OK, result, typeInfo<QueryResult>())
             }
+            postRoute("/fetch") {
+                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
+                val result = contentService.fetch(gid, call.receive<FetchRequest>())
+                call.respond(HttpStatusCode.OK, result, typeInfo<FetchResult>())
+            }
         }
     }
 

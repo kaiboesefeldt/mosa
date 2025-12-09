@@ -292,6 +292,60 @@ class ContentControllerTest {
             }
     }
 
+    @Nested
+    inner class FetchEndpoint : TestEndpoint("/v1/fetch") {
+        private val fetchResult =
+            FetchResult(
+                entries =
+                    listOf(
+                        FetchResult.Entry(
+                            id = "id1",
+                            content = "content1",
+                            authorGID = "authorGID1",
+                            storedAt = 12345,
+                            rootId = "rootId1",
+                        ),
+                        FetchResult.Entry(
+                            id = "id2",
+                            content = "content2",
+                            authorGID = "authorGID2",
+                            storedAt = 23456,
+                            rootId = null,
+                        ),
+                    ),
+            )
+
+        override fun setup() {
+            test.also {
+                env = it.env
+                serviceVerification = {
+                    coVerify(exactly = 0) { it.contentService.fetch(any(), any()) }
+                }
+            }
+        }
+
+        @Test
+        fun `should return 200 OK on success`() =
+            with(test) {
+                env {
+                    val request =
+                        FetchRequest(fetchResult.entries.map { it.id })
+                    coEvery { contentService.fetch(any(), any()) } returns fetchResult
+
+                    val response =
+                        client.post("/v1/fetch") {
+                            contentType(ContentType.Application.Json)
+                            setBody(request)
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.OK, response.status)
+                    coVerify(exactly = 1) { contentService.fetch(env.gid, request) }
+                    assertEquals(fetchResult, response.body())
+                }
+            }
+    }
+
     private companion object {
         private val queryResult =
             QueryResult(
