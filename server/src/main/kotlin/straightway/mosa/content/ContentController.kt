@@ -47,6 +47,16 @@ class ContentController(
                 val result = contentService.queryOn(gid, call.receive<QueryOnRequest>())
                 call.respond(HttpStatusCode.OK, result, typeInfo<QueryResult>())
             }
+            postRoute("/search") {
+                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
+                val result = contentService.search(gid, call.receive<QueryRequest>())
+                call.respond(HttpStatusCode.OK, result, typeInfo<QueryResult>())
+            }
+            postRoute("/searchon") {
+                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
+                val result = contentService.searchOn(gid, call.receive<QueryOnRequest>())
+                call.respond(HttpStatusCode.OK, result, typeInfo<QueryResult>())
+            }
         }
     }
 

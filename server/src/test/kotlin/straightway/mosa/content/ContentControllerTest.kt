@@ -222,6 +222,76 @@ class ContentControllerTest {
             }
     }
 
+    @Nested
+    inner class SearchEndpoint : TestEndpoint("/v1/search") {
+        override fun setup() {
+            test.also {
+                env = it.env
+                serviceVerification = {
+                    coVerify(exactly = 0) { it.contentService.search(any(), any()) }
+                }
+            }
+        }
+
+        @Test
+        fun `should return 200 OK on success`() =
+            with(test) {
+                env {
+                    val request =
+                        QueryRequest(
+                            topic = "Hello World",
+                            minTime = 1L,
+                            threadRootId = "12345",
+                        )
+                    coEvery { contentService.search(any(), any()) } returns searchResult
+
+                    val response =
+                        client.post("/v1/search") {
+                            contentType(ContentType.Application.Json)
+                            setBody(request)
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.OK, response.status)
+                    coVerify(exactly = 1) { contentService.search(env.gid, request) }
+                    assertEquals(searchResult, response.body())
+                }
+            }
+    }
+
+    @Nested
+    inner class SearchOnEndpoint : TestEndpoint("/v1/searchon") {
+        override fun setup() {
+            test.also {
+                env = it.env
+                serviceVerification = {
+                    coVerify(exactly = 0) { it.contentService.searchOn(any(), any()) }
+                }
+            }
+        }
+
+        @Test
+        fun `should return 200 OK on success`() =
+            with(test) {
+                env {
+                    val request =
+                        QueryOnRequest(queryOnId = "queryOnId")
+                    coEvery { contentService.searchOn(any(), any()) } returns searchResult
+
+                    val response =
+                        client.post("/v1/searchon") {
+                            contentType(ContentType.Application.Json)
+                            setBody(request)
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.OK, response.status)
+                    coVerify(exactly = 1) { contentService.searchOn(env.gid, request) }
+                    assertEquals(searchResult, response.body())
+                }
+            }
+    }
+
     private companion object {
         private val queryResult =
             QueryResult(
@@ -235,6 +305,17 @@ class ContentControllerTest {
                             authorGID = "authorGID",
                             storedAt = 170000000L,
                             rootId = "rootId",
+                        ),
+                    ),
+            )
+        private val searchResult =
+            SearchResult(
+                queryOnId = "queryOnId",
+                entries =
+                    listOf(
+                        SearchResult.Entry(
+                            id = "id",
+                            similarity = 0.9f,
                         ),
                     ),
             )

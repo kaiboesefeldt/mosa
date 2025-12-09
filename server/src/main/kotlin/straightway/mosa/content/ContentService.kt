@@ -95,6 +95,22 @@ class ContentService(
             )
         }
 
+    suspend fun search(
+        userGID: String,
+        request: QueryRequest,
+    ): SearchResult = query(userGID, request).toSearchResult()
+
+    suspend fun searchOn(
+        userGID: String,
+        request: QueryOnRequest,
+    ): SearchResult = queryOn(userGID, request).toSearchResult()
+
+    private fun QueryResult.toSearchResult(): SearchResult =
+        SearchResult(
+            queryOnId = queryOnId,
+            entries = entries.map { SearchResult.Entry(it.id, it.similarity) },
+        )
+
     @OptIn(ExperimentalTime::class)
     private suspend fun writeContent(
         userGID: String,
