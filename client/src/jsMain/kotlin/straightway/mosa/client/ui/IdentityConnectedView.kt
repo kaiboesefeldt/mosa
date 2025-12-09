@@ -88,7 +88,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (isLoadingPosts, setLoadingPosts) = useState(false)
     val postsContainerRef = useRef<HTMLDivElement>()
     val loadMoreRef = useRef<HTMLDivElement>()
-    val (isAppendingPosts, setAppendingPosts) = useState(false)
     val isAppendingPostsRef = useRef(false)
     val postsRequestVersion = useRef(0)
     val (isProfileVisible, setProfileVisible) = useState(false)
@@ -143,7 +142,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
 
     fun setAppendingState(active: Boolean) {
         isAppendingPostsRef.current = active
-        setAppendingPosts(active)
     }
 
     fun updateTopicPosts(updated: TopicPosts) {
@@ -442,7 +440,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 visualsFactory = visualsFactory,
                 posts = posts,
                 isLoading = isLoadingPosts,
-                isAppending = isAppendingPosts,
                 activeFilters = topicFilters,
                 onToggleFilter = ::toggleTopicFilter,
                 onClearFilter = ::clearTopicFilter,
@@ -563,7 +560,6 @@ private fun ChildrenBuilder.postsColumn(
     visualsFactory: IdentityVisualsFactory,
     posts: List<TopicPosts>,
     isLoading: Boolean,
-    isAppending: Boolean,
     activeFilters: Map<String, Float>,
     onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
     onClearFilter: (Topic) -> Unit,
