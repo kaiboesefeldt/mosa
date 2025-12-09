@@ -11,6 +11,9 @@ import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
+import straightway.mosa.client.pod.PodCertificateCache
+import straightway.mosa.client.pod.PodSessionProvider
+import straightway.mosa.client.content.TestTimeService
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.FetchRequest
@@ -37,15 +40,19 @@ class PostPublisherTest {
                     })"""
                 ).unsafeCast<CryptoKeyPair>(),
         )
-private lateinit var podAccess: RecordingPublishPodAccess
-private lateinit var logger: PublishRecordingLogger
-private lateinit var jwtBuilder: RecordingJwtBuilder
+    private lateinit var podAccess: RecordingPublishPodAccess
+    private lateinit var logger: PublishRecordingLogger
+    private lateinit var jwtBuilder: RecordingJwtBuilder
+    private lateinit var certificateCache: PodCertificateCache
+    private lateinit var timeService: TestTimeService
 
     @BeforeTest
     fun setUp() {
         podAccess = RecordingPublishPodAccess()
         logger = PublishRecordingLogger()
         jwtBuilder = RecordingJwtBuilder()
+        timeService = TestTimeService(0)
+        certificateCache = PodCertificateCache(timeService)
     }
 
     @AfterTest
@@ -81,11 +88,14 @@ private lateinit var jwtBuilder: RecordingJwtBuilder
 
     private fun createPublisher(): PostPublisher =
         PostPublisher(
-            identityRepository = PublishStaticIdentityRepository(identity),
-            podBaseProvider = PodBaseProvider(),
-            podAccessFactory = { podAccess },
-            jwtBuilder = { identity, certificate -> jwtBuilder.build(identity, certificate) },
-            logger = logger,
+            PodSessionProvider(
+                identityRepository = PublishStaticIdentityRepository(identity),
+                podBaseProvider = PodBaseProvider(),
+                podAccessFactory = { podAccess },
+                jwtBuilder = { identity, certificate -> jwtBuilder.build(identity, certificate) },
+                certificateCache = certificateCache,
+                logger = logger,
+            )
         )
 }
 

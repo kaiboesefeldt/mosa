@@ -1,20 +1,15 @@
 package straightway.mosa.client.content
 
-import straightway.mosa.client.identity.Identity
-import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.logging.Logger
-import straightway.mosa.client.pod.PodAccess
-import straightway.mosa.client.pod.PodBaseProvider
+import straightway.mosa.client.pod.PodSession
+import straightway.mosa.client.pod.PodSessionProvider
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.SearchResult
 
 class TopicSearchService(
-    private val identityRepository: IdentitySelectionRepository,
-    private val podBaseProvider: PodBaseProvider,
-    private val podAccessFactory: PodAccessFactory,
-    private val jwtBuilder: JwtBuilder,
+    private val podSessionProvider: PodSessionProvider,
     private val postCache: PostCache,
     private val logger: Logger,
 ) {
@@ -39,9 +34,8 @@ class TopicSearchService(
         if (topics.isEmpty()) return emptyList()
         topics.forEach { refreshFilterState(it) }
         val snapshots = topics.associateWith { topic -> postCache.snapshot(topic.title) }.toMutableMap()
-        val session = preparePodSession() ?: return buildTopicPosts(topics, snapshots)
-        val searchResults = searchTopics(session, topics, snapshots)
-        val resolvedPosts = resolvePosts(session, searchResults)
+        val searchResults = searchTopics(topics, snapshots)
+        val resolvedPosts = resolvePosts(searchResults)
         searchResults.forEach { (topic, result) ->
             val snapshot = postCache.append(topic.title, resolvedPosts[topic].orEmpty())
             snapshots[topic] = snapshot
@@ -55,7 +49,6 @@ class TopicSearchService(
         refreshFilterState(topic)
         if (exhaustedTopics.contains(topic.title)) return null
         val snapshot = postCache.snapshot(topic.title)
-        val session = preparePodSession() ?: return buildTopicPosts(listOf(topic), mapOf(topic to snapshot)).firstOrNull()
         val scoreBound =
             paginationScoreBounds[topic.title]
                 ?: snapshot.entries.minOfOrNull { it.similarity }
@@ -75,30 +68,24 @@ class TopicSearchService(
                 minTime = minTime,
             )
         val result =
-            runCatching {
+            executeRequest("search") { session ->
                 session.podAccess.search(request, session.jwt)
             }
-                .onFailure { logger.warn("Topic pagination failed for ${topic.title}", it) }
-                .getOrNull()
-                ?: return buildTopicPosts(listOf(topic), mapOf(topic to snapshot)).firstOrNull()
+                ?: run {
+                    logger.warn("Topic pagination failed for ${topic.title}", null)
+                    return buildTopicPosts(listOf(topic), mapOf(topic to snapshot)).firstOrNull()
+                }
         if (result.entries.isEmpty()) {
             updateExhaustion(topic, true)
             updatePaginationBoundary(topic, result.entries)
             return null
         }
-        val resolvedPosts = resolvePosts(session, mapOf(topic to result))
+        val resolvedPosts = resolvePosts(mapOf(topic to result))
         val updatedSnapshot = postCache.append(topic.title, resolvedPosts[topic].orEmpty())
         updateExhaustion(topic, result.entries.isEmpty())
         updatePaginationBoundary(topic, result.entries)
         return buildTopicPosts(listOf(topic), mapOf(topic to updatedSnapshot)).firstOrNull()
     }
-
-    private suspend fun loadIdentity(): Identity? =
-        runCatching { identityRepository.loadOrCreate().identity }
-            .getOrElse {
-                logger.error("Failed to load identity", it)
-                null
-            }
 
     private fun refreshFilterState(topic: Topic) {
         val lastFilter = lastUsedFilters[topic.title]
@@ -130,7 +117,6 @@ class TopicSearchService(
     }
 
     private suspend fun searchTopics(
-        session: PodSession,
         topics: List<Topic>,
         snapshots: Map<Topic, PostCacheSnapshot>,
     ): Map<Topic, SearchResult> {
@@ -154,18 +140,19 @@ class TopicSearchService(
                     minTime = minTime,
                 )
             val result =
-                runCatching { session.podAccess.search(queryRequest, session.jwt) }
-                    .onFailure { logger.warn("Topic search failed for ${topic.title}", it) }
-                    .getOrNull()
-            if (result != null) {
-                results[topic] = result
-            }
+                executeRequest("search") { session ->
+                    session.podAccess.search(queryRequest, session.jwt)
+                }
+                    ?: run {
+                        logger.warn("Topic search failed for ${topic.title}", null)
+                        return@forEach
+                    }
+            results[topic] = result
         }
         return results
     }
 
     private suspend fun resolvePosts(
-        session: PodSession,
         searchResults: Map<Topic, SearchResult>,
     ): Map<Topic, List<TopicScopedPost>> {
         if (searchResults.isEmpty()) return emptyMap()
@@ -174,7 +161,7 @@ class TopicSearchService(
                 .values
                 .flatMap { result -> result.entries.map { it.id } }
         val cacheResolution = postCache.resolve(allIds)
-        val fetched = fetchPosts(session, cacheResolution.missingIds.distinct())
+        val fetched = fetchPosts(cacheResolution.missingIds.distinct())
         val postsById =
             cacheResolution.postsById + fetched.associateBy { it.id }
         return searchResults.mapValues { (_, result) ->
@@ -184,18 +171,23 @@ class TopicSearchService(
         }
     }
 
-    private suspend fun fetchPosts(
-        session: PodSession,
-        ids: List<String>,
-    ): List<CachedPost> {
+    private suspend fun fetchPosts(ids: List<String>): List<CachedPost> {
         if (ids.isEmpty()) return emptyList()
-        return runCatching { session.podAccess.fetch(FetchRequest(ids), session.jwt) }
-            .onFailure { logger.warn("Post fetch failed for ${ids.size} ids", it) }
-            .getOrNull()
+        return executeRequest("fetch") { session ->
+            session.podAccess.fetch(FetchRequest(ids), session.jwt)
+        }
             ?.entries
             ?.map { it.toCachedPost() }
             .orEmpty()
+            .also {
+                if (it.isEmpty()) {
+                    logger.warn("Post fetch failed for ${ids.size} ids", null)
+                }
+            }
     }
+
+    private fun FetchResult.Entry.toCachedPost(): CachedPost =
+        CachedPost(id = id, content = content, authorGID = authorGID, storedAt = storedAt, rootId = rootId)
 
     private fun updatePaginationBoundary(topic: Topic, entries: List<SearchResult.Entry>) {
         val lowestScore = entries.minOfOrNull { it.similarity }
@@ -204,29 +196,6 @@ class TopicSearchService(
         } else {
             paginationScoreBounds.remove(topic.title)
         }
-    }
-
-    private fun FetchResult.Entry.toCachedPost(): CachedPost =
-        CachedPost(id = id, content = content, authorGID = authorGID, storedAt = storedAt, rootId = rootId)
-
-    private data class PodSession(val podAccess: PodAccess, val jwt: String)
-
-    private suspend fun preparePodSession(): PodSession? {
-        val podBase = podBaseProvider.base() ?: return null
-        val identity = loadIdentity() ?: return null
-        val podAccess = runCatching { podAccessFactory(podBase) }.getOrElse {
-            logger.error("Pod access unavailable", it)
-            return null
-        }
-        val certificate = runCatching { podAccess.approveGid(identity.gid) }.getOrElse {
-            logger.error("Pod certificate retrieval failed", it)
-            return null
-        }
-        val jwt = runCatching { jwtBuilder(identity, certificate) }.getOrElse {
-            logger.error("JWT creation failed", it)
-            return null
-        }
-        return PodSession(podAccess, jwt)
     }
 
     private fun buildTopicPosts(
@@ -241,4 +210,9 @@ class TopicSearchService(
                     .orEmpty()
             entries.takeIf { it.isNotEmpty() }?.let { TopicPosts(topic, it) }
         }
+
+    private suspend fun <T> executeRequest(
+        name: String,
+        call: suspend (PodSession) -> T,
+    ): T? = podSessionProvider.execute(name, call)
 }

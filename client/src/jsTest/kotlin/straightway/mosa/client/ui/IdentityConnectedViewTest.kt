@@ -29,10 +29,13 @@ import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
+import straightway.mosa.client.pod.PodCertificateCache
+import straightway.mosa.client.pod.PodSessionProvider
 import straightway.mosa.client.testing.RenderResult
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.render
 import straightway.mosa.client.testing.userEvent
+import straightway.mosa.client.aux.TimeService
 import straightway.mosa.client.content.JwtBuilder
 import straightway.mosa.client.content.PodAccessFactory
 import straightway.mosa.client.content.CachedPost
@@ -554,12 +557,24 @@ private fun scrollPostsToEnd(container: Element) {
                 single<PostCache> { InMemoryPostCache() }
                 single { TopicRepository(get(), get()) }
                 single<IdentitySelectionRepository> { StaticIdentityRepository(identityForTests) }
+                single { TimeService() }
                 single { PodBaseProvider() }
                 single<PodAccessFactory> { { podAccess } }
                 single<JwtBuilder> { { _, _ -> "jwt" } }
                 single<Logger> { RecordingLogger() }
-                single { PostPublisher(get(), get(), get(), get(), get()) }
-                single { TopicSearchService(get(), get(), get(), get(), get(), get()) }
+                single { PodCertificateCache(get()) }
+                single {
+                    PodSessionProvider(
+                        get(),
+                        get(),
+                        get(),
+                        get(),
+                        get(),
+                        get(),
+                    )
+                }
+                single { PostPublisher(get()) }
+                single { TopicSearchService(get(), get(), get()) }
             }
                 startKoin { modules(module) }
         sessionStore = ConnectedViewTestInjector.get<IdentitySessionStore>() as ConnectedViewIdentitySessionStore

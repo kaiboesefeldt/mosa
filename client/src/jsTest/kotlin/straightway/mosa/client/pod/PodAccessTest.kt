@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import straightway.mosa.auth.AuthenticationApprovalRequest
 import straightway.mosa.auth.PodCertificate
+import straightway.mosa.client.pod.PodRequestFailed
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.PublishRequest
@@ -55,7 +56,7 @@ class PodAccessTest {
     fun `approveGid throws when backend returns error`() = runTest {
         val podAccess = podAccessResponding(HttpStatusCode.InternalServerError)
 
-        assertRestError("/v1/approvegid") { podAccess.approveGid("gid-123") }
+        assertRestError("/v1/approvegid", HttpStatusCode.InternalServerError) { podAccess.approveGid("gid-123") }
     }
 
     @Test
@@ -79,7 +80,9 @@ class PodAccessTest {
     fun `publish throws when backend returns error`() = runTest {
         val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
 
-        assertRestError("/v1/publish") { podAccess.publish(PublishRequest("message"), "jwt-token") }
+        assertRestError("/v1/publish", HttpStatusCode.BadRequest) {
+            podAccess.publish(PublishRequest("message"), "jwt-token")
+        }
     }
 
     @Test
@@ -103,7 +106,7 @@ class PodAccessTest {
     fun `reply throws when backend returns error`() = runTest {
         val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
 
-        assertRestError("/v1/reply") {
+        assertRestError("/v1/reply", HttpStatusCode.BadRequest) {
             podAccess.reply(ReplyRequest(PublishRequest("message"), "root-id"), "jwt-token")
         }
     }
@@ -139,7 +142,7 @@ class PodAccessTest {
     fun `search throws when backend returns error`() = runTest {
         val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
 
-        assertRestError("/v1/search") { podAccess.search(QueryRequest(), "jwt-token") }
+        assertRestError("/v1/search", HttpStatusCode.BadRequest) { podAccess.search(QueryRequest(), "jwt-token") }
     }
 
     @Test
@@ -173,7 +176,7 @@ class PodAccessTest {
     fun `searchOn throws when backend returns error`() = runTest {
         val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
 
-        assertRestError("/v1/searchon") { podAccess.searchOn(QueryOnRequest("id"), "jwt-token") }
+        assertRestError("/v1/searchon", HttpStatusCode.BadRequest) { podAccess.searchOn(QueryOnRequest("id"), "jwt-token") }
     }
 
     @Test
@@ -260,8 +263,9 @@ class PodAccessTest {
         assertEquals(expectedPayload, payload)
     }
 
-    private suspend fun assertRestError(path: String, call: suspend () -> Unit) {
-        val error = assertFailsWith<RuntimeException> { call() }
-        assertTrue(error.message!!.contains(path))
+    private suspend fun assertRestError(path: String, status: HttpStatusCode, call: suspend () -> Unit) {
+        val error = assertFailsWith<PodRequestFailed> { call() }
+        assertEquals(status, error.status)
+        assertTrue(error.path.contains(path))
     }
 }

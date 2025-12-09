@@ -36,6 +36,8 @@ import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodAccessImpl
 import straightway.mosa.client.pod.PodBaseProvider
+import straightway.mosa.client.pod.PodCertificateCache
+import straightway.mosa.client.pod.PodSessionProvider
 import straightway.mosa.client.content.IndexedDbPostCache
 import straightway.mosa.client.content.IndexedDbTopicStore
 import straightway.mosa.client.content.JwtBuilder
@@ -61,6 +63,7 @@ object AppModule : KoinComponent {
                 modules(
                     module {
                         single { TimeService() }
+                        single { PodCertificateCache(get()) }
                         single {
                             MisJwtService(
                                 get(),
@@ -95,6 +98,16 @@ object AppModule : KoinComponent {
                             { podBase -> get<PodAccess> { parametersOf(podBase) } }
                         }
                         single {
+                            PodSessionProvider(
+                                get(),
+                                get(),
+                                get(),
+                                get(),
+                                get(),
+                                get(),
+                            )
+                        }
+                        single {
                             SubtleCrypto(
                                 window.asDynamic().crypto?.subtle
                                     ?: error("WebCrypto not available")
@@ -121,17 +134,8 @@ object AppModule : KoinComponent {
                         single { TopicReferenceStore() }
                         single<PostCache> { IndexedDbPostCache(get(), get(), get()) }
                         single { TopicRepository(get(), get()) }
-                        single { PostPublisher(get(), get(), get(), get(), get()) }
-                        single {
-                            TopicSearchService(
-                                get(),
-                                get(),
-                                get(),
-                                get(),
-                                get(),
-                                get(),
-                            )
-                        }
+                        single { PostPublisher(get()) }
+                        single { TopicSearchService(get(), get(), get()) }
                         single { BrowserPrefs() }
                         single { Translator(get<BrowserPrefs>().languages) }
                         single { DiceBearAvatarGenerator() }

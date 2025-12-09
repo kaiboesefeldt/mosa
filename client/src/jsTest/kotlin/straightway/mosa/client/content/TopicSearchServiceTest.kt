@@ -5,12 +5,15 @@ import kotlinx.coroutines.test.runTest
 import kotlin.js.unsafeCast
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.client.browser.CryptoKeyPair
+import straightway.mosa.client.content.TestTimeService
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
+import straightway.mosa.client.pod.PodCertificateCache
+import straightway.mosa.client.pod.PodSessionProvider
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.PublishRequest
@@ -29,6 +32,8 @@ class TopicSearchServiceTest {
     private lateinit var podAccess: FakePodAccess
     private lateinit var logger: RecordingLogger
     private lateinit var cache: FakePostCache
+    private lateinit var certificateCache: PodCertificateCache
+    private lateinit var timeService: TestTimeService
     private val jwtInvocations = mutableListOf<Pair<Identity, PodCertificate>>()
     private val identity =
         Identity(
@@ -46,6 +51,8 @@ class TopicSearchServiceTest {
     fun setup() {
         logger = RecordingLogger()
         cache = FakePostCache()
+        timeService = TestTimeService(0)
+        certificateCache = PodCertificateCache(timeService)
         clearBase()
         jwtInvocations.clear()
     }
@@ -98,9 +105,11 @@ class TopicSearchServiceTest {
 
         assertEquals(1, podAccess.approveInvocations.size)
         assertEquals(identity.gid, podAccess.approveInvocations.single())
-        val tokenInvocation = jwtInvocations.single()
+        assertEquals(3, jwtInvocations.size)
+        val tokenInvocation = jwtInvocations.first()
         assertEquals(identity.gid, tokenInvocation.first.gid)
         assertEquals(identity.gid, tokenInvocation.second.gid)
+        assertEquals(1, jwtInvocations.map { it.second.gid }.distinct().size)
         assertEquals(2, podAccess.searchInvocations.size)
         assertEquals(listOf("Alpha", "Beta"), podAccess.searchInvocations.map { it.topic })
         assertEquals(1, podAccess.fetchInvocations.size)
@@ -247,13 +256,18 @@ class TopicSearchServiceTest {
 
     private fun createService(): TopicSearchService =
         TopicSearchService(
-            identityRepository = StaticIdentityRepository(identity),
-            podBaseProvider = PodBaseProvider(),
-            podAccessFactory = { podAccess },
-            jwtBuilder = { identity, cert ->
-                jwtInvocations += identity to cert
-                "generated-jwt"
-            },
+            podSessionProvider =
+                PodSessionProvider(
+                    identityRepository = StaticIdentityRepository(identity),
+                    podBaseProvider = PodBaseProvider(),
+                    podAccessFactory = { podAccess },
+                    jwtBuilder = { identity, cert ->
+                        jwtInvocations += identity to cert
+                        "generated-jwt"
+                    },
+                    certificateCache = certificateCache,
+                    logger = logger,
+                ),
             postCache = cache,
             logger = logger,
         )

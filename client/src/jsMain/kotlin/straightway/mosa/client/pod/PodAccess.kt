@@ -75,7 +75,7 @@ class PodAccessImpl(
     private fun HttpResponse.ensureSuccess(path: String, payload: Any): HttpResponse =
         apply {
             if (status.value !in 200..299) {
-                throw RuntimeException("Invalid response to ${podBase}$path with $payload: $this")
+                throw PodRequestFailed("$podBase$path", payload, status)
             }
         }
 }
