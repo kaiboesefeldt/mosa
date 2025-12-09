@@ -616,11 +616,7 @@ private fun ChildrenBuilder.postsColumn(
         }
     }
     when {
-        isLoading ->
-            div {
-                className = ClassName("topic-board__empty")
-                +translator.translate("connected.posts.loading")
-            }
+        isLoading -> Unit
         posts.isEmpty() ->
             div {
                 className = ClassName("topic-board__empty")
@@ -647,12 +643,6 @@ private fun ChildrenBuilder.postsColumn(
         div {
             ref = loadMoreRef
             className = ClassName("topic-board__load-sentinel")
-            if (isAppending) {
-                span {
-                    className = ClassName("topic-board__load-indicator")
-                    +translator.translate("connected.posts.loading")
-                }
-            }
         }
     }
 }

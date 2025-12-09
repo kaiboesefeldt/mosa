@@ -707,14 +707,6 @@ button:disabled {
     min-height: 1px;
 }
 
-.topic-board__load-indicator {
-    display: flex;
-    justify-content: center;
-    padding: 0.35rem 0 0.5rem;
-    color: var(--color-muted);
-    font-size: 0.9rem;
-}
-
 .topic-board__column-header {
     display: flex;
     align-items: center;

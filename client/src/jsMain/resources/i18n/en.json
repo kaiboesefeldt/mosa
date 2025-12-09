@@ -25,7 +25,6 @@
   "connected.profile.avatar.title": "Open profile",
   "connected.posts.title": "Posts",
   "connected.posts.empty": "No posts found.",
-  "connected.posts.loading": "Loading posts...",
   "connected.posts.similarity": "Similarity: {{value}}",
   "connected.posts.timestamp": "Timestamp: {{value}}",
   "connected.brand.alt": "Mosa logo",
