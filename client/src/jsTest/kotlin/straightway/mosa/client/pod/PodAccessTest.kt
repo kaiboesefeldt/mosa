@@ -17,11 +17,13 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import straightway.mosa.auth.AuthenticationApprovalRequest
 import straightway.mosa.auth.PodCertificate
+import straightway.mosa.content.FetchRequest
+import straightway.mosa.content.FetchResult
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.QueryRequest
-import straightway.mosa.content.QueryResult
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.ReplyRequest
+import straightway.mosa.content.SearchResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -107,12 +109,12 @@ class PodAccessTest {
     }
 
     @Test
-    fun `query posts request and returns result`() = runTest {
+    fun `search posts request and returns result`() = runTest {
         val expectedResult =
-            QueryResult(
+            SearchResult(
                 entries =
                     listOf(
-                        QueryResult.Entry("id", "content", 0.9f, "author", 42, "root"),
+                        SearchResult.Entry("id", 0.9f),
                     ),
                 queryOnId = "query-on",
             )
@@ -120,33 +122,33 @@ class PodAccessTest {
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
         val queryRequest = QueryRequest(topic = "topic", minTime = 12, threadRootId = "root")
 
-        val result = podAccess.query(queryRequest, "jwt-token")
+        val result = podAccess.search(queryRequest, "jwt-token")
 
         assertEquals(expectedResult, result)
 
         assertRequest(
             capturedRequests.single(),
             HttpMethod.Post,
-            route = "v1/query",
+            route = "v1/search",
             expectedPayload = queryRequest,
             bearerToken = "jwt-token"
         )
     }
 
     @Test
-    fun `query throws when backend returns error`() = runTest {
+    fun `search throws when backend returns error`() = runTest {
         val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
 
-        assertRestError("/v1/query") { podAccess.query(QueryRequest(), "jwt-token") }
+        assertRestError("/v1/search") { podAccess.search(QueryRequest(), "jwt-token") }
     }
 
     @Test
-    fun `queryOn posts request and returns result`() = runTest {
+    fun `searchOn posts request and returns result`() = runTest {
         val expectedResult =
-            QueryResult(
+            SearchResult(
                 entries =
                     listOf(
-                        QueryResult.Entry("id", "content", 0.4f, "author", 21, "root"),
+                        SearchResult.Entry("id", 0.4f),
                     ),
                 queryOnId = "another-id",
             )
@@ -154,24 +156,50 @@ class PodAccessTest {
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
         val queryOnRequest = QueryOnRequest("query-on-id")
 
-        val result = podAccess.queryOn(queryOnRequest, "jwt-token")
+        val result = podAccess.searchOn(queryOnRequest, "jwt-token")
 
         assertEquals(expectedResult, result)
 
         assertRequest(
             capturedRequests.single(),
             HttpMethod.Post,
-            route = "v1/queryon",
+            route = "v1/searchon",
             expectedPayload = queryOnRequest,
             bearerToken = "jwt-token"
         )
     }
 
     @Test
-    fun `queryOn throws when backend returns error`() = runTest {
+    fun `searchOn throws when backend returns error`() = runTest {
         val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
 
-        assertRestError("/v1/queryon") { podAccess.queryOn(QueryOnRequest("id"), "jwt-token") }
+        assertRestError("/v1/searchon") { podAccess.searchOn(QueryOnRequest("id"), "jwt-token") }
+    }
+
+    @Test
+    fun `fetch posts request and returns result`() = runTest {
+        val expectedResult =
+            FetchResult(
+                entries =
+                    listOf(
+                        FetchResult.Entry("id", "content", "author", 42),
+                    ),
+            )
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
+        val fetchRequest = FetchRequest(listOf("id"))
+
+        val result = podAccess.fetch(fetchRequest, "jwt-token")
+
+        assertEquals(expectedResult, result)
+
+        assertRequest(
+            capturedRequests.single(),
+            HttpMethod.Post,
+            route = "v1/fetch",
+            expectedPayload = fetchRequest,
+            bearerToken = "jwt-token",
+        )
     }
 
     private fun podAccess(handler: MockRequestHandler): PodAccess {

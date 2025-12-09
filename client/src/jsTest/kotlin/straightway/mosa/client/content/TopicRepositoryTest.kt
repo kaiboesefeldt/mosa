@@ -4,7 +4,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import straightway.mosa.content.QueryResult
+
 class TopicRepositoryTest {
     @Test
     fun `load returns topics from store`() = runTest {
@@ -173,8 +173,11 @@ private class RecordingPostCache : PostCache {
     override suspend fun snapshot(topic: String): PostCacheSnapshot =
         PostCacheSnapshot(emptyList(), null)
 
-    override suspend fun append(topic: String, entries: List<QueryResult.Entry>): PostCacheSnapshot =
+    override suspend fun append(topic: String, entries: List<TopicScopedPost>): PostCacheSnapshot =
         PostCacheSnapshot(emptyList(), null)
+
+    override suspend fun resolve(ids: Collection<String>): CachedPostResolution =
+        CachedPostResolution(emptyMap(), ids.toList())
 
     override suspend fun clear(topic: String) {
         clearInvocations += topic

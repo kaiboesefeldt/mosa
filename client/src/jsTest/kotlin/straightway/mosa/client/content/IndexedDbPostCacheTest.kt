@@ -7,7 +7,6 @@ import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.test.ensureStacktraceMapperInstalled
 import straightway.mosa.client.content.TopicEntryStore.Companion.POST_CACHE_DATABASE_NAME
 import straightway.mosa.client.content.TopicEntryStore.Companion.POST_CACHE_ENTRIES_STORE_NAME
-import straightway.mosa.content.QueryResult
 import kotlin.coroutines.resume
 import kotlin.js.asDynamic
 import kotlin.test.BeforeTest
@@ -131,13 +130,15 @@ class IndexedDbPostCacheTest {
             assertTrue(snapshot.entries.isEmpty())
         }
 
-    private fun entry(id: String, similarity: Float, storedAt: Long): QueryResult.Entry =
-        QueryResult.Entry(
-            id = id,
-            content = "content-$id",
-            similarity = similarity,
-            authorGID = "author",
-            storedAt = storedAt,
+    private fun entry(id: String, similarity: Float, storedAt: Long): TopicScopedPost =
+        TopicScopedPost(
+            CachedPost(
+                id = id,
+                content = "content-$id",
+                authorGID = "author",
+                storedAt = storedAt,
+            ),
+            similarity,
         )
 
     private suspend fun deleteEntry(id: String) {

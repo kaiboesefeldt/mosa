@@ -12,10 +12,12 @@ import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.content.PublishRequest
+import straightway.mosa.content.ReplyRequest
+import straightway.mosa.content.FetchRequest
+import straightway.mosa.content.FetchResult
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
-import straightway.mosa.content.QueryResult
-import straightway.mosa.content.ReplyRequest
+import straightway.mosa.content.SearchResult
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -104,11 +106,15 @@ private class RecordingPublishPodAccess : PodAccess {
         error("not used")
     }
 
-    override suspend fun query(request: QueryRequest, jwt: String): QueryResult {
+    override suspend fun search(request: QueryRequest, jwt: String): SearchResult {
         error("not used")
     }
 
-    override suspend fun queryOn(request: QueryOnRequest, jwt: String): QueryResult {
+    override suspend fun searchOn(request: QueryOnRequest, jwt: String): SearchResult {
+        error("not used")
+    }
+
+    override suspend fun fetch(request: FetchRequest, jwt: String): FetchResult {
         error("not used")
     }
 }
@@ -119,13 +125,13 @@ private class PublishStaticIdentityRepository(
     override suspend fun loadOrCreate(): IdentitySelection =
         IdentitySelection(identity, 0, 1)
 
-    override suspend fun movePrevious(): IdentitySelection? = selection()
+    override suspend fun movePrevious(): IdentitySelection = selection()
 
     override suspend fun moveNext(): IdentitySelection = selection()
 
     override suspend fun deleteCurrent(): IdentitySelection = selection()
 
-    override suspend fun select(index: Int): IdentitySelection? = selection()
+    override suspend fun select(index: Int): IdentitySelection = selection()
 
     override suspend fun import(identity: Identity): IdentitySelection = selection()
 
@@ -145,7 +151,7 @@ private class PublishRecordingLogger : Logger {
 private class RecordingJwtBuilder {
     val invocations = mutableListOf<Pair<Identity, PodCertificate>>()
 
-    suspend fun build(identity: Identity, certificate: PodCertificate): String {
+    fun build(identity: Identity, certificate: PodCertificate): String {
         invocations += identity to certificate
         return "jwt-token"
     }

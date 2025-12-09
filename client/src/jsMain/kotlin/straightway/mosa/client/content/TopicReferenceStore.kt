@@ -1,7 +1,5 @@
 package straightway.mosa.client.content
 
-import straightway.mosa.content.QueryResult
-
 class TopicReferenceStore {
     private val topics = mutableMapOf<String, TopicRecord>()
 
@@ -9,17 +7,17 @@ class TopicReferenceStore {
 
     fun update(
         topic: String,
-        entries: List<QueryResult.Entry>,
+        entries: List<TopicScopedPost>,
     ) {
         if (entries.isEmpty()) return
         val current = topics[topic]
         val merged = current?.entries?.associateBy { it.id }?.toMutableMap() ?: mutableMapOf()
         entries.forEach { entry ->
             if (entry.similarity.isFinite()) {
-                merged[entry.id] = TopicEntryRef(entry.id, entry.similarity)
+                merged[entry.post.id] = TopicEntryRef(entry.post.id, entry.similarity)
             }
         }
-        val lastFetchedAt = entries.maxOfOrNull { it.storedAt } ?: current?.lastFetchedAt
+        val lastFetchedAt = entries.maxOfOrNull { it.post.storedAt } ?: current?.lastFetchedAt
         topics[topic] = TopicRecord(merged.values.toList(), lastFetchedAt)
     }
 
@@ -38,4 +36,3 @@ class TopicReferenceStore {
         topics.remove(topic)
     }
 }
-

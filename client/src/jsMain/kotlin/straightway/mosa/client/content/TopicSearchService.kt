@@ -5,7 +5,10 @@ import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
+import straightway.mosa.content.FetchRequest
+import straightway.mosa.content.FetchResult
 import straightway.mosa.content.QueryRequest
+import straightway.mosa.content.SearchResult
 
 class TopicSearchService(
     private val identityRepository: IdentitySelectionRepository,
@@ -17,46 +20,33 @@ class TopicSearchService(
 ) {
     private val exhaustedTopics = mutableSetOf<String>()
     private val lastUsedFilters = mutableMapOf<String, Float?>()
+    private val paginationScoreBounds = mutableMapOf<String, Float>()
+    private val activeMinTimes = mutableMapOf<String, Long?>()
+    private val relaxedFilterBounds = mutableMapOf<String, Float>()
+    private val pendingFilterRelaxations = mutableSetOf<String>()
+    private val pendingMinResets = mutableSetOf<String>()
 
-    suspend fun clearCache(topic: Topic) {
-        runCatching { postCache.clear(topic.title) }
-            .onFailure { logger.warn("Topic cache clear failed for ${topic.title}", it) }
+    fun filterCleared(topic: Topic, previousFilter: Float) {
+        paginationScoreBounds[topic.title] = previousFilter
+        relaxedFilterBounds[topic.title] = previousFilter
+        pendingFilterRelaxations += topic.title
+        pendingMinResets += topic.title
         exhaustedTopics.remove(topic.title)
-        lastUsedFilters.remove(topic.title)
+        activeMinTimes.remove(topic.title)
     }
 
     suspend fun fetchFor(topics: List<Topic>): List<TopicPosts> {
         if (topics.isEmpty()) return emptyList()
         topics.forEach { refreshFilterState(it) }
-        val snapshots =
-            topics
-                .associateWith { topic -> postCache.snapshot(topic.title) }
-                .toMutableMap()
-        val topicsNeedingQuery = topics.filter { topic -> snapshots.getValue(topic).entries.isEmpty() }
-        if (topicsNeedingQuery.isEmpty()) {
-            return buildTopicPosts(topics, snapshots)
-        }
+        val snapshots = topics.associateWith { topic -> postCache.snapshot(topic.title) }.toMutableMap()
         val session = preparePodSession() ?: return buildTopicPosts(topics, snapshots)
-        topicsNeedingQuery.forEach { topic ->
-            val cachedSnapshot = snapshots.getValue(topic)
-            val snapshot =
-                runCatching {
-                    val queryRequest =
-                            QueryRequest(
-                                topic = topic.title,
-                                scoreMustBeAbove = topic.scoreMustBeAbove,
-                                minTime = cachedSnapshot.lastFetchedAt,
-                            )
-                    session.podAccess.query(queryRequest, session.jwt)
-                }
-                    .onFailure { logger.warn("Topic query failed for ${topic.title}", it) }
-                    .getOrNull()
-                    ?.let {
-                        updateExhaustion(topic, it.entries.isEmpty())
-                        postCache.append(topic.title, it.entries)
-                    }
-                    ?: cachedSnapshot
+        val searchResults = searchTopics(session, topics, snapshots)
+        val resolvedPosts = resolvePosts(session, searchResults)
+        searchResults.forEach { (topic, result) ->
+            val snapshot = postCache.append(topic.title, resolvedPosts[topic].orEmpty())
             snapshots[topic] = snapshot
+            updateExhaustion(topic, result.entries.isEmpty())
+            updatePaginationBoundary(topic, result.entries)
         }
         return buildTopicPosts(topics, snapshots)
     }
@@ -65,27 +55,41 @@ class TopicSearchService(
         refreshFilterState(topic)
         if (exhaustedTopics.contains(topic.title)) return null
         val snapshot = postCache.snapshot(topic.title)
-        val eligibleEntries =
-            snapshot.entries.filter { entry ->
-                topic.scoreMustBeAbove?.let { entry.similarity > it } ?: true
-            }
-        val lastEntry = eligibleEntries.lastOrNull() ?: return null
         val session = preparePodSession() ?: return buildTopicPosts(listOf(topic), mapOf(topic to snapshot)).firstOrNull()
+        val scoreBound =
+            paginationScoreBounds[topic.title]
+                ?: snapshot.entries.minOfOrNull { it.similarity }
+                ?: return buildTopicPosts(listOf(topic), mapOf(topic to snapshot)).firstOrNull()
+        val minTime =
+            if (activeMinTimes.containsKey(topic.title)) {
+                activeMinTimes[topic.title]
+            } else {
+                snapshot.lastFetchedAt
+            }
+        activeMinTimes[topic.title] = minTime
+        val request =
+            QueryRequest(
+                topic = topic.title,
+                scoreMustBeAbove = topic.scoreMustBeAbove,
+                scoreMustBeBelow = scoreBound,
+                minTime = minTime,
+            )
         val result =
             runCatching {
-                val queryRequest =
-                    QueryRequest(
-                        topic = topic.title,
-                        scoreMustBeAbove = topic.scoreMustBeAbove,
-                        scoreMustBeBelow = lastEntry.similarity,
-                    )
-                session.podAccess.query(queryRequest, session.jwt)
+                session.podAccess.search(request, session.jwt)
             }
                 .onFailure { logger.warn("Topic pagination failed for ${topic.title}", it) }
                 .getOrNull()
                 ?: return buildTopicPosts(listOf(topic), mapOf(topic to snapshot)).firstOrNull()
-        val updatedSnapshot = postCache.append(topic.title, result.entries)
+        if (result.entries.isEmpty()) {
+            updateExhaustion(topic, true)
+            updatePaginationBoundary(topic, result.entries)
+            return null
+        }
+        val resolvedPosts = resolvePosts(session, mapOf(topic to result))
+        val updatedSnapshot = postCache.append(topic.title, resolvedPosts[topic].orEmpty())
         updateExhaustion(topic, result.entries.isEmpty())
+        updatePaginationBoundary(topic, result.entries)
         return buildTopicPosts(listOf(topic), mapOf(topic to updatedSnapshot)).firstOrNull()
     }
 
@@ -101,6 +105,19 @@ class TopicSearchService(
         if (lastFilter != topic.scoreMustBeAbove) {
             exhaustedTopics.remove(topic.title)
             lastUsedFilters[topic.title] = topic.scoreMustBeAbove
+            activeMinTimes.remove(topic.title)
+            val previousFilter = lastFilter
+            if (previousFilter != null && topic.scoreMustBeAbove == null) {
+                paginationScoreBounds[topic.title] = previousFilter
+                relaxedFilterBounds[topic.title] = previousFilter
+                pendingFilterRelaxations += topic.title
+                pendingMinResets += topic.title
+            } else {
+                paginationScoreBounds.remove(topic.title)
+                relaxedFilterBounds.remove(topic.title)
+                pendingFilterRelaxations.remove(topic.title)
+                pendingMinResets.remove(topic.title)
+            }
         }
     }
 
@@ -111,6 +128,86 @@ class TopicSearchService(
             exhaustedTopics -= topic.title
         }
     }
+
+    private suspend fun searchTopics(
+        session: PodSession,
+        topics: List<Topic>,
+        snapshots: Map<Topic, PostCacheSnapshot>,
+    ): Map<Topic, SearchResult> {
+        val results = mutableMapOf<Topic, SearchResult>()
+        topics.forEach { topic ->
+            val cachedSnapshot = snapshots.getValue(topic)
+            val relaxed =
+                if (pendingFilterRelaxations.remove(topic.title)) {
+                    relaxedFilterBounds.remove(topic.title) ?: paginationScoreBounds[topic.title]
+                } else {
+                    null
+                }
+            val resetMinTime = pendingMinResets.remove(topic.title)
+            val minTime = if (resetMinTime || relaxed != null) null else cachedSnapshot.lastFetchedAt
+            activeMinTimes[topic.title] = minTime
+            val queryRequest =
+                QueryRequest(
+                    topic = topic.title,
+                    scoreMustBeAbove = topic.scoreMustBeAbove,
+                    scoreMustBeBelow = relaxed,
+                    minTime = minTime,
+                )
+            val result =
+                runCatching { session.podAccess.search(queryRequest, session.jwt) }
+                    .onFailure { logger.warn("Topic search failed for ${topic.title}", it) }
+                    .getOrNull()
+            if (result != null) {
+                results[topic] = result
+            }
+        }
+        return results
+    }
+
+    private suspend fun resolvePosts(
+        session: PodSession,
+        searchResults: Map<Topic, SearchResult>,
+    ): Map<Topic, List<TopicScopedPost>> {
+        if (searchResults.isEmpty()) return emptyMap()
+        val allIds =
+            searchResults
+                .values
+                .flatMap { result -> result.entries.map { it.id } }
+        val cacheResolution = postCache.resolve(allIds)
+        val fetched = fetchPosts(session, cacheResolution.missingIds.distinct())
+        val postsById =
+            cacheResolution.postsById + fetched.associateBy { it.id }
+        return searchResults.mapValues { (_, result) ->
+            result.entries.mapNotNull { entry ->
+                postsById[entry.id]?.let { post -> TopicScopedPost(post, entry.similarity) }
+            }
+        }
+    }
+
+    private suspend fun fetchPosts(
+        session: PodSession,
+        ids: List<String>,
+    ): List<CachedPost> {
+        if (ids.isEmpty()) return emptyList()
+        return runCatching { session.podAccess.fetch(FetchRequest(ids), session.jwt) }
+            .onFailure { logger.warn("Post fetch failed for ${ids.size} ids", it) }
+            .getOrNull()
+            ?.entries
+            ?.map { it.toCachedPost() }
+            .orEmpty()
+    }
+
+    private fun updatePaginationBoundary(topic: Topic, entries: List<SearchResult.Entry>) {
+        val lowestScore = entries.minOfOrNull { it.similarity }
+        if (lowestScore != null) {
+            paginationScoreBounds[topic.title] = lowestScore
+        } else {
+            paginationScoreBounds.remove(topic.title)
+        }
+    }
+
+    private fun FetchResult.Entry.toCachedPost(): CachedPost =
+        CachedPost(id = id, content = content, authorGID = authorGID, storedAt = storedAt, rootId = rootId)
 
     private data class PodSession(val podAccess: PodAccess, val jwt: String)
 

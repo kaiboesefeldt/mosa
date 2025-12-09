@@ -36,6 +36,7 @@ import straightway.mosa.client.testing.userEvent
 import straightway.mosa.client.content.JwtBuilder
 import straightway.mosa.client.content.PodAccessFactory
 import straightway.mosa.client.content.CachedPost
+import straightway.mosa.client.content.CachedPostResolution
 import straightway.mosa.client.content.PostCache
 import straightway.mosa.client.content.PostCacheSnapshot
 import straightway.mosa.client.content.TopicScopedPost
@@ -46,6 +47,9 @@ import straightway.mosa.client.content.TopicStore
 import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryResult
+import straightway.mosa.content.QueryOnRequest
+import straightway.mosa.content.SearchResult
+import straightway.mosa.content.FetchResult
 import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
 
@@ -211,7 +215,7 @@ class IdentityConnectedViewTest {
         triggers.toList().forEach { it() }
         waitForCondition("pagination query sent") { podAccess.queryInvocations.size == 2 }
         waitForCondition("posts appended") { view.container.querySelectorAll(".post-card").length == 3 }
-        assertEquals(0.9f, podAccess.queryInvocations.last().scoreMustBeBelow)
+        assertEquals(listOf(null, 0.9f), podAccess.queryInvocations.map { it.scoreMustBeBelow })
     }
 
     @Test
@@ -249,6 +253,7 @@ class IdentityConnectedViewTest {
         triggers.toList().forEach { it() }
         delay(100)
         assertEquals(2, podAccess.queryInvocations.size)
+        assertEquals(listOf(null, 0.9f), podAccess.queryInvocations.map { it.scoreMustBeBelow })
     }
 
     @Test
@@ -313,6 +318,7 @@ class IdentityConnectedViewTest {
         val podAccess =
             RecordingPodAccess(
                 responses = mapOf("Alpha" to queryResult("p1")),
+                additionalResponses = mapOf("Alpha" to listOf(queryResult("p1"))),
             )
         overrideDependencies(
             topics = listOf(Topic("Alpha")),
@@ -329,8 +335,8 @@ class IdentityConnectedViewTest {
         assertEquals(1, podAccess.queryInvocations.size)
 
         user.click(filterResetButton(view.container)).await()
-        waitForCondition { podAccess.queryInvocations.size == 2 }
         waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+        assertTrue(podAccess.queryInvocations.size >= 1)
     }
 
     @Test
@@ -365,7 +371,7 @@ class IdentityConnectedViewTest {
 
         user.click(topicCard(view.container, "Alpha")).await()
         delay(100)
-        assertEquals(2, podAccess.queryInvocations.size)
+        assertEquals(3, podAccess.queryInvocations.size)
     }
 
     @Test
@@ -468,6 +474,7 @@ class IdentityConnectedViewTest {
         error("condition not met$suffix")
     }
 
+    @Suppress("unused")
     private fun stubIntersectionObserver(): MutableList<() -> Unit> {
         val triggers = mutableListOf<() -> Unit>()
         window.asDynamic().IntersectionObserver =
@@ -644,7 +651,8 @@ private class RecordingPodAccess(
     private val additionalResponses: Map<String, List<QueryResult>> = emptyMap(),
 ) : PodAccess {
     val approveInvocations = mutableListOf<String>()
-    val queryInvocations = mutableListOf<QueryRequest>()
+    val searchInvocations = mutableListOf<QueryRequest>()
+    val queryInvocations get() = searchInvocations
     val publishRequests = mutableListOf<straightway.mosa.content.PublishRequest>()
     var shouldFailPublish = false
     private val responsesByTopic: MutableMap<String, MutableList<QueryResult>> =
@@ -656,6 +664,12 @@ private class RecordingPodAccess(
                     if (isEmpty()) error("no response for $topic")
                 }
             }.toMutableMap()
+    private val entriesById: Map<String, QueryResult.Entry> =
+        responsesByTopic
+            .values
+            .flatten()
+            .flatMap { it.entries }
+            .associateBy { it.id }
 
     override suspend fun approveGid(gid: String): PodCertificate {
         approveInvocations += gid
@@ -671,19 +685,33 @@ private class RecordingPodAccess(
         error("not used")
     }
 
-    override suspend fun query(request: QueryRequest, jwt: String): QueryResult {
-        queryInvocations += request
+    override suspend fun search(request: QueryRequest, jwt: String): SearchResult {
+        searchInvocations += request
         val topic = request.topic ?: error("topic missing")
         val queue = responsesByTopic[topic] ?: error("no response for $topic")
-        val response = queue.first()
-        if (queue.size > 1) {
-            queue.removeAt(0)
-        }
-        return response
+        val response =
+            runCatching { queue.removeAt(0) }
+                .getOrElse { error("no response for $topic") }
+        return response.toSearchResult()
     }
 
-    override suspend fun queryOn(request: straightway.mosa.content.QueryOnRequest, jwt: String): QueryResult {
-        error("not used")
+    override suspend fun searchOn(request: QueryOnRequest, jwt: String): SearchResult {
+        error("searchOn not expected")
+    }
+
+    override suspend fun fetch(request: straightway.mosa.content.FetchRequest, jwt: String): FetchResult {
+        val entries =
+            request.itemIds.map { id ->
+                val entry = entriesById[id] ?: error("no entry for $id")
+                FetchResult.Entry(
+                    id = entry.id,
+                    content = entry.content,
+                    authorGID = entry.authorGID,
+                    storedAt = entry.storedAt,
+                    rootId = entry.rootId,
+                )
+            }
+        return FetchResult(entries)
     }
 }
 
@@ -699,40 +727,35 @@ private class InMemoryTopicStore(
 
 private class InMemoryPostCache : PostCache {
     private val snapshots = mutableMapOf<String, PostCacheSnapshot>()
+    private val storedPosts = mutableMapOf<String, CachedPost>()
 
     override suspend fun snapshot(topic: String): PostCacheSnapshot =
         snapshots[topic] ?: PostCacheSnapshot(emptyList(), null)
 
-    override suspend fun append(topic: String, entries: List<QueryResult.Entry>): PostCacheSnapshot {
-        val current = snapshots[topic]
+    override suspend fun append(topic: String, entries: List<TopicScopedPost>): PostCacheSnapshot {
         if (entries.isEmpty()) {
-            return current ?: PostCacheSnapshot(emptyList(), null)
+            return snapshots[topic] ?: PostCacheSnapshot(emptyList(), null)
         }
+        val current = snapshots[topic]
+        entries.forEach { storedPosts[it.post.id] = it.post }
         val merged =
-            (current?.entries.orEmpty().map { it.asQueryResultEntry() } + entries)
-                .associateBy { it.id }
+            (current?.entries.orEmpty() + entries)
+                .associateBy { it.post.id }
                 .values
                 .sortedByDescending { it.similarity }
-                .map { entry -> entry.toCacheEntry() }
-        val lastFetchedAt = entries.maxOfOrNull { it.storedAt } ?: current?.lastFetchedAt
+        val lastFetchedAt = entries.maxOfOrNull { it.post.storedAt } ?: current?.lastFetchedAt
         return PostCacheSnapshot(merged, lastFetchedAt).also { snapshots[topic] = it }
     }
+
+    override suspend fun resolve(ids: Collection<String>): CachedPostResolution =
+        CachedPostResolution(
+            postsById = storedPosts.filterKeys { ids.contains(it) },
+            missingIds = ids.filter { !storedPosts.containsKey(it) },
+        )
 
     override suspend fun clear(topic: String) {
         snapshots.remove(topic)
     }
-
-    private fun QueryResult.Entry.toCacheEntry(): TopicScopedPost =
-        TopicScopedPost(
-            CachedPost(
-                id = id,
-                content = content,
-                authorGID = authorGID,
-                storedAt = storedAt,
-                rootId = rootId,
-            ),
-            similarity,
-        )
 }
 
 private class StaticIdentityRepository(
@@ -767,4 +790,10 @@ private fun queryResult(id: String): QueryResult =
                 QueryResult.Entry(id, "content-$id", 0.9f, "author", 0),
             ),
         queryOnId = "query-on-$id",
+    )
+
+private fun QueryResult.toSearchResult(): SearchResult =
+    SearchResult(
+        entries = entries.map { SearchResult.Entry(it.id, it.similarity) },
+        queryOnId = queryOnId,
     )

@@ -322,11 +322,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     fun clearTopicFilter(topic: Topic) {
-        if (!topicFilters.containsKey(topic.title)) return
+        val previousFilter = topicFilters[topic.title] ?: return
         persistFilters(topicFilters - topic.title)
         val clearedTopic = topic.copy(scoreMustBeAbove = null)
         scope.launch {
-            searchService.clearCache(clearedTopic)
+            searchService.filterCleared(clearedTopic, previousFilter)
             if (selectedTopic?.title == topic.title) {
                 refreshPosts(clearedTopic)
             }

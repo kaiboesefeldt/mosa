@@ -3,8 +3,6 @@ package straightway.mosa.client.content
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.util.getOrElseLogOrThrowCancellation
 import straightway.mosa.client.util.onFailureLogOrThrowCancellation
-import straightway.mosa.content.QueryResult
-
 class IndexedDbPostCache(
     private val entryStore: TopicEntryStore,
     private val topicStore: TopicReferenceStore,
@@ -21,7 +19,7 @@ class IndexedDbPostCache(
 
     override suspend fun append(
         topic: String,
-        entries: List<QueryResult.Entry>,
+        entries: List<TopicScopedPost>,
     ): PostCacheSnapshot =
         runCatching { appendInternal(topic, entries) }
             .getOrElseLogOrThrowCancellation(
@@ -29,6 +27,15 @@ class IndexedDbPostCache(
                 "IndexedDB topic cache append failed for $topic",
             ) {
                 fallbackSnapshot(entries)
+            }
+
+    override suspend fun resolve(ids: Collection<String>): CachedPostResolution =
+        runCatching { resolveInternal(ids) }
+            .getOrElseLogOrThrowCancellation(
+                logger,
+                "IndexedDB post resolution failed for ${ids.size} ids",
+            ) {
+                CachedPostResolution(emptyMap(), ids.toList())
             }
 
     override suspend fun clear(topic: String) {
@@ -57,35 +64,34 @@ class IndexedDbPostCache(
 
     private suspend fun appendInternal(
         topic: String,
-        entries: List<QueryResult.Entry>,
+        entries: List<TopicScopedPost>,
     ): PostCacheSnapshot {
         if (entries.isEmpty()) return snapshotInternal(topic)
-        val persistable = entries.filter { it.id.isNotBlank() }
+        val persistable = entries.filter { it.post.id.isNotBlank() }
         if (persistable.isEmpty()) return snapshotInternal(topic)
-        val stored = entryStore.store(persistable.map { it.toCachedPost() })
+        val stored = entryStore.store(persistable.map { it.post })
         if (!stored) return fallbackSnapshot(entries)
         topicStore.update(topic, persistable)
         return snapshotInternal(topic)
     }
 
-    private fun fallbackSnapshot(entries: List<QueryResult.Entry>): PostCacheSnapshot {
+    private suspend fun resolveInternal(ids: Collection<String>): CachedPostResolution {
+        if (ids.isEmpty()) return CachedPostResolution(emptyMap(), emptyList())
+        val resolution = entryStore.resolve(ids.distinct().map { TopicEntryRef(it, 0f) })
+        return CachedPostResolution(
+            postsById = resolution.resolved.associateBy { it.id },
+            missingIds = resolution.missingIds,
+        )
+    }
+
+    private fun fallbackSnapshot(entries: List<TopicScopedPost>): PostCacheSnapshot {
         if (entries.isEmpty()) return PostCacheSnapshot(emptyList(), null)
         val deduped =
             entries
-                .associateBy { it.id }
+                .associateBy { it.post.id }
                 .values
                 .sortedByDescending { it.similarity }
-                .map { entry -> TopicScopedPost(entry.toCachedPost(), entry.similarity) }
-        val lastFetchedAt = entries.maxOfOrNull { it.storedAt }
+        val lastFetchedAt = entries.maxOfOrNull { it.post.storedAt }
         return PostCacheSnapshot(deduped, lastFetchedAt)
     }
-
-    private fun QueryResult.Entry.toCachedPost(): CachedPost =
-        CachedPost(
-            id = id,
-            content = content,
-            authorGID = authorGID,
-            storedAt = storedAt,
-            rootId = rootId,
-        )
 }
