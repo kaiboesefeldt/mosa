@@ -385,8 +385,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 options,
             )
         observer.observe(target)
-        val disconnect: () -> Unit = { observer.disconnect() }
-        disconnect
+        try {
+            awaitCancellation()
+        } finally {
+            observer.disconnect()
+        }
     }
 
     div {

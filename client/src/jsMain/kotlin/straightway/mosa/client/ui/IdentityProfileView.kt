@@ -2,6 +2,7 @@ package straightway.mosa.client.ui
 
 import kotlinx.browser.document
 import kotlinx.browser.window
+import kotlinx.coroutines.awaitCancellation
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.w3c.dom.events.Event
@@ -79,11 +80,20 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                 }
             }
         document.addEventListener("pointerdown", listener)
-        { document.removeEventListener("pointerdown", listener) }
+        try {
+            awaitCancellation()
+        } finally {
+            document.removeEventListener("pointerdown", listener)
+        }
     }
     useEffect(arrayOf(isCopyFeedbackVisible)) {
         if (!isCopyFeedbackVisible) return@useEffect
-        window.setTimeout({ setCopyFeedbackVisible(false) }, 1800)
+        val timeoutId = window.setTimeout({ setCopyFeedbackVisible(false) }, 1800)
+        try {
+            awaitCancellation()
+        } finally {
+            window.clearTimeout(timeoutId)
+        }
     }
     useEffect(arrayOf(props.onPasteContent, props.canPaste, props.isBusy)) {
         val listener: (Event) -> Unit = listener@ { event ->
@@ -95,7 +105,11 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
             props.onPasteContent(content)
         }
         window.addEventListener("paste", listener)
-        { window.removeEventListener("paste", listener) }
+        try {
+            awaitCancellation()
+        } finally {
+            window.removeEventListener("paste", listener)
+        }
     }
     useEffect(arrayOf(props.onCopy, props.canCopy, props.isBusy)) {
         val listener: (Event) -> Unit = listener@ { event ->
@@ -107,7 +121,11 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
             setCopyFeedbackVisible(true)
         }
         window.addEventListener("keydown", listener)
-        { window.removeEventListener("keydown", listener) }
+        try {
+            awaitCancellation()
+        } finally {
+            window.removeEventListener("keydown", listener)
+        }
     }
     div {
         className = ClassName("profile-overlay")
