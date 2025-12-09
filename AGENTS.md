@@ -70,6 +70,7 @@
 - Strive for 100% test coverage, but:
   1. Be aware, that test coverage measurements sometimes yields inaccurate results, e.g. for data classes or for classes annotated with `@Serializable`.
   2. Notice, that coverage for KotlinJs code is currently not measured. 
+- Names of code identifiers or tests, code comments and commit messages MUST be in english
 
 ## Testing Guidelines
 - Prefer fast, deterministic unit tests; use MockK for collaborators; Ktor test host for endpoint tests.
