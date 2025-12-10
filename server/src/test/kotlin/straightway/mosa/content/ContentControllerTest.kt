@@ -170,7 +170,7 @@ class ContentControllerTest {
                     val request =
                         QueryRequest(
                             topic = "Hello World",
-                            minTime = 1L,
+                            fromTime = 1L,
                             threadRootId = "12345",
                         )
                     coEvery { contentService.query(any(), any()) } returns queryResult
@@ -240,7 +240,7 @@ class ContentControllerTest {
                     val request =
                         QueryRequest(
                             topic = "Hello World",
-                            minTime = 1L,
+                            fromTime = 1L,
                             threadRootId = "12345",
                         )
                     coEvery { contentService.search(any(), any()) } returns searchResult

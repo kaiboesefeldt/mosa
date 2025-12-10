@@ -14,7 +14,8 @@ class SearchCommand(
 ) : Subcommand("search", "search for mosa content") {
     private val topic by option(type = ArgType.String, fullName = "topic", shortName = "t")
     private val rootId by option(type = ArgType.String, fullName = "root", shortName = "r")
-    private val minTime by option(type = ArgType.String, fullName = "from", shortName = "f")
+    private val fromTime by option(type = ArgType.String, fullName = "from", shortName = "f")
+    private val toTime by option(type = ArgType.String, fullName = "until", shortName = "u")
     private val minScore by option(type = ArgType.Double, fullName = "score-above", shortName = "s")
 
     override fun execute() {
@@ -23,8 +24,9 @@ class SearchCommand(
                 restClient().search(
                     QueryRequest(
                         topic = topic,
+                        fromTime = fromTime?.let { Instant.parse(it).epochSecond },
+                        toTime = toTime?.let { Instant.parse(it).epochSecond },
                         threadRootId = rootId,
-                        minTime = minTime?.let { Instant.parse(it).epochSecond },
                         scoreMustBeAbove = minScore?.toFloat(),
                     ),
                 )

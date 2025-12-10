@@ -65,7 +65,8 @@ class ContentService(
                 vectorStore.query(
                     VectorStore.Query(
                         vector = topicEmbedding,
-                        fromTime = request.minTime?.let { Instant.ofEpochSecond(it) },
+                        fromTime = request.fromTime?.let { Instant.ofEpochSecond(it) },
+                        toTime = request.toTime?.let { Instant.ofEpochSecond(it) },
                         scoreMustBeAbove = request.scoreMustBeAbove,
                         scoreMustBeBelow = request.scoreMustBeBelow,
                         fields = mapOf(ROOT_ID_KEY to request.threadRootId),

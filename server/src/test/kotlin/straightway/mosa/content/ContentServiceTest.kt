@@ -33,7 +33,8 @@ class ContentServiceTest {
     private val testUserGID = "test-user-gid"
     private val testEmbedding = floatArrayOf(0.1f, 0.2f, 0.3f)
     private val testQueryOnId = UUID.randomUUID()
-    private val testMinTime = 1234567890L
+    private val testLaterThan = 1234567890L
+    private val testEarlierThan = 2234567890L
 
     private fun setupEmbedding(text: String) {
         coEvery { embeddingService.embed(text) } returns testEmbedding
@@ -92,7 +93,7 @@ class ContentServiceTest {
                 setupEmbedding("topic without thread")
                 setupVectorStore()
 
-                sut.query(testUserGID, QueryRequest(topic = "topic without thread", threadRootId = null))
+                sut.query(testUserGID, QueryRequest(topic = "topic without thread"))
 
                 verifyQueryCall(
                     Query(
@@ -114,14 +115,28 @@ class ContentServiceTest {
             }
 
         @Test
-        fun `queries with minTime only`() =
+        fun `queries with mustBeLaterThan only`() =
             runTest {
                 testQuery(
-                    request = QueryRequest(minTime = testMinTime),
+                    request = QueryRequest(fromTime = testLaterThan),
                     expectedQuery =
                         Query(
                             vector = null,
-                            fromTime = Instant.ofEpochSecond(testMinTime),
+                            fromTime = Instant.ofEpochSecond(testLaterThan),
+                            fields = mapOf("rootId" to null),
+                        ),
+                )
+            }
+
+        @Test
+        fun `queries with mustBeEarlierThan only`() =
+            runTest {
+                testQuery(
+                    request = QueryRequest(toTime = testEarlierThan),
+                    expectedQuery =
+                        Query(
+                            vector = null,
+                            toTime = Instant.ofEpochSecond(testEarlierThan),
                             fields = mapOf("rootId" to null),
                         ),
                 )
@@ -137,14 +152,14 @@ class ContentServiceTest {
             }
 
         @Test
-        fun `queries with topic and minTime`() =
+        fun `queries with topic and mustBeLaterThan`() =
             runTest {
                 testQuery(
-                    request = QueryRequest(topic = "test topic", minTime = testMinTime),
+                    request = QueryRequest(topic = "test topic", fromTime = testLaterThan),
                     expectedQuery =
                         Query(
                             vector = testEmbedding,
-                            fromTime = Instant.ofEpochSecond(testMinTime),
+                            fromTime = Instant.ofEpochSecond(testLaterThan),
                             fields = mapOf("rootId" to null),
                         ),
                     needsEmbedding = true,
@@ -162,14 +177,14 @@ class ContentServiceTest {
             }
 
         @Test
-        fun `queries with minTime and threadRootId`() =
+        fun `queries with mustBeLaterThan and threadRootId`() =
             runTest {
                 testQuery(
-                    request = QueryRequest(minTime = testMinTime, threadRootId = "root-123"),
+                    request = QueryRequest(fromTime = testLaterThan, threadRootId = "root-123"),
                     expectedQuery =
                         Query(
                             vector = null,
-                            fromTime = Instant.ofEpochSecond(testMinTime),
+                            fromTime = Instant.ofEpochSecond(testLaterThan),
                             fields =
                                 mapOf("rootId" to "root-123"),
                         ),
@@ -180,11 +195,18 @@ class ContentServiceTest {
         fun `queries with all parameters`() =
             runTest {
                 testQuery(
-                    request = QueryRequest(topic = "test topic", minTime = testMinTime, threadRootId = "root-123"),
+                    request =
+                        QueryRequest(
+                            topic = "test topic",
+                            fromTime = testLaterThan,
+                            toTime = testEarlierThan,
+                            threadRootId = "root-123",
+                        ),
                     expectedQuery =
                         Query(
                             vector = testEmbedding,
-                            fromTime = Instant.ofEpochSecond(testMinTime),
+                            fromTime = Instant.ofEpochSecond(testLaterThan),
+                            toTime = Instant.ofEpochSecond(testEarlierThan),
                             fields = mapOf("rootId" to "root-123"),
                         ),
                     needsEmbedding = true,
@@ -554,7 +576,7 @@ class ContentServiceTest {
                 setupEmbedding("topic without thread")
                 setupVectorStore()
 
-                sut.search(testUserGID, QueryRequest(topic = "topic without thread", threadRootId = null))
+                sut.search(testUserGID, QueryRequest(topic = "topic without thread"))
 
                 verifyQueryCall(
                     Query(
@@ -576,14 +598,14 @@ class ContentServiceTest {
             }
 
         @Test
-        fun `searches with minTime only`() =
+        fun `searches with mustBeLaterThan only`() =
             runTest {
                 testSearch(
-                    request = QueryRequest(minTime = testMinTime),
+                    request = QueryRequest(fromTime = testLaterThan),
                     expectedQuery =
                         Query(
                             vector = null,
-                            fromTime = Instant.ofEpochSecond(testMinTime),
+                            fromTime = Instant.ofEpochSecond(testLaterThan),
                             fields = mapOf("rootId" to null),
                         ),
                 )
@@ -599,14 +621,28 @@ class ContentServiceTest {
             }
 
         @Test
-        fun `searches with topic and minTime`() =
+        fun `searches with toTime only`() =
             runTest {
                 testSearch(
-                    request = QueryRequest(topic = "test topic", minTime = testMinTime),
+                    request = QueryRequest(toTime = testEarlierThan),
+                    expectedQuery =
+                        Query(
+                            vector = null,
+                            toTime = Instant.ofEpochSecond(testEarlierThan),
+                            fields = mapOf("rootId" to null),
+                        ),
+                )
+            }
+
+        @Test
+        fun `searches with topic and fromTime`() =
+            runTest {
+                testSearch(
+                    request = QueryRequest(topic = "test topic", fromTime = testLaterThan),
                     expectedQuery =
                         Query(
                             vector = testEmbedding,
-                            fromTime = Instant.ofEpochSecond(testMinTime),
+                            fromTime = Instant.ofEpochSecond(testLaterThan),
                             fields = mapOf("rootId" to null),
                         ),
                     needsEmbedding = true,
@@ -624,14 +660,14 @@ class ContentServiceTest {
             }
 
         @Test
-        fun `searches with minTime and threadRootId`() =
+        fun `searches with fromTime and threadRootId`() =
             runTest {
                 testSearch(
-                    request = QueryRequest(minTime = testMinTime, threadRootId = "root-123"),
+                    request = QueryRequest(fromTime = testLaterThan, threadRootId = "root-123"),
                     expectedQuery =
                         Query(
                             vector = null,
-                            fromTime = Instant.ofEpochSecond(testMinTime),
+                            fromTime = Instant.ofEpochSecond(testLaterThan),
                             fields =
                                 mapOf("rootId" to "root-123"),
                         ),
@@ -642,11 +678,18 @@ class ContentServiceTest {
         fun `searches with all parameters`() =
             runTest {
                 testSearch(
-                    request = QueryRequest(topic = "test topic", minTime = testMinTime, threadRootId = "root-123"),
+                    request =
+                        QueryRequest(
+                            topic = "test topic",
+                            fromTime = testLaterThan,
+                            toTime = testEarlierThan,
+                            threadRootId = "root-123",
+                        ),
                     expectedQuery =
                         Query(
                             vector = testEmbedding,
-                            fromTime = Instant.ofEpochSecond(testMinTime),
+                            fromTime = Instant.ofEpochSecond(testLaterThan),
+                            toTime = Instant.ofEpochSecond(testEarlierThan),
                             fields = mapOf("rootId" to "root-123"),
                         ),
                     needsEmbedding = true,

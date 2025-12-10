@@ -16,18 +16,18 @@ class TopicSearchService(
     private val exhaustedTopics = mutableSetOf<String>()
     private val lastUsedFilters = mutableMapOf<String, Float?>()
     private val paginationScoreBounds = mutableMapOf<String, Float>()
-    private val activeMinTimes = mutableMapOf<String, Long?>()
+    private val activeFromTimeBounds = mutableMapOf<String, Long?>()
     private val relaxedFilterBounds = mutableMapOf<String, Float>()
     private val pendingFilterRelaxations = mutableSetOf<String>()
-    private val pendingMinResets = mutableSetOf<String>()
+    private val pendingFromTimeResets = mutableSetOf<String>()
 
     fun filterCleared(topic: Topic, previousFilter: Float) {
         paginationScoreBounds[topic.title] = previousFilter
         relaxedFilterBounds[topic.title] = previousFilter
         pendingFilterRelaxations += topic.title
-        pendingMinResets += topic.title
+        pendingFromTimeResets += topic.title
         exhaustedTopics.remove(topic.title)
-        activeMinTimes.remove(topic.title)
+        activeFromTimeBounds.remove(topic.title)
     }
 
     suspend fun fetchFor(topics: List<Topic>): List<TopicPosts> {
@@ -53,18 +53,18 @@ class TopicSearchService(
             paginationScoreBounds[topic.title]
                 ?: snapshot.entries.minOfOrNull { it.similarity }
                 ?: return buildTopicPosts(listOf(topic), mapOf(topic to snapshot)).firstOrNull()
-        val minTime =
-            if (activeMinTimes.containsKey(topic.title)) {
-                activeMinTimes[topic.title]
+        val fromTime =
+            if (activeFromTimeBounds.containsKey(topic.title)) {
+                activeFromTimeBounds[topic.title]
             } else {
                 snapshot.lastFetchedAt
             }
         val request =
             QueryRequest(
                 topic = topic.title,
+                fromTime = fromTime,
                 scoreMustBeAbove = topic.scoreMustBeAbove,
                 scoreMustBeBelow = scoreBound,
-                minTime = minTime,
             )
         val result =
             executeRequest("search") { session ->
@@ -74,7 +74,7 @@ class TopicSearchService(
                     logger.warn("Topic pagination failed for ${topic.title}", null)
                     return buildTopicPosts(listOf(topic), mapOf(topic to snapshot)).firstOrNull()
                 }
-        activeMinTimes[topic.title] = minTime
+        activeFromTimeBounds[topic.title] = fromTime
         if (result.entries.isEmpty()) {
             updateExhaustion(topic, true)
             updatePaginationBoundary(topic, result.entries)
@@ -92,18 +92,18 @@ class TopicSearchService(
         if (lastFilter != topic.scoreMustBeAbove) {
             exhaustedTopics.remove(topic.title)
             lastUsedFilters[topic.title] = topic.scoreMustBeAbove
-            activeMinTimes.remove(topic.title)
+            activeFromTimeBounds.remove(topic.title)
             val previousFilter = lastFilter
             if (previousFilter != null && topic.scoreMustBeAbove == null) {
                 paginationScoreBounds[topic.title] = previousFilter
                 relaxedFilterBounds[topic.title] = previousFilter
                 pendingFilterRelaxations += topic.title
-                pendingMinResets += topic.title
+                pendingFromTimeResets += topic.title
             } else {
                 paginationScoreBounds.remove(topic.title)
                 relaxedFilterBounds.remove(topic.title)
                 pendingFilterRelaxations.remove(topic.title)
-                pendingMinResets.remove(topic.title)
+                pendingFromTimeResets.remove(topic.title)
             }
         }
     }
@@ -130,14 +130,14 @@ class TopicSearchService(
                 } else {
                     null
                 }
-            val resetMinTime = pendingMinResets.contains(topic.title)
-            val minTime = if (resetMinTime || relaxationPending) null else cachedSnapshot.lastFetchedAt
+            val resetFromTime = pendingFromTimeResets.contains(topic.title)
+            val fromTime = if (resetFromTime || relaxationPending) null else cachedSnapshot.lastFetchedAt
             val queryRequest =
                 QueryRequest(
                     topic = topic.title,
+                    fromTime = fromTime,
                     scoreMustBeAbove = topic.scoreMustBeAbove,
                     scoreMustBeBelow = relaxed,
-                    minTime = minTime,
                 )
             val result =
                 executeRequest("search") { session ->
@@ -151,10 +151,10 @@ class TopicSearchService(
                 pendingFilterRelaxations.remove(topic.title)
                 relaxedFilterBounds.remove(topic.title)
             }
-            if (resetMinTime) {
-                pendingMinResets.remove(topic.title)
+            if (resetFromTime) {
+                pendingFromTimeResets.remove(topic.title)
             }
-            activeMinTimes[topic.title] = minTime
+            activeFromTimeBounds[topic.title] = fromTime
             results[topic] = result
         }
         return results

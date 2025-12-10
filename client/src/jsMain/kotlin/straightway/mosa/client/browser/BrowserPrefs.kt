@@ -26,6 +26,7 @@ class BrowserPrefs(
         }.distinct()
     }
 
+    @OptIn(ExperimentalWasmJsInterop::class)
     private fun ReadonlyArray<String>?.collectLanguageTags(): List<String> =
         this?.let { values ->
             buildList {

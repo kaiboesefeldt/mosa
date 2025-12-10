@@ -65,7 +65,11 @@ types:
       topic?:
         type: string
         description: Text describing the semantic topic to search for
-      minTime?:
+      mustBeEarlierThan?:
+        type: integer
+        format: int64
+        description: Only include results with storedAt <= this epoch second
+      mustBeLaterThan?:
         type: integer
         format: int64
         description: Only include results with storedAt >= this epoch second
@@ -78,7 +82,7 @@ types:
         description: Filter entries to those with similarity strictly above this value
     example:
       topic: 'Functional programming for data processing'
-      minTime: 1700000000
+      mustBeLaterThan: 1700000000
       threadRootId: 'R0oTId42'
       scoreMustBeAbove: 0.85
 
@@ -248,7 +252,7 @@ securitySchemes:
       securedBy: [ bearerAuth ]
       displayName: Query Content
       description: |
-        Perform a semantic and/or thread/time constrained query. At least one of `topic`, `minTime`, `threadRootId` must be provided.
+        Perform a semantic and/or thread/time constrained query. At least one of `topic`, `threadRootId`, `mustBeEarlierThan`, `mustBeLaterThan` must be provided.
       body:
         application/json:
           type: QueryRequest

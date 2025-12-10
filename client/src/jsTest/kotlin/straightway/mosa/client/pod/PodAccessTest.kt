@@ -17,7 +17,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import straightway.mosa.auth.AuthenticationApprovalRequest
 import straightway.mosa.auth.PodCertificate
-import straightway.mosa.client.pod.PodRequestFailed
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.PublishRequest
@@ -123,7 +122,7 @@ class PodAccessTest {
             )
         val capturedRequests = mutableListOf<HttpRequestData>()
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
-        val queryRequest = QueryRequest(topic = "topic", minTime = 12, threadRootId = "root")
+        val queryRequest = QueryRequest(topic = "topic", fromTime = 12, threadRootId = "root")
 
         val result = podAccess.search(queryRequest, "jwt-token")
 

@@ -5,7 +5,6 @@ import kotlinx.coroutines.test.runTest
 import kotlin.js.unsafeCast
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.client.browser.CryptoKeyPair
-import straightway.mosa.client.content.TestTimeService
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
@@ -177,7 +176,7 @@ class TopicSearchServiceTest {
 
         val invocation = podAccess.searchInvocations.single()
         assertEquals(0.9f, invocation.scoreMustBeAbove)
-        assertEquals(1234, invocation.minTime)
+        assertEquals(1234, invocation.fromTime)
     }
 
     @Test
@@ -210,7 +209,7 @@ class TopicSearchServiceTest {
 
         assertEquals(listOf(0.8f, null), podAccess.searchInvocations.map { it.scoreMustBeAbove })
         assertEquals(listOf(null, 0.8f), podAccess.searchInvocations.map { it.scoreMustBeBelow })
-        assertEquals(listOf(200L, null), podAccess.searchInvocations.map { it.minTime })
+        assertEquals(listOf(200L, null), podAccess.searchInvocations.map { it.fromTime })
         val snapshot = cache.snapshot("Alpha")
         assertEquals(listOf("cached", "new"), snapshot.entries.map { it.post.id })
     }
@@ -244,7 +243,7 @@ class TopicSearchServiceTest {
         assertEquals(1, results.size)
         val invocation = podAccess.searchInvocations.single()
         assertEquals(previousFilter, invocation.scoreMustBeBelow)
-        assertNull(invocation.minTime)
+        assertNull(invocation.fromTime)
     }
 
     @Test
