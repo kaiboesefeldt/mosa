@@ -102,7 +102,7 @@ class ReplySearchServiceTest {
                                             SearchResult.Entry("p1", 0.9f),
                                             SearchResult.Entry("p2", 0.8f),
                                         ),
-                                    queryOnId = "q1",
+                                    queryOnId = "",
                                 ),
                             ),
                     ),
@@ -117,11 +117,10 @@ class ReplySearchServiceTest {
         val replies = service.fetchFor("root-1")
 
         assertEquals(listOf("p2", "p1"), replies.entries.map { it.id })
-        assertEquals("q1", podAccess.lastQueryOnId("root-1"))
     }
 
     @Test
-    fun `paginates replies with searchOn`() = runTest {
+    fun `paginates replies with time bounded search`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         podAccess =
             RecordingPodAccess(
@@ -130,28 +129,40 @@ class ReplySearchServiceTest {
                         "root-1" to
                             listOf(
                                 SearchResult(
-                                    entries = listOf(SearchResult.Entry("new", 0.9f)),
-                                    queryOnId = "q1",
+                                    entries =
+                                        listOf(
+                                            SearchResult.Entry("new", 0.9f),
+                                            SearchResult.Entry("older", 0.8f),
+                                        ),
+                                    queryOnId = "",
                                 ),
                                 SearchResult(
-                                    entries = listOf(SearchResult.Entry("older", 0.7f)),
-                                    queryOnId = "q2",
+                                    entries = listOf(SearchResult.Entry("even-older", 0.7f)),
+                                    queryOnId = "",
                                 ),
                             ),
                     ),
                 fetchableEntries =
                     mapOf(
                         "new" to fetchEntry("new", "latest", storedAt = 30),
-                        "older" to fetchEntry("older", "older-content", storedAt = 5),
+                        "older" to fetchEntry("older", "older-content", storedAt = 10),
+                        "even-older" to fetchEntry("even-older", "oldest-content", storedAt = 5),
                     ),
             )
         val service = createService()
 
-        service.fetchFor("root-1")
+        val firstPage = service.fetchFor("root-1")
         val paged = service.fetchMore("root-1")
 
-        assertEquals(listOf("older", "new"), paged?.entries?.map { it.id })
-        assertEquals(listOf("q1"), podAccess.searchOnInvocations.map { it.queryOnId })
+        assertEquals(
+            listOf("older", "new"),
+            firstPage.entries.map { it.id },
+            "entries=${firstPage.entries.map { it.id }}, fetches=${podAccess.fetchInvocations}",
+        )
+        assertEquals(listOf("even-older", "older", "new"), paged?.entries?.map { it.id })
+        assertEquals(listOf(listOf("new", "older"), listOf("even-older")), podAccess.fetchInvocations.map { it.itemIds })
+        assertEquals(listOf(null, 9L), podAccess.searchInvocations.map { it.toTime })
+        assertTrue(podAccess.searchOnInvocations.isEmpty())
     }
 
     @Test

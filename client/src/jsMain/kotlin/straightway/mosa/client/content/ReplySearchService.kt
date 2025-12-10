@@ -4,7 +4,6 @@ import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodSessionProvider
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
-import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.SearchResult
 
@@ -13,53 +12,55 @@ class ReplySearchService(
     private val replyCache: ReplyCache,
     private val logger: Logger,
 ) {
-    private val paginationTokens = mutableMapOf<String, String>()
+    private val paginationBounds = mutableMapOf<String, Long>()
     private val exhaustedRoots = mutableSetOf<String>()
 
     suspend fun fetchFor(rootId: String): ThreadReplies {
         reset(rootId)
         val snapshot = replyCache.snapshot(rootId)
-        val searchResult = searchReplies(rootId) ?: return snapshot.toThreadReplies(rootId)
+        val searchResult = searchReplies(rootId, null) ?: return snapshot.toThreadReplies(rootId)
         val resolved = resolveReplies(searchResult)
         val updated = replyCache.append(rootId, resolved)
-        updatePagination(rootId, searchResult.queryOnId, searchResult.entries)
+        updatePagination(rootId, updated.entries, searchResult.entries.isNotEmpty())
         return updated.toThreadReplies(rootId)
     }
 
     suspend fun fetchMore(rootId: String): ThreadReplies? {
         if (exhaustedRoots.contains(rootId)) return null
-        val queryOnId = paginationTokens[rootId] ?: return null
-        val result = searchOn(queryOnId) ?: return null
+        val timeTo = paginationBounds[rootId] ?: return null
+        val result = searchReplies(rootId, timeTo) ?: return null
         val resolved = resolveReplies(result)
-        if (resolved.isEmpty()) {
-            updatePagination(rootId, result.queryOnId, result.entries)
-            return null
-        }
-        val updated = replyCache.append(rootId, resolved)
-        updatePagination(rootId, result.queryOnId, result.entries)
+        val updated =
+            if (resolved.isEmpty()) {
+                replyCache.snapshot(rootId)
+            } else {
+                replyCache.append(rootId, resolved)
+            }
+        updatePagination(rootId, updated.entries, result.entries.isNotEmpty())
+        if (resolved.isEmpty()) return null
         return updated.toThreadReplies(rootId)
     }
 
     private fun reset(rootId: String) {
-        paginationTokens.remove(rootId)
+        paginationBounds.remove(rootId)
         exhaustedRoots.remove(rootId)
     }
 
-    private suspend fun searchReplies(rootId: String): SearchResult? =
+    private suspend fun searchReplies(
+        rootId: String,
+        timeTo: Long?,
+    ): SearchResult? =
         podSessionProvider.execute("search") { session ->
-            session.podAccess.search(QueryRequest(threadRootId = rootId), session.jwt)
+            session.podAccess.search(
+                QueryRequest(
+                    threadRootId = rootId,
+                    toTime = timeTo,
+                ),
+                session.jwt,
+            )
         }
             ?: run {
                 logger.warn("Reply search failed for $rootId", null)
-                null
-            }
-
-    private suspend fun searchOn(queryOnId: String): SearchResult? =
-        podSessionProvider.execute("searchOn") { session ->
-            session.podAccess.searchOn(QueryOnRequest(queryOnId), session.jwt)
-        }
-            ?: run {
-                logger.warn("Reply pagination failed for $queryOnId", null)
                 null
             }
 
@@ -100,18 +101,16 @@ class ReplySearchService(
 
     private fun updatePagination(
         rootId: String,
-        queryOnId: String,
-        entries: List<SearchResult.Entry>,
+        entries: List<ThreadScopedReply>,
+        hasMore: Boolean,
     ) {
-        val hasMore = queryOnId.isNotBlank() && entries.isNotEmpty()
-        if (hasMore) {
-            paginationTokens[rootId] = queryOnId
+        val oldest = entries.minOfOrNull { it.post.storedAt }
+        if (hasMore && oldest != null) {
+            paginationBounds[rootId] = (oldest - 1).coerceAtLeast(0)
             exhaustedRoots.remove(rootId)
         } else {
-            paginationTokens.remove(rootId)
-            if (entries.isEmpty()) {
-                exhaustedRoots += rootId
-            }
+            paginationBounds.remove(rootId)
+            exhaustedRoots += rootId
         }
     }
 
