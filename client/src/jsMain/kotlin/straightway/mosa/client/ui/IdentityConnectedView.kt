@@ -765,21 +765,7 @@ private fun ChildrenBuilder.repliesColumn(
                 +translator.translate("connected.replies.loading")
             }
         else -> {
-            div {
-                className = ClassName("reply-origin")
-                span {
-                    className = ClassName("reply-origin__label")
-                    +translator.translate("connected.replies.source")
-                }
-                span {
-                    className = ClassName("reply-origin__timestamp")
-                    +formatTimestamp(selectedPost.storedAt)
-                }
-                div {
-                    className = ClassName("reply-origin__content")
-                    +selectedPost.content
-                }
-            }
+            replyOriginCard(translator, visualsFactory, selectedPost)
             val replyEntries = replies?.entries.orEmpty()
             if (replyEntries.isEmpty() && !isLoading) {
                 div {
@@ -831,6 +817,47 @@ private fun ChildrenBuilder.replyCard(
         div {
             className = ClassName("reply-card__content")
             +reply.content
+        }
+    }
+}
+
+private fun ChildrenBuilder.replyOriginCard(
+    translator: Translator,
+    visualsFactory: IdentityVisualsFactory,
+    origin: QueryResult.Entry,
+) {
+    val authorVisuals = visualsFactory.createFromGid(origin.authorGID)
+    val authorName = authorVisuals.name.toString().trim()
+    val timestamp = formatTimestamp(origin.storedAt)
+    div {
+        key = origin.id
+        className = ClassName("reply-origin")
+        span {
+            className = ClassName("reply-origin__badge")
+            +translator.translate("connected.replies.source")
+        }
+        div {
+            className = ClassName("reply-origin__author-row")
+            img {
+                className = ClassName("reply-origin__avatar")
+                src = authorVisuals.avatar
+                alt = authorName
+            }
+            div {
+                className = ClassName("reply-origin__author-details")
+                span {
+                    className = ClassName("reply-origin__author-name")
+                    +authorName
+                }
+                span {
+                    className = ClassName("reply-origin__timestamp")
+                    +timestamp
+                }
+            }
+        }
+        div {
+            className = ClassName("reply-origin__content")
+            +origin.content
         }
     }
 }
