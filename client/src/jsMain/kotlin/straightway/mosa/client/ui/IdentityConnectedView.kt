@@ -39,6 +39,8 @@ import straightway.mosa.client.content.TopicPosts
 import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.TopicFilters
+import straightway.mosa.client.content.ReplySearchService
+import straightway.mosa.client.content.ThreadReplies
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
 import web.cssom.ClassName
@@ -73,6 +75,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val repository = ConnectedViewInjector.get<TopicRepository>()
     val sessionStore = ConnectedViewInjector.get<IdentitySessionStore>()
     val searchService = ConnectedViewInjector.get<TopicSearchService>()
+    val replySearchService = ConnectedViewInjector.get<ReplySearchService>()
     val nameGenerator = ConnectedViewInjector.get<FictionalNameGenerator>()
     val avatarGenerator = ConnectedViewInjector.get<DiceBearAvatarGenerator>()
     val postPublisher = ConnectedViewInjector.get<PostPublisher>()
@@ -84,12 +87,19 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (topics, setTopics) = useState<List<Topic>>(emptyList())
     val (selectedTopic, setSelectedTopic) = useState<Topic?>(null)
     val (posts, setPosts) = useState<List<TopicPosts>>(emptyList())
+    val (selectedPost, setSelectedPost) = useState<QueryResult.Entry?>(null)
+    val (replies, setReplies) = useState<ThreadReplies?>(null)
+    val (isLoadingReplies, setLoadingReplies) = useState(false)
     val (topicFilters, setTopicFilters) = useState<Map<String, Float>>(emptyMap())
     val (isLoadingPosts, setLoadingPosts) = useState(false)
     val postsContainerRef = useRef<HTMLDivElement>()
     val loadMoreRef = useRef<HTMLDivElement>()
     val isAppendingPostsRef = useRef(false)
     val postsRequestVersion = useRef(0)
+    val repliesContainerRef = useRef<HTMLDivElement>()
+    val repliesLoadMoreRef = useRef<HTMLDivElement>()
+    val isAppendingRepliesRef = useRef(false)
+    val repliesRequestVersion = useRef(0)
     val (isProfileVisible, setProfileVisible) = useState(false)
     val (isComposerOpen, setComposerOpen) = useState(false)
     val (composerText, setComposerText) = useState("")
@@ -140,8 +150,18 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             }
         }.toMap()
 
+    fun rootIdFor(entry: QueryResult.Entry): String = entry.rootId ?: entry.id
+
     fun setAppendingState(active: Boolean) {
         isAppendingPostsRef.current = active
+    }
+
+    fun clearReplies() {
+        repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
+        setSelectedPost(null)
+        setReplies(null)
+        setLoadingReplies(false)
+        isAppendingRepliesRef.current = false
     }
 
     fun updateTopicPosts(updated: TopicPosts) {
@@ -200,6 +220,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
 
     fun selectTopic(topic: Topic?) {
         if (topic == selectedTopic) return
+        clearReplies()
         setSelectedTopic(topic)
         scope.launch {
             persistSessionSnapshot { snapshot ->
@@ -365,6 +386,48 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
+    fun loadMoreReplies() {
+        val rootId = replies?.rootId ?: return
+        if (isLoadingReplies || isAppendingRepliesRef.current == true) return
+        repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
+        isAppendingRepliesRef.current = true
+        scope.launch {
+            try {
+                val additionalReplies = replySearchService.fetchMore(rootId)
+                if (additionalReplies != null) {
+                    setReplies(additionalReplies)
+                }
+            } finally {
+                isAppendingRepliesRef.current = false
+            }
+        }
+    }
+
+    fun selectPost(entry: QueryResult.Entry) {
+        val rootId = rootIdFor(entry)
+        val nextVersion = (repliesRequestVersion.current ?: 0) + 1
+        repliesRequestVersion.current = nextVersion
+        setSelectedPost(entry)
+        setReplies(null)
+        repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
+        isAppendingRepliesRef.current = false
+        setLoadingReplies(true)
+        scope.launch {
+            val result =
+                runCatching { replySearchService.fetchFor(rootId) }
+                    .getOrElse {
+                        if (repliesRequestVersion.current == nextVersion) {
+                            setReplies(null)
+                            setLoadingReplies(false)
+                        }
+                        return@launch
+                    }
+            if (repliesRequestVersion.current != nextVersion) return@launch
+            setReplies(result)
+            setLoadingReplies(false)
+        }
+    }
+
     useEffect(arrayOf(posts, selectedTopic)) {
         val target = loadMoreRef.current ?: return@useEffect
         val container = postsContainerRef.current ?: return@useEffect
@@ -381,6 +444,34 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     val hasScrollIntent = container.dataset["mosaScrollReady"] == "true"
                     if (shouldLoadMore && hasScrollIntent) {
                         loadMorePosts()
+                    }
+                },
+                options,
+            )
+        observer.observe(target)
+        try {
+            awaitCancellation()
+        } finally {
+            observer.disconnect()
+        }
+    }
+
+    useEffect(arrayOf(replies, selectedPost)) {
+        val target = repliesLoadMoreRef.current ?: return@useEffect
+        val container = repliesContainerRef.current ?: return@useEffect
+        val observerAvailable = js("typeof IntersectionObserver !== 'undefined'") as Boolean
+        if (!observerAvailable) return@useEffect
+        val options = js("{}").unsafeCast<JsIntersectionObserverOptions>()
+        options.root = container
+        options.rootMargin = "48px"
+        options.threshold = 1.0
+        val observer =
+            JsIntersectionObserver(
+                { entries, _ ->
+                    val shouldLoadMore = entries.any { entry -> entry.isIntersecting }
+                    val hasScrollIntent = container.dataset["mosaScrollReady"] == "true"
+                    if (shouldLoadMore && hasScrollIntent) {
+                        loadMoreReplies()
                     }
                 },
                 options,
@@ -443,17 +534,23 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 translator = translator,
                 visualsFactory = visualsFactory,
                 posts = posts,
+                selectedPost = selectedPost,
                 isLoading = isLoadingPosts,
                 activeFilters = topicFilters,
                 onToggleFilter = ::toggleTopicFilter,
                 onClearFilter = ::clearTopicFilter,
+                onSelectPost = ::selectPost,
                 containerRef = postsContainerRef,
                 loadMoreRef = loadMoreRef,
             )
-            placeholderColumn(
-                title = translator.translate("connected.replies.title"),
-                message = translator.translate("connected.replies.empty"),
-                modifier = "topic-board__column--replies",
+            repliesColumn(
+                translator = translator,
+                visualsFactory = visualsFactory,
+                selectedPost = selectedPost,
+                replies = replies,
+                isLoading = isLoadingReplies,
+                containerRef = repliesContainerRef,
+                loadMoreRef = repliesLoadMoreRef,
             )
         }
         floatingComposerButton(
@@ -543,30 +640,16 @@ private fun ChildrenBuilder.topicColumn(
     }
 }
 
-private fun ChildrenBuilder.placeholderColumn(
-    title: String,
-    message: String,
-    modifier: String,
-) = div {
-    className = ClassName("topic-board__column $modifier")
-    span {
-        className = ClassName("topic-board__column-title")
-        +title
-    }
-    div {
-        className = ClassName("topic-board__empty")
-        +message
-    }
-}
-
 private fun ChildrenBuilder.postsColumn(
     translator: Translator,
     visualsFactory: IdentityVisualsFactory,
     posts: List<TopicPosts>,
+    selectedPost: QueryResult.Entry?,
     isLoading: Boolean,
     activeFilters: Map<String, Float>,
     onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
     onClearFilter: (Topic) -> Unit,
+    onSelectPost: (QueryResult.Entry) -> Unit,
     containerRef: Ref<HTMLDivElement>,
     loadMoreRef: Ref<HTMLDivElement>,
 ) = div {
@@ -635,6 +718,8 @@ private fun ChildrenBuilder.postsColumn(
                         topic = topicPosts.topic,
                         isFilterEntry = isFilterEntry,
                         onToggleFilter = onToggleFilter,
+                        isSelected = selectedPost?.id == entry.id,
+                        onSelect = { onSelectPost(entry) },
                     )
                 }
             }
@@ -647,6 +732,109 @@ private fun ChildrenBuilder.postsColumn(
     }
 }
 
+private fun ChildrenBuilder.repliesColumn(
+    translator: Translator,
+    visualsFactory: IdentityVisualsFactory,
+    selectedPost: QueryResult.Entry?,
+    replies: ThreadReplies?,
+    isLoading: Boolean,
+    containerRef: Ref<HTMLDivElement>,
+    loadMoreRef: Ref<HTMLDivElement>,
+) = div {
+    className = ClassName("topic-board__column topic-board__column--replies")
+    ref = containerRef
+    onScroll = { event ->
+        event.currentTarget.dataset["mosaScrollReady"] = "true"
+    }
+    div {
+        className = ClassName("topic-board__column-header")
+        span {
+            className = ClassName("topic-board__column-title")
+            +translator.translate("connected.replies.title")
+        }
+    }
+    when {
+        selectedPost == null ->
+            div {
+                className = ClassName("topic-board__empty")
+                +translator.translate("connected.replies.empty")
+            }
+        isLoading && replies == null ->
+            div {
+                className = ClassName("topic-board__empty")
+                +translator.translate("connected.replies.loading")
+            }
+        else -> {
+            div {
+                className = ClassName("reply-origin")
+                span {
+                    className = ClassName("reply-origin__label")
+                    +translator.translate("connected.replies.source")
+                }
+                span {
+                    className = ClassName("reply-origin__timestamp")
+                    +formatTimestamp(selectedPost.storedAt)
+                }
+                div {
+                    className = ClassName("reply-origin__content")
+                    +selectedPost.content
+                }
+            }
+            val replyEntries = replies?.entries.orEmpty()
+            if (replyEntries.isEmpty() && !isLoading) {
+                div {
+                    className = ClassName("topic-board__empty")
+                    +translator.translate("connected.replies.none")
+                }
+            }
+            replyEntries.forEach { reply ->
+                replyCard(visualsFactory, reply)
+            }
+        }
+    }
+    if (!isLoading && replies != null && replies.entries.isNotEmpty()) {
+        div {
+            ref = loadMoreRef
+            className = ClassName("topic-board__load-sentinel")
+        }
+    }
+}
+
+private fun ChildrenBuilder.replyCard(
+    visualsFactory: IdentityVisualsFactory,
+    reply: QueryResult.Entry,
+) {
+    val authorVisuals = visualsFactory.createFromGid(reply.authorGID)
+    val authorName = authorVisuals.name.toString().trim()
+    div {
+        key = reply.id
+        className = ClassName("reply-card")
+        div {
+            className = ClassName("reply-card__author-row")
+            img {
+                className = ClassName("reply-card__avatar")
+                src = authorVisuals.avatar
+                alt = authorName
+            }
+            div {
+                className = ClassName("reply-card__details")
+                span {
+                    className = ClassName("reply-card__author-name")
+                    +authorName
+                }
+                span {
+                    className = ClassName("reply-card__timestamp")
+                    +formatTimestamp(reply.storedAt)
+                }
+            }
+        }
+        div {
+            className = ClassName("reply-card__content")
+            +reply.content
+        }
+    }
+}
+
 private fun ChildrenBuilder.postCard(
     translator: Translator,
     visualsFactory: IdentityVisualsFactory,
@@ -654,16 +842,18 @@ private fun ChildrenBuilder.postCard(
     topic: Topic,
     isFilterEntry: Boolean,
     onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
+    isSelected: Boolean,
+    onSelect: () -> Unit,
 ) {
     val authorVisuals = visualsFactory.createFromGid(entry.authorGID)
     val authorName = authorVisuals.name.toString().trim()
     val timestamp = formatTimestamp(entry.storedAt)
     val similarity = formatSimilarity(entry.similarity)
     val cardClass =
-        if (isFilterEntry) {
-            "post-card post-card--dimmed"
-        } else {
-            "post-card"
+        buildString {
+            append("post-card")
+            if (isFilterEntry) append(" post-card--dimmed")
+            if (isSelected) append(" post-card--selected")
         }
     val filterLabel =
         if (isFilterEntry) {
@@ -674,6 +864,7 @@ private fun ChildrenBuilder.postCard(
     div {
         key = entry.id
         className = ClassName(cardClass)
+        onClick = { onSelect() }
         div {
             className = ClassName("post-card__author-row")
             img {
@@ -706,7 +897,8 @@ private fun ChildrenBuilder.postCard(
                             }
                         ariaLabel = filterLabel
                         title = filterLabel
-                        onClick = {
+                        onClick = { event: MouseEvent<*, *> ->
+                            event.stopPropagation()
                             onToggleFilter(topic, entry)
                         }
                         i {

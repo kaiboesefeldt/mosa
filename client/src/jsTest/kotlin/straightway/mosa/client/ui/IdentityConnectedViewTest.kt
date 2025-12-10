@@ -48,6 +48,10 @@ import straightway.mosa.client.content.TopicRepository
 import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.TopicStore
 import straightway.mosa.client.content.PostPublisher
+import straightway.mosa.client.content.ReplyCache
+import straightway.mosa.client.content.ReplyCacheSnapshot
+import straightway.mosa.client.content.ReplySearchService
+import straightway.mosa.client.content.ThreadScopedReply
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryResult
 import straightway.mosa.content.QueryOnRequest
@@ -257,6 +261,42 @@ class IdentityConnectedViewTest {
         delay(100)
         assertEquals(2, podAccess.queryInvocations.size)
         assertEquals(listOf(null, 0.9f), podAccess.queryInvocations.map { it.scoreMustBeBelow })
+    }
+
+    @Test
+    fun `loads replies when selecting a post`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("root-1")),
+                replyResponses =
+                    mapOf(
+                        "root-1" to
+                            listOf(
+                                QueryResult(
+                                    entries =
+                                        listOf(
+                                            QueryResult.Entry("r-1", "older", 0.7f, "author", 5, "root-1"),
+                                            QueryResult.Entry("r-2", "newer", 0.9f, "author", 10, "root-1"),
+                                        ),
+                                    queryOnId = "",
+                                ),
+                            ),
+                    ),
+            )
+        overrideDependencies(topics = listOf(Topic("Alpha")), podAccess = podAccess)
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelector(".post-card") != null }
+        val postCard = view.container.querySelector(".post-card") ?: error("post missing")
+        user.click(postCard).await()
+
+        waitForCondition { view.container.querySelectorAll(".reply-card").length == 2 }
+        val replies = view.container.querySelectorAll(".reply-card__content")
+        assertEquals("older", replies.item(0)?.textContent?.trim())
+        assertEquals("newer", replies.item(1)?.textContent?.trim())
+        assertTrue(podAccess.searchInvocations.any { it.threadRootId == "root-1" })
     }
 
     @Test
@@ -555,6 +595,7 @@ private fun scrollPostsToEnd(container: Element) {
                 single { DiceBearAvatarGenerator() }
                 single<TopicStore> { InMemoryTopicStore(topics) }
                 single<PostCache> { InMemoryPostCache() }
+                single<ReplyCache> { InMemoryReplyCache() }
                 single { TopicRepository(get(), get()) }
                 single<IdentitySelectionRepository> { StaticIdentityRepository(identityForTests) }
                 single { TimeService() }
@@ -575,6 +616,7 @@ private fun scrollPostsToEnd(container: Element) {
                 }
                 single { PostPublisher(get()) }
                 single { TopicSearchService(get(), get(), get()) }
+                single { ReplySearchService(get(), get(), get()) }
             }
                 startKoin { modules(module) }
         sessionStore = ConnectedViewTestInjector.get<IdentitySessionStore>() as ConnectedViewIdentitySessionStore
@@ -664,6 +706,7 @@ private class ConnectedViewIdentitySessionStore : IdentitySessionStore {
 private class RecordingPodAccess(
     responses: Map<String, QueryResult>,
     private val additionalResponses: Map<String, List<QueryResult>> = emptyMap(),
+    private val replyResponses: Map<String, List<QueryResult>> = emptyMap(),
 ) : PodAccess {
     val approveInvocations = mutableListOf<String>()
     val searchInvocations = mutableListOf<QueryRequest>()
@@ -679,12 +722,12 @@ private class RecordingPodAccess(
                     if (isEmpty()) error("no response for $topic")
                 }
             }.toMutableMap()
+    private val responsesByRoot = replyResponses.mapValues { (_, value) -> value.toMutableList() }.toMutableMap()
     private val entriesById: Map<String, QueryResult.Entry> =
-        responsesByTopic
-            .values
-            .flatten()
+        (responsesByTopic.values.flatten() + responsesByRoot.values.flatten())
             .flatMap { it.entries }
             .associateBy { it.id }
+    private val queryOnRoots = mutableMapOf<String, String>()
 
     override suspend fun approveGid(gid: String): PodCertificate {
         approveInvocations += gid
@@ -702,16 +745,38 @@ private class RecordingPodAccess(
 
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult {
         searchInvocations += request
-        val topic = request.topic ?: error("topic missing")
-        val queue = responsesByTopic[topic] ?: error("no response for $topic")
-        val response =
-            runCatching { queue.removeAt(0) }
-                .getOrElse { error("no response for $topic") }
-        return response.toSearchResult()
+        val topic = request.topic
+        val rootId = request.threadRootId
+        if (topic != null) {
+            val queue = responsesByTopic[topic] ?: error("no response for $topic")
+            val response =
+                runCatching { queue.removeAt(0) }
+                    .getOrElse { error("no response for $topic") }
+            return response.toSearchResult()
+        }
+        if (rootId != null) {
+            val queue = responsesByRoot[rootId] ?: error("no response for $rootId")
+            val response =
+                runCatching { queue.removeAt(0) }
+                    .getOrElse { error("no response for $rootId") }
+            if (response.queryOnId.isNotBlank()) {
+                queryOnRoots[response.queryOnId] = rootId
+            }
+            return response.toSearchResult()
+        }
+        error("topic missing")
     }
 
     override suspend fun searchOn(request: QueryOnRequest, jwt: String): SearchResult {
-        error("searchOn not expected")
+        val root = queryOnRoots[request.queryOnId] ?: error("no response for ${request.queryOnId}")
+        val queue = responsesByRoot[root] ?: error("no response for $root")
+        val response =
+            runCatching { queue.removeAt(0) }
+                .getOrElse { error("no response for $root") }
+        if (response.queryOnId.isNotBlank()) {
+            queryOnRoots[response.queryOnId] = root
+        }
+        return response.toSearchResult()
     }
 
     override suspend fun fetch(request: straightway.mosa.content.FetchRequest, jwt: String): FetchResult {
@@ -770,6 +835,42 @@ private class InMemoryPostCache : PostCache {
 
     override suspend fun clear(topic: String) {
         snapshots.remove(topic)
+    }
+}
+
+private class InMemoryReplyCache : ReplyCache {
+    private val snapshots = mutableMapOf<String, ReplyCacheSnapshot>()
+    private val storedPosts = mutableMapOf<String, CachedPost>()
+
+    override suspend fun snapshot(rootId: String): ReplyCacheSnapshot =
+        snapshots[rootId] ?: ReplyCacheSnapshot(emptyList(), null)
+
+    override suspend fun append(
+        rootId: String,
+        entries: List<ThreadScopedReply>,
+    ): ReplyCacheSnapshot {
+        if (entries.isEmpty()) {
+            return snapshots[rootId] ?: ReplyCacheSnapshot(emptyList(), null)
+        }
+        val current = snapshots[rootId]
+        entries.forEach { storedPosts[it.post.id] = it.post }
+        val merged =
+            (current?.entries.orEmpty() + entries)
+                .associateBy { it.post.id }
+                .values
+                .sortedBy { it.post.storedAt }
+        val lastFetchedAt = entries.maxOfOrNull { it.post.storedAt } ?: current?.lastFetchedAt
+        return ReplyCacheSnapshot(merged, lastFetchedAt).also { snapshots[rootId] = it }
+    }
+
+    override suspend fun resolve(ids: Collection<String>): CachedPostResolution =
+        CachedPostResolution(
+            postsById = storedPosts.filterKeys { ids.contains(it) },
+            missingIds = ids.filter { !storedPosts.containsKey(it) },
+        )
+
+    override suspend fun clear(rootId: String) {
+        snapshots.remove(rootId)
     }
 }
 

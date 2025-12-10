@@ -49,6 +49,10 @@ import straightway.mosa.client.content.TopicReferenceStore
 import straightway.mosa.client.content.TopicRepository
 import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.TopicStore
+import straightway.mosa.client.content.ReplyReferenceStore
+import straightway.mosa.client.content.ReplyCache
+import straightway.mosa.client.content.IndexedDbReplyCache
+import straightway.mosa.client.content.ReplySearchService
 import straightway.mosa.client.ui.BrowserIdentitySessionStore
 import straightway.mosa.client.ui.IdentitySessionStore
 import straightway.mosa.identity.FictionalNameGenerator
@@ -132,10 +136,13 @@ object AppModule : KoinComponent {
                         single<TopicStore> { IndexedDbTopicStore(get(), get(), get()) }
                         single { TopicEntryStore(get(), get(), maxEntries = 10_000) }
                         single { TopicReferenceStore() }
+                        single { ReplyReferenceStore() }
                         single<PostCache> { IndexedDbPostCache(get(), get(), get()) }
+                        single<ReplyCache> { IndexedDbReplyCache(get(), get(), get()) }
                         single { TopicRepository(get(), get()) }
                         single { PostPublisher(get()) }
                         single { TopicSearchService(get(), get(), get()) }
+                        single { ReplySearchService(get(), get(), get()) }
                         single { BrowserPrefs() }
                         single { Translator(get<BrowserPrefs>().languages) }
                         single { DiceBearAvatarGenerator() }
