@@ -351,6 +351,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 threshold == null || entry.similarity > threshold
             }
         if (!hasAnchorEntry) return
+        postsContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
         setAppendingState(true)
         scope.launch {
             try {
