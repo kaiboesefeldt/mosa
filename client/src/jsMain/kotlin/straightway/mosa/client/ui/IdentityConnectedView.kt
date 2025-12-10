@@ -38,6 +38,7 @@ import straightway.mosa.client.content.TopicRepository
 import straightway.mosa.client.content.TopicPosts
 import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.PostPublisher
+import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.TopicFilters
 import straightway.mosa.client.content.ReplySearchService
 import straightway.mosa.client.content.ThreadReplies
@@ -79,6 +80,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val nameGenerator = ConnectedViewInjector.get<FictionalNameGenerator>()
     val avatarGenerator = ConnectedViewInjector.get<DiceBearAvatarGenerator>()
     val postPublisher = ConnectedViewInjector.get<PostPublisher>()
+    val replyPublisher = ConnectedViewInjector.get<ReplyPublisher>()
     val visualsFactory =
         useMemo(nameGenerator, avatarGenerator) {
             IdentityVisualsFactory(nameGenerator, avatarGenerator)
@@ -105,6 +107,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (composerText, setComposerText) = useState("")
     val (isPublishing, setPublishing) = useState(false)
     val (publishError, setPublishError) = useState<String?>(null)
+    val (isReplyComposerOpen, setReplyComposerOpen) = useState(false)
+    val (replyComposerText, setReplyComposerText) = useState("")
+    val (isReplyPublishing, setReplyPublishing) = useState(false)
+    val (replyPublishError, setReplyPublishError) = useState<String?>(null)
 
     useEffect(sessionStore) {
         scope.launch {
@@ -156,12 +162,20 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         isAppendingPostsRef.current = active
     }
 
+    fun resetReplyComposer() {
+        setReplyComposerOpen(false)
+        setReplyComposerText("")
+        setReplyPublishError(null)
+        setReplyPublishing(false)
+    }
+
     fun clearReplies() {
         repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
         setSelectedPost(null)
         setReplies(null)
         setLoadingReplies(false)
         isAppendingRepliesRef.current = false
+        resetReplyComposer()
     }
 
     fun updateTopicPosts(updated: TopicPosts) {
@@ -340,6 +354,64 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
+    fun openReplyComposer() {
+        if (selectedPost == null || isReplyPublishing) return
+        setReplyPublishError(null)
+        setReplyComposerOpen(true)
+    }
+
+    fun closeReplyComposer() {
+        if (isReplyPublishing) return
+        setReplyPublishError(null)
+        setReplyComposerOpen(false)
+    }
+
+    fun sendReply() {
+        if (isReplyPublishing) return
+        val targetPost = selectedPost ?: return
+        val text = replyComposerText.trim()
+        if (text.isEmpty()) return
+        val rootId = rootIdFor(targetPost)
+        setReplyPublishing(true)
+        setReplyPublishError(null)
+        scope.launch {
+            val published = replyPublisher.publish(text, rootId)
+            if (!published) {
+                setReplyPublishError(translator.translate("connected.replies.compose.error"))
+                setReplyPublishing(false)
+                return@launch
+            }
+            setReplyComposerText("")
+            setReplyComposerOpen(false)
+            val currentRoot = selectedPost?.let { rootIdFor(it) }
+            if (currentRoot != rootId) {
+                setReplyPublishing(false)
+                return@launch
+            }
+            val nextVersion = (repliesRequestVersion.current ?: 0) + 1
+            repliesRequestVersion.current = nextVersion
+            setLoadingReplies(true)
+            repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
+            val refreshed =
+                runCatching { replySearchService.fetchFor(rootId) }
+                    .getOrElse {
+                        if (repliesRequestVersion.current == nextVersion) {
+                            setLoadingReplies(false)
+                        }
+                        null
+                    }
+            if (repliesRequestVersion.current != nextVersion) {
+                setReplyPublishing(false)
+                return@launch
+            }
+            if (refreshed != null) {
+                setReplies(refreshed)
+            }
+            setLoadingReplies(false)
+            setReplyPublishing(false)
+        }
+    }
+
     fun clearTopicFilter(topic: Topic) {
         val previousFilter = topicFilters[topic.title] ?: return
         persistFilters(topicFilters - topic.title)
@@ -404,6 +476,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     fun selectPost(entry: QueryResult.Entry) {
+        resetReplyComposer()
         val rootId = rootIdFor(entry)
         val nextVersion = (repliesRequestVersion.current ?: 0) + 1
         repliesRequestVersion.current = nextVersion
@@ -552,6 +625,15 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 isLoading = isLoadingReplies,
                 containerRef = repliesContainerRef,
                 loadMoreRef = repliesLoadMoreRef,
+                isComposerOpen = isReplyComposerOpen,
+                replyText = replyComposerText,
+                canActivateComposer = selectedPost != null && !isReplyPublishing,
+                isPublishing = isReplyPublishing,
+                errorText = replyPublishError,
+                onOpenComposer = ::openReplyComposer,
+                onCloseComposer = ::closeReplyComposer,
+                onReplyTextChange = { next -> setReplyComposerText(next) },
+                onSendReply = ::sendReply,
             )
         }
         floatingComposerButton(
@@ -744,6 +826,15 @@ private fun ChildrenBuilder.repliesColumn(
     selectedPost: QueryResult.Entry?,
     replies: ThreadReplies?,
     isLoading: Boolean,
+    isComposerOpen: Boolean,
+    replyText: String,
+    canActivateComposer: Boolean,
+    isPublishing: Boolean,
+    errorText: String?,
+    onOpenComposer: () -> Unit,
+    onCloseComposer: () -> Unit,
+    onReplyTextChange: (String) -> Unit,
+    onSendReply: () -> Unit,
     containerRef: Ref<HTMLDivElement>,
     loadMoreRef: Ref<HTMLDivElement>,
 ) = div {
@@ -788,6 +879,96 @@ private fun ChildrenBuilder.repliesColumn(
         div {
             ref = loadMoreRef
             className = ClassName("topic-board__load-sentinel")
+        }
+    }
+    div {
+        className = ClassName("reply-composer-wrapper")
+        div {
+            className = ClassName("reply-composer-layer")
+            if (isComposerOpen) {
+                replyComposerPopover(
+                    translator = translator,
+                    text = replyText,
+                    isPublishing = isPublishing,
+                    errorText = errorText,
+                    onTextChange = onReplyTextChange,
+                    onSend = onSendReply,
+                    onClose = onCloseComposer,
+                )
+            }
+            div {
+                className = ClassName("reply-composer-fab")
+                replyComposerButton(
+                    label = translator.translate("connected.replies.compose.open"),
+                    disabled = !canActivateComposer,
+                    onActivate = onOpenComposer,
+                )
+            }
+        }
+    }
+}
+
+private fun ChildrenBuilder.replyComposerButton(
+    label: String,
+    disabled: Boolean,
+    onActivate: () -> Unit,
+) = button {
+    className = ClassName("reply-composer-trigger")
+    this.disabled = disabled
+    ariaLabel = label
+    title = label
+    onClick = { onActivate() }
+    i {
+        className = ClassName("fa fa-solid fa-reply reply-composer-trigger__icon")
+    }
+}
+
+private fun ChildrenBuilder.replyComposerPopover(
+    translator: Translator,
+    text: String,
+    isPublishing: Boolean,
+    errorText: String?,
+    onTextChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onClose: () -> Unit,
+) = div {
+    className = ClassName("reply-composer")
+    div {
+        className = ClassName("reply-composer__header")
+        span {
+            className = ClassName("reply-composer__title")
+            +translator.translate("connected.replies.compose.title")
+        }
+        button {
+            className = ClassName("reply-composer__close")
+            ariaLabel = translator.translate("connected.replies.compose.close")
+            onClick = { onClose() }
+            +"×"
+        }
+    }
+    textarea {
+        className = ClassName("reply-composer__textarea")
+        placeholder = translator.translate("connected.replies.compose.placeholder")
+        value = text
+        disabled = isPublishing
+        rows = 4
+        onChange = { event: ChangeEvent<HTMLTextAreaElement> ->
+            onTextChange(event.target.value)
+        }
+    }
+    if (errorText != null) {
+        div {
+            className = ClassName("reply-composer__error")
+            +errorText
+        }
+    }
+    div {
+        className = ClassName("reply-composer__actions")
+        button {
+            className = ClassName("button button--primary reply-composer__send")
+            disabled = text.trim().isEmpty() || isPublishing
+            onClick = { onSend() }
+            +translator.translate("connected.replies.compose.send")
         }
     }
 }

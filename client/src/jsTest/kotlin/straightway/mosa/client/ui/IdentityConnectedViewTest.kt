@@ -48,6 +48,7 @@ import straightway.mosa.client.content.TopicRepository
 import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.TopicStore
 import straightway.mosa.client.content.PostPublisher
+import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.ReplyCache
 import straightway.mosa.client.content.ReplyCacheSnapshot
 import straightway.mosa.client.content.ReplySearchService
@@ -615,6 +616,7 @@ private fun scrollPostsToEnd(container: Element) {
                     )
                 }
                 single { PostPublisher(get()) }
+                single { ReplyPublisher(get()) }
                 single { TopicSearchService(get(), get(), get()) }
                 single { ReplySearchService(get(), get(), get()) }
             }
@@ -712,6 +714,7 @@ private class RecordingPodAccess(
     val searchInvocations = mutableListOf<QueryRequest>()
     val queryInvocations get() = searchInvocations
     val publishRequests = mutableListOf<straightway.mosa.content.PublishRequest>()
+    val replyRequests = mutableListOf<straightway.mosa.content.ReplyRequest>()
     var shouldFailPublish = false
     private val responsesByTopic: MutableMap<String, MutableList<QueryResult>> =
         (responses.keys + additionalResponses.keys)
@@ -740,7 +743,7 @@ private class RecordingPodAccess(
     }
 
     override suspend fun reply(request: straightway.mosa.content.ReplyRequest, jwt: String) {
-        error("not used")
+        replyRequests += request
     }
 
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult {
