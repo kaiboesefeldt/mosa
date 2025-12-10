@@ -9,9 +9,13 @@ class PodCertificateCache(
     fun cached(
         podBase: String,
         gid: String,
-    ): PodCertificate? =
-        certificates[CacheKey(podBase, gid)]
-            ?.takeIf { isValid(it) }
+    ): PodCertificate? {
+        val key = CacheKey(podBase, gid)
+        val certificate = certificates[key] ?: return null
+        if (isValid(certificate)) return certificate
+        certificates.remove(key)
+        return null
+    }
 
     fun store(
         podBase: String,

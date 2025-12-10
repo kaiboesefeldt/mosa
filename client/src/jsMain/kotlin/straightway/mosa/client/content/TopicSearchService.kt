@@ -59,7 +59,6 @@ class TopicSearchService(
             } else {
                 snapshot.lastFetchedAt
             }
-        activeMinTimes[topic.title] = minTime
         val request =
             QueryRequest(
                 topic = topic.title,
@@ -75,6 +74,7 @@ class TopicSearchService(
                     logger.warn("Topic pagination failed for ${topic.title}", null)
                     return buildTopicPosts(listOf(topic), mapOf(topic to snapshot)).firstOrNull()
                 }
+        activeMinTimes[topic.title] = minTime
         if (result.entries.isEmpty()) {
             updateExhaustion(topic, true)
             updatePaginationBoundary(topic, result.entries)
@@ -123,15 +123,15 @@ class TopicSearchService(
         val results = mutableMapOf<Topic, SearchResult>()
         topics.forEach { topic ->
             val cachedSnapshot = snapshots.getValue(topic)
+            val relaxationPending = pendingFilterRelaxations.contains(topic.title)
             val relaxed =
-                if (pendingFilterRelaxations.remove(topic.title)) {
-                    relaxedFilterBounds.remove(topic.title) ?: paginationScoreBounds[topic.title]
+                if (relaxationPending) {
+                    relaxedFilterBounds[topic.title] ?: paginationScoreBounds[topic.title]
                 } else {
                     null
                 }
-            val resetMinTime = pendingMinResets.remove(topic.title)
-            val minTime = if (resetMinTime || relaxed != null) null else cachedSnapshot.lastFetchedAt
-            activeMinTimes[topic.title] = minTime
+            val resetMinTime = pendingMinResets.contains(topic.title)
+            val minTime = if (resetMinTime || relaxationPending) null else cachedSnapshot.lastFetchedAt
             val queryRequest =
                 QueryRequest(
                     topic = topic.title,
@@ -147,6 +147,14 @@ class TopicSearchService(
                         logger.warn("Topic search failed for ${topic.title}", null)
                         return@forEach
                     }
+            if (relaxationPending) {
+                pendingFilterRelaxations.remove(topic.title)
+                relaxedFilterBounds.remove(topic.title)
+            }
+            if (resetMinTime) {
+                pendingMinResets.remove(topic.title)
+            }
+            activeMinTimes[topic.title] = minTime
             results[topic] = result
         }
         return results

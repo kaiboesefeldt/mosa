@@ -216,6 +216,38 @@ class TopicSearchServiceTest {
     }
 
     @Test
+    fun `keeps filter relaxation when session unavailable`() = runTest {
+        val previousFilter = 0.8f
+        val cachedSnapshot =
+            PostCacheSnapshot(
+                entries = listOf(cachedPost("cached", "cached-content", 0.9f, storedAt = 200)),
+                lastFetchedAt = 200,
+            )
+        cache.prime("Alpha", cachedSnapshot)
+        podAccess =
+            FakePodAccess(
+                searchResponses = mapOf("Alpha" to listOf(searchResult("new", "query-on", 0.7f))),
+                fetchableEntries = mapOf("new" to fetchEntry("new", "content-new")),
+            )
+        val service = createService()
+
+        service.filterCleared(Topic("Alpha", scoreMustBeAbove = previousFilter), previousFilter)
+        val missingSessionResult = service.fetchFor(listOf(Topic("Alpha")))
+
+        assertTrue(missingSessionResult.isNotEmpty())
+        assertTrue(podAccess.searchInvocations.isEmpty())
+
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+
+        val results = service.fetchFor(listOf(Topic("Alpha")))
+
+        assertEquals(1, results.size)
+        val invocation = podAccess.searchInvocations.single()
+        assertEquals(previousFilter, invocation.scoreMustBeBelow)
+        assertNull(invocation.minTime)
+    }
+
+    @Test
     fun `paginates with descending score filter until exhausted`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         podAccess =
