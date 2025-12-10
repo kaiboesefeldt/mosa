@@ -534,6 +534,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 translator = translator,
                 visualsFactory = visualsFactory,
                 posts = posts,
+                selectedTopic = selectedTopic,
                 selectedPost = selectedPost,
                 isLoading = isLoadingPosts,
                 activeFilters = topicFilters,
@@ -644,6 +645,7 @@ private fun ChildrenBuilder.postsColumn(
     translator: Translator,
     visualsFactory: IdentityVisualsFactory,
     posts: List<TopicPosts>,
+    selectedTopic: Topic?,
     selectedPost: QueryResult.Entry?,
     isLoading: Boolean,
     activeFilters: Map<String, Float>,
@@ -697,6 +699,10 @@ private fun ChildrenBuilder.postsColumn(
                 }
             }
         }
+    }
+    val highlightTopic = selectedTopic
+    if (highlightTopic != null) {
+        topicHighlightCard(translator, highlightTopic)
     }
     when {
         isLoading -> Unit
@@ -858,6 +864,23 @@ private fun ChildrenBuilder.replyOriginCard(
         div {
             className = ClassName("reply-origin__content")
             +origin.content
+        }
+    }
+}
+
+private fun ChildrenBuilder.topicHighlightCard(
+    translator: Translator,
+    topic: Topic,
+) {
+    div {
+        className = ClassName("topic-highlight")
+        span {
+            className = ClassName("topic-highlight__badge")
+            +translator.translate("connected.posts.selectedTopic")
+        }
+        span {
+            className = ClassName("topic-highlight__title")
+            +topic.title
         }
     }
 }
