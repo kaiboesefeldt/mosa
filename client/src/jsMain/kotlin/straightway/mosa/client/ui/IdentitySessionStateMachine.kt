@@ -68,6 +68,12 @@ class IdentitySessionStateMachine(
         isConnected = true
         errorText = null
         scope.launch {
+            runCatching { repository.persist() }
+                .onFailure { logger.error("Identity persistence failed", it) }
+                .onSuccess {
+                    currentSelection = currentSelection?.copy(isPersisted = true)
+                    publishState()
+                }
             persistSession(profileVisibleOverride = false)
         }
         publishState()
@@ -186,6 +192,7 @@ class IdentitySessionStateMachine(
             canCopy = currentSelection != null,
             canUpload = true,
             canPaste = true,
+            isPersisted = currentSelection?.isPersisted ?: false,
         )
 
     private fun connectedState(): IdentitySessionViewState.Connected =

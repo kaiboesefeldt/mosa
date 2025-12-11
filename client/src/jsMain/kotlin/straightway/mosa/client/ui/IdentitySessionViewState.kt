@@ -21,6 +21,7 @@ sealed interface IdentitySessionViewState {
         val canCopy: Boolean,
         val canUpload: Boolean,
         val canPaste: Boolean,
+        val isPersisted: Boolean,
     ) : IdentitySessionViewState
 
     data class Connected(

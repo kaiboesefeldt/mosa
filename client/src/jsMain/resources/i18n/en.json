@@ -3,6 +3,7 @@
   "app.title": "MOSA Client",
   "button.connect.aria": "Let's go!",
   "button.connect.label": "Let's go!",
+  "button.connect.persistHint": "Adopt & save identity",
   "button.identity.delete.aria": "Delete identity",
   "button.identity.copy.aria": "Copy identity to clipboard",
   "button.identity.copy.label": "Copy keys",
@@ -55,6 +56,7 @@
   "identity.loading": "...",
   "identity.invalidIdentity": "Clipboard does not contain a valid identity",
   "identity.unknownError": "Unknown error",
+  "profile.identityAvatar.connect": "Adopt identity",
   "profile.description": "It's about the content!",
   "profile.identityLabel": "You are",
   "profile.title": "MOSA"

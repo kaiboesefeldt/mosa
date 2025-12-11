@@ -675,6 +675,7 @@ private fun placeholderProfile(): IdentityScreen.Profile =
         canPaste = false,
         onPaste = {},
         onPasteContent = {},
+        isPersisted = true,
     )
 
 private val identityForTests =
@@ -881,7 +882,7 @@ private class StaticIdentityRepository(
     private val identity: Identity,
 ) : IdentitySelectionRepository {
     override suspend fun loadOrCreate(): IdentitySelection =
-        IdentitySelection(identity, 0, 1)
+        IdentitySelection(identity, 0, 1, true)
 
     override suspend fun movePrevious(): IdentitySelection = selection()
 
@@ -893,7 +894,9 @@ private class StaticIdentityRepository(
 
     override suspend fun import(identity: Identity): IdentitySelection = selection()
 
-    private fun selection(): IdentitySelection = IdentitySelection(identity, 0, 1)
+    override suspend fun persist() = Unit
+
+    private fun selection(): IdentitySelection = IdentitySelection(identity, 0, 1, true)
 }
 
 private class RecordingLogger : Logger {

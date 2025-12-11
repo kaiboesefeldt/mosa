@@ -3,6 +3,7 @@
   "app.title": "MOSA Client",
   "button.connect.aria": "Los geht's!",
   "button.connect.label": "Los geht's!",
+  "button.connect.persistHint": "Identität übernehmen & speichern",
   "button.identity.delete.aria": "Identität löschen",
   "button.identity.copy.aria": "Identität in Zwischenablage kopieren",
   "button.identity.copy.label": "Schlüssel kopieren",
@@ -55,6 +56,7 @@
   "identity.loading": "...",
   "identity.invalidIdentity": "Die Zwischenablage enthält keine gültige Identität",
   "identity.unknownError": "Unbekannter Fehler",
+  "profile.identityAvatar.connect": "Identität übernehmen",
   "profile.description": "Es geht um den Inhalt!",
   "profile.identityLabel": "Du bist",
   "profile.title": "MOSA"

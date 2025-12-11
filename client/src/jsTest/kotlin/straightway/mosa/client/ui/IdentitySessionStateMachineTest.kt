@@ -94,6 +94,22 @@ class IdentitySessionStateMachineTest {
     }
 
     @Test
+    fun `persists identities when connecting`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore()
+        val machine = createMachine(repository, store)
+
+        machine.refresh()
+        advanceUntilIdle()
+
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.persistCalls)
+    }
+
+    @Test
     fun `imports identity from clipboard`() = runMachineTest {
         val initialIdentity = identity("gid-a")
         val pastedIdentity = identity("gid-b")
@@ -193,6 +209,7 @@ private class FakeIdentitySelectionRepository(
 ) : IdentitySelectionRepository {
     private val identities = mutableListOf(first).apply { second?.let { add(it) } }
     private var index = 0
+    var persistCalls = 0
 
     override suspend fun loadOrCreate(): IdentitySelection =
         currentSelection()
@@ -227,11 +244,16 @@ private class FakeIdentitySelectionRepository(
         return currentSelection()
     }
 
+    override suspend fun persist() {
+        persistCalls += 1
+    }
+
     private fun currentSelection(): IdentitySelection =
         IdentitySelection(
             identity = identities[index],
             index = index,
             total = identities.size,
+            isPersisted = true,
         )
 }
 

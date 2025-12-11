@@ -11,7 +11,6 @@ import org.w3c.dom.events.KeyboardEvent
 import react.FC
 import react.Props
 import react.dom.events.MouseEvent
-import react.dom.html.ReactHTML.button
 import react.dom.html.ReactHTML.div
 import react.useEffect
 import react.useState
@@ -25,6 +24,7 @@ external interface IdentityProfileViewProps : Props {
     var identityAvatar: String?
     var isBusy: Boolean
     var errorText: String?
+    var isPersisted: Boolean
     var canDelete: Boolean
     var canNavigatePrevious: Boolean
     var canNavigateNext: Boolean
@@ -155,18 +155,6 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                     +message
                 }
             }
-            div {
-                className = ClassName("profile-dialog__actions")
-                button {
-                    className = ClassName("button button--primary button--primary-large")
-                    disabled = !props.canConnect
-                    ariaLabel = translator.translate("button.connect.aria")
-                    onClick = {
-                        if (!props.isBusy) props.onConnect()
-                    }
-                    +translator.translate("button.connect.label")
-                }
-            }
             if (isCopyFeedbackVisible) {
                 div {
                     className = ClassName("profile-dialog__toast")
@@ -198,6 +186,7 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
     identityAvatar = screen.identityAvatar
     isBusy = screen.isBusy
     errorText = screen.errorText
+    isPersisted = screen.isPersisted
     canDelete = screen.canDelete
     canNavigatePrevious = screen.canNavigatePrevious
     canNavigateNext = screen.canNavigateNext
