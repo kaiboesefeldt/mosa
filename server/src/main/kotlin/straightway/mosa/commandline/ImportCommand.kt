@@ -6,6 +6,7 @@ import kotlinx.coroutines.runBlocking
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import straightway.mosa.CommandLineArgumentStore
+import straightway.mosa.HasherFactory
 import straightway.mosa.VectorStore
 import straightway.mosa.configureMosaAppModule
 import straightway.mosa.content.ContentService
@@ -24,6 +25,7 @@ internal class ImportCommand(
     private val streamIO: PostDumpStreamIO,
     private val input: InputStream,
     private val exit: (Int) -> Nothing = ::exitProcess,
+    private val hasherFactory: HasherFactory,
 ) : Subcommand("import", "Import the mosa posts and replies from stdin") {
     override fun execute() {
         val koinApplication =
@@ -101,6 +103,10 @@ internal class ImportCommand(
                 runCatching {
                     Base64.UrlSafe.decode(authorGid)
                     authorGid
-                }.getOrElse { Base64.UrlSafe.encode(authorGid.toByteArray()) }
+                }.getOrElse {
+                    val hasher = hasherFactory()
+                    val hash = hasher.digest(authorGid.toByteArray())
+                    Base64.UrlSafe.encode(hash)
+                }
             } ?: throw RuntimeException("user without field value for `${AUTHOR_GID_KEY}`")
 }

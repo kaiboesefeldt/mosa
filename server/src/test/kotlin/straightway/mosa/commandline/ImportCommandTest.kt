@@ -21,6 +21,7 @@ import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import java.io.ByteArrayInputStream
+import java.security.MessageDigest
 import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -31,6 +32,11 @@ class ImportCommandTest {
     private val contentService = mockk<ContentService>()
     private val koin = mockk<Koin>()
     private val koinApplication = mockk<KoinApplication>(relaxed = true)
+    private val hasherFactory = {
+        mockk<MessageDigest> {
+            every { digest(any()) } answers { arg(0) }
+        }
+    }
     val authorBase64 = Base64.UrlSafe.encode("author".toByteArray())
     val rootPost =
         VectorStore.PostDump(
@@ -74,7 +80,7 @@ class ImportCommandTest {
     @Test
     fun `publishes posts without root id and exits with zero`() {
         setupStreamReader(rootPost)
-        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
         val exit = assertFailsWith<ExitSignal> { command.execute() }
 
@@ -88,7 +94,7 @@ class ImportCommandTest {
     @Test
     fun `converts non base64 gids automatically to base64`() {
         setupStreamReader(rootPost.copy(fields = rootPost.fields - AUTHOR_GID_KEY + (AUTHOR_GID_KEY to "otherAuthor")))
-        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
         assertFailsWith<ExitSignal> { command.execute() }
 
@@ -99,7 +105,7 @@ class ImportCommandTest {
     @Test
     fun `uses 0 as timestamp if no received timestamp is given in the dump of the root post`() {
         setupStreamReader(rootPost.copy(fields = rootPost.fields - RECEIVED_AT_KEY))
-        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
         assertFailsWith<ExitSignal> { command.execute() }
 
@@ -109,7 +115,7 @@ class ImportCommandTest {
     @Test
     fun `replies for posts with root id`() {
         setupStreamReader(replyPost)
-        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
         assertFailsWith<ExitSignal> { command.execute() }
 
@@ -123,7 +129,7 @@ class ImportCommandTest {
     @Test
     fun `uses 0 as timestamp if no received timestamp is given in the dump of the reply post`() {
         setupStreamReader(replyPost.copy(fields = replyPost.fields - RECEIVED_AT_KEY))
-        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
         assertFailsWith<ExitSignal> { command.execute() }
 
@@ -138,7 +144,7 @@ class ImportCommandTest {
         coEvery {
             contentService.reply(authorBase64, ReplyRequest(PublishRequest("reply"), "rootId"), any())
         } throws ContentService.RootNotFoundException()
-        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
         val ex = assertFailsWith<IllegalStateException> { command.execute() }
 
@@ -159,7 +165,7 @@ class ImportCommandTest {
         coEvery {
             contentService.reply(authorBase64, ReplyRequest(PublishRequest("reply"), "rootId"), any())
         } throws UnsupportedOperationException("Test Error")
-        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
         val ex = assertFailsWith<UnsupportedOperationException> { command.execute() }
 
@@ -177,7 +183,7 @@ class ImportCommandTest {
     @Test
     fun `replies for posts with symbolic root id`() {
         setupStreamReader(rootPost, replyPost)
-        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
         assertFailsWith<ExitSignal> { command.execute() }
 
@@ -193,7 +199,7 @@ class ImportCommandTest {
     @Test
     fun `fails when author gid is missing and does not exit`() {
         setupStreamReader(replyPost.copy(fields = emptyMap()))
-        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit)
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
         val ex = assertFailsWith<RuntimeException> { command.execute() }
 

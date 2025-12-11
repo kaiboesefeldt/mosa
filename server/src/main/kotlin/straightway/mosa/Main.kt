@@ -7,6 +7,7 @@ import straightway.mosa.commandline.ExportCommand
 import straightway.mosa.commandline.ImportCommand
 import straightway.mosa.commandline.PostDumpStreamIO
 import straightway.mosa.commandline.ServeCommand
+import java.security.MessageDigest
 import kotlin.system.exitProcess
 
 @OptIn(ExperimentalCli::class)
@@ -16,7 +17,7 @@ fun main(args: Array<String>) {
     parser.subcommands(
         ServeCommand(),
         ExportCommand(postDumpStreamIO, System.out),
-        ImportCommand(postDumpStreamIO, System.`in`),
+        ImportCommand(postDumpStreamIO, System.`in`) { MessageDigest.getInstance("SHA-256") },
     )
     parser.parse(args)
     exitProcess(1)
