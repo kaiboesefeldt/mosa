@@ -21,6 +21,7 @@ internal fun renderIdentityProfileView(
             errorText = null
             canDelete = true
             canConnect = true
+            isPersisted = false
             canNavigatePrevious = false
             canNavigateNext = false
             isShowingLastIdentity = false
@@ -34,6 +35,11 @@ internal fun renderIdentityProfileView(
             onDownload = {}
             canUpload = true
             onUpload = {}
+            canCopy = true
+            onCopy = {}
+            canPaste = true
+            onPaste = {}
+            onPasteContent = {}
             onClose = null
             configure()
         }

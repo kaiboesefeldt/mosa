@@ -21,12 +21,12 @@ class IdentityProfileViewTest {
     }
 
     @Test
-    fun `keeps connect button enabled when busy`() = runTest {
+    fun `keeps connect avatar enabled when busy`() = runTest {
         renderIdentityProfileView {
             isBusy = true
         }
 
-        val connectButton = screen.getByRole("button", json("name" to text("button.connect.aria")))
+        val connectButton = screen.getByRole("button", json("name" to text("profile.identityAvatar.connect")))
 
         assertFalse(connectButton.asDynamic().disabled as Boolean)
     }
@@ -39,7 +39,7 @@ class IdentityProfileViewTest {
             onConnect = { handled = true }
         }
 
-        val connectButton = screen.getByRole("button", json("name" to text("button.connect.aria")))
+        val connectButton = screen.getByRole("button", json("name" to text("profile.identityAvatar.connect")))
 
         val user = userEvent.setup()
         user.click(connectButton).await()
@@ -55,7 +55,7 @@ class IdentityProfileViewTest {
             onConnect = { handled = true }
         }
 
-        val connectButton = screen.getByRole("button", json("name" to text("button.connect.aria")))
+        val connectButton = screen.getByRole("button", json("name" to text("profile.identityAvatar.connect")))
 
         val user = userEvent.setup()
         user.click(connectButton).await()

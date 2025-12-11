@@ -175,6 +175,22 @@ class IdentityRepositoryTest {
         assertEquals("gid-2", first?.identity?.gid)
         assertEquals("gid-3", second.identity.gid)
     }
+
+    @Test
+    fun `delete removes persisted identity from store`() = runTest {
+        val persisted = identity("gid-1")
+        val replacement = identity("gid-2")
+        val generator = QueuedIdentityGenerator(listOf(replacement))
+        val store = RecordingIdentityStore(IdentityStoreState(listOf(persisted), activeIndex = 0))
+        val repository = IdentityRepository(store, generator)
+
+        val selection = repository.deleteCurrent()
+
+        assertEquals(replacement, selection.identity)
+        assertTrue(store.wasCleared)
+        assertEquals(null, store.state)
+        assertTrue(store.storedStates.isEmpty())
+    }
 }
 
 private object UnexpectedIdentityGenerator : IdentityProvider {
@@ -206,11 +222,17 @@ private fun emptyCryptoKeyPair(): CryptoKeyPair =
 private class RecordingIdentityStore(initialState: IdentityStoreState?) : IdentityStore {
     var state: IdentityStoreState? = initialState
     val storedStates = mutableListOf<IdentityStoreState>()
+    var wasCleared: Boolean = false
 
     override suspend fun loadState(): IdentityStoreState? = state
 
     override suspend fun storeState(state: IdentityStoreState) {
         storedStates += state
         this.state = state
+    }
+
+    override suspend fun clearState() {
+        wasCleared = true
+        state = null
     }
 }

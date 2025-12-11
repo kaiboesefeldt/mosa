@@ -54,6 +54,7 @@ class IdentityRepository(
 
     override suspend fun deleteCurrent(): IdentitySelection {
         val current = loadStateOrNull()
+        val previousPersisted = persistedGids
         val updated =
             if (current == null || current.identities.size == 1) {
                 val generated = generator.generate()
@@ -65,6 +66,7 @@ class IdentityRepository(
                 IdentityStoreState(remaining.toList(), nextIndex)
             }
         updateState(updated)
+        prunePersisted(previousPersisted)
         return selectionOf(updated)
     }
 
@@ -137,6 +139,20 @@ class IdentityRepository(
             total = state.identities.size,
             isPersisted = persistedGids.contains(state.current().gid),
         )
+
+    private suspend fun prunePersisted(previousPersisted: Set<String>) {
+        if (previousPersisted.isEmpty()) return
+        if (previousPersisted == persistedGids) return
+        val currentState = state ?: return
+        val persistedIdentities = currentState.identities.filter { persistedGids.contains(it.gid) }
+        if (persistedIdentities.isEmpty()) {
+            store.clearState()
+            return
+        }
+        val activeGid = currentState.current().gid.takeIf { persistedGids.contains(it) } ?: persistedIdentities.first().gid
+        val activeIndex = persistedIdentities.indexOfFirst { it.gid == activeGid }.coerceAtLeast(0)
+        store.storeState(IdentityStoreState(persistedIdentities, activeIndex))
+    }
 }
 
 data class IdentitySelection(

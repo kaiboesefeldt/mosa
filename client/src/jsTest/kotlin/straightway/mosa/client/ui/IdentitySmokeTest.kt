@@ -174,7 +174,7 @@ class IdentitySmokeTest {
             ?: error("Previous button missing")
 
     private fun connectButton(container: Element): Element =
-        container.querySelector(".profile-dialog__actions button")
+        container.querySelector(".profile-dialog__identity-avatar-button")
             ?: error("Connect button missing")
 
     private fun toolsToggle(container: Element): Element =
@@ -247,6 +247,10 @@ private class InMemoryIdentityStore : IdentityStore {
 
     override suspend fun storeState(state: IdentityStoreState) {
         this.state = state
+    }
+
+    override suspend fun clearState() {
+        state = null
     }
 }
 

@@ -25,6 +25,11 @@ class IndexedDbIdentityStore(
             .onFailureLogOrThrowCancellation(logger, "IndexedDB identity store failed")
     }
 
+    override suspend fun clearState() {
+        runCatching { clearInternal() }
+            .onFailureLogOrThrowCancellation(logger, "IndexedDB identity clear failed")
+    }
+
     private suspend fun loadInternal(): IdentityStoreState? {
         val database = schemaManager.openDatabase(asyncBridge) ?: return null
         try {
@@ -45,6 +50,18 @@ class IndexedDbIdentityStore(
             val transaction = database.transaction(schemaManager.objectStoreName, IDBTransactionMode.readwrite)
             val store = transaction.objectStore(schemaManager.objectStoreName)
             asyncBridge.awaitRequest<Any?>(store.put(payload, validSingletonKey))
+            asyncBridge.awaitTransaction(transaction)
+        } finally {
+            database.close()
+        }
+    }
+
+    private suspend fun clearInternal() {
+        val database = schemaManager.openDatabase(asyncBridge) ?: return
+        try {
+            val transaction = database.transaction(schemaManager.objectStoreName, IDBTransactionMode.readwrite)
+            val store = transaction.objectStore(schemaManager.objectStoreName)
+            asyncBridge.awaitRequest<Any?>(store.delete(validSingletonKey))
             asyncBridge.awaitTransaction(transaction)
         } finally {
             database.close()

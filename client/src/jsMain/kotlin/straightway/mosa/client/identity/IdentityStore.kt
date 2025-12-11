@@ -3,6 +3,7 @@ package straightway.mosa.client.identity
 interface IdentityStore {
     suspend fun loadState(): IdentityStoreState?
     suspend fun storeState(state: IdentityStoreState)
+    suspend fun clearState()
 }
 
 data class IdentityStoreState(
