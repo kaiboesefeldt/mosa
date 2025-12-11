@@ -49,7 +49,7 @@ gradle-app.setting
 kotlin-compiler*
 
 # Mosa
-mosa_lucene_index
+mosa_lucene_index*
 models
 kotlin-js-store
 .fx/
