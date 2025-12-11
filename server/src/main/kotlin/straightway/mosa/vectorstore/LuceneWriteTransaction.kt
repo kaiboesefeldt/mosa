@@ -38,7 +38,7 @@ class LuceneWriteTransaction(
             throw RuntimeException("Usage of special field name(s): ${(fields.keys intersect SPECIAL_FIELDS)}")
         }
         if (id in addedItemIds || reader?.containsId(id) == true) {
-            throw BadRequestException("Item with ID $id already exists")
+            throw BadRequestException("Item with ID $id already exists (text: $text, fields: $fields)")
         }
 
         addedItemIds.add(id)
