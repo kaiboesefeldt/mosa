@@ -57,6 +57,7 @@
   "identity.invalidIdentity": "Die Zwischenablage enthält keine gültige Identität",
   "identity.unknownError": "Unbekannter Fehler",
   "profile.identityAvatar.connect": "Identität übernehmen",
+  "profile.identityAvatar.tooltip": "Avatar anklicken, um diese Identität zu übernehmen",
   "profile.description": "Es geht um den Inhalt!",
   "profile.identityLabel": "Du bist",
   "profile.title": "MOSA"

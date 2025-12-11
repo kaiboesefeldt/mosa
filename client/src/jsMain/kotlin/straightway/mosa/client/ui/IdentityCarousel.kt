@@ -72,6 +72,7 @@ internal fun ChildrenBuilder.identityCarousel(
                 className = ClassName("profile-dialog__identity-avatar-button")
                 disabled = !props.canConnect
                 ariaLabel = translator.translate("profile.identityAvatar.connect")
+                title = translator.translate("profile.identityAvatar.tooltip")
                 onClick = {
                     if (!props.isBusy && props.canConnect) {
                         props.onConnect()

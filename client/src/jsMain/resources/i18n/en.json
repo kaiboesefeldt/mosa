@@ -57,6 +57,7 @@
   "identity.invalidIdentity": "Clipboard does not contain a valid identity",
   "identity.unknownError": "Unknown error",
   "profile.identityAvatar.connect": "Adopt identity",
+  "profile.identityAvatar.tooltip": "Click the avatar to adopt this identity",
   "profile.description": "It's about the content!",
   "profile.identityLabel": "You are",
   "profile.title": "MOSA"
