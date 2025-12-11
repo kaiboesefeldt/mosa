@@ -293,6 +293,7 @@ button:disabled {
 
 .profile-dialog__nav-button:disabled {
     color: var(--color-border);
+    cursor: default;
 }
 
 .profile-dialog__identity-progress {
