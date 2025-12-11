@@ -743,9 +743,13 @@ private fun ChildrenBuilder.postsColumn(
         event.currentTarget.dataset["mosaScrollReady"] = "true"
     }
     val activeFilterTopic =
-        posts.firstNotNullOfOrNull { topicPosts ->
-            activeFilters[topicPosts.topic.title]?.let { topicPosts.topic to it }
-        }
+        selectedTopic
+            ?.let { topic ->
+                activeFilters[topic.title]?.let { topic to it }
+            }
+            ?: posts.firstNotNullOfOrNull { topicPosts ->
+                activeFilters[topicPosts.topic.title]?.let { topicPosts.topic to it }
+            }
     div {
         className = ClassName("topic-board__column-header")
         span {
