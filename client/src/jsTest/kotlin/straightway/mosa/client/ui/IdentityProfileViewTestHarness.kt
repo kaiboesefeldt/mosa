@@ -41,6 +41,8 @@ internal fun renderIdentityProfileView(
             onPaste = {}
             onPasteContent = {}
             onClose = null
+            exitAnimation = ProfileExitAnimation.None
+            entryAnimation = ProfileEntryAnimation.None
             configure()
         }
     )

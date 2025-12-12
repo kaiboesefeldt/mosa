@@ -103,6 +103,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val isAppendingRepliesRef = useRef(false)
     val repliesRequestVersion = useRef(0)
     val (isProfileVisible, setProfileVisible) = useState(false)
+    val (profileEntryAnimation, setProfileEntryAnimation) = useState(ProfileEntryAnimation.None)
+    val profileEntryTimerRef = useRef<Int>()
+    val (profileExitAnimation, setProfileExitAnimation) = useState(ProfileExitAnimation.None)
+    val profileExitTimerRef = useRef<Int>()
+    val profileAnimationDurationMs = 760
     val (isComposerOpen, setComposerOpen) = useState(false)
     val (composerText, setComposerText) = useState("")
     val (isPublishing, setPublishing) = useState(false)
@@ -262,10 +267,37 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
+    fun clearProfileExitTimer() {
+        profileExitTimerRef.current?.let { timerId ->
+            window.clearTimeout(timerId)
+            profileExitTimerRef.current = null
+        }
+    }
+
+    fun clearProfileEntryTimer() {
+        profileEntryTimerRef.current?.let { timerId ->
+            window.clearTimeout(timerId)
+            profileEntryTimerRef.current = null
+        }
+    }
+
+    fun startProfileEntryAnimation() {
+        clearProfileExitTimer()
+        setProfileExitAnimation(ProfileExitAnimation.None)
+        clearProfileEntryTimer()
+        setProfileEntryAnimation(ProfileEntryAnimation.AvatarEmerge)
+        val timerId = window.setTimeout({
+            setProfileEntryAnimation(ProfileEntryAnimation.None)
+        }, profileAnimationDurationMs)
+        profileEntryTimerRef.current = timerId
+    }
+
     useEffect(*noDependencies) {
         try {
             awaitCancellation()
         } finally {
+            clearProfileExitTimer()
+            clearProfileEntryTimer()
             scope.cancel()
         }
     }
@@ -273,6 +305,15 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val avatarDescription = translator.translate("connected.profile.avatar.title")
 
     fun persistProfileVisibility(visible: Boolean) {
+        if (visible) {
+            clearProfileExitTimer()
+            setProfileExitAnimation(ProfileExitAnimation.None)
+        } else {
+            clearProfileEntryTimer()
+            setProfileEntryAnimation(ProfileEntryAnimation.None)
+            clearProfileExitTimer()
+            setProfileExitAnimation(ProfileExitAnimation.None)
+        }
         setProfileVisible(visible)
         scope.launch {
             persistSessionSnapshot { snapshot ->
@@ -313,11 +354,35 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     fun showProfile() {
+        if (isProfileVisible) {
+            if (!props.profile.isPersisted) {
+                startProfileEntryAnimation()
+            }
+            return
+        }
+        startProfileEntryAnimation()
         persistProfileVisibility(true)
     }
 
     fun hideProfile() {
+        clearProfileEntryTimer()
+        setProfileEntryAnimation(ProfileEntryAnimation.None)
+        clearProfileExitTimer()
+        setProfileExitAnimation(ProfileExitAnimation.None)
         persistProfileVisibility(false)
+    }
+
+    fun hideProfileWithSuction() {
+        if (!isProfileVisible) return
+        if (profileExitAnimation == ProfileExitAnimation.AvatarSuction) return
+        clearProfileExitTimer()
+        clearProfileEntryTimer()
+        setProfileEntryAnimation(ProfileEntryAnimation.None)
+        setProfileExitAnimation(ProfileExitAnimation.AvatarSuction)
+        val timerId = window.setTimeout({
+            hideProfile()
+        }, profileAnimationDurationMs)
+        profileExitTimerRef.current = timerId
     }
 
     fun openComposer() {
@@ -642,15 +707,19 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         )
     }
 
-    if (isProfileVisible) {
+    val shouldRenderProfile = isProfileVisible || profileExitAnimation != ProfileExitAnimation.None
+
+    if (shouldRenderProfile) {
         IdentityProfileView {
             applyFrom(props.profile)
             val connectProfile = props.profile.onConnect
             onClose = { hideProfile() }
             onConnect = {
                 connectProfile()
-                hideProfile()
+                hideProfileWithSuction()
             }
+            exitAnimation = profileExitAnimation
+            entryAnimation = profileEntryAnimation
         }
     }
 

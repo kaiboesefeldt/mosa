@@ -47,6 +47,18 @@ external interface IdentityProfileViewProps : Props {
     var onPaste: () -> Unit
     var onPasteContent: (String) -> Unit
     var onClose: (() -> Unit)?
+    var exitAnimation: ProfileExitAnimation
+    var entryAnimation: ProfileEntryAnimation
+}
+
+enum class ProfileExitAnimation {
+    None,
+    AvatarSuction,
+}
+
+enum class ProfileEntryAnimation {
+    None,
+    AvatarEmerge,
 }
 
 val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
@@ -127,17 +139,43 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
             window.removeEventListener("keydown", listener)
         }
     }
+    val overlayClass =
+        listOfNotNull(
+            "profile-overlay",
+            when (props.entryAnimation) {
+                ProfileEntryAnimation.AvatarEmerge -> "profile-overlay--emerge"
+                ProfileEntryAnimation.None -> null
+            },
+            when (props.exitAnimation) {
+                ProfileExitAnimation.AvatarSuction -> "profile-overlay--suction"
+                ProfileExitAnimation.None -> null
+            },
+        ).joinToString(" ")
+    val dialogClass =
+        listOfNotNull(
+            "profile-dialog",
+            when (props.entryAnimation) {
+                ProfileEntryAnimation.AvatarEmerge -> "profile-dialog--emerge"
+                ProfileEntryAnimation.None -> null
+            },
+            when (props.exitAnimation) {
+                ProfileExitAnimation.AvatarSuction -> "profile-dialog--suction"
+                ProfileExitAnimation.None -> null
+            },
+        ).joinToString(" ")
     div {
-        className = ClassName("profile-overlay")
-        props.onClose?.let { onClose ->
-            onClick = { event: MouseEvent<*, *> ->
-                if (event.target == event.currentTarget) {
-                    onClose()
+        className = ClassName(overlayClass)
+        props.onClose
+            ?.takeIf { props.exitAnimation == ProfileExitAnimation.None && props.entryAnimation == ProfileEntryAnimation.None }
+            ?.let { onClose ->
+                onClick = { event: MouseEvent<*, *> ->
+                    if (event.target == event.currentTarget) {
+                        onClose()
+                    }
                 }
             }
-        }
         div {
-            className = ClassName("profile-dialog")
+            className = ClassName(dialogClass)
             identityDialogHeader(translator)
             identityCarousel(
                 translator = translator,
@@ -208,6 +246,8 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
     onUpload = screen.onUpload
     onPaste = screen.onPaste
     onPasteContent = screen.onPasteContent
+    exitAnimation = ProfileExitAnimation.None
+    entryAnimation = ProfileEntryAnimation.None
 }
 
 private fun Event.asPasteEvent(): ClipboardEvent? =

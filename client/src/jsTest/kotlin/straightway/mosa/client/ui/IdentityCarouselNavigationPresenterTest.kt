@@ -127,6 +127,8 @@ class IdentityCarouselNavigationPresenterTest {
         props.onSelect = {}
         props.onDownload = {}
         props.onUpload = {}
+        props.exitAnimation = ProfileExitAnimation.None
+        props.entryAnimation = ProfileEntryAnimation.None
         configure(props)
         return props
     }

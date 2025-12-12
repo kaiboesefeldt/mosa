@@ -74,6 +74,14 @@ button:disabled {
     overflow-y: auto;
 }
 
+.profile-overlay--suction {
+    animation: profile-overlay-fade 720ms ease forwards;
+}
+
+.profile-overlay--emerge {
+    animation: profile-overlay-appear 720ms ease forwards;
+}
+
 .profile-dialog {
     width: min(520px, 100%);
     padding: 1.6rem;
@@ -85,6 +93,20 @@ button:disabled {
     display: grid;
     gap: 1.35rem;
     position: relative;
+}
+
+.profile-dialog--suction {
+    animation: profile-dialog-suction 720ms cubic-bezier(0.22, 0.68, 0.18, 0.98) forwards;
+    transform-origin: 80% 16%;
+}
+
+.profile-dialog--suction .profile-dialog__toast {
+    display: none;
+}
+
+.profile-dialog--emerge {
+    animation: profile-dialog-emerge 720ms cubic-bezier(0.16, 0.86, 0.24, 1) forwards;
+    transform-origin: 80% 16%;
 }
 
 .profile-dialog__header {
@@ -363,6 +385,91 @@ button:disabled {
     to {
         transform: translate(-50%, 100%);
         opacity: 1;
+    }
+}
+
+@keyframes profile-dialog-suction {
+    0% {
+        transform: perspective(1400px) translate3d(0, 0, 0) scale(1) rotate(0deg) skewY(0deg);
+        opacity: 1;
+        filter: drop-shadow(0 24px 60px rgba(15, 23, 42, 0.18));
+    }
+    22% {
+        transform: perspective(1400px) translate3d(0, -10px, 0) scaleX(1.02) scaleY(0.9) rotate(-2deg) skewY(-6deg);
+    }
+    52% {
+        transform: perspective(1400px) translate3d(80px, -120px, -80px) scaleX(1.14) scaleY(0.36) rotate(6deg) skewY(-18deg);
+        opacity: 0.78;
+        filter: blur(6px);
+    }
+    82% {
+        transform: perspective(1400px) translate3d(170px, -200px, -140px) scaleX(1.26) scaleY(0.18) rotate(10deg) skewY(-26deg);
+        opacity: 0.46;
+        filter: blur(10px);
+    }
+    100% {
+        transform: perspective(1400px) translate3d(230px, -280px, -220px) scaleX(1.32) scaleY(0.05) rotate(14deg) skewY(-32deg);
+        opacity: 0;
+        filter: blur(16px);
+    }
+}
+
+@keyframes profile-overlay-fade {
+    from {
+        opacity: 1;
+        backdrop-filter: blur(5px) saturate(1);
+        background: radial-gradient(circle at 20% 18%, rgba(15, 23, 42, 0.52), rgba(15, 23, 42, 0.28));
+    }
+    to {
+        opacity: 0;
+        backdrop-filter: blur(0px) saturate(0.9);
+        background: rgba(15, 23, 42, 0);
+    }
+}
+
+@keyframes profile-dialog-emerge {
+    0% {
+        transform: perspective(1400px) translate3d(230px, -280px, -220px) scaleX(1.32) scaleY(0.05) rotate(14deg) skewY(-32deg);
+        opacity: 0;
+        filter: blur(16px);
+    }
+    26% {
+        transform: perspective(1400px) translate3d(170px, -200px, -140px) scaleX(1.24) scaleY(0.22) rotate(8deg) skewY(-20deg);
+        opacity: 0.42;
+        filter: blur(10px);
+    }
+    54% {
+        transform: perspective(1400px) translate3d(80px, -120px, -60px) scaleX(1.08) scaleY(0.62) rotate(2deg) skewY(-10deg);
+        opacity: 0.82;
+        filter: blur(5px);
+    }
+    78% {
+        transform: perspective(1400px) translate3d(0, -6px, 0) scaleX(0.98) scaleY(1.05) rotate(-2deg) skewY(4deg);
+        opacity: 0.98;
+        filter: drop-shadow(0 24px 60px rgba(15, 23, 42, 0.18));
+    }
+    100% {
+        transform: perspective(1400px) translate3d(0, 0, 0) scale(1) rotate(0deg) skewY(0deg);
+        opacity: 1;
+        filter: drop-shadow(0 24px 60px rgba(15, 23, 42, 0.18));
+    }
+}
+
+@keyframes profile-overlay-appear {
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0px) saturate(0.9);
+        background: rgba(15, 23, 42, 0);
+    }
+    50% {
+        opacity: 0.72;
+        backdrop-filter: blur(6px) saturate(1.05);
+        background: radial-gradient(circle at 20% 18%, rgba(15, 23, 42, 0.42), rgba(15, 23, 42, 0.32));
+    }
+    to {
+        opacity: 1;
+        backdrop-filter: blur(5px) saturate(1);
+        background: rgba(15, 23, 42, 0.45);
     }
 }
 
