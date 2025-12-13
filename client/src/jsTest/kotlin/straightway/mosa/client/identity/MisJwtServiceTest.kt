@@ -10,6 +10,11 @@ import straightway.mosa.client.AppModule
 import straightway.mosa.client.test.ensureStacktraceMapperInstalled
 import straightway.mosa.client.util.Base64
 import straightway.mosa.client.util.Base64.toBase64Url
+import straightway.mosa.client.browser.KeyAlgorithm
+import straightway.mosa.client.browser.KeyUsage
+import straightway.mosa.client.browser.CryptoKeyPair
+import kotlin.js.json
+import kotlin.js.unsafeCast
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -76,6 +81,65 @@ class MisJwtServiceTest : KoinComponent {
         assertJwtValuesMatch(jwt, identity, cert)
     }
 
+    @Test
+    fun `buildMisJwt works with protected identity`() = runTest {
+        AppModule.start()
+        val generator = this@MisJwtServiceTest.get<IdentityGenerator>()
+        val protector = this@MisJwtServiceTest.get<IdentityProtector>()
+        val identity = generator.generate()
+        val expectedPub = this@MisJwtServiceTest.get<CryptoExport>().pubRawOf(identity.keyPair).toBase64Url()
+        val cert = PodCertificate(
+            gid = identity.gid,
+            exp = NOW + 600,
+            sig = "deadbeefcafebabe",
+            inf = "info",
+        )
+
+        val protectedIdentity = protector.protect(identity, "password")
+
+        val jwt = sut.buildMisJwt(protectedIdentity, cert, lifetimeSeconds = LIFETIME_SECONDS)
+
+        val parts = jwt.split('.')
+        val payloadJson = decodeB64UrlToString(parts[1])
+        val payload = JSON.parse<dynamic>(payloadJson)
+        assertEquals(expectedPub, payload.pub as String)
+    }
+
+    @Test
+    fun `buildMisJwt succeeds when public key is non exportable`() = runTest {
+        AppModule.start()
+        val generator = this@MisJwtServiceTest.get<IdentityGenerator>()
+        val protector = this@MisJwtServiceTest.get<IdentityProtector>()
+        val cryptoExport = this@MisJwtServiceTest.get<CryptoExport>()
+        val subtle = this@MisJwtServiceTest.get<SubtleCrypto>()
+        val identity = generator.generate()
+        val publicBytes = cryptoExport.pubRawOf(identity.keyPair)
+        val nonExportablePublicKey =
+            subtle.importKey("raw", publicBytes, KeyAlgorithm.Ed25519, false, arrayOf(KeyUsage.Verify))
+        val identityWithConstrainedPublic =
+            identity.copy(
+                keyPair = json(
+                    "publicKey" to nonExportablePublicKey,
+                    "privateKey" to identity.keyPair.privateKey,
+                ).unsafeCast<CryptoKeyPair>(),
+                publicKeyBase64 = publicBytes.toBase64Url(),
+            )
+        val protectedIdentity = protector.protect(identityWithConstrainedPublic, "password")
+        val cert = PodCertificate(
+            gid = identity.gid,
+            exp = NOW + 600,
+            sig = "deadbeefcafebabe",
+            inf = "info",
+        )
+
+        val jwt = sut.buildMisJwt(protectedIdentity, cert, lifetimeSeconds = LIFETIME_SECONDS)
+
+        val parts = jwt.split('.')
+        assertEquals(3, parts.size)
+        val payload = JSON.parse<dynamic>(decodeB64UrlToString(parts[1]))
+        assertEquals(publicBytes.toBase64Url(), payload.pub as String)
+    }
+
     private suspend fun assertJwtValuesMatch(
         jwt: String,
         identity: Identity,
@@ -88,12 +152,6 @@ class MisJwtServiceTest : KoinComponent {
         assertTrue(hB64.isNotBlank(), "Header part present")
         assertTrue(pB64.isNotBlank(), "Payload part present")
         assertTrue(sigB64.isNotBlank(), "Signature part present")
-
-        fun decodeB64UrlToString(b64: String): String {
-            val bytes = Base64.fromBase64Url(b64)
-            val decoder = js("new TextDecoder('utf-8')")
-            return decoder.decode(bytes) as String
-        }
 
         // Decode header/payload JSON
         val headerJson = decodeB64UrlToString(hB64)
@@ -126,5 +184,11 @@ class MisJwtServiceTest : KoinComponent {
     private companion object {
         const val LIFETIME_SECONDS = 120L
         const val NOW = 1000L
+    }
+
+    private fun decodeB64UrlToString(b64: String): String {
+        val bytes = Base64.fromBase64Url(b64)
+        val decoder = js("new TextDecoder('utf-8')")
+        return decoder.decode(bytes) as String
     }
 }

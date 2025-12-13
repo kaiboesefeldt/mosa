@@ -15,9 +15,10 @@ class IdentityGenerator(
 
         with(subtleCrypto) {
             val keyPair = generateKey(algorithm, true, usages)
-            val digestBytes = digest("SHA-256", cryptoExport.pubRawOf(keyPair))
+            val publicKey = cryptoExport.pubRawOf(keyPair)
+            val digestBytes = digest("SHA-256", publicKey)
             val gid = digestBytes.toBase64Url()
-            return Identity(gid, keyPair)
+            return Identity(gid, keyPair, publicKeyBase64 = publicKey.toBase64Url())
         }
     }
 }

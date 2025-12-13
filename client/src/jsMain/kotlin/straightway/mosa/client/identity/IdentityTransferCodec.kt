@@ -17,7 +17,7 @@ class IdentityTransferCodec(
     private val jsonCodec: Json,
 ) {
     suspend fun encode(identity: Identity): String {
-        val publicKey = cryptoExport.pubRawOf(identity.keyPair).toBase64Url()
+        val publicKey = identity.publicKeyBase64 ?: cryptoExport.pubRawOf(identity.keyPair).toBase64Url()
         val privateKey = cryptoExport.privPkcs8Of(identity.keyPair).toBase64Url()
         val payload = IdentityTransferPayload(identity.gid, publicKey, privateKey)
         return jsonCodec.encodeToString(IdentityTransferPayload.serializer(), payload)
@@ -37,7 +37,7 @@ class IdentityTransferCodec(
                 "publicKey" to publicKey,
                 "privateKey" to privateKey,
             ).unsafeCast<CryptoKeyPair>()
-        return Identity(digest, keyPair)
+        return Identity(digest, keyPair, publicKeyBase64 = payload.publicKey)
     }
 }
 

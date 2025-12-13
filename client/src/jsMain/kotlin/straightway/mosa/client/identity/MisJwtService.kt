@@ -24,7 +24,7 @@ class MisJwtService(
 
         val payload =
             JwtPayload(
-                pub = cryptoExport.pubRawOf(identity.keyPair).toBase64Url(),
+                pub = identity.publicKeyBase64 ?: cryptoExport.pubRawOf(identity.keyPair).toBase64Url(),
                 cert = cert,
                 exp = (nowSeconds + lifetimeSeconds).toInt(),
                 mvs = "1",

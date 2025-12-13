@@ -26,19 +26,23 @@ open class IdentityProtector(
         require(identity.protectedExport == null) { "Identity already protected" }
         val payload = payload(identity)
         val serialized = encrypt(payload, password)
-        val protectedKeyPair = importKeyPair(payload, exportable = false)
-        return identity.copy(keyPair = protectedKeyPair, protectedExport = serialized)
+        val protectedKeyPair = importKeyPair(payload, privateExportable = false)
+        return identity.copy(
+            keyPair = protectedKeyPair,
+            protectedExport = serialized,
+            publicKeyBase64 = payload.publicKey,
+        )
     }
 
     open suspend fun import(serialized: String, password: String): Identity {
         require(password.isNotEmpty()) { "Password required" }
         val payload = decrypt(serialized, password)
-        val keyPair = importKeyPair(payload, exportable = false)
-        return Identity(payload.gid, keyPair, serialized)
+        val keyPair = importKeyPair(payload, privateExportable = false)
+        return Identity(payload.gid, keyPair, serialized, payload.publicKey)
     }
 
     private suspend fun payload(identity: Identity): IdentityTransferPayload {
-        val publicKey = export.pubRawOf(identity.keyPair).toBase64Url()
+        val publicKey = identity.publicKeyBase64 ?: export.pubRawOf(identity.keyPair).toBase64Url()
         val privateKey = export.privPkcs8Of(identity.keyPair).toBase64Url()
         return IdentityTransferPayload(identity.gid, publicKey, privateKey)
     }
@@ -81,12 +85,12 @@ open class IdentityProtector(
         require(digest == payload.gid) { "Public key digest mismatch" }
     }
 
-    private suspend fun importKeyPair(payload: IdentityTransferPayload, exportable: Boolean): CryptoKeyPair {
+    private suspend fun importKeyPair(payload: IdentityTransferPayload, privateExportable: Boolean): CryptoKeyPair {
         val publicKeyBytes = Base64.fromBase64Url(payload.publicKey)
         val privateKeyBytes = Base64.fromBase64Url(payload.privateKey)
         val algorithm = KeyAlgorithm.Ed25519
-        val publicKey = subtle.importKey("raw", publicKeyBytes, algorithm, exportable, arrayOf(KeyUsage.Verify))
-        val privateKey = subtle.importKey("pkcs8", privateKeyBytes, algorithm, exportable, arrayOf(KeyUsage.Sign))
+        val publicKey = subtle.importKey("raw", publicKeyBytes, algorithm, true, arrayOf(KeyUsage.Verify))
+        val privateKey = subtle.importKey("pkcs8", privateKeyBytes, algorithm, privateExportable, arrayOf(KeyUsage.Sign))
         return json(
             "publicKey" to publicKey,
             "privateKey" to privateKey,

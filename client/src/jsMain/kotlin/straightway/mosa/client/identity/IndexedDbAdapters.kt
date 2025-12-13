@@ -93,6 +93,7 @@ class IdentityRecordMapper {
                 "protectedExport" to protectedExport,
                 "publicKey" to identity.keyPair.publicKey,
                 "privateKey" to identity.keyPair.privateKey,
+                "publicKeyBase64" to identity.publicKeyBase64,
             )
         }.toTypedArray()
         return json(
@@ -119,6 +120,7 @@ class IdentityRecordMapper {
         val protectedExport = entry.protectedExport as? String ?: return null
         val publicKeyDynamic = entry.publicKey ?: return null
         val privateKeyDynamic = entry.privateKey ?: return null
+        val publicKeyBase64 = entry.publicKeyBase64 as? String
         val storedPublicKey = publicKeyDynamic.unsafeCast<CryptoKey>()
         val storedPrivateKey = privateKeyDynamic.unsafeCast<CryptoKey>()
         val keyPair =
@@ -126,7 +128,7 @@ class IdentityRecordMapper {
                 "publicKey" to storedPublicKey,
                 "privateKey" to storedPrivateKey,
             ).unsafeCast<CryptoKeyPair>()
-        return Identity(gid, keyPair, protectedExport)
+        return Identity(gid, keyPair, protectedExport, publicKeyBase64)
     }
 
     private fun resolveIndex(indexValue: Any?, lastIndex: Int): Int =
