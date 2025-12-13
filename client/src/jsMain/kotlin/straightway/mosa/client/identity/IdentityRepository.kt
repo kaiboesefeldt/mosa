@@ -7,12 +7,14 @@ interface IdentitySelectionRepository {
     suspend fun deleteCurrent(): IdentitySelection
     suspend fun select(index: Int): IdentitySelection?
     suspend fun import(identity: Identity): IdentitySelection
+    suspend fun protectCurrent(password: String): IdentitySelection
     suspend fun persist()
 }
 
 class IdentityRepository(
     private val store: IdentityStore,
     private val generator: IdentityProvider,
+    private val protector: IdentityProtector,
 ) : IdentitySelectionRepository {
     private var state: IdentityStoreState? = null
     private var persistedGids: Set<String> = emptySet()
@@ -80,6 +82,7 @@ class IdentityRepository(
     }
 
     override suspend fun import(identity: Identity): IdentitySelection {
+        require(identity.protectedExport != null) { "Imported identity must be protected" }
         val current = loadStateOrNull()
         val updated =
             if (current == null) {
@@ -93,20 +96,30 @@ class IdentityRepository(
                 }
             }
         updateState(updated)
+        rememberPersisted(updated)
+        storePersisted(updated)
+        return selectionOf(updated)
+    }
+
+    override suspend fun protectCurrent(password: String): IdentitySelection {
+        val current = loadStateOrNull() ?: generateInitial()
+        val active = current.current()
+        if (active.protectedExport != null) return selectionOf(current)
+        val protected = protector.protect(active, password)
+        val identities = current.identities.toMutableList()
+        identities[current.activeIndex] = protected
+        val updated = IdentityStoreState(identities.toList(), current.activeIndex)
+        updateState(updated)
+        rememberPersisted(updated)
+        storePersisted(updated)
         return selectionOf(updated)
     }
 
     override suspend fun persist() {
         val current = loadStateOrNull() ?: return
-        val persistedIdentities =
-            current.identities.filter { identity ->
-                identity.gid == current.current().gid || persistedGids.contains(identity.gid)
-            }
-        if (persistedIdentities.isEmpty()) return
-        val activeIndex = persistedIdentities.indexOfFirst { it.gid == current.current().gid }.coerceAtLeast(0)
-        val storedState = IdentityStoreState(persistedIdentities, activeIndex)
-        store.storeState(storedState)
-        persistedGids = persistedGids + persistedIdentities.map { it.gid }
+        val active = current.current()
+        require(active.protectedExport != null) { "Identity must be protected before persisting" }
+        storePersisted(current)
     }
 
     private suspend fun loadStateOrNull(): IdentityStoreState? {
@@ -123,12 +136,12 @@ class IdentityRepository(
 
     private fun rememberPersisted(newState: IdentityStoreState) {
         state = newState
-        persistedGids = newState.identities.map { it.gid }.toSet()
+        persistedGids = newState.identities.filter { it.protectedExport != null }.map { it.gid }.toSet()
     }
 
     private fun updateState(newState: IdentityStoreState) {
-        val presentGids = newState.identities.map { it.gid }.toSet()
-        persistedGids = persistedGids.intersect(presentGids)
+        val protectedGids = newState.identities.filter { it.protectedExport != null }.map { it.gid }.toSet()
+        persistedGids = persistedGids.intersect(protectedGids)
         state = newState
     }
 
@@ -152,6 +165,26 @@ class IdentityRepository(
         val activeGid = currentState.current().gid.takeIf { persistedGids.contains(it) } ?: persistedIdentities.first().gid
         val activeIndex = persistedIdentities.indexOfFirst { it.gid == activeGid }.coerceAtLeast(0)
         store.storeState(IdentityStoreState(persistedIdentities, activeIndex))
+    }
+
+    private suspend fun generateInitial(): IdentityStoreState {
+        val generated = generator.generate()
+        val initial = IdentityStoreState(listOf(generated), 0)
+        updateState(initial)
+        return initial
+    }
+
+    private suspend fun storePersisted(state: IdentityStoreState) {
+        val persistedIdentities =
+            state.identities.filter { identity ->
+                identity.protectedExport != null &&
+                    (persistedGids.contains(identity.gid) || identity.gid == state.current().gid)
+            }
+        if (persistedIdentities.isEmpty()) return
+        val activeIndex = persistedIdentities.indexOfFirst { it.gid == state.current().gid }.coerceAtLeast(0)
+        val storedState = IdentityStoreState(persistedIdentities, activeIndex)
+        store.storeState(storedState)
+        persistedGids = persistedIdentities.map { it.gid }.toSet()
     }
 }
 

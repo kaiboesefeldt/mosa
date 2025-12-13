@@ -24,25 +24,24 @@ import web.navigator.Navigator
 import web.navigator.navigator
 
 interface IdentityTransferPort {
-    suspend fun download(identity: Identity, fileBaseName: String)
-    suspend fun upload(): Identity?
-    suspend fun copyToClipboard(identity: Identity)
-    suspend fun pasteFromClipboard(): Identity
-    suspend fun decode(serialized: String): Identity
+    suspend fun download(protectedExport: String, fileBaseName: String)
+    suspend fun upload(): String?
+    suspend fun copyToClipboard(protectedExport: String)
+    suspend fun pasteFromClipboard(): String
 }
 
 class IdentityTransferService(
-    private val codec: IdentityTransferCodec,
     private val urlFactory: ObjectUrlFactory,
 ) : IdentityTransferPort {
-    override suspend fun copyToClipboard(identity: Identity) {
+    override suspend fun copyToClipboard(protectedExport: String) {
+        val content = protectedExport.trim()
+        if (content.isEmpty()) throw InvalidIdentityTransferException("Identity export is empty")
         val clipboard = navigatorOrNull()?.clipboard
-        val json = codec.encode(identity)
-        if (copyTextToClipboard(json, clipboard)) return
+        if (copyTextToClipboard(content, clipboard)) return
         throw InvalidIdentityTransferException("Clipboard write is not allowed")
     }
 
-    override suspend fun pasteFromClipboard(): Identity {
+    override suspend fun pasteFromClipboard(): String {
         val clipboard = navigatorOrNull()?.clipboard ?: error("Clipboard not available")
         val content =
             runCatching { readClipboardText(clipboard) }
@@ -51,14 +50,12 @@ class IdentityTransferService(
                 }
                 .trim()
         if (content.isEmpty()) throw InvalidIdentityTransferException("Clipboard is empty")
-        return decode(content)
+        return content
     }
 
-    override suspend fun decode(serialized: String): Identity = decodeSerialized(serialized)
-
-    override suspend fun download(identity: Identity, fileBaseName: String) {
-        val json = codec.encode(identity)
-        val blob = Blob(arrayOf(json), BlobPropertyBag(type = "application/json"))
+    override suspend fun download(protectedExport: String, fileBaseName: String) {
+        if (protectedExport.isBlank()) throw InvalidIdentityTransferException("Identity export is empty")
+        val blob = Blob(arrayOf(protectedExport), BlobPropertyBag(type = "application/json"))
         val anchor = document.createElement("a") as HTMLAnchorElement
         val objectUrl = urlFactory.create(blob)
         anchor.href = objectUrl.value
@@ -72,18 +69,12 @@ class IdentityTransferService(
         }
     }
 
-    override suspend fun upload(): Identity? {
+    override suspend fun upload(): String? {
         val file = selectFile() ?: return null
         val content = readFile(file)
-        return decodeSerialized(content)
+        if (content.isBlank()) throw InvalidIdentityTransferException("Identity file is empty")
+        return content
     }
-
-    private suspend fun decodeSerialized(serialized: String): Identity =
-        try {
-            codec.decode(serialized)
-        } catch (error: Throwable) {
-            throw InvalidIdentityTransferException(error.message ?: "Identity parse failed", error)
-        }
 
     private suspend fun selectFile(): File? =
         suspendCancellableCoroutine { continuation ->

@@ -10,13 +10,18 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlin.js.js
 import straightway.mosa.client.browser.CryptoKey
 import straightway.mosa.client.browser.CryptoKeyPair
+import straightway.mosa.client.browser.SubtleCrypto
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.identity.IdentityTransferPort
 import straightway.mosa.client.identity.InvalidIdentityTransferException
+import straightway.mosa.client.identity.IdentityProtector
+import straightway.mosa.client.identity.PasswordPrompter
+import straightway.mosa.client.identity.CryptoExport
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.identity.FictionalName
 
@@ -117,17 +122,21 @@ class IdentitySessionStateMachineTest {
         val store = RecordingIdentitySessionStore()
         val transfer =
             object : IdentityTransferPort {
-                override suspend fun download(identity: Identity, fileBaseName: String) = Unit
+                override suspend fun download(protectedExport: String, fileBaseName: String) = Unit
 
-                override suspend fun copyToClipboard(identity: Identity) = Unit
+                override suspend fun copyToClipboard(protectedExport: String) = Unit
 
-                override suspend fun upload(): Identity? = null
+                override suspend fun upload(): String? = null
 
-                override suspend fun pasteFromClipboard(): Identity = pastedIdentity
-
-                override suspend fun decode(serialized: String): Identity = pastedIdentity
+                override suspend fun pasteFromClipboard(): String = "serialized"
             }
-        val machine = createMachine(repository, store, transfer)
+        val machine = createMachine(
+            repository = repository,
+            store = store,
+            transfer = transfer,
+            protector = StubProtector(pastedIdentity),
+            passwordPrompter = StaticPasswordPrompter("pw"),
+        )
 
         machine.refresh()
         advanceUntilIdle()
@@ -147,19 +156,22 @@ class IdentitySessionStateMachineTest {
         val store = RecordingIdentitySessionStore()
         val transfer =
             object : IdentityTransferPort {
-                override suspend fun download(identity: Identity, fileBaseName: String) = Unit
+                override suspend fun download(protectedExport: String, fileBaseName: String) = Unit
 
-                override suspend fun copyToClipboard(identity: Identity) = Unit
+                override suspend fun copyToClipboard(protectedExport: String) = Unit
 
-                override suspend fun upload(): Identity? = null
+                override suspend fun upload(): String? = null
 
-                override suspend fun pasteFromClipboard(): Identity =
-                    throw InvalidIdentityTransferException("corrupted")
-
-                override suspend fun decode(serialized: String): Identity =
+                override suspend fun pasteFromClipboard(): String =
                     throw InvalidIdentityTransferException("corrupted")
             }
-        val machine = createMachine(repository, store, transfer)
+        val machine = createMachine(
+            repository = repository,
+            store = store,
+            transfer = transfer,
+            protector = StubProtector(initialIdentity),
+            passwordPrompter = StaticPasswordPrompter("pw"),
+        )
 
         machine.refresh()
         advanceUntilIdle()
@@ -177,10 +189,14 @@ private fun TestScope.createMachine(
     repository: IdentitySelectionRepository,
     store: IdentitySessionStore,
     transfer: IdentityTransferPort = NoopIdentityTransferPort,
+    protector: IdentityProtector = StubProtector(identity("imported")),
+    passwordPrompter: PasswordPrompter = StaticPasswordPrompter("pw"),
 ): IdentitySessionStateMachine =
     IdentitySessionStateMachine(
         repository = repository,
         transfer = transfer,
+        protector = protector,
+        passwordPrompter = passwordPrompter,
         textProvider = TestIdentitySessionTextProvider,
         visualsProvider = { identity ->
             IdentityVisuals(FictionalName(listOf(identity.gid)), identity.gid)
@@ -244,6 +260,8 @@ private class FakeIdentitySelectionRepository(
         return currentSelection()
     }
 
+    override suspend fun protectCurrent(password: String): IdentitySelection = currentSelection()
+
     override suspend fun persist() {
         persistCalls += 1
     }
@@ -272,17 +290,31 @@ private object TestLogger : Logger {
 }
 
 private object NoopIdentityTransferPort : IdentityTransferPort {
-    override suspend fun download(identity: Identity, fileBaseName: String) = Unit
+    override suspend fun download(protectedExport: String, fileBaseName: String) = Unit
 
-    override suspend fun copyToClipboard(identity: Identity) = Unit
+    override suspend fun copyToClipboard(protectedExport: String) = Unit
 
-    override suspend fun upload(): Identity? = null
+    override suspend fun upload(): String? = null
 
-    override suspend fun pasteFromClipboard(): Identity =
+    override suspend fun pasteFromClipboard(): String =
         throw UnsupportedOperationException("Not used in test")
+}
 
-    override suspend fun decode(serialized: String): Identity =
-        throw UnsupportedOperationException("Not used in test")
+private class StaticPasswordPrompter(
+    private val password: String?,
+) : PasswordPrompter {
+    override suspend fun promptNewPassword(): String? = password
+
+    override suspend fun promptExistingPassword(): String? = password
+}
+
+private class StubProtector(
+    private val imported: Identity,
+) : IdentityProtector(SubtleCrypto(js("{}")), CryptoExport(SubtleCrypto(js("{}")))) {
+    override suspend fun protect(identity: Identity, password: String): Identity =
+        identity.copy(protectedExport = "protected")
+
+    override suspend fun import(serialized: String, password: String): Identity = imported
 }
 
 private class RecordingIdentitySessionStore(

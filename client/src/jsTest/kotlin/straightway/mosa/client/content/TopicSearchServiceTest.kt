@@ -369,6 +369,8 @@ private class StaticIdentityRepository(
 
     override suspend fun import(identity: Identity): IdentitySelection = identitySelection()
 
+    override suspend fun protectCurrent(password: String): IdentitySelection = identitySelection()
+
     override suspend fun persist() = Unit
 
     private fun identitySelection(): IdentitySelection = IdentitySelection(identity, 0, 1, true)

@@ -291,9 +291,6 @@ private class RecordingPodAccess(
             }
         return FetchResult(entries)
     }
-
-    fun lastQueryOnId(root: String): String? =
-        queryOnRoots.entries.firstOrNull { (_, value) -> value == root }?.key
 }
 
 private class FakeReplyCache : ReplyCache {
@@ -355,6 +352,8 @@ private class ReplyIdentityRepository(
     override suspend fun select(index: Int): IdentitySelection = selection()
 
     override suspend fun import(identity: Identity): IdentitySelection = selection()
+
+    override suspend fun protectCurrent(password: String): IdentitySelection = selection()
 
     override suspend fun persist() = Unit
 

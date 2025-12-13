@@ -11,11 +11,15 @@ import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.identity.IdentityTransferPort
 import straightway.mosa.client.identity.InvalidIdentityTransferException
+import straightway.mosa.client.identity.IdentityProtector
+import straightway.mosa.client.identity.PasswordPrompter
 import straightway.mosa.client.logging.Logger
 
 class IdentitySessionStateMachine(
     private val repository: IdentitySelectionRepository,
     private val transfer: IdentityTransferPort,
+    private val protector: IdentityProtector,
+    private val passwordPrompter: PasswordPrompter,
     private val textProvider: IdentitySessionTextProvider,
     private val visualsProvider: (Identity) -> IdentityVisuals,
     private val scope: CoroutineScope,
@@ -64,27 +68,29 @@ class IdentitySessionStateMachine(
     fun select(index: Int) = navigate("Identity navigation failed") { select(index) }
 
     fun connectToPod() {
-        if (currentSelection == null || isBusy) return
-        isConnected = true
-        errorText = null
-        scope.launch {
+        runExclusive(
+            failureMessage = "Identity connection failed",
+            onFailure = ::handleFailure,
+        ) {
+            val selection = ensureProtectedSelection() ?: return@runExclusive
+            currentSelection = selection
+            isConnected = true
+            errorText = null
             runCatching { repository.persist() }
                 .onFailure { logger.error("Identity persistence failed", it) }
-                .onSuccess {
-                    currentSelection = currentSelection?.copy(isPersisted = true)
-                    publishState()
-                }
+                .onSuccess { currentSelection = currentSelection?.copy(isPersisted = true) }
             persistSession(profileVisibleOverride = false)
+            publishState()
         }
-        publishState()
     }
 
     fun downloadIdentity() {
         val selection = currentSelection ?: return
+        val export = selection.identity.protectedExport ?: return
         val fileBaseName = identityNameParts.toIdentityDownloadFileName()
         scope.launch {
             runCatching {
-                transfer.download(selection.identity, fileBaseName)
+                transfer.download(export, fileBaseName)
             }.onFailure {
                 logger.error("Identity download failed", it)
             }
@@ -93,9 +99,10 @@ class IdentitySessionStateMachine(
 
     fun copyIdentityToClipboard() {
         val selection = currentSelection ?: return
+        val export = selection.identity.protectedExport ?: return
         scope.launch {
             runCatching {
-                transfer.copyToClipboard(selection.identity)
+                transfer.copyToClipboard(export)
             }.onFailure {
                 logger.error("Identity copy failed", it)
             }
@@ -107,7 +114,8 @@ class IdentitySessionStateMachine(
             failureMessage = "Identity upload failed",
             onFailure = ::handleImportFailure,
         ) {
-            val imported = transfer.upload() ?: return@runExclusive
+            val serialized = transfer.upload() ?: return@runExclusive
+            val imported = importProtectedIdentity(serialized) ?: return@runExclusive
             val updated = repository.import(imported)
             applySelection(updated)
         }
@@ -118,7 +126,8 @@ class IdentitySessionStateMachine(
             failureMessage = "Identity paste failed",
             onFailure = ::handleImportFailure,
         ) {
-            val imported = transfer.pasteFromClipboard()
+            val serialized = transfer.pasteFromClipboard()
+            val imported = importProtectedIdentity(serialized) ?: return@runExclusive
             val updated = repository.import(imported)
             applySelection(updated)
         }
@@ -129,10 +138,27 @@ class IdentitySessionStateMachine(
             failureMessage = "Identity paste failed",
             onFailure = ::handleImportFailure,
         ) {
-            val imported = transfer.decode(serialized)
+            val imported = importProtectedIdentity(serialized) ?: return@runExclusive
             val updated = repository.import(imported)
             applySelection(updated)
         }
+    }
+
+    private suspend fun importProtectedIdentity(serialized: String): Identity? {
+        val password = passwordPrompter.promptExistingPassword() ?: return null
+        return runCatching { protector.import(serialized, password) }
+            .getOrElse { error ->
+                throw InvalidIdentityTransferException(error.message ?: "Identity parse failed", error)
+            }
+    }
+
+    private suspend fun ensureProtectedSelection(): IdentitySelection? {
+        val selection = currentSelection ?: return null
+        if (selection.isPersisted) return selection
+        val password = passwordPrompter.promptNewPassword() ?: return null
+        val protected = repository.protectCurrent(password)
+        currentSelection = protected
+        return protected
     }
 
     private fun navigate(
@@ -188,8 +214,8 @@ class IdentitySessionStateMachine(
             identityIndex = currentSelection?.index ?: 0,
             identityTotal = currentSelection?.total ?: 1,
             canConnect = currentSelection != null,
-            canDownload = currentSelection != null,
-            canCopy = currentSelection != null,
+            canDownload = currentSelection?.isPersisted == true,
+            canCopy = currentSelection?.isPersisted == true,
             canUpload = true,
             canPaste = true,
             isPersisted = currentSelection?.isPersisted ?: false,

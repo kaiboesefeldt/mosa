@@ -14,6 +14,8 @@ import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.identity.IdentityTransferPort
+import straightway.mosa.client.identity.IdentityProtector
+import straightway.mosa.client.identity.PasswordPrompter
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
@@ -60,6 +62,8 @@ fun useIdentitySession(): IdentityScreen {
     val translator = ClientInjector.get<Translator>()
     val repository = ClientInjector.get<IdentitySelectionRepository>()
     val transfer = ClientInjector.get<IdentityTransferPort>()
+    val protector = ClientInjector.get<IdentityProtector>()
+    val passwordPrompter = ClientInjector.get<PasswordPrompter>()
     val avatarGenerator = ClientInjector.get<DiceBearAvatarGenerator>()
     val nameGenerator = ClientInjector.get<FictionalNameGenerator>()
     val textProvider =
@@ -74,11 +78,13 @@ fun useIdentitySession(): IdentityScreen {
     val logger = useMemo(*noDependencies) { ClientInjector.get<Logger>() }
     val sessionStore = useMemo(*noDependencies) { ClientInjector.get<IdentitySessionStore>() }
     val machine =
-        useMemo(repository, transfer, visualsFactory, logger, textProvider, sessionStore) {
+        useMemo(repository, transfer, protector, passwordPrompter, visualsFactory, logger, textProvider, sessionStore) {
             identitySessionStateMachineFactory(
                 IdentitySessionMachineConfig(
                     repository = repository,
                     transfer = transfer,
+                    protector = protector,
+                    passwordPrompter = passwordPrompter,
                     textProvider = textProvider,
                     visualsFactory = visualsFactory,
                     scope = scope,
@@ -152,6 +158,8 @@ private val noDependencies: Array<dynamic> = emptyArray()
 internal data class IdentitySessionMachineConfig(
     val repository: IdentitySelectionRepository,
     val transfer: IdentityTransferPort,
+    val protector: IdentityProtector,
+    val passwordPrompter: PasswordPrompter,
     val textProvider: IdentitySessionTextProvider,
     val visualsFactory: IdentityVisualsFactory,
     val scope: CoroutineScope,
@@ -166,6 +174,8 @@ internal var identitySessionStateMachineFactory: IdentitySessionStateMachineFact
         IdentitySessionStateMachine(
             repository = config.repository,
             transfer = config.transfer,
+            protector = config.protector,
+            passwordPrompter = config.passwordPrompter,
             textProvider = config.textProvider,
             visualsProvider = { identity -> config.visualsFactory.create(identity) },
             scope = config.scope,

@@ -7,10 +7,10 @@ import straightway.mosa.client.test.ensureStacktraceMapperInstalled
 import kotlin.js.json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.test.fail
 
 class IdentityRecordMapperTest {
@@ -18,20 +18,23 @@ class IdentityRecordMapperTest {
     private lateinit var mapper: IdentityRecordMapper
     private lateinit var generator: IdentityGenerator
     private lateinit var export: CryptoExport
+    private lateinit var protector: IdentityProtector
+    private lateinit var subtle: SubtleCrypto
 
     @BeforeTest
     fun setup() {
         ensureStacktraceMapperInstalled()
         val rawSubtle = window.asDynamic().crypto?.subtle ?: fail("Subtle crypto not found")
-        val subtle = SubtleCrypto(rawSubtle)
+        subtle = SubtleCrypto(rawSubtle)
         export = CryptoExport(subtle)
         generator = IdentityGenerator(export, subtle)
-        mapper = IdentityRecordMapper(subtle, export)
+        protector = IdentityProtector(subtle, export)
+        mapper = IdentityRecordMapper()
     }
 
     @Test
     fun `record roundtrip keeps identities`() = runTest {
-        val identities = listOf(generator.generate(), generator.generate())
+        val identities = listOf(generator.generate(), generator.generate()).map { protector.protect(it, "pass") }
         val state = IdentityStoreState(identities, 1)
 
         val record = mapper.toRecord(state)
@@ -54,7 +57,7 @@ class IdentityRecordMapperTest {
 
     @Test
     fun `toState clamps invalid active index`() = runTest {
-        val state = IdentityStoreState(listOf(generator.generate()), 0)
+        val state = IdentityStoreState(listOf(protector.protect(generator.generate(), "pass")), 0)
         val record = mapper.toRecord(state)
         record.activeIndex = 99
 
@@ -83,7 +86,10 @@ class IdentityRecordMapperTest {
 
     private suspend fun assertIdentityEquals(expected: Identity, actual: Identity) {
         assertEquals(expected.gid, actual.gid)
-        assertContentEquals(export.pubRawOf(expected.keyPair), export.pubRawOf(actual.keyPair))
-        assertContentEquals(export.privPkcs8Of(expected.keyPair), export.privPkcs8Of(actual.keyPair))
+        assertEquals(expected.protectedExport, actual.protectedExport)
+        val message = "message".encodeToByteArray()
+        val signature = subtle.sign("Ed25519", expected.keyPair.privateKey, message)
+        val verified = subtle.verify("Ed25519", actual.keyPair.publicKey, signature, message)
+        assertTrue(verified)
     }
 }

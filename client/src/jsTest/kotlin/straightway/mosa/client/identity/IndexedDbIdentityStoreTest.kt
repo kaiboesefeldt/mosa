@@ -10,10 +10,10 @@ import kotlin.coroutines.resume
 import kotlin.js.asDynamic
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.test.fail
 import web.idb.IDBFactory
 import web.idb.IDBOpenDBRequest
@@ -68,7 +68,7 @@ class IndexedDbIdentityStoreTest {
             IndexedDbIdentityStore(
                 TestLogger,
                 IndexedDbSchemaManager(null),
-                IdentityRecordMapper(components.subtle, components.export),
+                IdentityRecordMapper(),
                 IndexedDbAsyncBridge(),
             )
         val state = IdentityStoreState(listOf(it.first()), 0)
@@ -80,7 +80,7 @@ class IndexedDbIdentityStoreTest {
     }
 
     private fun runTestWithIdentities(block: suspend (List<Identity>) -> Unit) = runTest {
-        val testIdentities = (1..2).map { components.generator.generate() }
+        val testIdentities = (1..2).map { components.protector.protect(components.generator.generate(), "pass") }
         try {
             clearDatabase()
             block(testIdentities)
@@ -91,14 +91,11 @@ class IndexedDbIdentityStoreTest {
 
     private suspend fun assertIdentityEquals(expected: Identity, actual: Identity) {
         assertEquals(expected.gid, actual.gid)
-        assertContentEquals(
-            components.export.pubRawOf(expected.keyPair),
-            components.export.pubRawOf(actual.keyPair)
-        )
-        assertContentEquals(
-            components.export.privPkcs8Of(expected.keyPair),
-            components.export.privPkcs8Of(actual.keyPair)
-        )
+        assertEquals(expected.protectedExport, actual.protectedExport)
+        val message = "verify".encodeToByteArray()
+        val signature = components.subtle.sign("Ed25519", expected.keyPair.privateKey, message)
+        val verified = components.subtle.verify("Ed25519", actual.keyPair.publicKey, signature, message)
+        assertTrue(verified)
     }
 
     private val indexedDb: IDBFactory
@@ -116,15 +113,16 @@ class IndexedDbIdentityStoreTest {
         val rawSubtle = window.asDynamic().crypto?.subtle ?: fail("Subtle crypto not found")
         val subtle = SubtleCrypto(rawSubtle)
         val export = CryptoExport(subtle)
+        val protector = IdentityProtector(subtle, export)
         val store =
             IndexedDbIdentityStore(
                 TestLogger,
                 IndexedDbSchemaManager(indexedDb),
-                IdentityRecordMapper(subtle, export),
+                IdentityRecordMapper(),
                 IndexedDbAsyncBridge(),
             )
         val generator = IdentityGenerator(export, subtle)
-        return Components(subtle, export, store, generator)
+        return Components(subtle, export, protector, store, generator)
     }
 
     private companion object {
@@ -144,6 +142,7 @@ class IndexedDbIdentityStoreTest {
     private data class Components(
         val subtle: SubtleCrypto,
         val export: CryptoExport,
+        val protector: IdentityProtector,
         val store: IndexedDbIdentityStore,
         val generator: IdentityGenerator,
     )

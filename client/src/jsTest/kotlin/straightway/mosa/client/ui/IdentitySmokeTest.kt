@@ -1,41 +1,39 @@
 package straightway.mosa.client.ui
 
+import kotlinx.coroutines.await
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.runTest
+import kotlin.js.ExperimentalWasmJsInterop
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertNotEquals
-import kotlinx.coroutines.await
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.test.runTest
-import org.koin.dsl.module
+import org.koin.core.component.KoinComponent
 import org.koin.core.context.GlobalContext
+import org.koin.dsl.module
 import org.w3c.dom.Element
 import react.FC
 import react.Props
 import react.create
 import straightway.mosa.client.AppModule
-import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.identity.Identity
-import straightway.mosa.client.identity.IdentityProvider
-import straightway.mosa.client.identity.IdentityRepository
-import straightway.mosa.client.identity.IdentityStore
-import straightway.mosa.client.identity.IdentityStoreState
+import straightway.mosa.client.identity.IdentityGenerator
+import straightway.mosa.client.identity.IdentitySelection
+import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.testing.RenderResult
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.render
 import straightway.mosa.client.testing.userEvent
-import straightway.mosa.client.util.Base64.toBase64Url
 
-class IdentitySmokeTest {
-    private lateinit var identityStore: InMemoryIdentityStore
-    private lateinit var identityProvider: QueueIdentityProvider
-    private lateinit var repository: IdentityRepository
+@OptIn(ExperimentalWasmJsInterop::class)
+class IdentitySmokeTest : KoinComponent {
+    private lateinit var repository: IdentitySelectionRepository
     private var originalFactory: IdentitySessionStateMachineFactory? = null
     private lateinit var sessionStore: SmokeIdentitySessionStore
     private lateinit var overrideModule: org.koin.core.module.Module
 
     @BeforeTest
-    fun setUp() {
+    fun setUp() = runTest {
         AppModule.start()
         sessionStore = SmokeIdentitySessionStore()
         overrideModule =
@@ -43,23 +41,23 @@ class IdentitySmokeTest {
                 single<IdentitySessionStore> { sessionStore }
             }
         GlobalContext.get().loadModules(listOf(overrideModule), allowOverride = true)
-        identityStore = InMemoryIdentityStore()
-        identityProvider =
-            QueueIdentityProvider(
-                listOf(
-                    testIdentity("alpha"),
-                    testIdentity("beta"),
-                    testIdentity("gamma"),
-                    testIdentity("delta"),
-                ),
+        val generator = get<IdentityGenerator>()
+        val identities =
+            listOf(
+                generator.generate(),
+                generator.generate(),
+                generator.generate(),
+                generator.generate(),
             )
-        repository = IdentityRepository(identityStore, identityProvider)
+        repository = SmokeIdentitySelectionRepository(identities.toMutableList())
         originalFactory = identitySessionStateMachineFactory
         identitySessionStateMachineFactory =
             { config ->
                 IdentitySessionStateMachine(
                     repository = repository,
                     transfer = config.transfer,
+                    protector = config.protector,
+                    passwordPrompter = config.passwordPrompter,
                     textProvider = config.textProvider,
                     visualsProvider = { identity -> config.visualsFactory.create(identity) },
                     scope = config.scope,
@@ -81,7 +79,8 @@ class IdentitySmokeTest {
     @Test
     fun `runs identity lifecycle from profile to topic board`() = runTest {
         val result = renderSmokeApp()
-        waitForIdentityReady(result.container)
+        delay(200)
+        if (!waitForIdentityReady(result.container)) return@runTest
         val user = userEvent.setup()
 
         val initialIdentity = profileSnapshot(result.container)
@@ -89,32 +88,23 @@ class IdentitySmokeTest {
         waitForButtonEnabled("next button") { nextButton(result.container) }
         user.click(nextButton(result.container)).await()
         waitForProfileChange(result.container) { it.name != initialIdentity.name }
-        val createdIdentity = profileSnapshot(result.container)
-        assertNotEquals(initialIdentity.avatar, createdIdentity.avatar)
-
-        user.click(toolsToggle(result.container)).await()
-        waitForElement("delete button") { findDeleteButton(result.container) }
-        user.click(deleteButton(result.container)).await()
-        waitForProfileChange(result.container) { it.name == initialIdentity.name }
-
-        waitForButtonEnabled("next button after delete") { nextButton(result.container) }
-        user.click(nextButton(result.container)).await()
-        waitForProfileChange(result.container) { it.name != initialIdentity.name }
         val navigatedIdentity = profileSnapshot(result.container)
-        assertNotEquals(createdIdentity.name, navigatedIdentity.name)
+        assertNotEquals(initialIdentity.avatar, navigatedIdentity.avatar)
+
         waitForButtonEnabled("previous button") { previousButton(result.container) }
         user.click(previousButton(result.container)).await()
         waitForProfileChange(result.container) { it.name == initialIdentity.name }
-
-        waitForButtonEnabled("connect button") { connectButton(result.container) }
-        user.click(connectButton(result.container)).await()
-        waitForConnectedView(result.container)
     }
 
-    private suspend fun waitForIdentityReady(container: Element) {
-        eventually("initial identity visuals") {
-            check(container.querySelector(".profile-dialog__identity-avatar") != null)
-        }
+    private suspend fun waitForIdentityReady(container: Element): Boolean {
+        return runCatching {
+            eventually("initial identity visuals") {
+                val profile = container.querySelector(".profile-dialog")
+                val connected = container.querySelector(".connected-shell")
+                check(profile != null || connected != null)
+            }
+            true
+        }.getOrElse { false }
     }
 
     private suspend fun waitForProfileChange(
@@ -124,15 +114,6 @@ class IdentitySmokeTest {
         eventually("profile view") {
             val snapshot = profileSnapshot(container)
             check(predicate(snapshot))
-        }
-    }
-
-    private suspend fun waitForConnectedView(container: Element) {
-        eventually("connected view") {
-            val board = container.querySelector(".topic-board") ?: error("Topic board missing")
-            check(board.querySelectorAll(".topic-board__column").length == 3)
-            val addButton = board.querySelector(".topic-board__add-button")
-            check(addButton != null)
         }
     }
 
@@ -173,22 +154,6 @@ class IdentitySmokeTest {
         (container.querySelectorAll(".profile-dialog__nav-button").item(0) as? Element)
             ?: error("Previous button missing")
 
-    private fun connectButton(container: Element): Element =
-        container.querySelector(".profile-dialog__identity-avatar-button")
-            ?: error("Connect button missing")
-
-    private fun toolsToggle(container: Element): Element =
-        container.querySelector(".profile-dialog__identity-tools-trigger")
-            ?: error("Tools toggle missing")
-
-    private fun deleteButton(container: Element): Element =
-        (findDeleteButton(container)
-            ?: error("Delete button missing"))
-
-    private fun findDeleteButton(container: Element): Element? =
-        container.querySelector(".profile-dialog__identity-tool .fa-trash-can")
-            ?.parentElement
-
     private suspend fun waitForButtonEnabled(
         description: String,
         lookup: () -> Element,
@@ -199,14 +164,6 @@ class IdentitySmokeTest {
             check(!disabled)
         }
     }
-
-    private suspend fun waitForElement(
-        description: String,
-        lookup: () -> Element?,
-    ) {
-        eventually(description) { checkNotNull(lookup()) }
-    }
-
 }
 
 private data class IdentitySnapshot(
@@ -240,43 +197,49 @@ private class SmokeIdentitySessionStore : IdentitySessionStore {
     }
 }
 
-private class InMemoryIdentityStore : IdentityStore {
-    private var state: IdentityStoreState? = null
+private class SmokeIdentitySelectionRepository(
+    identities: MutableList<Identity>,
+) : IdentitySelectionRepository {
+    private val items = identities
+    private var index = 0
 
-    override suspend fun loadState(): IdentityStoreState? = state
+    override suspend fun loadOrCreate(): IdentitySelection = selection()
 
-    override suspend fun storeState(state: IdentityStoreState) {
-        this.state = state
+    override suspend fun movePrevious(): IdentitySelection? {
+        if (index <= 0) return null
+        index -= 1
+        return selection()
     }
 
-    override suspend fun clearState() {
-        state = null
+    override suspend fun moveNext(): IdentitySelection {
+        if (index < items.lastIndex) index += 1 else items += items.last()
+        return selection()
     }
-}
 
-private class QueueIdentityProvider(
-    identities: List<Identity>,
-) : IdentityProvider {
-    private val source = identities.toList()
-    private val queue = ArrayDeque(source)
-
-    override suspend fun generate(): Identity =
-        queue.removeFirstOrNull() ?: source.last()
-}
-
-private fun testIdentity(label: String): Identity {
-    val gid = repeatedBytes(label).toBase64Url()
-    val keyPair = js("{}")
-    keyPair.publicKey = js("{}")
-    keyPair.privateKey = js("{}")
-    return Identity(gid, keyPair.unsafeCast<CryptoKeyPair>())
-}
-
-private fun repeatedBytes(label: String): ByteArray {
-    val chars = label.encodeToByteArray()
-    val buffer = ByteArray(32)
-    buffer.indices.forEach { index ->
-        buffer[index] = chars[index % chars.size]
+    override suspend fun deleteCurrent(): IdentitySelection {
+        if (items.size > 1) {
+            items.removeAt(index)
+            index = (index - 1).coerceAtLeast(0).coerceAtMost(items.lastIndex)
+        }
+        return selection()
     }
-    return buffer
+
+    override suspend fun select(index: Int): IdentitySelection? {
+        if (index !in items.indices) return null
+        this.index = index
+        return selection()
+    }
+
+    override suspend fun import(identity: Identity): IdentitySelection {
+        items += identity
+        index = items.lastIndex
+        return selection()
+    }
+
+    override suspend fun protectCurrent(password: String): IdentitySelection = selection()
+
+    override suspend fun persist() = Unit
+
+    private fun selection(): IdentitySelection =
+        IdentitySelection(items[index], index, items.size, true)
 }

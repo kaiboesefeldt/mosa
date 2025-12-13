@@ -12,6 +12,7 @@ import straightway.mosa.client.ui.IdentityConnectedView
 import straightway.mosa.client.ui.IdentityProfileView
 import straightway.mosa.client.ui.applyFrom
 import straightway.mosa.client.ui.IdentityScreen
+import straightway.mosa.client.ui.PasswordPromptOverlay
 import straightway.mosa.client.ui.useIdentitySession
 import web.dom.Element as WebElement
 
@@ -25,6 +26,7 @@ fun main() {
 }
 
 private val IdentityApp = FC<Props> {
+    PasswordPromptOverlay {}
     when (val screen = useIdentitySession()) {
         IdentityScreen.Loading -> Unit
         is IdentityScreen.Connected ->

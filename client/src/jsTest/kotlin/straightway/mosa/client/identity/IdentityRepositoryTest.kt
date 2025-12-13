@@ -1,223 +1,94 @@
 package straightway.mosa.client.identity
 
+import kotlinx.browser.window
+import kotlinx.coroutines.test.runTest
+import straightway.mosa.client.browser.SubtleCrypto
+import straightway.mosa.client.test.ensureStacktraceMapperInstalled
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
+import kotlin.test.assertFails
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import kotlinx.coroutines.test.runTest
-import kotlin.js.unsafeCast
-import straightway.mosa.client.browser.CryptoKeyPair
+import kotlin.test.fail
 
 class IdentityRepositoryTest {
+
+    private lateinit var subtle: SubtleCrypto
+    private lateinit var export: CryptoExport
+    private lateinit var generator: IdentityGenerator
+    private lateinit var protector: IdentityProtector
+
+    @BeforeTest
+    fun setup() {
+        ensureStacktraceMapperInstalled()
+        val rawSubtle = window.asDynamic().crypto?.subtle ?: fail("Subtle crypto not found")
+        subtle = SubtleCrypto(rawSubtle)
+        export = CryptoExport(subtle)
+        generator = IdentityGenerator(export, subtle)
+        protector = IdentityProtector(subtle, export)
+    }
+
     @Test
     fun `load or create keeps generated identity transient`() = runTest {
-        val generated = identity("gid-transient")
         val store = RecordingIdentityStore(null)
-        val repository = IdentityRepository(store, generator = StaticIdentityGenerator(generated))
+        val repository = IdentityRepository(store, generator, protector)
 
         val selection = repository.loadOrCreate()
 
-        assertEquals(generated, selection.identity)
+        assertTrue(selection.identity.protectedExport == null)
         assertTrue(store.storedStates.isEmpty())
-        assertFalse(selection.isPersisted)
+        assertTrue(selection.isPersisted.not())
     }
 
     @Test
-    fun `select moves to requested index and persists on demand`() = runTest {
-        val first = identity("gid-1")
-        val second = identity("gid-2")
-        val third = identity("gid-3")
-        val initialState = IdentityStoreState(listOf(first, second, third), activeIndex = 0)
-        val store = RecordingIdentityStore(initialState)
-        val repository = IdentityRepository(store, generator = UnexpectedIdentityGenerator)
-
-        val selection = repository.select(2)
-        repository.persist()
-
-        assertEquals(2, selection?.index)
-        assertEquals(third, selection?.identity)
-        assertEquals(1, store.storedStates.size)
-        assertEquals(2, store.storedStates.single().activeIndex)
-        assertTrue(selection?.isPersisted == true)
-    }
-
-    @Test
-    fun `select ignores indexes outside stored range`() = runTest {
-        val first = identity("gid-1")
-        val second = identity("gid-2")
-        val initialState = IdentityStoreState(listOf(first, second), activeIndex = 1)
-        val store = RecordingIdentityStore(initialState)
-        val repository = IdentityRepository(store, generator = UnexpectedIdentityGenerator)
-
-        val selection = repository.select(5)
-        repository.persist()
-
-        assertEquals(1, selection?.index)
-        assertEquals(second, selection?.identity)
-        assertEquals(1, store.storedStates.size)
-        assertEquals(1, store.storedStates.single().activeIndex)
-        assertTrue(selection?.isPersisted == true)
-    }
-
-    @Test
-    fun `import keeps identity transient until persisted`() = runTest {
+    fun `protectCurrent persists identity and marks it persisted`() = runTest {
         val store = RecordingIdentityStore(null)
-        val repository = IdentityRepository(store, generator = UnexpectedIdentityGenerator)
-        val uploaded = identity("gid-42")
+        val repository = IdentityRepository(store, generator, protector)
+        repository.loadOrCreate()
 
-        val selection = repository.import(uploaded)
-        repository.persist()
-        val persistedSelection = repository.loadOrCreate()
+        val selection = repository.protectCurrent("password")
 
-        val stored = store.state
-        assertEquals(uploaded, selection.identity)
-        assertEquals(0, selection.index)
-        assertEquals(1, selection.total)
-        assertEquals(1, store.storedStates.size)
-        assertEquals(uploaded, stored?.current())
-        assertFalse(selection.isPersisted)
-        assertTrue(persistedSelection.isPersisted)
-    }
-
-    @Test
-    fun `import selects existing identity when gid matches`() = runTest {
-        val first = identity("gid-1")
-        val second = identity("gid-2")
-        val initialState = IdentityStoreState(listOf(first, second), activeIndex = 0)
-        val store = RecordingIdentityStore(initialState)
-        val repository = IdentityRepository(store, generator = UnexpectedIdentityGenerator)
-        val duplicate = identity("gid-2")
-
-        val selection = repository.import(duplicate)
-        repository.persist()
-        val persistedSelection = repository.loadOrCreate()
-
-        assertEquals(second, selection.identity)
-        assertEquals(1, selection.index)
-        assertEquals(2, selection.total)
-        assertEquals(1, store.state?.activeIndex)
-        assertTrue(store.storedStates.single().identities === store.state?.identities)
         assertTrue(selection.isPersisted)
-        assertTrue(persistedSelection.isPersisted)
+        val storedState = assertNotNull(store.state)
+        assertTrue(storedState.current().protectedExport != null)
     }
 
     @Test
-    fun `import appends identity when gid unknown`() = runTest {
-        val first = identity("gid-1")
-        val initialState = IdentityStoreState(listOf(first), activeIndex = 0)
-        val store = RecordingIdentityStore(initialState)
-        val repository = IdentityRepository(store, generator = UnexpectedIdentityGenerator)
-        val uploaded = identity("gid-99")
+    fun `import persists protected identity`() = runTest {
+        val store = RecordingIdentityStore(null)
+        val repository = IdentityRepository(store, generator, protector)
+        val protected = protector.protect(generator.generate(), "secret")
 
-        val selection = repository.import(uploaded)
-        repository.persist()
-        val persistedSelection = repository.loadOrCreate()
+        val selection = repository.import(protected)
 
-        val stored = store.state
-        assertEquals(uploaded, selection.identity)
-        assertEquals(1, selection.index)
-        assertEquals(2, selection.total)
-        assertEquals(1, store.storedStates.size)
-        assertEquals(2, stored?.identities?.size)
-        assertEquals(uploaded, stored?.current())
-        assertFalse(selection.isPersisted)
-        assertTrue(persistedSelection.isPersisted)
+        assertTrue(selection.isPersisted)
+        val stored = assertNotNull(store.state)
+        assertEquals(protected.gid, stored.current().gid)
     }
 
     @Test
-    fun `persist skips transient identities that are not selected`() = runTest {
-        val persisted = identity("gid-1")
-        val generator =
-            QueuedIdentityGenerator(
-                listOf(
-                    identity("gid-2"),
-                    identity("gid-3"),
-                )
-            )
-        val initialState = IdentityStoreState(listOf(persisted), activeIndex = 0)
-        val store = RecordingIdentityStore(initialState)
-        val repository = IdentityRepository(store, generator = generator)
+    fun `persist fails when identity is not protected`() = runTest {
+        val store = RecordingIdentityStore(null)
+        val repository = IdentityRepository(store, generator, protector)
+        repository.loadOrCreate()
 
-        repository.moveNext()
-        repository.moveNext()
-        repository.select(1)
-        repository.persist()
-
-        assertEquals(1, store.storedStates.size)
-        val storedGids = store.state?.identities?.map { it.gid }
-        assertEquals(listOf("gid-1", "gid-2"), storedGids)
-    }
-
-    @Test
-    fun `persist keeps transient identities in memory`() = runTest {
-        val persisted = identity("gid-1")
-        val generator =
-            QueuedIdentityGenerator(
-                listOf(
-                    identity("gid-2"),
-                    identity("gid-3"),
-                )
-            )
-        val initialState = IdentityStoreState(listOf(persisted), activeIndex = 0)
-        val store = RecordingIdentityStore(initialState)
-        val repository = IdentityRepository(store, generator = generator)
-
-        val first = repository.moveNext()
-        val second = repository.moveNext()
-
-        repository.persist()
-
-        val selection = repository.select(1)
-
-        assertEquals("gid-2", selection?.identity?.gid)
-        val storedGids = store.state?.identities?.map { it.gid }
-        assertEquals(listOf("gid-1", "gid-3"), storedGids)
-        assertEquals("gid-2", first?.identity?.gid)
-        assertEquals("gid-3", second.identity.gid)
+        assertFails { repository.persist() }
     }
 
     @Test
     fun `delete removes persisted identity from store`() = runTest {
-        val persisted = identity("gid-1")
-        val replacement = identity("gid-2")
-        val generator = QueuedIdentityGenerator(listOf(replacement))
-        val store = RecordingIdentityStore(IdentityStoreState(listOf(persisted), activeIndex = 0))
-        val repository = IdentityRepository(store, generator)
+        val persisted = protector.protect(generator.generate(), "secret")
+        val store = RecordingIdentityStore(IdentityStoreState(listOf(persisted), 0))
+        val repository = IdentityRepository(store, generator, protector)
 
         val selection = repository.deleteCurrent()
 
-        assertEquals(replacement, selection.identity)
+        assertTrue(selection.isPersisted.not())
         assertTrue(store.wasCleared)
-        assertEquals(null, store.state)
         assertTrue(store.storedStates.isEmpty())
     }
 }
-
-private object UnexpectedIdentityGenerator : IdentityProvider {
-    override suspend fun generate(): Identity = error("IdentityProvider should not be invoked")
-}
-
-private class StaticIdentityGenerator(private val identity: Identity) : IdentityProvider {
-    override suspend fun generate(): Identity = identity
-}
-
-private class QueuedIdentityGenerator(
-    private val queue: MutableList<Identity>,
-) : IdentityProvider {
-    constructor(items: List<Identity>) : this(items.toMutableList())
-
-    override suspend fun generate(): Identity =
-        queue.removeFirstOrNull() ?: error("No identities queued")
-}
-
-private fun identity(gid: String): Identity =
-    Identity(
-        gid = gid,
-        keyPair = emptyCryptoKeyPair(),
-    )
-
-private fun emptyCryptoKeyPair(): CryptoKeyPair =
-    js("{ privateKey: {}, publicKey: {} }").unsafeCast<CryptoKeyPair>()
 
 private class RecordingIdentityStore(initialState: IdentityStoreState?) : IdentityStore {
     var state: IdentityStoreState? = initialState

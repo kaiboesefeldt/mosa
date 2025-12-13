@@ -709,7 +709,7 @@ private class ConnectedViewIdentitySessionStore : IdentitySessionStore {
 private class RecordingPodAccess(
     responses: Map<String, QueryResult>,
     private val additionalResponses: Map<String, List<QueryResult>> = emptyMap(),
-    private val replyResponses: Map<String, List<QueryResult>> = emptyMap(),
+    replyResponses: Map<String, List<QueryResult>> = emptyMap(),
 ) : PodAccess {
     val approveInvocations = mutableListOf<String>()
     val searchInvocations = mutableListOf<QueryRequest>()
@@ -893,6 +893,8 @@ private class StaticIdentityRepository(
     override suspend fun select(index: Int): IdentitySelection = selection()
 
     override suspend fun import(identity: Identity): IdentitySelection = selection()
+
+    override suspend fun protectCurrent(password: String): IdentitySelection = selection()
 
     override suspend fun persist() = Unit
 

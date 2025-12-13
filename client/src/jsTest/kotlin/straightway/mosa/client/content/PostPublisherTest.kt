@@ -13,7 +13,6 @@ import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.client.pod.PodCertificateCache
 import straightway.mosa.client.pod.PodSessionProvider
-import straightway.mosa.client.content.TestTimeService
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.FetchRequest
@@ -144,6 +143,8 @@ private class PublishStaticIdentityRepository(
     override suspend fun select(index: Int): IdentitySelection = selection()
 
     override suspend fun import(identity: Identity): IdentitySelection = selection()
+
+    override suspend fun protectCurrent(password: String): IdentitySelection = selection()
 
     override suspend fun persist() = Unit
 

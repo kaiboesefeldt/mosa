@@ -8,7 +8,6 @@ import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.logging.Logger
-import straightway.mosa.client.pod.TestTimeService
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.PublishRequest
@@ -19,7 +18,6 @@ import straightway.mosa.content.SearchResult
 import kotlin.js.unsafeCast
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 
@@ -141,6 +139,8 @@ private class StaticIdentityRepository(
     override suspend fun import(identity: Identity): IdentitySelection = selection()
 
     override suspend fun persist() = Unit
+
+    override suspend fun protectCurrent(password: String): IdentitySelection = selection()
 
     private fun selection(): IdentitySelection = IdentitySelection(identity, 0, 1, true)
 }

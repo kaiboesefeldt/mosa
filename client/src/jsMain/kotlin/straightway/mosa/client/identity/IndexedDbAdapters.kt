@@ -1,12 +1,8 @@
 package straightway.mosa.client.identity
 
 import kotlinx.coroutines.suspendCancellableCoroutine
+import straightway.mosa.client.browser.CryptoKey
 import straightway.mosa.client.browser.CryptoKeyPair
-import straightway.mosa.client.browser.KeyAlgorithm
-import straightway.mosa.client.browser.KeyUsage
-import straightway.mosa.client.browser.SubtleCrypto
-import straightway.mosa.client.util.Base64
-import straightway.mosa.client.util.Base64.toBase64Url
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.js.asDynamic
@@ -60,7 +56,7 @@ class IndexedDbSchemaManager(
     data class Schema(
         val databaseName: String = "mosa-identity",
         val objectStoreName: String = "identity",
-        val schemaVersion: Short = 1,
+        val schemaVersion: Short = 2,
     )
 
     val objectStoreName: String
@@ -71,19 +67,17 @@ class IndexedDbSchemaManager(
         val request = factory.open(schema.databaseName, schema.schemaVersion.toDouble())
         request.asDynamic().onupgradeneeded = {
             val db = request.result
-            if (!db.objectStoreNames.contains(schema.objectStoreName)) {
-                db.createObjectStore(schema.objectStoreName)
+            if (db.objectStoreNames.contains(schema.objectStoreName)) {
+                db.deleteObjectStore(schema.objectStoreName)
             }
+            db.createObjectStore(schema.objectStoreName)
         }
         return asyncBridge.awaitRequest(request)
     }
 }
 
-class IdentityRecordMapper(
-    private val subtleCrypto: SubtleCrypto,
-    private val cryptoExport: CryptoExport,
-) {
-    suspend fun toState(record: dynamic): IdentityStoreState? {
+class IdentityRecordMapper {
+    fun toState(record: dynamic): IdentityStoreState? {
         if (isNullish(record)) return null
         val identitiesField = record.identities
         val parsed = parseIdentities(identitiesField) ?: return null
@@ -91,14 +85,14 @@ class IdentityRecordMapper(
         return IdentityStoreState(parsed, resolvedIndex)
     }
 
-    suspend fun toRecord(state: IdentityStoreState): dynamic {
+    fun toRecord(state: IdentityStoreState): dynamic {
         val entries = state.identities.map { identity ->
-            val publicKey = cryptoExport.pubRawOf(identity.keyPair).toBase64Url()
-            val privateKey = cryptoExport.privPkcs8Of(identity.keyPair).toBase64Url()
+            val protectedExport = identity.protectedExport ?: error("Identity lacks protected export")
             json(
                 "gid" to identity.gid,
-                "publicKey" to publicKey,
-                "privateKey" to privateKey,
+                "protectedExport" to protectedExport,
+                "publicKey" to identity.keyPair.publicKey,
+                "privateKey" to identity.keyPair.privateKey,
             )
         }.toTypedArray()
         return json(
@@ -107,7 +101,7 @@ class IdentityRecordMapper(
         )
     }
 
-    private suspend fun parseIdentities(field: dynamic): List<Identity>? {
+    private fun parseIdentities(field: dynamic): List<Identity>? {
         if (isNullish(field)) return null
         val length = (field.length as? Number)?.toInt() ?: return null
         if (length <= 0) return null
@@ -120,21 +114,19 @@ class IdentityRecordMapper(
         return identities.toList()
     }
 
-    private suspend fun parseIdentity(entry: dynamic): Identity? {
+    private fun parseIdentity(entry: dynamic): Identity? {
         val gid = entry.gid as? String ?: return null
-        val publicKeyField = entry.publicKey as? String ?: return null
-        val privateKeyField = entry.privateKey as? String ?: return null
-        val publicKeyBytes = Base64.fromBase64Url(publicKeyField)
-        val privateKeyBytes = Base64.fromBase64Url(privateKeyField)
-        val algorithm = KeyAlgorithm.Ed25519
-        val publicKey = subtleCrypto.importKey("raw", publicKeyBytes, algorithm, true, arrayOf(KeyUsage.Verify))
-        val privateKey = subtleCrypto.importKey("pkcs8", privateKeyBytes, algorithm, true, arrayOf(KeyUsage.Sign))
+        val protectedExport = entry.protectedExport as? String ?: return null
+        val publicKeyDynamic = entry.publicKey ?: return null
+        val privateKeyDynamic = entry.privateKey ?: return null
+        val storedPublicKey = publicKeyDynamic.unsafeCast<CryptoKey>()
+        val storedPrivateKey = privateKeyDynamic.unsafeCast<CryptoKey>()
         val keyPair =
             json(
-                "publicKey" to publicKey,
-                "privateKey" to privateKey,
+                "publicKey" to storedPublicKey,
+                "privateKey" to storedPrivateKey,
             ).unsafeCast<CryptoKeyPair>()
-        return Identity(gid, keyPair)
+        return Identity(gid, keyPair, protectedExport)
     }
 
     private fun resolveIndex(indexValue: Any?, lastIndex: Int): Int =
