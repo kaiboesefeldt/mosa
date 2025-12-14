@@ -13,15 +13,25 @@ import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
+import java.io.ByteArrayInputStream
 import java.math.BigInteger
+import java.nio.file.Files
+import java.nio.file.Path
+import java.security.KeyFactory
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.MessageDigest
+import java.security.PrivateKey
 import java.security.Security
+import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
+import java.security.spec.PKCS8EncodedKeySpec
 import java.time.Clock
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
+import java.util.Base64
 import java.util.Date
 import java.util.UUID
 
@@ -53,12 +63,21 @@ data class InMemoryKeyStore(
 
 class DevSelfSignedCertificateFactory(
     private val clock: Clock = Clock.systemUTC(),
+    private val certificateDirectory: Path = Path.of(""),
 ) {
     fun create(host: String): InMemoryKeyStore {
         ensureProvider()
         val normalizedHost = host.removeSurrounding("[", "]")
-        val keyPair = generateKeyPair()
-        val certificate = createCertificate(normalizedHost, keyPair)
+        val pemPath = certificateDirectory.resolve(pemFileName(normalizedHost))
+        val (keyPair, certificate) =
+            if (Files.exists(pemPath)) {
+                loadFromPem(pemPath)
+            } else {
+                val generatedKeyPair = generateKeyPair()
+                val generatedCertificate = createCertificate(normalizedHost, generatedKeyPair)
+                writePem(pemPath, generatedKeyPair.private, generatedCertificate)
+                Pair(generatedKeyPair, generatedCertificate)
+            }
         return createKeyStore(keyPair, certificate)
     }
 
@@ -75,7 +94,7 @@ class DevSelfSignedCertificateFactory(
         val subject = X500Name("CN=$host")
         val now = clock.instant()
         val notBefore = Date.from(now.minus(5, ChronoUnit.MINUTES))
-        val notAfter = Date.from(now.plus(30, ChronoUnit.DAYS))
+        val notAfter = MAX_EXPIRY
         val serial = BigInteger.valueOf(now.toEpochMilli())
 
         val subjectAlternativeNames = GeneralNames(GeneralName(hostNameType(host), host))
@@ -129,8 +148,69 @@ class DevSelfSignedCertificateFactory(
 
     private fun randomPassword(): CharArray = UUID.randomUUID().toString().toCharArray()
 
+    private fun loadFromPem(pemPath: Path): Pair<KeyPair, X509Certificate> {
+        val content = Files.readString(pemPath)
+        val privateKey = parsePrivateKey(content)
+        val certificate = parseCertificate(content)
+        return Pair(KeyPair(certificate.publicKey, privateKey), certificate)
+    }
+
+    private fun parsePrivateKey(content: String): PrivateKey {
+        val encoded = extractPemSection(content, "PRIVATE KEY")
+        val keyFactory = KeyFactory.getInstance("RSA")
+        return keyFactory.generatePrivate(PKCS8EncodedKeySpec(encoded))
+    }
+
+    private fun parseCertificate(content: String): X509Certificate {
+        val encoded = extractPemSection(content, "CERTIFICATE")
+        val certificateFactory = CertificateFactory.getInstance("X.509")
+        return certificateFactory.generateCertificate(ByteArrayInputStream(encoded)) as X509Certificate
+    }
+
+    private fun extractPemSection(
+        content: String,
+        section: String,
+    ): ByteArray {
+        val startMarker = "-----BEGIN $section-----"
+        val endMarker = "-----END $section-----"
+        val sectionContent =
+            content
+                .substringAfter(startMarker, "")
+                .substringBefore(endMarker, "")
+                .lines()
+                .joinToString("") { it.trim() }
+        return Base64.getMimeDecoder().decode(sectionContent)
+    }
+
+    private fun writePem(
+        path: Path,
+        privateKey: PrivateKey,
+        certificate: X509Certificate,
+    ) {
+        val encoder = Base64.getMimeEncoder(64, "\n".toByteArray())
+        val privateKeyBlock = encoder.encodeToString(privateKey.encoded)
+        val certificateBlock = encoder.encodeToString(certificate.encoded)
+        val content =
+            buildString {
+                appendLine("-----BEGIN PRIVATE KEY-----")
+                appendLine(privateKeyBlock)
+                appendLine("-----END PRIVATE KEY-----")
+                appendLine("-----BEGIN CERTIFICATE-----")
+                appendLine(certificateBlock)
+                appendLine("-----END CERTIFICATE-----")
+            }
+        Files.writeString(path, content)
+    }
+
+    private fun pemFileName(host: String): String = "$CERTIFICATE_PREFIX-${sanitizedHost(host)}"
+
+    private fun sanitizedHost(host: String): String = host.replace(":", "_")
+
     companion object {
         private const val PROVIDER_NAME = "BC"
+        private const val CERTIFICATE_PREFIX = ".mosa-dev-cert"
+        private val MAX_EXPIRY: Date =
+            Date.from(LocalDate.of(9999, 12, 31).atStartOfDay(ZoneOffset.UTC).toInstant())
 
         private fun ensureProvider() {
             if (Security.getProvider(PROVIDER_NAME) == null) {
