@@ -89,14 +89,18 @@ class WebClientControllerTest {
             }
 
         @Test
-        fun `returns 400 Bad Request if no host header present`() =
+        fun `falls back to connection host when host header is missing`() =
             with(test()) {
                 env {
                     val response =
                         client.get("/") {
                             headers.remove(HttpHeaders.Host)
                         }
-                    assertEquals(HttpStatusCode.BadRequest, response.status)
+                    assertEquals(HttpStatusCode.OK, response.status)
+                    assertContains(
+                        response.body<String>(),
+                        Regex("""window\.MOSA_POD_BASE\s*=\s*"https://localhost:\d+";"""),
+                    )
                 }
             }
 

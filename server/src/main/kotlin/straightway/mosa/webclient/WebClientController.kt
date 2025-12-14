@@ -5,6 +5,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.request.header
+import io.ktor.server.request.host
+import io.ktor.server.request.port
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
@@ -20,9 +22,12 @@ class WebClientController(
     override fun Route.register() {
         get("/") {
             val htmlResourceUrl = getResourceUrl("static/index.html") ?: throw RuntimeException("internal resource not found")
-            val hostHeader = call.request.header(HttpHeaders.Host) ?: throw BadRequestException("No Host header")
+            val hostHeader = call.request.header(HttpHeaders.Host)
+            val host = hostHeader ?: call.request.host()
+            if (host.isBlank()) throw BadRequestException("No Host header")
+            val hostWithPort = hostHeader ?: "$host:${call.request.port()}"
             val proto = call.request.header("X-Forwarded-Proto") ?: defaultProto
-            val base = "$proto://$hostHeader"
+            val base = "$proto://$hostWithPort"
             val html = htmlResourceUrl.readText()
             val injected = html.injectMosaPodBase(base)
             call.respondText(injected, ContentType.Text.Html)
