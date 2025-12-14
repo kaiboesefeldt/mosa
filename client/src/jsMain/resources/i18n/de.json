@@ -34,6 +34,8 @@
   "connected.posts.filter.clear": "Score-Filter aufheben",
   "connected.posts.filter.active": "Score-Filter bei {{value}}",
   "connected.posts.selectedTopic": "Ausgewähltes Thema",
+  "connected.mobile.backToTopics": "Zurück zu Themen",
+  "connected.mobile.backToPosts": "Zurück zu Beiträgen",
   "connected.composer.open": "Neuer Beitrag",
   "connected.composer.title": "Beitrag erstellen",
   "connected.composer.placeholder": "Was möchtest du schreiben?",

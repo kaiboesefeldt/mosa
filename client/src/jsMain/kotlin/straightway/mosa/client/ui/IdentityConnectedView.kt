@@ -11,6 +11,8 @@ import kotlin.js.Date
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlin.js.JsName
 import kotlin.js.unsafeCast
+import kotlin.math.abs
+import org.w3c.dom.events.Event
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import react.ChildrenBuilder
@@ -24,6 +26,7 @@ import react.dom.html.ReactHTML.span
 import react.dom.html.ReactHTML.textarea
 import react.dom.events.ChangeEvent
 import react.dom.events.MouseEvent
+import react.dom.events.TouchEvent
 import react.useEffect
 import react.useMemo
 import react.Ref
@@ -71,6 +74,17 @@ private external class JsIntersectionObserver(
     fun disconnect()
 }
 
+private enum class MobilePane {
+    Topics,
+    Posts,
+    Replies,
+}
+
+private data class SwipeTargets(
+    var topic: Topic?,
+    var post: QueryResult.Entry?,
+)
+
 val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val translator = ConnectedViewInjector.get<Translator>()
     val repository = ConnectedViewInjector.get<TopicRepository>()
@@ -116,6 +130,15 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (replyComposerText, setReplyComposerText) = useState("")
     val (isReplyPublishing, setReplyPublishing) = useState(false)
     val (replyPublishError, setReplyPublishError) = useState<String?>(null)
+    val (isMobile, setIsMobile) = useState(false)
+    val (isTouchDevice, setIsTouchDevice) = useState(false)
+    val (mobilePane, setMobilePane) = useState(MobilePane.Topics)
+    val touchStartXRef = useRef(0.0)
+    val touchStartYRef = useRef(0.0)
+    val swipePaneRef = useRef(MobilePane.Topics)
+    val swipeActiveRef = useRef(false)
+    val swipeTargetsRef = useRef(SwipeTargets(null, null))
+    val (swipeOffsetPercent, setSwipeOffsetPercent) = useState(0.0)
 
     useEffect(sessionStore) {
         scope.launch {
@@ -162,9 +185,40 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }.toMap()
 
     fun rootIdFor(entry: QueryResult.Entry): String = entry.rootId ?: entry.id
+    fun findTopicByTitle(title: String?): Topic? =
+        title?.let { topicTitle -> topics.firstOrNull { it.title == topicTitle } }
+
+    fun findPostById(id: String?): QueryResult.Entry? =
+        id?.let { postId ->
+            posts.firstNotNullOfOrNull { topicPosts ->
+                topicPosts.entries.firstOrNull { it.id == postId }
+            }
+        }
+
+    fun closestAttribute(element: Element?, attribute: String): String? {
+        var current = element
+        while (current != null) {
+            val value = current.getAttribute(attribute)
+            if (value != null) return value
+            current = current.parentElement
+        }
+        return null
+    }
 
     fun setAppendingState(active: Boolean) {
         isAppendingPostsRef.current = active
+    }
+
+    fun setPaneForSelectedTopic(topic: Topic?) {
+        if (!isMobile) return
+        val nextPane = if (topic == null) MobilePane.Topics else MobilePane.Posts
+        setMobilePane(nextPane)
+    }
+
+    fun setPaneForSelectedPost(entry: QueryResult.Entry?) {
+        if (!isMobile) return
+        val nextPane = if (entry == null) MobilePane.Posts else MobilePane.Replies
+        setMobilePane(nextPane)
     }
 
     fun resetReplyComposer() {
@@ -238,8 +292,15 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     fun selectTopic(topic: Topic?) {
-        if (topic == selectedTopic) return
+        if (topic == selectedTopic) {
+            if (isMobile && topic != null) {
+                clearReplies()
+                setPaneForSelectedTopic(topic)
+            }
+            return
+        }
         clearReplies()
+        setPaneForSelectedTopic(topic)
         setSelectedTopic(topic)
         scope.launch {
             persistSessionSnapshot { snapshot ->
@@ -448,7 +509,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             }
             setReplyComposerText("")
             setReplyComposerOpen(false)
-            val currentRoot = selectedPost?.let { rootIdFor(it) }
+            val currentRoot = selectedPost.let { rootIdFor(it) }
             if (currentRoot != rootId) {
                 setReplyPublishing(false)
                 return@launch
@@ -546,6 +607,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         val nextVersion = (repliesRequestVersion.current ?: 0) + 1
         repliesRequestVersion.current = nextVersion
         setSelectedPost(entry)
+        setPaneForSelectedPost(entry)
         setReplies(null)
         repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
         isAppendingRepliesRef.current = false
@@ -566,14 +628,20 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    useEffect(arrayOf(posts, selectedTopic)) {
+    useEffect(arrayOf(posts, selectedTopic, isMobile, mobilePane)) {
         val target = loadMoreRef.current ?: return@useEffect
         val container = postsContainerRef.current ?: return@useEffect
         val observerAvailable = js("typeof IntersectionObserver !== 'undefined'") as Boolean
         if (!observerAvailable) return@useEffect
+        if (isMobile && mobilePane != MobilePane.Posts) return@useEffect
         val options = js("{}").unsafeCast<JsIntersectionObserverOptions>()
-        options.root = container
-        options.rootMargin = "48px"
+        if (isMobile) {
+            options.root = null
+            options.rootMargin = "120px"
+        } else {
+            options.root = container
+            options.rootMargin = "48px"
+        }
         options.threshold = 1.0
         val observer =
             JsIntersectionObserver(
@@ -594,14 +662,20 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    useEffect(arrayOf(replies, selectedPost)) {
+    useEffect(arrayOf(replies, selectedPost, isMobile, mobilePane)) {
         val target = repliesLoadMoreRef.current ?: return@useEffect
         val container = repliesContainerRef.current ?: return@useEffect
         val observerAvailable = js("typeof IntersectionObserver !== 'undefined'") as Boolean
         if (!observerAvailable) return@useEffect
+        if (isMobile && mobilePane != MobilePane.Replies) return@useEffect
         val options = js("{}").unsafeCast<JsIntersectionObserverOptions>()
-        options.root = container
-        options.rootMargin = "48px"
+        if (isMobile) {
+            options.root = null
+            options.rootMargin = "120px"
+        } else {
+            options.root = container
+            options.rootMargin = "48px"
+        }
         options.threshold = 1.0
         val observer =
             JsIntersectionObserver(
@@ -619,6 +693,52 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             awaitCancellation()
         } finally {
             observer.disconnect()
+        }
+    }
+
+    useEffect(arrayOf(selectedTopic, selectedPost, mobilePane)) {
+        fun updateIsMobile() {
+            val isNarrow = window.innerWidth <= 900
+            setIsMobile(isNarrow)
+            if (!isNarrow) {
+                setMobilePane(MobilePane.Topics)
+                return
+            }
+            if (mobilePane == MobilePane.Replies && selectedPost == null) {
+                if (selectedTopic == null) {
+                    setMobilePane(MobilePane.Topics)
+                } else {
+                    setMobilePane(MobilePane.Posts)
+                }
+            }
+            if (mobilePane == MobilePane.Posts && selectedTopic == null) {
+                setMobilePane(MobilePane.Topics)
+            }
+        }
+        updateIsMobile()
+        val listener: (Event) -> Unit = { updateIsMobile() }
+        window.addEventListener("resize", listener)
+        try {
+            awaitCancellation()
+        } finally {
+            window.removeEventListener("resize", listener)
+        }
+    }
+
+    useEffect(*noDependencies) {
+        val coarsePointer = window.matchMedia("(pointer: coarse)").matches
+        val hasTouch = js("('ontouchstart' in window)") as Boolean
+        setIsTouchDevice(coarsePointer || hasTouch)
+    }
+
+    useEffect(arrayOf(isMobile, selectedTopic, selectedPost, mobilePane)) {
+        if (!isMobile) return@useEffect
+        if (selectedTopic == null && mobilePane != MobilePane.Topics) {
+            setMobilePane(MobilePane.Topics)
+            return@useEffect
+        }
+        if (selectedPost == null && mobilePane == MobilePane.Replies) {
+            setMobilePane(MobilePane.Posts)
         }
     }
 
@@ -666,45 +786,196 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             }
         }
         div {
-            className = ClassName("topic-board")
-            topicColumn(translator, topics, selectedTopic, ::addTopic, ::selectTopic, ::removeTopic)
-            postsColumn(
-                translator = translator,
-                visualsFactory = visualsFactory,
-                posts = posts,
-                selectedTopic = selectedTopic,
-                selectedPost = selectedPost,
-                isLoading = isLoadingPosts,
-                activeFilters = topicFilters,
-                onToggleFilter = ::toggleTopicFilter,
-                onClearFilter = ::clearTopicFilter,
-                onSelectPost = ::selectPost,
-                containerRef = postsContainerRef,
-                loadMoreRef = loadMoreRef,
-            )
-            repliesColumn(
-                translator = translator,
-                visualsFactory = visualsFactory,
-                selectedPost = selectedPost,
-                replies = replies,
-                isLoading = isLoadingReplies,
-                containerRef = repliesContainerRef,
-                loadMoreRef = repliesLoadMoreRef,
-                isComposerOpen = isReplyComposerOpen,
-                replyText = replyComposerText,
-                canActivateComposer = selectedPost != null && !isReplyPublishing,
-                isPublishing = isReplyPublishing,
-                errorText = replyPublishError,
-                onOpenComposer = ::openReplyComposer,
-                onCloseComposer = ::closeReplyComposer,
-                onReplyTextChange = { next -> setReplyComposerText(next) },
-                onSendReply = ::sendReply,
+            val boardClass =
+                buildString {
+                    append("topic-board")
+                    if (isMobile) {
+                        append(" topic-board--mobile")
+                        append(
+                            when (mobilePane) {
+                                MobilePane.Topics -> " topic-board--mobile-topics"
+                                MobilePane.Posts -> " topic-board--mobile-posts"
+                                MobilePane.Replies -> " topic-board--mobile-replies"
+                            },
+                        )
+                        if (swipeOffsetPercent != 0.0) {
+                            append(" topic-board--mobile-dragging")
+                        }
+                    }
+                }
+            className = ClassName(boardClass)
+            val baseShiftPercent =
+                when (mobilePane) {
+                    MobilePane.Topics -> 0.0
+                    MobilePane.Posts -> -100.0
+                    MobilePane.Replies -> -200.0
+                }
+            val dragShiftPercent = if (isMobile) swipeOffsetPercent else 0.0
+            val combinedShiftPercent = baseShiftPercent + dragShiftPercent
+            val showBackButtons = isMobile && !isTouchDevice
+            div {
+                className = ClassName("topic-board__track")
+                if (isMobile) {
+                    val trackStyle: dynamic = js("({})")
+                    trackStyle["--mobile-shift"] = "${combinedShiftPercent}%"
+                    asDynamic().style = trackStyle
+                }
+                if (isMobile) {
+                    val handleStart: (TouchEvent<*>) -> Unit = handler@ { event ->
+                        val touch = event.changedTouches.item(0) ?: return@handler
+                        touchStartXRef.current = touch.clientX
+                        touchStartYRef.current = touch.clientY
+                        swipePaneRef.current = mobilePane
+                        val targets = swipeTargetsRef.current ?: return@handler
+                        val eventTarget = event.target as? Element
+                        val topicTitle = closestAttribute(eventTarget, "data-topic-title")
+                        val postId = closestAttribute(eventTarget, "data-post-id")
+                        targets.topic = findTopicByTitle(topicTitle)
+                        targets.post = findPostById(postId)
+                        swipeActiveRef.current = true
+                        setSwipeOffsetPercent(0.0)
+                    }
+                    val handleMove: (TouchEvent<*>) -> Unit = handler@ { event ->
+                        if (swipeActiveRef.current != true) return@handler
+                        val targets = swipeTargetsRef.current ?: return@handler
+                        val touch = event.changedTouches.item(0) ?: return@handler
+                        val startX = touchStartXRef.current ?: return@handler
+                        val startY = touchStartYRef.current ?: return@handler
+                        val touchX = touch.clientX
+                        val touchY = touch.clientY
+                        val deltaX = touchX - startX
+                        val deltaY = abs(touchY - startY)
+                        val absDeltaX = abs(deltaX)
+                        if (absDeltaX <= deltaY) {
+                            setSwipeOffsetPercent(0.0)
+                            return@handler
+                        }
+                        val activePane = swipePaneRef.current ?: mobilePane
+                        val trackWidth =
+                            (event.currentTarget as? HTMLDivElement)?.clientWidth?.toDouble()
+                                ?.coerceAtLeast(1.0)
+                                ?: window.innerWidth.toDouble().coerceAtLeast(1.0)
+                        val percent = (deltaX / trackWidth) * 100.0
+                        when {
+                            deltaX > 0 -> {
+                                if (activePane == MobilePane.Topics) {
+                                    setSwipeOffsetPercent(0.0)
+                                    return@handler
+                                }
+                                setSwipeOffsetPercent(percent.coerceIn(0.0, 100.0))
+                            }
+                            deltaX < 0 -> {
+                                when (activePane) {
+                                    MobilePane.Topics -> {
+                                        if (targets.topic == null) {
+                                            setSwipeOffsetPercent(0.0)
+                                            return@handler
+                                        }
+                                        setSwipeOffsetPercent(percent.coerceIn(-100.0, 0.0))
+                                    }
+                                    MobilePane.Posts -> {
+                                        if (targets.post == null) {
+                                            setSwipeOffsetPercent(0.0)
+                                            return@handler
+                                        }
+                                        setSwipeOffsetPercent(percent.coerceIn(-100.0, 0.0))
+                                    }
+                                    MobilePane.Replies -> {
+                                        setSwipeOffsetPercent(0.0)
+                                        return@handler
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    val handleEnd: (TouchEvent<*>) -> Unit = handler@ {
+                        if (swipeActiveRef.current != true) return@handler
+                        val targets = swipeTargetsRef.current ?: return@handler
+                        val activePane = swipePaneRef.current ?: mobilePane
+                        val offset = swipeOffsetPercent
+                        val backThresholdReached = offset > 18.0
+                        val forwardThresholdReached = offset < -18.0
+                        if (backThresholdReached) {
+                            when (activePane) {
+                                MobilePane.Replies -> setMobilePane(MobilePane.Posts)
+                                MobilePane.Posts -> setMobilePane(MobilePane.Topics)
+                                MobilePane.Topics -> Unit
+                            }
+                        }
+                        if (forwardThresholdReached) {
+                            when (activePane) {
+                                MobilePane.Topics -> targets.topic?.let { target ->
+                                    selectTopic(target)
+                                    setMobilePane(MobilePane.Posts)
+                                }
+                                MobilePane.Posts -> targets.post?.let { post ->
+                                    selectPost(post)
+                                }
+                                MobilePane.Replies -> Unit
+                            }
+                        }
+                        setSwipeOffsetPercent(0.0)
+                        swipeActiveRef.current = false
+                        targets.topic = null
+                        targets.post = null
+                    }
+                    onTouchStart = handleStart
+                    onTouchMove = handleMove
+                    onTouchEnd = handleEnd
+                    onTouchCancel = handleEnd
+                }
+                topicColumn(translator, topics, selectedTopic, ::addTopic, ::selectTopic, ::removeTopic)
+                postsColumn(
+                    translator = translator,
+                    visualsFactory = visualsFactory,
+                    posts = posts,
+                    selectedTopic = selectedTopic,
+                    selectedPost = selectedPost,
+                    isLoading = isLoadingPosts,
+                    activeFilters = topicFilters,
+                    onToggleFilter = ::toggleTopicFilter,
+                    onClearFilter = ::clearTopicFilter,
+                    onSelectPost = ::selectPost,
+                    showBackToTopics = showBackButtons && mobilePane != MobilePane.Topics,
+                    onBackToTopics = { setMobilePane(MobilePane.Topics) },
+                    containerRef = postsContainerRef,
+                    loadMoreRef = loadMoreRef,
+                )
+                repliesColumn(
+                    translator = translator,
+                    visualsFactory = visualsFactory,
+                    selectedPost = selectedPost,
+                    replies = replies,
+                    isLoading = isLoadingReplies,
+                    isMobile = isMobile,
+                    showBackToPosts = showBackButtons,
+                    onBackToPosts = {
+                        if (selectedTopic == null) {
+                            setMobilePane(MobilePane.Topics)
+                        } else {
+                            setMobilePane(MobilePane.Posts)
+                        }
+                    },
+                    containerRef = repliesContainerRef,
+                    loadMoreRef = repliesLoadMoreRef,
+                    isComposerOpen = isReplyComposerOpen,
+                    replyText = replyComposerText,
+                    canActivateComposer = selectedPost != null && !isReplyPublishing,
+                    isPublishing = isReplyPublishing,
+                    errorText = replyPublishError,
+                    onOpenComposer = ::openReplyComposer,
+                    onCloseComposer = ::closeReplyComposer,
+                    onReplyTextChange = { next -> setReplyComposerText(next) },
+                    onSendReply = ::sendReply,
+                )
+            }
+        }
+        if (!isMobile || mobilePane != MobilePane.Replies) {
+            floatingComposerButton(
+                label = translator.translate("connected.composer.open"),
+                onActivate = ::openComposer,
             )
         }
-        floatingComposerButton(
-            label = translator.translate("connected.composer.open"),
-            onActivate = ::openComposer,
-        )
     }
 
     val shouldRenderProfile = isProfileVisible || profileExitAnimation != ProfileExitAnimation.None
@@ -773,6 +1044,7 @@ private fun ChildrenBuilder.topicColumn(
             div {
                 key = topic.title
                 className = ClassName(cardClass)
+                asDynamic()["data-topic-title"] = topic.title
                 onClick = { onSelectTopic(topic) }
                 button {
                     className = ClassName("topic-card__delete")
@@ -803,6 +1075,8 @@ private fun ChildrenBuilder.postsColumn(
     onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
     onClearFilter: (Topic) -> Unit,
     onSelectPost: (QueryResult.Entry) -> Unit,
+    showBackToTopics: Boolean,
+    onBackToTopics: () -> Unit,
     containerRef: Ref<HTMLDivElement>,
     loadMoreRef: Ref<HTMLDivElement>,
 ) = div {
@@ -821,6 +1095,20 @@ private fun ChildrenBuilder.postsColumn(
             }
     div {
         className = ClassName("topic-board__column-header")
+        if (showBackToTopics) {
+            button {
+                className = ClassName("topic-board__back-button")
+                ariaLabel = translator.translate("connected.mobile.backToTopics")
+                onClick = { onBackToTopics() }
+                i {
+                    className = ClassName("fa fa-solid fa-chevron-left topic-board__back-icon")
+                }
+                span {
+                    className = ClassName("topic-board__back-label")
+                    +translator.translate("connected.mobile.backToTopics")
+                }
+            }
+        }
         span {
             className = ClassName("topic-board__column-title")
             +translator.translate("connected.posts.title")
@@ -908,6 +1196,9 @@ private fun ChildrenBuilder.repliesColumn(
     onCloseComposer: () -> Unit,
     onReplyTextChange: (String) -> Unit,
     onSendReply: () -> Unit,
+    isMobile: Boolean,
+    showBackToPosts: Boolean,
+    onBackToPosts: () -> Unit,
     containerRef: Ref<HTMLDivElement>,
     loadMoreRef: Ref<HTMLDivElement>,
 ) = div {
@@ -918,6 +1209,20 @@ private fun ChildrenBuilder.repliesColumn(
     }
     div {
         className = ClassName("topic-board__column-header")
+        if (isMobile && showBackToPosts) {
+            button {
+                className = ClassName("topic-board__back-button")
+                ariaLabel = translator.translate("connected.mobile.backToPosts")
+                onClick = { onBackToPosts() }
+                i {
+                    className = ClassName("fa fa-solid fa-chevron-left topic-board__back-icon")
+                }
+                span {
+                    className = ClassName("topic-board__back-label")
+                    +translator.translate("connected.mobile.backToPosts")
+                }
+            }
+        }
         span {
             className = ClassName("topic-board__column-title")
             +translator.translate("connected.replies.title")
@@ -1168,6 +1473,7 @@ private fun ChildrenBuilder.postCard(
     div {
         key = entry.id
         className = ClassName(cardClass)
+        asDynamic()["data-post-id"] = entry.id
         onClick = { onSelect() }
         div {
             className = ClassName("post-card__author-row")
