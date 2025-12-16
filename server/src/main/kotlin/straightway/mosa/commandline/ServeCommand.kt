@@ -27,6 +27,7 @@ import straightway.mosa.installNetworkServerPlugins
 import straightway.mosa.tls.DevSelfSignedCertificateFactory
 import straightway.mosa.tls.InMemoryKeyStore
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCli::class)
 internal class ServeCommand(
@@ -69,6 +70,24 @@ internal class ServeCommand(
             fullName = ServerCommandLineArguments.DEV_CERT_HOST,
             description = "Primary host or IP to include in the self-signed certificate SAN",
         ).default("localhost")
+    private val loadSheddingThreshold by
+        option(
+            ArgType.Double,
+            fullName = ServerCommandLineArguments.LOAD_SHEDDING_THRESHOLD,
+            description = "Normalized CPU load threshold that triggers shedding (0.0-1.0)",
+        ).default(0.85)
+    private val memorySheddingThreshold by
+        option(
+            ArgType.Double,
+            fullName = ServerCommandLineArguments.MEMORY_SHEDDING_THRESHOLD,
+            description = "Heap usage threshold that triggers shedding (0.0-1.0)",
+        ).default(0.85)
+    private val loadSheddingRetryAfterSeconds by
+        option(
+            ArgType.Int,
+            fullName = ServerCommandLineArguments.LOAD_SHEDDING_RETRY_AFTER,
+            description = "Seconds to publish in the Retry-After header when shedding",
+        ).default(30)
 
     override fun execute() {
         val argumentValues =
@@ -79,6 +98,9 @@ internal class ServeCommand(
                 ServerCommandLineArguments.DEV_SELF_SIGNED_TLS to devSelfSignedTls,
                 ServerCommandLineArguments.HTTPS_PORT to httpsPort,
                 ServerCommandLineArguments.DEV_CERT_HOST to devCertHost,
+                ServerCommandLineArguments.LOAD_SHEDDING_THRESHOLD to loadSheddingThreshold,
+                ServerCommandLineArguments.MEMORY_SHEDDING_THRESHOLD to memorySheddingThreshold,
+                ServerCommandLineArguments.LOAD_SHEDDING_RETRY_AFTER to loadSheddingRetryAfterSeconds,
             )
         logArguments(argumentValues)
         startServer(CommandLineArgumentStore.from { name -> argumentValues[name] })
@@ -92,11 +114,20 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
     val enableSelfSignedTls = argumentStore.getBoolean(ServerCommandLineArguments.DEV_SELF_SIGNED_TLS) ?: false
     val httpsPort = argumentStore.getInt(ServerCommandLineArguments.HTTPS_PORT) ?: 8443
     val devCertHost = argumentStore.getString(ServerCommandLineArguments.DEV_CERT_HOST) ?: "localhost"
+    val loadSheddingThreshold = argumentStore.getDouble(ServerCommandLineArguments.LOAD_SHEDDING_THRESHOLD) ?: 0.85
+    val memorySheddingThreshold = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_THRESHOLD) ?: 0.85
+    val loadSheddingRetryAfterSeconds = argumentStore.getInt(ServerCommandLineArguments.LOAD_SHEDDING_RETRY_AFTER) ?: 30
     val mosaModule: Application.() -> Unit = {
         install(Koin) {
             modules(module { configureMosaAppModule(argumentStore) })
         }
-        installNetworkServerPlugins(getKoin().get(), requireTlsForPod)
+        installNetworkServerPlugins(
+            getKoin().get(),
+            requireTlsForPod,
+            loadSheddingThreshold,
+            memorySheddingThreshold,
+            loadSheddingRetryAfterSeconds.seconds,
+        )
         routing {
             getKoin().getAll<BaseController>().forEach { register(it) }
         }

@@ -50,6 +50,20 @@ class MainArgumentsTest {
         assertEquals(true, store?.getBoolean(ServerCommandLineArguments.ALLOW_HTTP))
     }
 
+    @Test
+    fun `store returns default memory shedding threshold when argument omitted`() {
+        val store = parseStore("serve")
+
+        assertEquals(0.85, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_THRESHOLD))
+    }
+
+    @Test
+    fun `store returns provided memory shedding threshold`() {
+        val store = parseStore("serve", "--memory-shedding-threshold", "0.9")
+
+        assertEquals(0.9, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_THRESHOLD))
+    }
+
     private fun parseStore(vararg args: String): CommandLineArgumentStore? {
         var capturedStore: CommandLineArgumentStore? = null
         val parser = ArgParser("mosa")

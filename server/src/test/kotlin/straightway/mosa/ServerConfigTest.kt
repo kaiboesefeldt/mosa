@@ -14,6 +14,7 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.seconds
 
 class ServerConfigTest {
     @Test
@@ -30,7 +31,13 @@ class ServerConfigTest {
     fun `rejects http requests for web client when tls required`() =
         testApplication {
             application {
-                installNetworkServerPlugins(NoopTokenUtil, requireTlsForPod = true)
+                installNetworkServerPlugins(
+                    tokenUtil = NoopTokenUtil,
+                    requireTlsForPod = true,
+                    loadSheddingThreshold = Double.MAX_VALUE,
+                    memorySheddingThreshold = Double.MAX_VALUE,
+                    loadSheddingRetryAfter = 30.seconds,
+                )
                 routing {
                     get("/") { call.respond(HttpStatusCode.OK) }
                 }
@@ -45,7 +52,13 @@ class ServerConfigTest {
     fun `allows http requests for web client when tls not required`() =
         testApplication {
             application {
-                installNetworkServerPlugins(NoopTokenUtil, requireTlsForPod = false)
+                installNetworkServerPlugins(
+                    tokenUtil = NoopTokenUtil,
+                    requireTlsForPod = false,
+                    loadSheddingThreshold = Double.MAX_VALUE,
+                    memorySheddingThreshold = Double.MAX_VALUE,
+                    loadSheddingRetryAfter = 30.seconds,
+                )
                 routing {
                     get("/") { call.respond(HttpStatusCode.OK) }
                 }
@@ -108,7 +121,13 @@ class ServerConfigTest {
 
     private fun ApplicationTestBuilder.configureTestServer(requireTls: Boolean = true) {
         application {
-            installNetworkServerPlugins(NoopTokenUtil, requireTls)
+            installNetworkServerPlugins(
+                tokenUtil = NoopTokenUtil,
+                requireTlsForPod = requireTls,
+                loadSheddingThreshold = Double.MAX_VALUE,
+                memorySheddingThreshold = Double.MAX_VALUE,
+                loadSheddingRetryAfter = 30.seconds,
+            )
             routing {
                 post("/v1/query") { call.respond(HttpStatusCode.OK) }
             }

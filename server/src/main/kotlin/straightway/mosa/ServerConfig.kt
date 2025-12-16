@@ -10,7 +10,6 @@ import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationPlugin
-import io.ktor.server.application.call
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
@@ -18,18 +17,35 @@ import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.bearer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
-import io.ktor.server.plugins.statuspages.exception
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import straightway.mosa.auth.InvalidPodCertificateRequest
+import straightway.mosa.defense.CombinedSheddingDecider
+import straightway.mosa.defense.CpuSheddingDecider
+import straightway.mosa.defense.MemorySheddingDecider
+import straightway.mosa.defense.createMosaLoadSheddingPlugin
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.util.TimeZone
+import kotlin.time.Duration
 
 fun Application.installNetworkServerPlugins(
     tokenUtil: TokenUtil,
     requireTlsForPod: Boolean,
+    loadSheddingThreshold: Double,
+    memorySheddingThreshold: Double,
+    loadSheddingRetryAfter: Duration,
 ) {
+    install(createMosaLoadSheddingPlugin()) {
+        decider =
+            CombinedSheddingDecider(
+                listOf(
+                    CpuSheddingDecider(loadSheddingThreshold = loadSheddingThreshold),
+                    MemorySheddingDecider(memorySheddingThreshold = memorySheddingThreshold),
+                ),
+            )
+        retryAfter = loadSheddingRetryAfter
+    }
     if (requireTlsForPod) {
         install(createMosaRequireTlsPlugin())
     }

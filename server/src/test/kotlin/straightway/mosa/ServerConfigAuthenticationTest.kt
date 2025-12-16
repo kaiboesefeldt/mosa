@@ -18,6 +18,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.seconds
 
 class ServerConfigAuthenticationTest {
     @Test
@@ -33,7 +34,13 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installNetworkServerPlugins(tokenUtil, requireTlsForPod = true)
+                installNetworkServerPlugins(
+                    tokenUtil = tokenUtil,
+                    requireTlsForPod = true,
+                    loadSheddingThreshold = Double.MAX_VALUE,
+                    memorySheddingThreshold = Double.MAX_VALUE,
+                    loadSheddingRetryAfter = 30.seconds,
+                )
                 routing {
                     authenticate {
                         get("/secure") {
@@ -65,7 +72,13 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installNetworkServerPlugins(tokenUtil, requireTlsForPod = true)
+                installNetworkServerPlugins(
+                    tokenUtil = tokenUtil,
+                    requireTlsForPod = true,
+                    loadSheddingThreshold = Double.MAX_VALUE,
+                    memorySheddingThreshold = Double.MAX_VALUE,
+                    loadSheddingRetryAfter = 30.seconds,
+                )
                 routing {
                     authenticate {
                         get("/secure") {
@@ -97,7 +110,13 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installNetworkServerPlugins(tokenUtil, requireTlsForPod = true)
+                installNetworkServerPlugins(
+                    tokenUtil = tokenUtil,
+                    requireTlsForPod = true,
+                    loadSheddingThreshold = Double.MAX_VALUE,
+                    memorySheddingThreshold = Double.MAX_VALUE,
+                    loadSheddingRetryAfter = 30.seconds,
+                )
                 routing {
                     authenticate {
                         get("/secure") {
@@ -130,7 +149,13 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installNetworkServerPlugins(tokenUtil, requireTlsForPod = true)
+                installNetworkServerPlugins(
+                    tokenUtil = tokenUtil,
+                    requireTlsForPod = true,
+                    loadSheddingThreshold = Double.MAX_VALUE,
+                    memorySheddingThreshold = Double.MAX_VALUE,
+                    loadSheddingRetryAfter = 30.seconds,
+                )
                 routing {
                     authenticate {
                         get("/secure") {
@@ -160,7 +185,13 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installNetworkServerPlugins(tokenUtil, requireTlsForPod = true)
+                installNetworkServerPlugins(
+                    tokenUtil = tokenUtil,
+                    requireTlsForPod = true,
+                    loadSheddingThreshold = Double.MAX_VALUE,
+                    memorySheddingThreshold = Double.MAX_VALUE,
+                    loadSheddingRetryAfter = 30.seconds,
+                )
                 routing {
                     authenticate {
                         get("/secure") {

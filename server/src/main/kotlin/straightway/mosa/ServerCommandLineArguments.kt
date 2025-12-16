@@ -7,4 +7,7 @@ object ServerCommandLineArguments {
     const val DEV_SELF_SIGNED_TLS = "dev-self-signed-tls"
     const val HTTPS_PORT = "https-port"
     const val DEV_CERT_HOST = "dev-cert-host"
+    const val LOAD_SHEDDING_THRESHOLD = "load-shedding-threshold"
+    const val LOAD_SHEDDING_RETRY_AFTER = "load-shedding-retry-after"
+    const val MEMORY_SHEDDING_THRESHOLD = "memory-shedding-threshold"
 }

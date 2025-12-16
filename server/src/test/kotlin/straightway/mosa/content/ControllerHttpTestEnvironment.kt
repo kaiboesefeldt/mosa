@@ -42,6 +42,7 @@ import java.time.ZoneId
 import java.util.TimeZone
 import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.seconds
 
 class ControllerHttpTestEnvironment(
     val controllers: List<BaseController>,
@@ -110,7 +111,13 @@ class ControllerHttpTestEnvironment(
                 modules(testModule)
             }
             application {
-                installNetworkServerPlugins(get(), requireTlsForPod)
+                installNetworkServerPlugins(
+                    tokenUtil = get(),
+                    requireTlsForPod = requireTlsForPod,
+                    loadSheddingThreshold = Double.MAX_VALUE,
+                    memorySheddingThreshold = Double.MAX_VALUE,
+                    loadSheddingRetryAfter = 30.seconds,
+                )
                 routing {
                     (this@ControllerHttpTestEnvironment.controllers + controllers).forEach {
                         register(it)

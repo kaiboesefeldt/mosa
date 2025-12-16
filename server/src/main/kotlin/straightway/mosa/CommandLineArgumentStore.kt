@@ -7,6 +7,8 @@ fun interface CommandLineArgumentStore {
 
     fun getInt(name: String): Int? = get(name) as? Int
 
+    fun getDouble(name: String): Double? = get(name) as? Double
+
     fun getString(name: String): String? = get(name) as? String
 
     companion object {
