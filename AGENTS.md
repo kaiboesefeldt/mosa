@@ -50,7 +50,7 @@
 - If you introduce new libs, always make sure you use the most recent stable version, if possible. Look up the most recent version using a web search!!
 - Don't use code comments at all! Instead, write the code so expressive, that comments are not required, e.g. by naming of code entities and extracted functions, that are named to make the functionality clear.
 - Avoid over-engineering!
-- Avoid premature optimization!
+- Keep it simple, avoid premature optimization! Don't anticipate future requirements.
 - Prefer using concrete types instead of `dynamic`.
 - Prefer using `suspend` functions instead of promises.
 - Avoid using nullable types as far as reasonable.
@@ -71,6 +71,8 @@
   1. Be aware, that test coverage measurements sometimes yields inaccurate results, e.g. for data classes or for classes annotated with `@Serializable`.
   2. Notice, that coverage for KotlinJs code is currently not measured. 
 - Names of code identifiers or tests, code comments and commit messages MUST be in english
+- Prefer using < and <= oder > and >=
+- 
 
 ## Testing Guidelines
 - Prefer fast, deterministic unit tests; use MockK for collaborators; Ktor test host for endpoint tests.
