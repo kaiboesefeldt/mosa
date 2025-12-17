@@ -22,10 +22,7 @@ class ContentService(
         userGID: String,
         request: PublishRequest,
         receiveTimestamp: Long,
-    ): String =
-        trace(userGID, request) {
-            writeContent(userGID, request, emptyMap(), receiveTimestamp)
-        }
+    ): String = writeContent(userGID, request, emptyMap(), receiveTimestamp)
 
     class RootNotFoundException : BadRequestException("Root not found")
 
@@ -35,81 +32,63 @@ class ContentService(
         userGID: String,
         request: ReplyRequest,
         receiveTimestamp: Long,
-    ): String =
-        trace(userGID, request) {
-            validateLength(request.content.text)
-            val root =
-                vectorStore
-                    .query(VectorStore.Query(id = request.rootId))
-                    .resultsPage
-                    .singleOrNull() ?: throw RootNotFoundException()
-            if (root.fields[ROOT_ID_KEY] != null) throw MissingRootIdInReplyException()
-            writeContent(
-                userGID,
-                request.content,
-                mapOf(
-                    ROOT_ID_KEY to request.rootId,
+    ): String {
+        validateLength(request.content.text)
+        val root =
+            vectorStore
+                .query(VectorStore.Query(id = request.rootId))
+                .resultsPage
+                .singleOrNull() ?: throw RootNotFoundException()
+        if (root.fields[ROOT_ID_KEY] != null) throw MissingRootIdInReplyException()
+        return writeContent(
+            userGID,
+            request.content,
+            mapOf(
+                ROOT_ID_KEY to request.rootId,
+            ),
+            receiveTimestamp,
+        )
+    }
+
+    suspend fun query(request: QueryRequest): QueryResult {
+        if (request == nilQueryRequest) throw BadRequestException("no search criteria")
+        val topicEmbedding = request.topic?.let { embeddingService.embed(it) }
+        val queryResults =
+            vectorStore.query(
+                VectorStore.Query(
+                    vector = topicEmbedding,
+                    fromTime = request.fromTime?.let { Instant.ofEpochSecond(it) },
+                    toTime = request.toTime?.let { Instant.ofEpochSecond(it) },
+                    scoreMustBeAbove = request.scoreMustBeAbove,
+                    scoreMustBeBelow = request.scoreMustBeBelow,
+                    fields = mapOf(ROOT_ID_KEY to request.threadRootId),
                 ),
-                receiveTimestamp,
             )
-        }
 
-    suspend fun query(
-        userGID: String,
-        request: QueryRequest,
-    ): QueryResult =
-        trace(userGID, request) {
-            if (request == nilQueryRequest) throw BadRequestException("no search criteria")
-            val topicEmbedding = request.topic?.let { embeddingService.embed(it) }
-            val queryResults =
-                vectorStore.query(
-                    VectorStore.Query(
-                        vector = topicEmbedding,
-                        fromTime = request.fromTime?.let { Instant.ofEpochSecond(it) },
-                        toTime = request.toTime?.let { Instant.ofEpochSecond(it) },
-                        scoreMustBeAbove = request.scoreMustBeAbove,
-                        scoreMustBeBelow = request.scoreMustBeBelow,
-                        fields = mapOf(ROOT_ID_KEY to request.threadRootId),
-                    ),
-                )
+        return QueryResult(
+            queryOnId = queryResults.queryOnId?.toString() ?: "",
+            entries = queryResults.resultsPage.map { it.toQueryResultEntry() },
+        )
+    }
 
-            return QueryResult(
-                queryOnId = queryResults.queryOnId?.toString() ?: "",
-                entries = queryResults.resultsPage.map { it.toQueryResultEntry() },
-            )
-        }
+    suspend fun queryOn(request: QueryOnRequest): QueryResult {
+        val queryOnId =
+            runCatching {
+                if (request.queryOnId.isEmpty()) null else UUID.fromString(request.queryOnId)
+            }.getOrNull()
+        val queryResults = vectorStore.queryOn(queryOnId)
 
-    suspend fun queryOn(
-        userGID: String,
-        request: QueryOnRequest,
-    ): QueryResult =
-        trace(userGID, request) {
-            val queryOnId =
-                runCatching {
-                    if (request.queryOnId.isEmpty()) null else UUID.fromString(request.queryOnId)
-                }.getOrNull()
-            val queryResults = vectorStore.queryOn(queryOnId)
+        return QueryResult(
+            queryOnId = queryResults.queryOnId?.toString() ?: "",
+            entries = queryResults.resultsPage.map { it.toQueryResultEntry() },
+        )
+    }
 
-            return QueryResult(
-                queryOnId = queryResults.queryOnId?.toString() ?: "",
-                entries = queryResults.resultsPage.map { it.toQueryResultEntry() },
-            )
-        }
+    suspend fun search(request: QueryRequest): SearchResult = query(request).toSearchResult()
 
-    suspend fun search(
-        userGID: String,
-        request: QueryRequest,
-    ): SearchResult = query(userGID, request).toSearchResult()
+    suspend fun searchOn(request: QueryOnRequest): SearchResult = queryOn(request).toSearchResult()
 
-    suspend fun searchOn(
-        userGID: String,
-        request: QueryOnRequest,
-    ): SearchResult = queryOn(userGID, request).toSearchResult()
-
-    suspend fun fetch(
-        userGID: String,
-        request: FetchRequest,
-    ) = trace(userGID, request) {
+    suspend fun fetch(request: FetchRequest) =
         FetchResult(
             vectorStore.fetch(request.itemIds).map {
                 FetchResult.Entry(
@@ -121,7 +100,6 @@ class ContentService(
                 )
             },
         )
-    }
 
     private fun QueryResult.toSearchResult(): SearchResult =
         SearchResult(
@@ -170,24 +148,9 @@ class ContentService(
             hasherFactory().digest(toByteArray(Charsets.UTF_8)),
         )
 
-    private suspend inline fun <T> trace(
-        userGID: String,
-        request: Any,
-        block: suspend () -> T,
-    ): T {
-        val requestId = UUID.randomUUID()
-        log.debug { "START $requestId: user: $userGID, request ${request.logString()}" }
-        return try {
-            block()
-        } finally {
-            log.debug { "FINISH $requestId: user: $userGID" }
-        }
-    }
-
     private companion object {
         private val log = KotlinLogging.logger { }
         private const val MAX_POST_LENGTH = 1800
-        private const val MAX_LOG_LEN_FOR_REQUESTS = 100
         private val nilQueryRequest = QueryRequest()
 
         private fun Map<String, String>.requireMetadata(
@@ -208,14 +171,5 @@ class ContentService(
                 throw BadRequestException("text must be at most $MAX_POST_LENGTH characters")
             }
         }
-
-        private fun Any.logString(): String =
-            toString().let {
-                if (it.length <= MAX_LOG_LEN_FOR_REQUESTS) {
-                    it
-                } else {
-                    it.substring(0..MAX_LOG_LEN_FOR_REQUESTS) + "..."
-                }
-            }
     }
 }

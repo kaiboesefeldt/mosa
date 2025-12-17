@@ -24,6 +24,7 @@ import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.defense.CombinedSheddingDecider
 import straightway.mosa.defense.CpuSheddingDecider
 import straightway.mosa.defense.MemorySheddingDecider
+import straightway.mosa.defense.RequestMetricsPlugin
 import straightway.mosa.defense.createMosaLoadSheddingPlugin
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.util.TimeZone
@@ -36,6 +37,7 @@ fun Application.installNetworkServerPlugins(
     memorySheddingThreshold: Double,
     loadSheddingRetryAfter: Duration,
 ) {
+    install(RequestMetricsPlugin)
     install(createMosaLoadSheddingPlugin()) {
         decider =
             CombinedSheddingDecider(

@@ -38,28 +38,28 @@ class ContentController(
                 call.respond(HttpStatusCode.Created, null)
             }
             postRoute("/query") {
-                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
-                val result = contentService.query(gid, call.receive<QueryRequest>())
+                userGidOrRespondUnauthorized() ?: return@postRoute
+                val result = contentService.query(call.receive<QueryRequest>())
                 call.respond(HttpStatusCode.OK, result, typeInfo<QueryResult>())
             }
             postRoute("/queryon") {
-                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
-                val result = contentService.queryOn(gid, call.receive<QueryOnRequest>())
+                userGidOrRespondUnauthorized() ?: return@postRoute
+                val result = contentService.queryOn(call.receive<QueryOnRequest>())
                 call.respond(HttpStatusCode.OK, result, typeInfo<QueryResult>())
             }
             postRoute("/search") {
-                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
-                val result = contentService.search(gid, call.receive<QueryRequest>())
+                userGidOrRespondUnauthorized() ?: return@postRoute
+                val result = contentService.search(call.receive<QueryRequest>())
                 call.respond(HttpStatusCode.OK, result, typeInfo<QueryResult>())
             }
             postRoute("/searchon") {
-                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
-                val result = contentService.searchOn(gid, call.receive<QueryOnRequest>())
+                userGidOrRespondUnauthorized() ?: return@postRoute
+                val result = contentService.searchOn(call.receive<QueryOnRequest>())
                 call.respond(HttpStatusCode.OK, result, typeInfo<QueryResult>())
             }
             postRoute("/fetch") {
-                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
-                val result = contentService.fetch(gid, call.receive<FetchRequest>())
+                userGidOrRespondUnauthorized() ?: return@postRoute
+                val result = contentService.fetch(call.receive<FetchRequest>())
                 call.respond(HttpStatusCode.OK, result, typeInfo<FetchResult>())
             }
         }
