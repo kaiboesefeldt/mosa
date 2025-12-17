@@ -1,6 +1,7 @@
 package straightway.mosa.defense
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.Plugin
@@ -13,7 +14,14 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
-class RequestMetricsPlugin : Plugin<Application, Unit, Unit> {
+class RequestMetricsPlugin(
+    private val interceptor: Interceptor? = null,
+    private val nanoTime: () -> Long = System::nanoTime,
+) : Plugin<Application, Unit, Unit> {
+    fun interface Interceptor {
+        suspend fun intercept(proceedAndReturnDurationMs: suspend () -> Double?): HttpStatusCode?
+    }
+
     override val key: AttributeKey<Unit> = AttributeKey("RequestMetricsPlugin")
 
     override fun install(
@@ -26,7 +34,7 @@ class RequestMetricsPlugin : Plugin<Application, Unit, Unit> {
         val total = AtomicLong(0)
 
         pipeline.intercept(ApplicationCallPipeline.Setup) {
-            call.attributes.put(StartNsKey, System.nanoTime())
+            call.attributes.put(StartNsKey, nanoTime())
 
             val activeNow = active.incrementAndGet()
             val reqNo = total.incrementAndGet()
@@ -36,44 +44,52 @@ class RequestMetricsPlugin : Plugin<Application, Unit, Unit> {
 
             var failure: Throwable? = null
             withContext(MDCContext(mapOf("reqNo" to "req#$reqNo"))) {
-                log.trace {
+                logger.trace {
                     "START($activeNow) $route"
                 }
+                var durationMs: Double = Double.NaN
                 try {
-                    proceed()
+                    doIntercept {
+                        proceed()
+                        call.attributes
+                            .getOrNull(StartNsKey)
+                            ?.let { (nanoTime() - it) / 1_000_000.0 }
+                            ?.also { durationMs = it }
+                            ?: Double.NaN
+                    }?.let { call.response.status(it) }
                 } catch (t: Throwable) {
                     failure = t
-                    throw t
+                    call.response.status(HttpStatusCode.InternalServerError)
+                    logger.warn(t) { "Exception while handling $route" }
                 } finally {
-                    call.attributes.getOrNull(StartNsKey)?.let { startNs ->
-                        val durationMs = (System.nanoTime() - startNs) / 1_000_000.0
-                        val activeAfter = active.decrementAndGet()
+                    val activeAfter = active.decrementAndGet()
 
-                        val status =
-                            call.response
-                                .status()
-                                ?.value
-                                ?.toString() ?: "?"
-                        val failureDescription =
-                            failure?.let { " failed=${it::class.simpleName}" } ?: ""
+                    val status = call.response.status() ?: "<UNKNOWN STATUS>"
+                    val baseMsg = "($activeAfter) $route $status"
+                    val duration = "${"%.2f".format(durationMs)} ms"
 
-                        log.trace {
-                            "END($activeAfter) $route $status ${
-                                "%.2f".format(
-                                    durationMs,
-                                )
-                            } ms$failureDescription"
-                        }
+                    if (failure == null) {
+                        logger.trace { "END$baseMsg $duration" }
+                    } else {
+                        logger.warn { "FAILED$baseMsg ${failure::class.simpleName} $duration" }
                     }
                 }
             }
         }
     }
 
+    private suspend fun doIntercept(proceedAndReturnDurationMs: suspend () -> Double?): HttpStatusCode? =
+        if (interceptor == null) {
+            proceedAndReturnDurationMs()
+            null
+        } else {
+            interceptor.intercept(proceedAndReturnDurationMs)
+        }
+
     companion object {
         private val ReqNoKey = AttributeKey<Long>("RequestMetricsReqNo")
         private val StartNsKey = AttributeKey<Long>("RequestMetricsStartNs")
 
-        private val log = KotlinLogging.logger {}
+        private val logger = KotlinLogging.logger {}
     }
 }
