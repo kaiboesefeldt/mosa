@@ -90,7 +90,6 @@ class QualityTest {
                 runTest {
                     val initialQueryResult =
                         contentService.query(
-                            gid,
                             QueryRequest(topic = s.text),
                         )
                     overallQueryResult.addAll(initialQueryResult.entries)
@@ -98,7 +97,6 @@ class QualityTest {
                     while (overallQueryResult.size < targetSize && searchOnId.isNotEmpty()) {
                         val queryOnResult =
                             contentService.queryOn(
-                                gid,
                                 QueryOnRequest(searchOnId),
                             )
                         overallQueryResult.addAll(queryOnResult.entries)

@@ -158,7 +158,7 @@ class ContentControllerTest {
             test.also {
                 env = it.env
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.query(any(), any()) }
+                    coVerify(exactly = 0) { it.contentService.query(any<QueryRequest>()) }
                 }
             }
         }
@@ -173,7 +173,7 @@ class ContentControllerTest {
                             fromTime = 1L,
                             threadRootId = "12345",
                         )
-                    coEvery { contentService.query(any(), any()) } returns queryResult
+                    coEvery { contentService.query(any<QueryRequest>()) } returns queryResult
 
                     val response =
                         client.post("/v1/query") {
@@ -183,8 +183,8 @@ class ContentControllerTest {
                         }
 
                     assertEquals(HttpStatusCode.OK, response.status)
-                    coVerify(exactly = 1) { contentService.query(env.gid, request) }
-                    assertEquals(queryResult, response.body())
+                    coVerify(exactly = 1) { contentService.query(request) }
+                    assertEquals(queryResult, response.body<QueryResult>())
                 }
             }
     }
@@ -195,7 +195,7 @@ class ContentControllerTest {
             test.also {
                 env = it.env
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.queryOn(any(), any()) }
+                    coVerify(exactly = 0) { it.contentService.queryOn(any<QueryOnRequest>()) }
                 }
             }
         }
@@ -206,7 +206,7 @@ class ContentControllerTest {
                 env {
                     val request =
                         QueryOnRequest(queryOnId = "queryOnId")
-                    coEvery { contentService.queryOn(any(), any()) } returns queryResult
+                    coEvery { contentService.queryOn(any<QueryOnRequest>()) } returns queryResult
 
                     val response =
                         client.post("/v1/queryon") {
@@ -216,8 +216,8 @@ class ContentControllerTest {
                         }
 
                     assertEquals(HttpStatusCode.OK, response.status)
-                    coVerify(exactly = 1) { contentService.queryOn(env.gid, request) }
-                    assertEquals(queryResult, response.body())
+                    coVerify(exactly = 1) { contentService.queryOn(request) }
+                    assertEquals(queryResult, response.body<QueryResult>())
                 }
             }
     }
@@ -228,7 +228,7 @@ class ContentControllerTest {
             test.also {
                 env = it.env
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.search(any(), any()) }
+                    coVerify(exactly = 0) { it.contentService.search(any<QueryRequest>()) }
                 }
             }
         }
@@ -243,7 +243,7 @@ class ContentControllerTest {
                             fromTime = 1L,
                             threadRootId = "12345",
                         )
-                    coEvery { contentService.search(any(), any()) } returns searchResult
+                    coEvery { contentService.search(any<QueryRequest>()) } returns searchResult
 
                     val response =
                         client.post("/v1/search") {
@@ -253,8 +253,8 @@ class ContentControllerTest {
                         }
 
                     assertEquals(HttpStatusCode.OK, response.status)
-                    coVerify(exactly = 1) { contentService.search(env.gid, request) }
-                    assertEquals(searchResult, response.body())
+                    coVerify(exactly = 1) { contentService.search(request) }
+                    assertEquals(searchResult, response.body<SearchResult>())
                 }
             }
     }
@@ -265,7 +265,7 @@ class ContentControllerTest {
             test.also {
                 env = it.env
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.searchOn(any(), any()) }
+                    coVerify(exactly = 0) { it.contentService.searchOn(any<QueryOnRequest>()) }
                 }
             }
         }
@@ -276,7 +276,7 @@ class ContentControllerTest {
                 env {
                     val request =
                         QueryOnRequest(queryOnId = "queryOnId")
-                    coEvery { contentService.searchOn(any(), any()) } returns searchResult
+                    coEvery { contentService.searchOn(any<QueryOnRequest>()) } returns searchResult
 
                     val response =
                         client.post("/v1/searchon") {
@@ -286,8 +286,8 @@ class ContentControllerTest {
                         }
 
                     assertEquals(HttpStatusCode.OK, response.status)
-                    coVerify(exactly = 1) { contentService.searchOn(env.gid, request) }
-                    assertEquals(searchResult, response.body())
+                    coVerify(exactly = 1) { contentService.searchOn(request) }
+                    assertEquals(searchResult, response.body<SearchResult>())
                 }
             }
     }
@@ -319,7 +319,7 @@ class ContentControllerTest {
             test.also {
                 env = it.env
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.fetch(any(), any()) }
+                    coVerify(exactly = 0) { it.contentService.fetch(any<FetchRequest>()) }
                 }
             }
         }
@@ -330,7 +330,7 @@ class ContentControllerTest {
                 env {
                     val request =
                         FetchRequest(fetchResult.entries.map { it.id })
-                    coEvery { contentService.fetch(any(), any()) } returns fetchResult
+                    coEvery { contentService.fetch(any<FetchRequest>()) } returns fetchResult
 
                     val response =
                         client.post("/v1/fetch") {
@@ -340,8 +340,8 @@ class ContentControllerTest {
                         }
 
                     assertEquals(HttpStatusCode.OK, response.status)
-                    coVerify(exactly = 1) { contentService.fetch(env.gid, request) }
-                    assertEquals(fetchResult, response.body())
+                    coVerify(exactly = 1) { contentService.fetch(request) }
+                    assertEquals(fetchResult, response.body<FetchResult>())
                 }
             }
     }

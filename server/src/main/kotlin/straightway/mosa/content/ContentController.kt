@@ -50,12 +50,12 @@ class ContentController(
             postRoute("/search") {
                 userGidOrRespondUnauthorized() ?: return@postRoute
                 val result = contentService.search(call.receive<QueryRequest>())
-                call.respond(HttpStatusCode.OK, result, typeInfo<QueryResult>())
+                call.respond(HttpStatusCode.OK, result, typeInfo<SearchResult>())
             }
             postRoute("/searchon") {
                 userGidOrRespondUnauthorized() ?: return@postRoute
                 val result = contentService.searchOn(call.receive<QueryOnRequest>())
-                call.respond(HttpStatusCode.OK, result, typeInfo<QueryResult>())
+                call.respond(HttpStatusCode.OK, result, typeInfo<SearchResult>())
             }
             postRoute("/fetch") {
                 userGidOrRespondUnauthorized() ?: return@postRoute

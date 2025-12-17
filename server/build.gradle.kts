@@ -28,6 +28,7 @@ dependencies {
     val auth0JwtVersion = "4.5.0"
     val bouncyCastleVersion = "1.82"
     val kotlinxCliVersion = "0.3.6"
+    val kotlinxCoroutinesVersion = "1.10.2"
 
     implementation(project(":shared"))
 
@@ -80,6 +81,7 @@ dependencies {
     // Logging
     implementation("io.github.oshai:kotlin-logging:$kotlinLoggingVersion")
     implementation("ch.qos.logback:logback-classic:${logbackVersion}")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:$kotlinxCoroutinesVersion")
 
     // Test
     testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion")

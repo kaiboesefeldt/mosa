@@ -83,7 +83,7 @@ class ContentServiceTest {
         fun `throws BadRequestException when all parameters are null`() =
             runTest {
                 assertThrows<BadRequestException> {
-                    sut.query(testUserGID, QueryRequest())
+                    sut.query(QueryRequest())
                 }
             }
 
@@ -93,7 +93,7 @@ class ContentServiceTest {
                 setupEmbedding("topic without thread")
                 setupVectorStore()
 
-                sut.query(testUserGID, QueryRequest(topic = "topic without thread"))
+                sut.query(QueryRequest(topic = "topic without thread"))
 
                 verifyQueryCall(
                     Query(
@@ -221,7 +221,6 @@ class ContentServiceTest {
                 setupVectorStoreWithCapture(capture = { capturedQuery = it })
 
                 sut.query(
-                    testUserGID,
                     QueryRequest(
                         topic = "above topic",
                         scoreMustBeAbove = 0.42f,
@@ -246,7 +245,6 @@ class ContentServiceTest {
                 setupVectorStoreWithCapture(capture = { capturedQuery = it })
 
                 sut.query(
-                    testUserGID,
                     QueryRequest(
                         topic = "below topic",
                         scoreMustBeBelow = 0.13f,
@@ -273,7 +271,7 @@ class ContentServiceTest {
             setupVectorStore()
 
             // When
-            val result = sut.query(testUserGID, request)
+            val result = sut.query(request)
 
             // Then
             verifyQueryCall(expectedQuery)
@@ -303,7 +301,7 @@ class ContentServiceTest {
                 setupVectorStore(createVectorStoreResults(queryOnId = null))
 
                 // When
-                val result = sut.query(testUserGID, QueryRequest(topic = "test topic"))
+                val result = sut.query(QueryRequest(topic = "test topic"))
 
                 // Then
                 val expectedResult =
@@ -347,7 +345,7 @@ class ContentServiceTest {
                 setupVectorStore(createVectorStoreResults(entries = vectorStoreEntries))
 
                 // When
-                val result = sut.query(testUserGID, QueryRequest(topic = "test topic"))
+                val result = sut.query(QueryRequest(topic = "test topic"))
 
                 // Then
                 val expectedResult =
@@ -391,7 +389,7 @@ class ContentServiceTest {
 
                 val exception =
                     assertThrows<MissingVectorMetadataException> {
-                        sut.query(testUserGID, QueryRequest(topic = "missing author topic"))
+                        sut.query(QueryRequest(topic = "missing author topic"))
                     }
                 assertEquals("missing-author-id", exception.entryId)
                 assertEquals("authorGID", exception.fieldName)
@@ -412,7 +410,7 @@ class ContentServiceTest {
 
                 val exception =
                     assertThrows<MissingVectorMetadataException> {
-                        sut.query(testUserGID, QueryRequest(topic = "missing received at topic"))
+                        sut.query(QueryRequest(topic = "missing received at topic"))
                     }
                 assertEquals("missing-received-at-id", exception.entryId)
                 assertEquals("receivedAt", exception.fieldName)
@@ -430,7 +428,7 @@ class ContentServiceTest {
             coEvery { vectorStore.queryOn(expectedUUID) } returns createDefaultQueryResults()
 
             // When
-            val result = sut.queryOn(testUserGID, QueryOnRequest(queryId))
+            val result = sut.queryOn(QueryOnRequest(queryId))
 
             // Then
             coVerify { vectorStore.queryOn(expectedUUID) }
@@ -474,7 +472,7 @@ class ContentServiceTest {
                 coEvery { vectorStore.queryOn(uuid) } returns createVectorStoreResults(queryOnId = null)
 
                 // When
-                val result = sut.queryOn(testUserGID, QueryOnRequest(uuid.toString()))
+                val result = sut.queryOn(QueryOnRequest(uuid.toString()))
 
                 // Then
                 val expectedResult =
@@ -510,7 +508,7 @@ class ContentServiceTest {
                 coEvery { vectorStore.queryOn(uuid) } returns createVectorStoreResults(entries = listOf(vectorStoreEntry))
 
                 // When
-                val result = sut.queryOn(testUserGID, QueryOnRequest(uuid.toString()))
+                val result = sut.queryOn(QueryOnRequest(uuid.toString()))
 
                 // Then
                 val expectedResult =
@@ -544,7 +542,7 @@ class ContentServiceTest {
             setupVectorStore()
 
             // When
-            val result = sut.search(testUserGID, request)
+            val result = sut.search(request)
 
             // Then
             verifyQueryCall(expectedQuery)
@@ -566,7 +564,7 @@ class ContentServiceTest {
         fun `throws BadRequestException when all parameters are null`() =
             runTest {
                 assertThrows<BadRequestException> {
-                    sut.search(testUserGID, QueryRequest())
+                    sut.search(QueryRequest())
                 }
             }
 
@@ -576,7 +574,7 @@ class ContentServiceTest {
                 setupEmbedding("topic without thread")
                 setupVectorStore()
 
-                sut.search(testUserGID, QueryRequest(topic = "topic without thread"))
+                sut.search(QueryRequest(topic = "topic without thread"))
 
                 verifyQueryCall(
                     Query(
@@ -704,7 +702,6 @@ class ContentServiceTest {
                 setupVectorStoreWithCapture(capture = { capturedQuery = it })
 
                 sut.search(
-                    testUserGID,
                     QueryRequest(
                         topic = "above topic",
                         scoreMustBeAbove = 0.42f,
@@ -729,7 +726,6 @@ class ContentServiceTest {
                 setupVectorStoreWithCapture(capture = { capturedQuery = it })
 
                 sut.search(
-                    testUserGID,
                     QueryRequest(
                         topic = "below topic",
                         scoreMustBeBelow = 0.13f,
@@ -754,7 +750,7 @@ class ContentServiceTest {
                 setupVectorStore(createVectorStoreResults(queryOnId = null))
 
                 // When
-                val result = sut.search(testUserGID, QueryRequest(topic = "test topic"))
+                val result = sut.search(QueryRequest(topic = "test topic"))
 
                 // Then
                 val expectedResult =
@@ -794,7 +790,7 @@ class ContentServiceTest {
                 setupVectorStore(createVectorStoreResults(entries = vectorStoreEntries))
 
                 // When
-                val result = sut.search(testUserGID, QueryRequest(topic = "test topic"))
+                val result = sut.search(QueryRequest(topic = "test topic"))
 
                 // Then
                 val expectedResult =
@@ -830,7 +826,7 @@ class ContentServiceTest {
 
                 val exception =
                     assertThrows<MissingVectorMetadataException> {
-                        sut.search(testUserGID, QueryRequest(topic = "missing author topic"))
+                        sut.search(QueryRequest(topic = "missing author topic"))
                     }
                 assertEquals("missing-author-id", exception.entryId)
                 assertEquals("authorGID", exception.fieldName)
@@ -851,7 +847,7 @@ class ContentServiceTest {
 
                 val exception =
                     assertThrows<MissingVectorMetadataException> {
-                        sut.search(testUserGID, QueryRequest(topic = "missing received at topic"))
+                        sut.search(QueryRequest(topic = "missing received at topic"))
                     }
                 assertEquals("missing-received-at-id", exception.entryId)
                 assertEquals("receivedAt", exception.fieldName)
@@ -869,7 +865,7 @@ class ContentServiceTest {
             coEvery { vectorStore.queryOn(expectedUUID) } returns createDefaultQueryResults()
 
             // When
-            val result = sut.searchOn(testUserGID, QueryOnRequest(queryId))
+            val result = sut.searchOn(QueryOnRequest(queryId))
 
             // Then
             coVerify { vectorStore.queryOn(expectedUUID) }
@@ -909,7 +905,7 @@ class ContentServiceTest {
                 coEvery { vectorStore.queryOn(uuid) } returns createVectorStoreResults(queryOnId = null)
 
                 // When
-                val result = sut.searchOn(testUserGID, QueryOnRequest(uuid.toString()))
+                val result = sut.searchOn(QueryOnRequest(uuid.toString()))
 
                 // Then
                 val expectedResult =
@@ -941,7 +937,7 @@ class ContentServiceTest {
                 coEvery { vectorStore.queryOn(uuid) } returns createVectorStoreResults(entries = listOf(vectorStoreEntry))
 
                 // When
-                val result = sut.searchOn(testUserGID, QueryOnRequest(uuid.toString()))
+                val result = sut.searchOn(QueryOnRequest(uuid.toString()))
 
                 // Then
                 val expectedResult =
@@ -987,7 +983,7 @@ class ContentServiceTest {
                 val idsToFetch = fetchResult.map { it.id }
                 coEvery { vectorStore.fetch(idsToFetch) } returns fetchResult
 
-                val result = sut.fetch(testUserGID, FetchRequest(idsToFetch))
+                val result = sut.fetch(FetchRequest(idsToFetch))
 
                 val expected =
                     FetchResult(
@@ -1025,7 +1021,7 @@ class ContentServiceTest {
 
                     val ex =
                         assertFailsWith<MissingVectorMetadataException> {
-                            sut.fetch(testUserGID, FetchRequest(idsToFetch))
+                            sut.fetch(FetchRequest(idsToFetch))
                         }
 
                     assertEquals("id1", ex.entryId)

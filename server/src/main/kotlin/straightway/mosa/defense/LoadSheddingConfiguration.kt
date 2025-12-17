@@ -37,7 +37,7 @@ fun createMosaLoadSheddingPlugin(): ApplicationPlugin<LoadSheddingConfiguration>
                     call.respond(HttpStatusCode.ServiceUnavailable)
                     return@onCall
                 } else if (startShedding.compareAndSet(true, false)) {
-                    logger.warn { "Stop shedding incoming request: $reason" }
+                    logger.warn { "Stop shedding incoming requests" }
                 }
             }
         }

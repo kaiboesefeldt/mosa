@@ -37,7 +37,7 @@ fun Application.installNetworkServerPlugins(
     memorySheddingThreshold: Double,
     loadSheddingRetryAfter: Duration,
 ) {
-    install(RequestMetricsPlugin)
+    install(RequestMetricsPlugin())
     install(createMosaLoadSheddingPlugin()) {
         decider =
             CombinedSheddingDecider(
