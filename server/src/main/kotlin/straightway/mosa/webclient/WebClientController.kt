@@ -10,7 +10,6 @@ import io.ktor.server.request.port
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
-import io.ktor.server.routing.get
 import straightway.mosa.base.BaseController
 import java.net.URL
 
@@ -18,9 +17,9 @@ class WebClientController(
     val serveSourceMaps: Boolean = false,
     allowPlainHttp: Boolean = false,
     private val getResourceUrl: (String) -> URL? = { WebClientController::class.java.classLoader.getResource(it) },
-) : BaseController() {
+) : BaseController(pathPrefix = ROOT) {
     override fun Route.register() {
-        get("/") {
+        getRoute("/") {
             val htmlResourceUrl = getResourceUrl("static/index.html") ?: throw RuntimeException("internal resource not found")
             val hostHeader = call.request.header(HttpHeaders.Host)
             val host = hostHeader ?: call.request.host()
@@ -33,11 +32,11 @@ class WebClientController(
             call.respondText(injected, ContentType.Text.Html)
         }
 
-        get("/mosa-client.js") {
+        getRoute("/mosa-client.js") {
             call.respondText(clientCodeJs, ContentType.Application.JavaScript)
         }
 
-        get("/mosa-client.js.map") {
+        getRoute("/mosa-client.js.map") {
             val mapContent = mapResource
             if (serveSourceMaps && mapContent != null) {
                 call.respondText(mapContent, ContentType.Application.Json)
@@ -46,7 +45,7 @@ class WebClientController(
             }
         }
 
-        get("/styles.css") {
+        getRoute("/styles.css") {
             val css = styleResource
             if (css != null) {
                 call.respondText(css, ContentType.Text.CSS)
@@ -55,35 +54,35 @@ class WebClientController(
             }
         }
 
-        get("/webfonts/{fontFile}") {
+        getRoute("/webfonts/{fontFile}") {
             val fontFile =
-                call.parameters["fontFile"] ?: return@get call.respondText(
+                call.parameters["fontFile"] ?: return@getRoute call.respondText(
                     "",
                     ContentType.Text.Plain,
                     HttpStatusCode.NotFound,
                 )
             if (fontFile.contains("/") || fontFile.contains("..")) {
-                return@get call.respondText("", ContentType.Text.Plain, HttpStatusCode.BadRequest)
+                return@getRoute call.respondText("", ContentType.Text.Plain, HttpStatusCode.BadRequest)
             }
             val fontResource =
                 getResourceUrl("static/webfonts/$fontFile")
-                    ?: return@get call.respondText("", ContentType.Text.Plain, HttpStatusCode.NotFound)
+                    ?: return@getRoute call.respondText("", ContentType.Text.Plain, HttpStatusCode.NotFound)
             val fontBytes = fontResource.openStream().use { it.readBytes() }
             call.respondBytes(fontBytes, ContentType("font", "woff2"))
         }
 
-        get("/{assetName}") {
+        getRoute("/{assetName}") {
             val assetName =
-                call.parameters["assetName"] ?: return@get call.respondText(
+                call.parameters["assetName"] ?: return@getRoute call.respondText(
                     "",
                     ContentType.Text.Plain,
                     HttpStatusCode.NotFound,
                 )
             if (assetName.contains("/") || assetName.contains("..")) {
-                return@get call.respondText("", ContentType.Text.Plain, HttpStatusCode.BadRequest)
+                return@getRoute call.respondText("", ContentType.Text.Plain, HttpStatusCode.BadRequest)
             }
             val assetResource =
-                getResourceUrl("static/$assetName") ?: return@get call.respondText(
+                getResourceUrl("static/$assetName") ?: return@getRoute call.respondText(
                     "",
                     ContentType.Text.Plain,
                     HttpStatusCode.NotFound,
