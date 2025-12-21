@@ -1,8 +1,9 @@
 package straightway.mosa.defense
 
 class P2QuantileEstimator(
+    override val name: String,
     private val quantile: Double,
-) {
+) : Estimator {
     init {
         require(quantile > 0.0 && quantile < 1.0) { "quantile must be in (0, 1), was $quantile" }
     }
@@ -32,9 +33,9 @@ class P2QuantileEstimator(
     private var initialized = false
     private var sampleCount = 0L
 
-    fun samples(): Long = sampleCount
+    override val samples: Long get() = sampleCount
 
-    fun add(sample: Double) {
+    override fun add(sample: Double) {
         if (!sample.isFinite()) return
         sampleCount++
 
@@ -49,11 +50,12 @@ class P2QuantileEstimator(
         adjustInteriorMarkersIfNeeded()
     }
 
-    fun estimate(): Double {
-        if (initialized) return markerHeights[TARGET_QUANTILE_INDEX]
-        if (warmCount == 0) return Double.NaN
-        return exactQuantileFromWarmup()
-    }
+    override fun estimate(): Double =
+        when {
+            initialized -> markerHeights[TARGET_QUANTILE_INDEX]
+            warmCount == 0 -> Double.NaN
+            else -> exactQuantileFromWarmup()
+        }
 
     private fun addWarmupSample(sample: Double) {
         warmup[warmCount++] = sample

@@ -17,7 +17,7 @@ class P2QuantileEstimatorTest {
         @ParameterizedTest
         @ValueSource(doubles = [0.0, 1.0, -0.1, 1.1])
         fun `q must be in (0,1)`(q: Double) {
-            assertThrows<IllegalArgumentException> { P2QuantileEstimator(q) }
+            assertThrows<IllegalArgumentException> { P2QuantileEstimator(name = "p2", quantile = q) }
         }
     }
 
@@ -25,15 +25,15 @@ class P2QuantileEstimatorTest {
     inner class EmptyAndWarmupBehavior {
         @Test
         fun `estimate is NaN when no samples`() {
-            val est = P2QuantileEstimator(0.95)
+            val est = P2QuantileEstimator(name = "p2", quantile = 0.95)
             assertEquals(Double.NaN, est.estimate())
-            assertEquals(0L, est.samples())
+            assertEquals(0L, est.samples)
         }
 
         @ParameterizedTest
         @ValueSource(doubles = [0.1, 0.5, 0.9, 0.95])
         fun `warmup less than 5 samples returns exact quantile of seen samples`(quantile: Double) {
-            val est = P2QuantileEstimator(quantile)
+            val est = P2QuantileEstimator(name = "p2", quantile = quantile)
 
             val samples = doubleArrayOf(10.0, 2.0, 7.0, 5.0)
             val prefix = ArrayList<Double>()
@@ -47,7 +47,7 @@ class P2QuantileEstimatorTest {
 
                 assertEquals(
                     (index + 1).toLong(),
-                    est.samples(),
+                    est.samples,
                     "sample counter should count finite samples",
                 )
                 assertEquals(
@@ -62,13 +62,13 @@ class P2QuantileEstimatorTest {
         @ParameterizedTest
         @ValueSource(doubles = [0.1, 0.5, 0.9, 0.95])
         fun `warmup exactly 5 samples uses always middle sample`(quantile: Double) {
-            val est = P2QuantileEstimator(quantile)
+            val est = P2QuantileEstimator(name = "p2", quantile = quantile)
             val samples = doubleArrayOf(9.0, 1.0, 5.5, 3.0, 7.0)
             samples.forEach { est.add(it) }
 
             val actual = est.estimate()
 
-            assertEquals(5L, est.samples())
+            assertEquals(5L, est.samples)
             assertEquals(5.5, actual)
         }
     }
@@ -77,13 +77,13 @@ class P2QuantileEstimatorTest {
     inner class RobustnessToNanAndInfinity {
         @Test
         fun `NaN and infinities are ignored and do not increment sample counter`() {
-            val est = P2QuantileEstimator(0.9)
+            val est = P2QuantileEstimator(name = "p2", quantile = 0.9)
 
             est.add(Double.NaN)
             est.add(Double.POSITIVE_INFINITY)
             est.add(Double.NEGATIVE_INFINITY)
 
-            assertEquals(0L, est.samples())
+            assertEquals(0L, est.samples)
             assertEquals(Double.NaN, est.estimate())
         }
     }
@@ -92,15 +92,15 @@ class P2QuantileEstimatorTest {
     inner class BasicSanityAndStability {
         @Test
         fun `constant stream remains constant`() {
-            val est = P2QuantileEstimator(0.95)
+            val est = P2QuantileEstimator(name = "p2", quantile = 0.95)
             repeat(1_000) { est.add(42.0) }
-            assertEquals(1_000L, est.samples())
+            assertEquals(1_000L, est.samples)
             assertEquals(42.0, est.estimate(), 0.0)
         }
 
         @Test
         fun `monotone increasing stream - estimate stays within min-max`() {
-            val est = P2QuantileEstimator(0.95)
+            val est = P2QuantileEstimator(name = "p2", quantile = 0.95)
 
             var minSeen = Double.POSITIVE_INFINITY
             var maxSeen = Double.NEGATIVE_INFINITY
@@ -118,7 +118,7 @@ class P2QuantileEstimatorTest {
 
         @Test
         fun `monotone decreasing stream - estimate stays within min-max`() {
-            val est = P2QuantileEstimator(0.95)
+            val est = P2QuantileEstimator(name = "p2", quantile = 0.95)
 
             var minSeen = Double.POSITIVE_INFINITY
             var maxSeen = Double.NEGATIVE_INFINITY
@@ -136,7 +136,7 @@ class P2QuantileEstimatorTest {
 
         @Test
         fun `handles very large finite values`() {
-            val est = P2QuantileEstimator(0.99)
+            val est = P2QuantileEstimator(name = "p2", quantile = 0.99)
             val base = 1e300
             repeat(200) { est.add(base + it) }
             val e = est.estimate()
@@ -154,7 +154,7 @@ class P2QuantileEstimatorTest {
             val samples = DoubleArray(n) { rnd.nextDouble() } // Uniform[0,1)
 
             val q = 0.50
-            val est = P2QuantileEstimator(q)
+            val est = P2QuantileEstimator(name = "p2", quantile = q)
             samples.forEach { est.add(it) }
 
             val expected = exactQuantile(samples, q)
@@ -170,7 +170,7 @@ class P2QuantileEstimatorTest {
             val samples = DoubleArray(n) { rnd.nextDouble() }
 
             val q = 0.95
-            val est = P2QuantileEstimator(q)
+            val est = P2QuantileEstimator(name = "p2", quantile = q)
             samples.forEach { est.add(it) }
 
             val expected = exactQuantile(samples, q)
@@ -190,7 +190,7 @@ class P2QuantileEstimatorTest {
                 }
 
             val q = 0.95
-            val est = P2QuantileEstimator(q)
+            val est = P2QuantileEstimator(name = "p2", quantile = q)
             samples.forEach { est.add(it) }
 
             val expected = exactQuantile(samples, q)
@@ -205,7 +205,7 @@ class P2QuantileEstimatorTest {
             val samples = DoubleArray(n) { if (it < n * 0.90) 10.0 else 1000.0 } // 90% small, 10% huge
 
             val q = 0.95
-            val est = P2QuantileEstimator(q)
+            val est = P2QuantileEstimator(name = "p2", quantile = q)
             samples.forEach { est.add(it) }
 
             val expected = exactQuantile(samples, q)
