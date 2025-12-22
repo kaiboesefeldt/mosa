@@ -6,23 +6,18 @@ import kotlinx.coroutines.test.runTest
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class RequestDurationSheddingDeciderTest {
     @Test
     fun `increases shedding when request durations degrade`() =
         runTest {
             val meterRegistry = SimpleMeterRegistry()
-            val timer =
-                Timer
-                    .builder(RequestMetricsPlugin.REQUEST_DURATION_METRIC_NAME)
-                    .tag("method", "GET")
-                    .tag("route", "/test")
-                    .register(meterRegistry)
+            val timer = timerFor(meterRegistry, method = "GET", route = "/test")
 
             val decider =
-                RequestDurationSheddingDecider(
-                    meterRegistry = meterRegistry,
-                    nanoTime = { 0L },
+                deciderFor(
+                    meterRegistry,
                     config =
                         RequestDurationSheddingDecider.Config(
                             minSamplesForBaseline = 5,
@@ -34,32 +29,24 @@ class RequestDurationSheddingDeciderTest {
                 )
 
             repeat(5) {
-                timer.record(10, TimeUnit.MILLISECONDS)
-                assertEquals(0.0, decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor)
+                recordMs(timer, 10)
+                assertEquals(0.0, decideFactor(decider, method = "GET", route = "/test"))
             }
 
-            repeat(5) {
-                timer.record(50, TimeUnit.MILLISECONDS)
-            }
+            recordMs(timer, 50, times = 5)
 
-            assertEquals(1.0, decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor)
+            assertEquals(1.0, decideFactor(decider, method = "GET", route = "/test"))
         }
 
     @Test
     fun `decreases shedding when request durations recover`() =
         runTest {
             val meterRegistry = SimpleMeterRegistry()
-            val timer =
-                Timer
-                    .builder(RequestMetricsPlugin.REQUEST_DURATION_METRIC_NAME)
-                    .tag("method", "GET")
-                    .tag("route", "/test")
-                    .register(meterRegistry)
+            val timer = timerFor(meterRegistry, method = "GET", route = "/test")
 
             val decider =
-                RequestDurationSheddingDecider(
-                    meterRegistry = meterRegistry,
-                    nanoTime = { 0L },
+                deciderFor(
+                    meterRegistry,
                     config =
                         RequestDurationSheddingDecider.Config(
                             minSamplesForBaseline = 5,
@@ -71,28 +58,25 @@ class RequestDurationSheddingDeciderTest {
                 )
 
             repeat(5) {
-                timer.record(10, TimeUnit.MILLISECONDS)
-                decider.decideShedding(SheddingRequest("GET", "/test"))
+                recordMs(timer, 10)
+                decideFactor(decider, method = "GET", route = "/test")
             }
-            repeat(5) {
-                timer.record(50, TimeUnit.MILLISECONDS)
-            }
-            assertEquals(1.0, decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor)
+            recordMs(timer, 50, times = 5)
+            assertEquals(1.0, decideFactor(decider, method = "GET", route = "/test"))
 
             repeat(20) {
-                timer.record(10, TimeUnit.MILLISECONDS)
-                decider.decideShedding(SheddingRequest("GET", "/test"))
+                recordMs(timer, 10)
+                decideFactor(decider, method = "GET", route = "/test")
             }
-            assertEquals(0.0, decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor)
+            assertEquals(0.0, decideFactor(decider, method = "GET", route = "/test"))
         }
 
     @Test
     fun `does not shed when no timer exists`() =
         runTest {
             val decider =
-                RequestDurationSheddingDecider(
-                    meterRegistry = SimpleMeterRegistry(),
-                    nanoTime = { 0L },
+                deciderFor(
+                    SimpleMeterRegistry(),
                     config =
                         RequestDurationSheddingDecider.Config(
                             minSamplesForBaseline = 0,
@@ -100,28 +84,19 @@ class RequestDurationSheddingDeciderTest {
                         ),
                 )
 
-            assertEquals(0.0, decider.decideShedding(SheddingRequest("GET", "/missing")).sheddingFactor)
+            assertEquals(0.0, decideFactor(decider, method = "GET", route = "/missing"))
         }
 
     @Test
     fun `keeps state map bounded`() =
         runTest {
             val meterRegistry = SimpleMeterRegistry()
-            Timer
-                .builder(RequestMetricsPlugin.REQUEST_DURATION_METRIC_NAME)
-                .tag("method", "GET")
-                .tag("route", "/a")
-                .register(meterRegistry)
-            Timer
-                .builder(RequestMetricsPlugin.REQUEST_DURATION_METRIC_NAME)
-                .tag("method", "GET")
-                .tag("route", "/b")
-                .register(meterRegistry)
+            timerFor(meterRegistry, method = "GET", route = "/a")
+            timerFor(meterRegistry, method = "GET", route = "/b")
 
             val decider =
-                RequestDurationSheddingDecider(
-                    meterRegistry = meterRegistry,
-                    nanoTime = { 0L },
+                deciderFor(
+                    meterRegistry,
                     config =
                         RequestDurationSheddingDecider.Config(
                             maxRoutes = 1,
@@ -129,8 +104,8 @@ class RequestDurationSheddingDeciderTest {
                         ),
                 )
 
-            decider.decideShedding(SheddingRequest("GET", "/a"))
-            decider.decideShedding(SheddingRequest("GET", "/b"))
+            decideFactor(decider, method = "GET", route = "/a")
+            decideFactor(decider, method = "GET", route = "/b")
 
             assertEquals(1, decider.stateCount())
         }
@@ -139,17 +114,12 @@ class RequestDurationSheddingDeciderTest {
     fun `respects sample interval by returning cached result`() =
         runTest {
             val meterRegistry = SimpleMeterRegistry()
-            val timer =
-                Timer
-                    .builder(RequestMetricsPlugin.REQUEST_DURATION_METRIC_NAME)
-                    .tag("method", "GET")
-                    .tag("route", "/test")
-                    .register(meterRegistry)
+            val timer = timerFor(meterRegistry, method = "GET", route = "/test")
 
             val nanoTimes = ArrayDeque(listOf(1_000L, 1_500L, 2_000L))
             val decider =
-                RequestDurationSheddingDecider(
-                    meterRegistry = meterRegistry,
+                deciderFor(
+                    meterRegistry,
                     nanoTime = { nanoTimes.removeFirst() },
                     config =
                         RequestDurationSheddingDecider.Config(
@@ -161,15 +131,203 @@ class RequestDurationSheddingDeciderTest {
                         ),
                 )
 
-            timer.record(10, TimeUnit.MILLISECONDS)
-            val first = decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor
+            recordMs(timer, 10)
+            val first = decideFactor(decider, method = "GET", route = "/test")
 
-            timer.record(1_000, TimeUnit.MILLISECONDS)
-            val cached = decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor
+            recordMs(timer, 1_000)
+            val cached = decideFactor(decider, method = "GET", route = "/test")
 
             assertEquals(first, cached)
 
-            val next = decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor
+            val next = decideFactor(decider, method = "GET", route = "/test")
             assertEquals(1.0, next)
         }
+
+    @Test
+    fun `returns no shedding when maxRoutes is zero`() =
+        runTest {
+            val meterRegistry = SimpleMeterRegistry()
+            val timer = timerFor(meterRegistry, method = "GET", route = "/test")
+            recordMs(timer, 10)
+            recordMs(timer, 1_000)
+
+            val decider =
+                deciderFor(
+                    meterRegistry,
+                    config =
+                        RequestDurationSheddingDecider.Config(
+                            maxRoutes = 0,
+                            minSamplesForBaseline = 0,
+                            sampleIntervalNs = 0L,
+                        ),
+                )
+
+            assertEquals(0.0, decideFactor(decider, method = "GET", route = "/test"))
+        }
+
+    @Test
+    fun `does not shed when method does not match timer tag`() =
+        runTest {
+            val meterRegistry = SimpleMeterRegistry()
+            val timer = timerFor(meterRegistry, method = "GET", route = "/test")
+            recordMs(timer, 1_000)
+
+            val decider =
+                deciderFor(
+                    meterRegistry,
+                    config =
+                        RequestDurationSheddingDecider.Config(
+                            minSamplesForBaseline = 0,
+                            sampleIntervalNs = 0L,
+                        ),
+                )
+
+            assertEquals(0.0, decideFactor(decider, method = "POST", route = "/test"))
+        }
+
+    @Test
+    fun `does not shed when ratio stays within slack`() =
+        runTest {
+            val meterRegistry = SimpleMeterRegistry()
+            val timer = timerFor(meterRegistry, method = "GET", route = "/test")
+
+            val decider =
+                deciderFor(
+                    meterRegistry,
+                    config =
+                        RequestDurationSheddingDecider.Config(
+                            minSamplesForBaseline = 1,
+                            ratioSlack = 0.5,
+                            fullSheddingRatio = 2.0,
+                            sheddingAlpha = 1.0,
+                            sampleIntervalNs = 0L,
+                        ),
+                )
+
+            recordMs(timer, 10)
+            assertEquals(0.0, decideFactor(decider, method = "GET", route = "/test"))
+
+            recordMs(timer, 14)
+            assertEquals(0.0, decideFactor(decider, method = "GET", route = "/test"))
+        }
+
+    @Test
+    fun `applies shedding alpha when updating factor`() =
+        runTest {
+            val meterRegistry = SimpleMeterRegistry()
+            val timer = timerFor(meterRegistry, method = "GET", route = "/test")
+
+            val decider =
+                deciderFor(
+                    meterRegistry,
+                    config =
+                        RequestDurationSheddingDecider.Config(
+                            minSamplesForBaseline = 1,
+                            ratioSlack = 0.1,
+                            fullSheddingRatio = 2.0,
+                            sheddingAlpha = 0.5,
+                            sampleIntervalNs = 0L,
+                        ),
+                )
+
+            recordMs(timer, 10)
+            decideFactor(decider, method = "GET", route = "/test")
+
+            recordMs(timer, 1_000)
+            assertEquals(0.5, decideFactor(decider, method = "GET", route = "/test"))
+        }
+
+    @Test
+    fun `decays shedding when no new samples are observed`() =
+        runTest {
+            val meterRegistry = SimpleMeterRegistry()
+            val timer = timerFor(meterRegistry, method = "GET", route = "/test")
+
+            val decider =
+                deciderFor(
+                    meterRegistry,
+                    config =
+                        RequestDurationSheddingDecider.Config(
+                            minSamplesForBaseline = 1,
+                            ratioSlack = 0.1,
+                            fullSheddingRatio = 2.0,
+                            sheddingAlpha = 1.0,
+                            sampleIntervalNs = 0L,
+                        ),
+                )
+
+            recordMs(timer, 10)
+            decideFactor(decider, method = "GET", route = "/test")
+
+            recordMs(timer, 1_000)
+            assertEquals(1.0, decideFactor(decider, method = "GET", route = "/test"))
+
+            assertEquals(0.0, decideFactor(decider, method = "GET", route = "/test"))
+        }
+
+    @Test
+    fun `returns a reason when shedding is active`() =
+        runTest {
+            val meterRegistry = SimpleMeterRegistry()
+            val timer = timerFor(meterRegistry, method = "GET", route = "/test")
+
+            val decider =
+                deciderFor(
+                    meterRegistry,
+                    config =
+                        RequestDurationSheddingDecider.Config(
+                            minSamplesForBaseline = 1,
+                            ratioSlack = 0.1,
+                            fullSheddingRatio = 2.0,
+                            sheddingAlpha = 1.0,
+                            sampleIntervalNs = 0L,
+                        ),
+                )
+
+            recordMs(timer, 10)
+            decideFactor(decider, method = "GET", route = "/test")
+
+            recordMs(timer, 1_000)
+            val decision = decider.decideShedding(SheddingRequest("GET", "/test"))
+
+            assertEquals(1.0, decision.sheddingFactor)
+            assertTrue(decision.reason.contains("GET /test"))
+            assertTrue(decision.reason.contains("ratio="))
+        }
+
+    private fun deciderFor(
+        meterRegistry: SimpleMeterRegistry,
+        nanoTime: () -> Long = { 0L },
+        config: RequestDurationSheddingDecider.Config,
+    ): RequestDurationSheddingDecider =
+        RequestDurationSheddingDecider(
+            meterRegistry = meterRegistry,
+            nanoTime = nanoTime,
+            config = config,
+        )
+
+    private fun timerFor(
+        meterRegistry: SimpleMeterRegistry,
+        method: String,
+        route: String,
+    ): Timer =
+        Timer
+            .builder(RequestMetricsPlugin.REQUEST_DURATION_METRIC_NAME)
+            .tag("method", method)
+            .tag("route", route)
+            .register(meterRegistry)
+
+    private fun recordMs(
+        timer: Timer,
+        durationMs: Long,
+        times: Int = 1,
+    ) {
+        repeat(times) { timer.record(durationMs, TimeUnit.MILLISECONDS) }
+    }
+
+    private suspend fun decideFactor(
+        decider: RequestDurationSheddingDecider,
+        method: String,
+        route: String,
+    ): Double = decider.decideShedding(SheddingRequest(method, route)).sheddingFactor
 }

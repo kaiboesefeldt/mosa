@@ -13,9 +13,9 @@ class CombinedSheddingDeciderTest {
             val combined =
                 CombinedSheddingDecider(
                     listOf(
-                    SheddingDecider { SheddingDecider.Result.NO_SHEDDING },
-                    SheddingDecider { expectedResult },
-                    SheddingDecider { SheddingDecider.Result(0.8, "shed not enough") },
+                        SheddingDecider { SheddingDecider.Result.NO_SHEDDING },
+                        SheddingDecider { expectedResult },
+                        SheddingDecider { SheddingDecider.Result(0.8, "shed not enough") },
                     ),
                 )
 
@@ -30,8 +30,8 @@ class CombinedSheddingDeciderTest {
             val combined =
                 CombinedSheddingDecider(
                     listOf(
-                    SheddingDecider { SheddingDecider.Result.NO_SHEDDING },
-                    SheddingDecider { SheddingDecider.Result.NO_SHEDDING },
+                        SheddingDecider { SheddingDecider.Result.NO_SHEDDING },
+                        SheddingDecider { SheddingDecider.Result.NO_SHEDDING },
                     ),
                 )
 
