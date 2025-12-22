@@ -26,6 +26,7 @@ import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.defense.CombinedSheddingDecider
 import straightway.mosa.defense.CpuSheddingDecider
 import straightway.mosa.defense.MemorySheddingDecider
+import straightway.mosa.defense.RequestDurationSheddingDecider
 import straightway.mosa.defense.RequestMetricsPlugin
 import straightway.mosa.defense.createMosaLoadSheddingPlugin
 import straightway.mosa.jackson.InstantJacksonSerializers
@@ -48,6 +49,7 @@ fun Application.installNetworkServerPlugins(
                 listOf(
                     CpuSheddingDecider(loadSheddingThreshold = loadSheddingThreshold),
                     MemorySheddingDecider(memorySheddingThreshold = memorySheddingThreshold),
+                    RequestDurationSheddingDecider(meterRegistry = meterRegistry),
                 ),
             )
         retryAfter = loadSheddingRetryAfter

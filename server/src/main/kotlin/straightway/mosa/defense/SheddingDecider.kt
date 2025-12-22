@@ -1,5 +1,10 @@
 package straightway.mosa.defense
 
+data class SheddingRequest(
+    val method: String,
+    val route: String,
+)
+
 fun interface SheddingDecider {
     data class Result(
         val sheddingFactor: Double,
@@ -10,5 +15,5 @@ fun interface SheddingDecider {
         }
     }
 
-    fun shouldShed(): Result
+    suspend fun decideShedding(request: SheddingRequest): Result
 }

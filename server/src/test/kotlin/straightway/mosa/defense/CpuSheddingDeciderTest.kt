@@ -21,7 +21,7 @@ class CpuSheddingDeciderTest {
                     loadSheddingThreshold = 0.9,
                 ) { 0.95 }
 
-            val deciderResult = decider.shouldShed()
+            val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
             assertEquals(1.0, deciderResult.sheddingFactor)
             assertEquals("CPU load per core above 0.9 (0.95)", deciderResult.reason)
@@ -35,7 +35,7 @@ class CpuSheddingDeciderTest {
                     loadSheddingThreshold = 0.1,
                 ) { -0.5 }
 
-            val deciderResult = decider.shouldShed()
+            val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
             assertEquals(SheddingDecider.Result.NO_SHEDDING, deciderResult)
         }
@@ -56,7 +56,7 @@ class CpuSheddingDeciderTest {
                             val decider = CpuSheddingDecider(threshold, gauge::sample)
 
                             Thread.sleep(5) // Calm down
-                            if (decider.shouldShed().sheddingFactor == 1.0) {
+                            if (decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor == 1.0) {
                                 continue
                             }
 
@@ -72,7 +72,7 @@ class CpuSheddingDeciderTest {
                                 }
 
                             var value = 1234L
-                            while (decider.shouldShed().sheddingFactor == 0.0) {
+                            while (decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor == 0.0) {
                                 value = value xor 1_234_567L
                             }
                             isLoadActive.set(false)

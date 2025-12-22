@@ -9,7 +9,7 @@ class MemorySheddingDecider(
     private val memorySheddingThreshold: Double,
     private val memorySampler: () -> Double = HeapUsageGauge()::sample,
 ) : SheddingDecider {
-    override fun shouldShed() =
+    override suspend fun decideShedding(request: SheddingRequest) =
         memorySampler()
             .let { if (it.isFinite()) it.coerceAtLeast(0.0) else 0.0 }
             .let { usage ->

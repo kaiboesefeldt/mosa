@@ -7,6 +7,7 @@ import kotlinx.coroutines.withTimeout
 import straightway.mosa.defense.HeapUsageGauge
 import straightway.mosa.defense.MemorySheddingDecider
 import straightway.mosa.defense.SheddingDecider
+import straightway.mosa.defense.SheddingRequest
 import kotlin.math.max
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,7 +23,7 @@ class MemorySheddingDeciderTest {
                     memorySheddingThreshold = 0.9,
                 ) { 0.95 }
 
-            val deciderResult = decider.shouldShed()
+            val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
             assertEquals(1.0, deciderResult.sheddingFactor)
             assertEquals("Heap usage above 0.9 (95.0%)", deciderResult.reason)
@@ -36,7 +37,7 @@ class MemorySheddingDeciderTest {
                     memorySheddingThreshold = 0.9,
                 ) { 0.5 }
 
-            val deciderResult = decider.shouldShed()
+            val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
             assertEquals(SheddingDecider.Result.NO_SHEDDING, deciderResult)
         }
@@ -49,7 +50,7 @@ class MemorySheddingDeciderTest {
                     memorySheddingThreshold = 0.1,
                 ) { -0.5 }
 
-            val deciderResult = decider.shouldShed()
+            val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
             assertEquals(SheddingDecider.Result.NO_SHEDDING, deciderResult)
         }
@@ -62,7 +63,7 @@ class MemorySheddingDeciderTest {
                     memorySheddingThreshold = 0.1,
                 ) { Double.NaN }
 
-            val deciderResult = decider.shouldShed()
+            val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
             assertEquals(SheddingDecider.Result.NO_SHEDDING, deciderResult)
         }
@@ -80,7 +81,7 @@ class MemorySheddingDeciderTest {
                 )
 
                 val decider = MemorySheddingDecider(threshold, gauge::sample)
-                val initialResult = decider.shouldShed()
+                val initialResult = decider.decideShedding(SheddingRequest("GET", "/test"))
                 assertEquals(
                     0.0,
                     initialResult.sheddingFactor,
@@ -90,7 +91,7 @@ class MemorySheddingDeciderTest {
                 val retained = mutableListOf<ByteArray>()
 
                 withTimeout(1.minutes) {
-                    while (decider.shouldShed().sheddingFactor == 0.0) {
+                    while (decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor == 0.0) {
                         retained.add(ByteArray(allocationChunkSizeBytes))
                         if (retained.size % 8 == 0) {
                             Thread.sleep(1)

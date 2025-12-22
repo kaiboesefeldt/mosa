@@ -7,13 +7,12 @@ import io.ktor.server.application.Plugin
 import io.ktor.server.application.call
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
-import io.ktor.server.routing.path
-import io.ktor.server.routing.routingRoot
 import io.ktor.util.AttributeKey
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import kotlinx.coroutines.slf4j.MDCContext
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -23,6 +22,8 @@ class RequestMetricsPlugin(
     private val nanoTime: () -> Long = System::nanoTime,
 ) : Plugin<Application, Unit, Unit> {
     override val key: AttributeKey<Unit> = AttributeKey("RequestMetricsPlugin")
+
+    private val timers = ConcurrentHashMap<RequestMetricKey, Timer>()
 
     override fun install(
         pipeline: Application,
@@ -40,6 +41,7 @@ class RequestMetricsPlugin(
             call.attributes.put(ReqNoKey, reqNo)
 
             val route = "${call.request.httpMethod.value} ${call.request.path()}"
+            call.attributes.put(RouteTagKey, RouteTagResolver.resolveRouteTag(call))
 
             var failure: Throwable? = null
             withContext(MDCContext(mapOf("reqNo" to "req#$reqNo"))) {
@@ -74,72 +76,29 @@ class RequestMetricsPlugin(
         call: io.ktor.server.application.ApplicationCall,
         durationNs: Long,
     ) {
-        val route = resolveRouteTag(call)
+        val route = call.attributes.getOrNull(RouteTagKey) ?: RouteTagResolver.resolveRouteTag(call)
         val method = call.request.httpMethod.value
 
-        Timer
-            .builder(REQUEST_DURATION_METRIC_NAME)
-            .tag("method", method)
-            .tag("route", route)
-            .register(meterRegistry)
-            .record(durationNs, TimeUnit.NANOSECONDS)
+        timers
+            .computeIfAbsent(RequestMetricKey(method = method, route = route)) {
+                Timer
+                    .builder(REQUEST_DURATION_METRIC_NAME)
+                    .tag("method", method)
+                    .tag("route", route)
+                    .register(meterRegistry)
+            }.record(durationNs, TimeUnit.NANOSECONDS)
     }
 
-    private fun resolveRouteTag(call: io.ktor.server.application.ApplicationCall): String =
-        resolveRoutingPath(call)?.takeIf { it.isNotBlank() } ?: "UNMATCHED"
-
-    private fun resolveRoutingPath(call: io.ktor.server.application.ApplicationCall): String? {
-        val requestPath = call.request.path()
-        val candidates = collectRoutePaths(call.application.routingRoot)
-        return candidates
-            .mapNotNull { routePath -> scoreRouteMatch(routePath, requestPath)?.let { score -> routePath to score } }
-            .maxByOrNull { it.second }
-            ?.first
-    }
-
-    private fun collectRoutePaths(root: io.ktor.server.routing.RoutingNode): List<String> {
-        val paths = mutableListOf<String>()
-        val nodes = ArrayDeque<io.ktor.server.routing.RoutingNode>()
-        nodes.add(root)
-        while (nodes.isNotEmpty()) {
-            val node = nodes.removeFirst()
-            val routePath = node.path
-            if (routePath.isNotBlank() && routePath != "/") {
-                paths.add(routePath)
-            }
-            nodes.addAll(node.children)
-        }
-        return paths
-    }
-
-    private fun scoreRouteMatch(
-        routePath: String,
-        requestPath: String,
-    ): Int? {
-        val routeSegments = routePath.trim('/').split('/').filter { it.isNotEmpty() }
-        val requestSegments = requestPath.trim('/').split('/').filter { it.isNotEmpty() }
-        if (routeSegments.size != requestSegments.size) return null
-
-        var score = 0
-        for (index in routeSegments.indices) {
-            val routeSegment = routeSegments[index]
-            val requestSegment = requestSegments[index]
-            if (isPathParameter(routeSegment)) {
-                score += 1
-            } else {
-                if (routeSegment != requestSegment) return null
-                score += 2
-            }
-        }
-        return score
-    }
-
-    private fun isPathParameter(segment: String): Boolean = segment.startsWith("{") && segment.endsWith("}") && segment.length > 2
+    private data class RequestMetricKey(
+        val method: String,
+        val route: String,
+    )
 
     companion object {
         const val REQUEST_DURATION_METRIC_NAME = "mosa.http.server.request.duration"
 
         private val ReqNoKey = AttributeKey<Long>("RequestMetricsReqNo")
+        val RouteTagKey = AttributeKey<String>("RequestMetricsRouteTag")
 
         private val logger = KotlinLogging.logger {}
     }

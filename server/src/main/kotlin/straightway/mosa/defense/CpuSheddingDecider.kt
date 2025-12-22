@@ -7,7 +7,7 @@ class CpuSheddingDecider(
     private val loadSheddingThreshold: Double,
     private val loadSampler: () -> Double = CpuLoadGauge()::sample,
 ) : SheddingDecider {
-    override fun shouldShed() =
+    override suspend fun decideShedding(request: SheddingRequest) =
         loadSampler().coerceAtLeast(0.0).let { load ->
             if (loadSheddingThreshold <= load) {
                 SheddingDecider.Result(

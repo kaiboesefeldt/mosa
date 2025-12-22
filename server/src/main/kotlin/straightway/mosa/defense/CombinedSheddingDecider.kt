@@ -3,9 +3,9 @@ package straightway.mosa.defense
 class CombinedSheddingDecider(
     private val subDeciders: List<SheddingDecider>,
 ) : SheddingDecider {
-    override fun shouldShed() =
+    override suspend fun decideShedding(request: SheddingRequest) =
         subDeciders
-            .map { it.shouldShed() }
+            .map { it.decideShedding(request) }
             .maxByOrNull { it.sheddingFactor }
             ?: SheddingDecider.Result.NO_SHEDDING
 }
