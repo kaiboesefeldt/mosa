@@ -1,7 +1,6 @@
 package straightway.mosa.defense
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.Plugin
@@ -15,12 +14,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 class RequestMetricsPlugin(
-    private val interceptor: Interceptor? = null,
     private val nanoTime: () -> Long = System::nanoTime,
 ) : Plugin<Application, Unit, Unit> {
-    fun interface Interceptor {
-        suspend fun intercept(proceedAndReturnDurationMs: suspend () -> Double?): HttpStatusCode?
-    }
 
     override val key: AttributeKey<Unit> = AttributeKey("RequestMetricsPlugin")
 
@@ -49,18 +44,15 @@ class RequestMetricsPlugin(
                 }
                 var durationMs: Double = Double.NaN
                 try {
-                    doIntercept {
-                        proceed()
-                        call.attributes
-                            .getOrNull(StartNsKey)
-                            ?.let { (nanoTime() - it) / 1_000_000.0 }
-                            ?.also { durationMs = it }
-                            ?: Double.NaN
-                    }?.let { call.response.status(it) }
+                    proceed()
+                    call.attributes
+                        .getOrNull(StartNsKey)
+                        ?.let { (nanoTime() - it) / 1_000_000.0 }
+                        ?.also { durationMs = it }
+                        ?: Double.NaN
                 } catch (t: Throwable) {
                     failure = t
-                    call.response.status(HttpStatusCode.InternalServerError)
-                    logger.warn(t) { "Exception while handling $route" }
+                    throw t
                 } finally {
                     val activeAfter = active.decrementAndGet()
 
@@ -71,20 +63,12 @@ class RequestMetricsPlugin(
                     if (failure == null) {
                         logger.trace { "END$baseMsg $duration" }
                     } else {
-                        logger.warn { "FAILED$baseMsg ${failure::class.simpleName} $duration" }
+                        logger.warn(failure) { "FAILED$baseMsg ${failure::class.simpleName} $duration" }
                     }
                 }
             }
         }
     }
-
-    private suspend fun doIntercept(proceedAndReturnDurationMs: suspend () -> Double?): HttpStatusCode? =
-        if (interceptor == null) {
-            proceedAndReturnDurationMs()
-            null
-        } else {
-            interceptor.intercept(proceedAndReturnDurationMs)
-        }
 
     companion object {
         private val ReqNoKey = AttributeKey<Long>("RequestMetricsReqNo")
