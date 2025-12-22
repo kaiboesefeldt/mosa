@@ -6,10 +6,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import straightway.mosa.defense.HeapUsageGauge
 import straightway.mosa.defense.MemorySheddingDecider
+import straightway.mosa.defense.SheddingDecider
 import kotlin.math.max
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
@@ -24,7 +24,7 @@ class MemorySheddingDeciderTest {
 
             val deciderResult = decider.shouldShed()
 
-            assertTrue(deciderResult.shouldShed)
+            assertEquals(1.0, deciderResult.sheddingFactor)
             assertEquals("Heap usage above 0.9 (95.0%)", deciderResult.reason)
         }
 
@@ -38,8 +38,7 @@ class MemorySheddingDeciderTest {
 
             val deciderResult = decider.shouldShed()
 
-            assertFalse(deciderResult.shouldShed)
-            assertEquals("", deciderResult.reason)
+            assertEquals(SheddingDecider.Result.NO_SHEDDING, deciderResult)
         }
 
     @Test
@@ -52,8 +51,7 @@ class MemorySheddingDeciderTest {
 
             val deciderResult = decider.shouldShed()
 
-            assertFalse(deciderResult.shouldShed)
-            assertEquals("", deciderResult.reason)
+            assertEquals(SheddingDecider.Result.NO_SHEDDING, deciderResult)
         }
 
     @Test
@@ -66,8 +64,7 @@ class MemorySheddingDeciderTest {
 
             val deciderResult = decider.shouldShed()
 
-            assertFalse(deciderResult.shouldShed)
-            assertEquals("", deciderResult.reason)
+            assertEquals(SheddingDecider.Result.NO_SHEDDING, deciderResult)
         }
 
     @Test
@@ -84,15 +81,16 @@ class MemorySheddingDeciderTest {
 
                 val decider = MemorySheddingDecider(threshold, gauge::sample)
                 val initialResult = decider.shouldShed()
-                assertFalse(
-                    initialResult.shouldShed,
+                assertEquals(
+                    0.0,
+                    initialResult.sheddingFactor,
                     "Expected no shedding under baseline usage (baseline=$baseline threshold=$threshold reason=${initialResult.reason})",
                 )
 
                 val retained = mutableListOf<ByteArray>()
 
                 withTimeout(1.minutes) {
-                    while (!decider.shouldShed().shouldShed) {
+                    while (decider.shouldShed().sheddingFactor == 0.0) {
                         retained.add(ByteArray(allocationChunkSizeBytes))
                         if (retained.size % 8 == 0) {
                             Thread.sleep(1)

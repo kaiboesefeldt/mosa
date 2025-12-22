@@ -9,6 +9,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
@@ -22,7 +23,7 @@ class LoadSheddingPluginTest {
                     loadSheddingThreshold = 0.9,
                 ) { 1.0 }
             application {
-                install(createMosaLoadSheddingPlugin()) {
+                install(createMosaLoadSheddingPlugin(mockk())) {
                     this.decider = decider
                     retryAfter = 2.seconds
                 }
@@ -43,7 +44,7 @@ class LoadSheddingPluginTest {
             val decider =
                 CpuSheddingDecider(loadSheddingThreshold = 0.85) { 0.2 }
             application {
-                install(createMosaLoadSheddingPlugin()) {
+                install(createMosaLoadSheddingPlugin(mockk())) {
                     this.decider = decider
                 }
                 routing {

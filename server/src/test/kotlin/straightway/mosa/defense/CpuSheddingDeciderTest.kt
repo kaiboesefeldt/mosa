@@ -9,9 +9,7 @@ import kotlin.concurrent.thread
 import kotlin.math.max
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
 class CpuSheddingDeciderTest {
@@ -25,7 +23,7 @@ class CpuSheddingDeciderTest {
 
             val deciderResult = decider.shouldShed()
 
-            assertTrue(deciderResult.shouldShed)
+            assertEquals(1.0, deciderResult.sheddingFactor)
             assertEquals("CPU load per core above 0.9 (0.95)", deciderResult.reason)
         }
 
@@ -39,11 +37,7 @@ class CpuSheddingDeciderTest {
 
             val deciderResult = decider.shouldShed()
 
-            assertFalse(deciderResult.shouldShed)
-            assertEquals(
-                "",
-                deciderResult.reason,
-            )
+            assertEquals(SheddingDecider.Result.NO_SHEDDING, deciderResult)
         }
 
     @Test
@@ -62,7 +56,7 @@ class CpuSheddingDeciderTest {
                             val decider = CpuSheddingDecider(threshold, gauge::sample)
 
                             Thread.sleep(5) // Calm down
-                            if (decider.shouldShed().shouldShed) {
+                            if (decider.shouldShed().sheddingFactor == 1.0) {
                                 continue
                             }
 
@@ -78,7 +72,7 @@ class CpuSheddingDeciderTest {
                                 }
 
                             var value = 1234L
-                            while (!decider.shouldShed().shouldShed) {
+                            while (decider.shouldShed().sheddingFactor == 0.0) {
                                 value = value xor 1_234_567L
                             }
                             isLoadActive.set(false)

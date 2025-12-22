@@ -15,7 +15,7 @@ class MemorySheddingDecider(
             .let { usage ->
                 if (memorySheddingThreshold <= usage) {
                     SheddingDecider.Result(
-                        shouldShed = true,
+                        sheddingFactor = 1.0,
                         reason = "Heap usage above $memorySheddingThreshold (${formatPct(usage)})",
                     )
                 } else {

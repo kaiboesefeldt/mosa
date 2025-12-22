@@ -9,6 +9,7 @@ import io.ktor.server.response.respond
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.math.max
+import kotlin.random.Random
 import kotlin.time.Duration
 
 class LoadSheddingConfiguration {
@@ -17,7 +18,7 @@ class LoadSheddingConfiguration {
 }
 
 @OptIn(ExperimentalAtomicApi::class)
-fun createMosaLoadSheddingPlugin(): ApplicationPlugin<LoadSheddingConfiguration> =
+fun createMosaLoadSheddingPlugin(rng: Random): ApplicationPlugin<LoadSheddingConfiguration> =
     createApplicationPlugin("MosaLoadShedding", ::LoadSheddingConfiguration) {
         val decider = pluginConfig.decider
         val (retryAfterSeconds, retryAfterMessage) =
@@ -28,9 +29,13 @@ fun createMosaLoadSheddingPlugin(): ApplicationPlugin<LoadSheddingConfiguration>
 
         onCall { call ->
             decider?.shouldShed()?.run {
-                if (shouldShed) {
+                if (0.0 < sheddingFactor) {
+                    if (sheddingFactor < 1.0) {
+                        val shouldShedThisRequest = rng.nextDouble(0.0, 1.0) < sheddingFactor
+                        if (!shouldShedThisRequest) return@onCall
+                    }
                     if (startShedding.compareAndSet(false, true)) {
-                        logger.warn { "Start shedding incoming request: $reason$retryAfterMessage" }
+                        logger.warn { "Start shedding $sheddingFactor of incoming request: $reason$retryAfterMessage" }
                     }
 
                     retryAfterSeconds?.let { call.response.headers.append(HttpHeaders.RetryAfter, it) }

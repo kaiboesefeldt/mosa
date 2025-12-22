@@ -30,6 +30,7 @@ import straightway.mosa.defense.RequestMetricsPlugin
 import straightway.mosa.defense.createMosaLoadSheddingPlugin
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.util.TimeZone
+import kotlin.random.Random
 import kotlin.time.Duration
 
 fun Application.installNetworkServerPlugins(
@@ -41,7 +42,7 @@ fun Application.installNetworkServerPlugins(
     meterRegistry: MeterRegistry = SimpleMeterRegistry(),
 ) {
     install(RequestMetricsPlugin(meterRegistry = meterRegistry))
-    install(createMosaLoadSheddingPlugin()) {
+    install(createMosaLoadSheddingPlugin(Random(System.nanoTime()))) {
         decider =
             CombinedSheddingDecider(
                 listOf(

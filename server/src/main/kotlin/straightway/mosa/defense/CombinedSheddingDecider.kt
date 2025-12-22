@@ -5,8 +5,7 @@ class CombinedSheddingDecider(
 ) : SheddingDecider {
     override fun shouldShed() =
         subDeciders
-            .asSequence()
             .map { it.shouldShed() }
-            .firstOrNull { it.shouldShed }
+            .maxByOrNull { it.sheddingFactor }
             ?: SheddingDecider.Result.NO_SHEDDING
 }

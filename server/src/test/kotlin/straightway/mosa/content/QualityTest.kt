@@ -3,6 +3,7 @@ package straightway.mosa.content
 import kotlinx.coroutines.test.runTest
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.testdata.TestPublish
 import straightway.mosa.vectorstore.LuceneIndexAccess
@@ -18,6 +19,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.measureTime
 
+@EnabledIfEnvironmentVariable(named = "MOSA_RUN_QUALITY_TEST", matches = "true")
 class QualityTest {
     val embeddingService = OnnxLocalEmbeddingService.create()
     val clock =

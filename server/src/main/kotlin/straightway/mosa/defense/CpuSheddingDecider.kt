@@ -11,7 +11,7 @@ class CpuSheddingDecider(
         loadSampler().coerceAtLeast(0.0).let { load ->
             if (loadSheddingThreshold <= load) {
                 SheddingDecider.Result(
-                    shouldShed = true,
+                    sheddingFactor = 1.0,
                     reason = "CPU load per core above $loadSheddingThreshold ($load)",
                 )
             } else {

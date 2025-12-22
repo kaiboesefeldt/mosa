@@ -2,38 +2,24 @@ package straightway.mosa.defense
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
-import kotlin.test.fail
 
 class CombinedSheddingDeciderTest {
     @Test
-    fun `returns first shedding result and short-circuits`() {
-        val calls = mutableListOf<String>()
-        val expectedResult = SheddingDecider.Result(true, "shed")
+    fun `returns maximum shedding result`() {
+        val expectedResult = SheddingDecider.Result(0.9, "shed")
 
         val combined =
             CombinedSheddingDecider(
                 listOf(
-                    SheddingDecider {
-                        calls.add("first")
-                        SheddingDecider.Result(false, "")
-                    },
-                    SheddingDecider {
-                        calls.add("second")
-                        expectedResult
-                    },
-                    SheddingDecider {
-                        fail("The last sub-provider should not be called")
-                    },
+                    SheddingDecider { SheddingDecider.Result.NO_SHEDDING },
+                    SheddingDecider { expectedResult },
+                    SheddingDecider { SheddingDecider.Result(0.8, "shed not enough") },
                 ),
             )
 
         val result = combined.shouldShed()
 
-        assertTrue(result.shouldShed)
-        assertEquals("shed", result.reason)
-        assertEquals(listOf("first", "second"), calls)
+        assertEquals(expectedResult, result)
     }
 
     @Test
@@ -41,14 +27,13 @@ class CombinedSheddingDeciderTest {
         val combined =
             CombinedSheddingDecider(
                 listOf(
-                    SheddingDecider { SheddingDecider.Result(false, "ignored") },
-                    SheddingDecider { SheddingDecider.Result(false, "") },
+                    SheddingDecider { SheddingDecider.Result.NO_SHEDDING },
+                    SheddingDecider { SheddingDecider.Result.NO_SHEDDING },
                 ),
             )
 
         val result = combined.shouldShed()
 
-        assertFalse(result.shouldShed)
-        assertEquals("", result.reason)
+        assertEquals(SheddingDecider.Result.NO_SHEDDING, result)
     }
 }
