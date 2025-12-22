@@ -29,6 +29,7 @@ dependencies {
     val bouncyCastleVersion = "1.82"
     val kotlinxCliVersion = "0.3.6"
     val kotlinxCoroutinesVersion = "1.10.2"
+    val micrometerVersion = "1.16.1"
 
     implementation(project(":shared"))
 
@@ -82,6 +83,7 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging:$kotlinLoggingVersion")
     implementation("ch.qos.logback:logback-classic:${logbackVersion}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:$kotlinxCoroutinesVersion")
+    implementation("io.micrometer:micrometer-core:$micrometerVersion")
 
     // Test
     testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion")

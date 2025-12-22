@@ -1,5 +1,7 @@
 package straightway.mosa
 
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.apache.lucene.store.MMapDirectory
 import org.koin.core.module.Module
 import org.koin.dsl.bind
@@ -26,6 +28,7 @@ import java.time.Clock
 typealias HasherFactory = () -> MessageDigest
 
 fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY) {
+    single<MeterRegistry> { SimpleMeterRegistry() } onClose { it?.close() }
     single<EmbeddingService> { OnnxLocalEmbeddingService.create() } onClose { (it as? AutoCloseable)?.close() }
     single<Clock> { Clock.systemUTC() }
     single<LuceneIndexAccess> { LuceneIndexAccess { MMapDirectory(Paths.get("mosa_lucene_index")) } } onClose

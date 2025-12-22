@@ -127,6 +127,7 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
             loadSheddingThreshold,
             memorySheddingThreshold,
             loadSheddingRetryAfterSeconds.seconds,
+            meterRegistry = getKoin().get(),
         )
         routing {
             getKoin().getAll<BaseController>().forEach { register(it) }

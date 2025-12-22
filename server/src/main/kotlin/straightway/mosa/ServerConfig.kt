@@ -20,6 +20,8 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.defense.CombinedSheddingDecider
 import straightway.mosa.defense.CpuSheddingDecider
@@ -36,8 +38,9 @@ fun Application.installNetworkServerPlugins(
     loadSheddingThreshold: Double,
     memorySheddingThreshold: Double,
     loadSheddingRetryAfter: Duration,
+    meterRegistry: MeterRegistry = SimpleMeterRegistry(),
 ) {
-    install(RequestMetricsPlugin())
+    install(RequestMetricsPlugin(meterRegistry = meterRegistry))
     install(createMosaLoadSheddingPlugin()) {
         decider =
             CombinedSheddingDecider(
