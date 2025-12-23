@@ -88,7 +88,7 @@ class RequestDurationSheddingDeciderTest {
         }
 
     @Test
-    fun `keeps state map bounded`() =
+    fun `keeps route state for each seen route`() =
         runTest {
             val meterRegistry = SimpleMeterRegistry()
             timerFor(meterRegistry, method = "GET", route = "/a")
@@ -99,7 +99,6 @@ class RequestDurationSheddingDeciderTest {
                     meterRegistry,
                     config =
                         RequestDurationSheddingDecider.Config(
-                            maxRoutes = 1,
                             sampleIntervalNs = 0L,
                         ),
                 )
@@ -107,7 +106,7 @@ class RequestDurationSheddingDeciderTest {
             decideFactor(decider, method = "GET", route = "/a")
             decideFactor(decider, method = "GET", route = "/b")
 
-            assertEquals(1, decider.stateCount())
+            assertEquals(2, decider.stateCount())
         }
 
     @Test
@@ -141,28 +140,6 @@ class RequestDurationSheddingDeciderTest {
 
             val next = decideFactor(decider, method = "GET", route = "/test")
             assertEquals(1.0, next)
-        }
-
-    @Test
-    fun `returns no shedding when maxRoutes is zero`() =
-        runTest {
-            val meterRegistry = SimpleMeterRegistry()
-            val timer = timerFor(meterRegistry, method = "GET", route = "/test")
-            recordMs(timer, 10)
-            recordMs(timer, 1_000)
-
-            val decider =
-                deciderFor(
-                    meterRegistry,
-                    config =
-                        RequestDurationSheddingDecider.Config(
-                            maxRoutes = 0,
-                            minSamplesForBaseline = 0,
-                            sampleIntervalNs = 0L,
-                        ),
-                )
-
-            assertEquals(0.0, decideFactor(decider, method = "GET", route = "/test"))
         }
 
     @Test
@@ -304,6 +281,16 @@ class RequestDurationSheddingDeciderTest {
             meterRegistry = meterRegistry,
             nanoTime = nanoTime,
             config = config,
+            samplingGateFactory = { SamplingGate() },
+            timerWindowStateFactory = { timerProvider -> TimerWindowState(timerProvider) },
+            latencyStatsFactory = {
+                LatencyStats(
+                    baselineAlpha = 0.02,
+                    currentAlpha = 0.35,
+                    baselineLearningMaxSheddingFactor = 0.05,
+                )
+            },
+            sheddingStateFactory = { SheddingState() },
         )
 
     private fun timerFor(
