@@ -122,12 +122,11 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
             modules(module { configureMosaAppModule(argumentStore) })
         }
         installNetworkServerPlugins(
-            getKoin().get(),
+            getKoin(),
             requireTlsForPod,
             loadSheddingThreshold,
             memorySheddingThreshold,
             loadSheddingRetryAfterSeconds.seconds,
-            meterRegistry = getKoin().get(),
         )
         routing {
             getKoin().getAll<BaseController>().forEach { register(it) }

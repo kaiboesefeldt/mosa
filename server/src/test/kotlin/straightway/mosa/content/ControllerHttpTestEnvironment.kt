@@ -9,10 +9,12 @@ import io.ktor.serialization.jackson.jackson
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.koin.dsl.module
 import org.koin.dsl.onClose
-import org.koin.ktor.ext.get
+import org.koin.ktor.ext.getKoin
 import org.koin.ktor.plugin.Koin
 import straightway.mosa.Crypto
 import straightway.mosa.EmbeddingService
@@ -50,7 +52,7 @@ class ControllerHttpTestEnvironment(
     val additionalTestModules: org.koin.core.module.Module.() -> Unit = {},
 ) {
     val crypto = CryptoEd25519()
-    val clock =
+    val clock: Clock =
         Clock.fixed(
             Instant.ofEpochSecond(170000000L),
             ZoneId.of("UTC"),
@@ -104,6 +106,7 @@ class ControllerHttpTestEnvironment(
                 single<TokenUtil> { Auth0TokenUtil(get(), get(), get(), get(), get()) }
                 single<ContentService> { ContentService(get(), get(), get()) }
                 single<PodCertificateService> { podCertService }
+                single<MeterRegistry> { SimpleMeterRegistry() }
                 additionalTestModules()
             }
         testApplication {
@@ -112,7 +115,7 @@ class ControllerHttpTestEnvironment(
             }
             application {
                 installNetworkServerPlugins(
-                    tokenUtil = get(),
+                    getKoin(),
                     requireTlsForPod = requireTlsForPod,
                     loadSheddingThreshold = Double.MAX_VALUE,
                     memorySheddingThreshold = Double.MAX_VALUE,

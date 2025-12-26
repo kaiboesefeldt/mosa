@@ -1,6 +1,5 @@
 package straightway.mosa
 
-import com.auth0.jwt.interfaces.DecodedJWT
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -12,6 +11,11 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import io.micrometer.core.instrument.MeterRegistry
+import io.mockk.mockk
+import org.koin.core.Koin
+import org.koin.dsl.koinApplication
+import org.koin.dsl.module
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
@@ -32,7 +36,7 @@ class ServerConfigTest {
         testApplication {
             application {
                 installNetworkServerPlugins(
-                    tokenUtil = NoopTokenUtil,
+                    createTestKoin(),
                     requireTlsForPod = true,
                     loadSheddingThreshold = Double.MAX_VALUE,
                     memorySheddingThreshold = Double.MAX_VALUE,
@@ -53,7 +57,7 @@ class ServerConfigTest {
         testApplication {
             application {
                 installNetworkServerPlugins(
-                    tokenUtil = NoopTokenUtil,
+                    createTestKoin(),
                     requireTlsForPod = false,
                     loadSheddingThreshold = Double.MAX_VALUE,
                     memorySheddingThreshold = Double.MAX_VALUE,
@@ -120,9 +124,10 @@ class ServerConfigTest {
         }
 
     private fun ApplicationTestBuilder.configureTestServer(requireTls: Boolean = true) {
+        val koin = createTestKoin()
         application {
             installNetworkServerPlugins(
-                tokenUtil = NoopTokenUtil,
+                koin,
                 requireTlsForPod = requireTls,
                 loadSheddingThreshold = Double.MAX_VALUE,
                 memorySheddingThreshold = Double.MAX_VALUE,
@@ -134,11 +139,12 @@ class ServerConfigTest {
         }
     }
 
-    private object NoopTokenUtil : TokenUtil {
-        override fun decode(jwt: String): DecodedJWT {
-            error("Unexpected decode invocation")
-        }
-
-        override fun isValidMisJwt(jwt: DecodedJWT): Boolean = false
-    }
+    private fun createTestKoin(): Koin =
+        koinApplication {
+            modules(
+                module {
+                    single<MeterRegistry> { mockk<MeterRegistry>(relaxed = true) }
+                },
+            )
+        }.koin
 }
