@@ -11,6 +11,7 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import io.mockk.mockk
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.koin.dsl.module
 import org.koin.dsl.onClose
@@ -32,8 +33,8 @@ import straightway.mosa.auth.TransientEd25519Factory
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
 import straightway.mosa.crypto.CryptoEd25519
-import straightway.mosa.installNetworkServerPlugins
 import straightway.mosa.jackson.InstantJacksonSerializers
+import straightway.mosa.testutils.installTestNetworkServerPlugins
 import straightway.mosa.vectorstore.LuceneIndexAccess
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import straightway.mosa.vectorstore.LuceneQueryPlanner
@@ -44,8 +45,8 @@ import java.time.Instant
 import java.time.ZoneId
 import java.util.TimeZone
 import kotlin.io.encoding.Base64
+import kotlin.random.Random
 import kotlin.time.Duration.Companion.days
-import kotlin.time.Duration.Companion.seconds
 
 class ControllerHttpTestEnvironment(
     val controllers: List<BaseController>,
@@ -102,6 +103,7 @@ class ControllerHttpTestEnvironment(
                 single<HasherFactory> { hasherFactory }
                 single<Clock> { clock }
                 single<NanoClock> { NanoClock { 1L } }
+                single<Random> { Random(12345L) }
                 single<SignatureFactory> { signatureFactory }
                 single<SignatureVerifierProvider> { signatureVerifierProvider }
                 single<Crypto> { crypto }
@@ -113,15 +115,21 @@ class ControllerHttpTestEnvironment(
             }
         testApplication {
             install(Koin) {
-                modules(testModule)
+                allowOverride(true)
+                modules(
+                    module {
+                        single<TokenUtil> { mockk<TokenUtil>() }
+                        single<NanoClock> { NanoClock { 1L } }
+                        single<MeterRegistry> { mockk<MeterRegistry>(relaxed = true) }
+                        single<Random> { Random(12345L) }
+                    },
+                    testModule,
+                )
             }
             application {
-                installNetworkServerPlugins(
-                    getKoin(),
+                installTestNetworkServerPlugins(
                     requireTlsForPod = requireTlsForPod,
-                    loadSheddingThreshold = Double.MAX_VALUE,
-                    memorySheddingThreshold = Double.MAX_VALUE,
-                    loadSheddingRetryAfter = 30.seconds,
+                    tokenUtil = getKoin().get(),
                 )
                 routing {
                     (this@ControllerHttpTestEnvironment.controllers + controllers).forEach {

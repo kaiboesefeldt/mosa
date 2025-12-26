@@ -16,8 +16,8 @@ import kotlinx.cli.default
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.koin.dsl.module
-import org.koin.ktor.ext.getKoin
 import org.koin.ktor.plugin.Koin
+import org.koin.ktor.plugin.koin
 import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.ServerCommandLineArguments
 import straightway.mosa.base.BaseController
@@ -121,15 +121,21 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
         install(Koin) {
             modules(module { configureMosaAppModule(argumentStore) })
         }
-        installNetworkServerPlugins(
-            getKoin(),
-            requireTlsForPod,
-            loadSheddingThreshold,
-            memorySheddingThreshold,
-            loadSheddingRetryAfterSeconds.seconds,
-        )
-        routing {
-            getKoin().getAll<BaseController>().forEach { register(it) }
+        with(koin()) {
+            installNetworkServerPlugins(
+                requireTlsForPod,
+                loadSheddingThreshold,
+                memorySheddingThreshold,
+                loadSheddingRetryAfterSeconds.seconds,
+                requestDurationForRouteStateRegistry = get(),
+                meterRegistry = get(),
+                nanoClock = get(),
+                rng = get(),
+                tokenUtil = get(),
+            )
+            routing {
+                getAll<BaseController>().forEach { register(it) }
+            }
         }
     }
     val server =

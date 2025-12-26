@@ -15,6 +15,10 @@ import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.crypto.CryptoEd25519
+import straightway.mosa.defense.requestduration.RequestDurationForRouteState
+import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
+import straightway.mosa.defense.requestduration.RequestDurationSheddingConfig
+import straightway.mosa.defense.requestduration.RequestDurationSheddingRatioMapper
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.vectorstore.LuceneIndexAccess
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
@@ -24,14 +28,24 @@ import straightway.mosa.webclient.WebClientController
 import java.nio.file.Paths
 import java.security.MessageDigest
 import java.time.Clock
+import kotlin.random.Random
 
 typealias HasherFactory = () -> MessageDigest
 
 fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY) {
     single<MeterRegistry> { SimpleMeterRegistry() } onClose { it?.close() }
+    single<RequestDurationSheddingConfig> { RequestDurationSheddingConfig() }
+    single { RequestDurationSheddingRatioMapper(get()) }
+    single<RequestDurationForRouteState.Factory> {
+        RequestDurationForRouteState.Factory { timer ->
+            RequestDurationForRouteState(get(), get(), timer, get())
+        }
+    }
+    single<RequestDurationForRouteStateRegistry> { RequestDurationForRouteStateRegistry(get(), get()) }
     single<EmbeddingService> { OnnxLocalEmbeddingService.create() } onClose { (it as? AutoCloseable)?.close() }
     single<Clock> { Clock.systemUTC() }
     single<NanoClock> { NanoClock(System::nanoTime) }
+    single<Random> { Random(get<NanoClock>().nanoTime()) }
     single<LuceneIndexAccess> { LuceneIndexAccess { MMapDirectory(Paths.get("mosa_lucene_index")) } } onClose
         { (it as? AutoCloseable)?.close() }
     single<QueryOnRegistry> { QueryOnRegistry(pageSize = 10, maxNotFinishedQueries = 10000) }

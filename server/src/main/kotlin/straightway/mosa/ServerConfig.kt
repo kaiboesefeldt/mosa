@@ -20,34 +20,39 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
-import org.koin.core.Koin
+import io.micrometer.core.instrument.MeterRegistry
 import straightway.mosa.auth.InvalidPodCertificateRequest
-import straightway.mosa.defense.CombinedSheddingDecider
-import straightway.mosa.defense.CpuSheddingDecider
-import straightway.mosa.defense.MemorySheddingDecider
-import straightway.mosa.defense.RequestDurationSheddingDecider
-import straightway.mosa.defense.RequestMetricsPlugin
-import straightway.mosa.defense.createMosaLoadSheddingPlugin
+import straightway.mosa.defense.core.CombinedSheddingDecider
+import straightway.mosa.defense.core.RequestMetricsPlugin
+import straightway.mosa.defense.core.createMosaLoadSheddingPlugin
+import straightway.mosa.defense.cpu.CpuSheddingDecider
+import straightway.mosa.defense.memory.MemorySheddingDecider
+import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
+import straightway.mosa.defense.requestduration.RequestDurationSheddingDecider
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.util.TimeZone
 import kotlin.random.Random
 import kotlin.time.Duration
 
 fun Application.installNetworkServerPlugins(
-    koin: Koin,
     requireTlsForPod: Boolean,
     loadSheddingThreshold: Double,
     memorySheddingThreshold: Double,
     loadSheddingRetryAfter: Duration,
-) = with(koin) {
-    install(RequestMetricsPlugin(get(), get()))
-    install(createMosaLoadSheddingPlugin(Random(System.nanoTime()))) {
+    meterRegistry: MeterRegistry,
+    requestDurationForRouteStateRegistry: RequestDurationForRouteStateRegistry,
+    nanoClock: NanoClock,
+    rng: Random,
+    tokenUtil: TokenUtil,
+) {
+    install(RequestMetricsPlugin(meterRegistry, nanoClock))
+    install(createMosaLoadSheddingPlugin(rng)) {
         decider =
             CombinedSheddingDecider(
                 listOf(
                     CpuSheddingDecider(loadSheddingThreshold = loadSheddingThreshold),
                     MemorySheddingDecider(memorySheddingThreshold = memorySheddingThreshold),
-                    RequestDurationSheddingDecider(get(), get()),
+                    RequestDurationSheddingDecider(requestDurationForRouteStateRegistry),
                 ),
             )
         retryAfter = loadSheddingRetryAfter
@@ -61,11 +66,10 @@ fun Application.installNetworkServerPlugins(
             call.respond(HttpStatusCode.BadRequest, mapOf("message" to cause.message))
         }
     }
-    install(Authentication.Companion) {
+    install(Authentication) {
         bearer {
             authenticate { credentials ->
                 runCatching {
-                    val tokenUtil: TokenUtil = koin.get()
                     val jwt = tokenUtil.decode(credentials.token)
                     if (!tokenUtil.isValidMisJwt(jwt)) return@runCatching null
                     val cert = jwt.claims["cert"]?.asMap()

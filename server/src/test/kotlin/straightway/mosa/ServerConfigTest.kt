@@ -11,14 +11,9 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
-import io.micrometer.core.instrument.MeterRegistry
-import io.mockk.mockk
-import org.koin.core.Koin
-import org.koin.dsl.koinApplication
-import org.koin.dsl.module
+import straightway.mosa.testutils.installTestNetworkServerPlugins
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.time.Duration.Companion.seconds
 
 class ServerConfigTest {
     @Test
@@ -35,13 +30,7 @@ class ServerConfigTest {
     fun `rejects http requests for web client when tls required`() =
         testApplication {
             application {
-                installNetworkServerPlugins(
-                    createTestKoin(),
-                    requireTlsForPod = true,
-                    loadSheddingThreshold = Double.MAX_VALUE,
-                    memorySheddingThreshold = Double.MAX_VALUE,
-                    loadSheddingRetryAfter = 30.seconds,
-                )
+                installTestNetworkServerPlugins()
                 routing {
                     get("/") { call.respond(HttpStatusCode.OK) }
                 }
@@ -56,13 +45,7 @@ class ServerConfigTest {
     fun `allows http requests for web client when tls not required`() =
         testApplication {
             application {
-                installNetworkServerPlugins(
-                    createTestKoin(),
-                    requireTlsForPod = false,
-                    loadSheddingThreshold = Double.MAX_VALUE,
-                    memorySheddingThreshold = Double.MAX_VALUE,
-                    loadSheddingRetryAfter = 30.seconds,
-                )
+                installTestNetworkServerPlugins(requireTlsForPod = false)
                 routing {
                     get("/") { call.respond(HttpStatusCode.OK) }
                 }
@@ -124,28 +107,11 @@ class ServerConfigTest {
         }
 
     private fun ApplicationTestBuilder.configureTestServer(requireTls: Boolean = true) {
-        val koin = createTestKoin()
         application {
-            installNetworkServerPlugins(
-                koin,
-                requireTlsForPod = requireTls,
-                loadSheddingThreshold = Double.MAX_VALUE,
-                memorySheddingThreshold = Double.MAX_VALUE,
-                loadSheddingRetryAfter = 30.seconds,
-            )
+            installTestNetworkServerPlugins(requireTlsForPod = requireTls)
             routing {
                 post("/v1/query") { call.respond(HttpStatusCode.OK) }
             }
         }
     }
-
-    private fun createTestKoin(): Koin =
-        koinApplication {
-            modules(
-                module {
-                    single<MeterRegistry> { mockk<MeterRegistry>(relaxed = true) }
-                    single<NanoClock> { NanoClock { 1L } }
-                },
-            )
-        }.koin
 }
