@@ -19,6 +19,7 @@ import org.koin.ktor.plugin.Koin
 import straightway.mosa.Crypto
 import straightway.mosa.EmbeddingService
 import straightway.mosa.HasherFactory
+import straightway.mosa.NanoClock
 import straightway.mosa.SignatureFactory
 import straightway.mosa.SignatureVerifierProvider
 import straightway.mosa.TokenUtil
@@ -100,6 +101,7 @@ class ControllerHttpTestEnvironment(
                 } onClose { (it as? AutoCloseable)?.close() }
                 single<HasherFactory> { hasherFactory }
                 single<Clock> { clock }
+                single<NanoClock> { NanoClock { 1L } }
                 single<SignatureFactory> { signatureFactory }
                 single<SignatureVerifierProvider> { signatureVerifierProvider }
                 single<Crypto> { crypto }

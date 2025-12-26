@@ -20,7 +20,6 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
-import io.micrometer.core.instrument.MeterRegistry
 import org.koin.core.Koin
 import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.defense.CombinedSheddingDecider
@@ -40,16 +39,15 @@ fun Application.installNetworkServerPlugins(
     loadSheddingThreshold: Double,
     memorySheddingThreshold: Double,
     loadSheddingRetryAfter: Duration,
-) {
-    val meterRegistry = koin.get<MeterRegistry>()
-    install(RequestMetricsPlugin(meterRegistry))
+) = with(koin) {
+    install(RequestMetricsPlugin(get(), get()))
     install(createMosaLoadSheddingPlugin(Random(System.nanoTime()))) {
         decider =
             CombinedSheddingDecider(
                 listOf(
                     CpuSheddingDecider(loadSheddingThreshold = loadSheddingThreshold),
                     MemorySheddingDecider(memorySheddingThreshold = memorySheddingThreshold),
-                    RequestDurationSheddingDecider(meterRegistry),
+                    RequestDurationSheddingDecider(get(), get()),
                 ),
             )
         retryAfter = loadSheddingRetryAfter

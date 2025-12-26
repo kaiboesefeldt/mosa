@@ -31,6 +31,7 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     single<MeterRegistry> { SimpleMeterRegistry() } onClose { it?.close() }
     single<EmbeddingService> { OnnxLocalEmbeddingService.create() } onClose { (it as? AutoCloseable)?.close() }
     single<Clock> { Clock.systemUTC() }
+    single<NanoClock> { NanoClock(System::nanoTime) }
     single<LuceneIndexAccess> { LuceneIndexAccess { MMapDirectory(Paths.get("mosa_lucene_index")) } } onClose
         { (it as? AutoCloseable)?.close() }
     single<QueryOnRegistry> { QueryOnRegistry(pageSize = 10, maxNotFinishedQueries = 10000) }

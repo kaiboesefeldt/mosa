@@ -10,9 +10,9 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import io.mockk.every
-import io.mockk.mockk
-import org.koin.core.Koin
+import org.koin.dsl.koinApplication
+import org.koin.dsl.module
+import straightway.mosa.NanoClock
 import straightway.mosa.TokenUtil
 import straightway.mosa.installNetworkServerPlugins
 import kotlin.test.Test
@@ -62,10 +62,15 @@ class RequestMetricsPluginTest {
         }
 
     private fun getKoin() =
-        mockk<Koin> {
-            every { get<TokenUtil>() } returns NoopTokenUtil
-            every { get<MeterRegistry>() } returns SimpleMeterRegistry()
-        }
+        koinApplication {
+            modules(
+                module {
+                    single<TokenUtil> { NoopTokenUtil }
+                    single<MeterRegistry> { SimpleMeterRegistry() }
+                    single<NanoClock> { NanoClock { 1L } }
+                },
+            )
+        }.koin
 
     private object NoopTokenUtil : TokenUtil {
         override fun decode(jwt: String): DecodedJWT {

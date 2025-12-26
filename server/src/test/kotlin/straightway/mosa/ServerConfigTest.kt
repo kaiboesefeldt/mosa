@@ -144,6 +144,7 @@ class ServerConfigTest {
             modules(
                 module {
                     single<MeterRegistry> { mockk<MeterRegistry>(relaxed = true) }
+                    single<NanoClock> { NanoClock { 1L } }
                 },
             )
         }.koin

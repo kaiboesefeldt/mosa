@@ -12,6 +12,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import kotlinx.coroutines.slf4j.MDCContext
 import kotlinx.coroutines.withContext
+import straightway.mosa.NanoClock
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -19,7 +20,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 class RequestMetricsPlugin(
     private val meterRegistry: MeterRegistry,
-    private val nanoTime: () -> Long = System::nanoTime,
+    private val nanoClock: NanoClock,
 ) : Plugin<Application, Unit, Unit> {
     override val key: AttributeKey<Unit> = AttributeKey("RequestMetricsPlugin")
 
@@ -35,7 +36,7 @@ class RequestMetricsPlugin(
         val total = AtomicLong(0)
 
         pipeline.intercept(ApplicationCallPipeline.Setup) {
-            val startNs = nanoTime()
+            val startNs = nanoClock.nanoTime()
             val activeNow = active.incrementAndGet()
             val reqNo = total.incrementAndGet()
             call.attributes.put(ReqNoKey, reqNo)
@@ -54,7 +55,7 @@ class RequestMetricsPlugin(
                     failure = t
                     throw t
                 } finally {
-                    val durationNs = nanoTime() - startNs
+                    val durationNs = nanoClock.nanoTime() - startNs
                     recordDuration(call, durationNs)
                     val activeAfter = active.decrementAndGet()
 

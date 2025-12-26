@@ -225,6 +225,7 @@ class ServerConfigAuthenticationTest {
             modules(
                 module {
                     single<TokenUtil> { mockk<TokenUtil>() }
+                    single<NanoClock> { NanoClock { 1L } }
                     single<MeterRegistry> { mockk<MeterRegistry>(relaxed = true) }
                 },
             )

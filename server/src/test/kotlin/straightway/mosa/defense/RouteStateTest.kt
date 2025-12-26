@@ -15,7 +15,7 @@ class RouteStateTest {
             val state =
                 RouteState(
                     config = RequestDurationSheddingDecider.Config(sampleIntervalNs = 1_000L),
-                    nanoTime = { 500L },
+                    nanoClock = { 500L },
                     samplingGate = SamplingGate(lastSampleNs = 0L),
                     timerWindowState = TimerWindowState { error("timer provider should not be called") },
                     latencyStats =

@@ -3,6 +3,7 @@ package straightway.mosa.defense
 import io.micrometer.core.instrument.Timer
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import kotlinx.coroutines.test.runTest
+import straightway.mosa.NanoClock
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -119,7 +120,7 @@ class RequestDurationSheddingDeciderTest {
             val decider =
                 deciderFor(
                     meterRegistry,
-                    nanoTime = { nanoTimes.removeFirst() },
+                    nanoClock = { nanoTimes.removeFirst() },
                     config =
                         RequestDurationSheddingDecider.Config(
                             minSamplesForBaseline = 0,
@@ -274,12 +275,12 @@ class RequestDurationSheddingDeciderTest {
 
     private fun deciderFor(
         meterRegistry: SimpleMeterRegistry,
-        nanoTime: () -> Long = { 0L },
+        nanoClock: NanoClock = NanoClock { 0L },
         config: RequestDurationSheddingDecider.Config,
     ): RequestDurationSheddingDecider =
         RequestDurationSheddingDecider(
             meterRegistry = meterRegistry,
-            nanoTime = nanoTime,
+            nanoClock = nanoClock,
             config = config,
             samplingGateFactory = { SamplingGate() },
             timerWindowStateFactory = { timerProvider -> TimerWindowState(timerProvider) },
@@ -295,7 +296,7 @@ class RequestDurationSheddingDeciderTest {
 
     private fun timerFor(
         meterRegistry: SimpleMeterRegistry,
-        method: String,
+        @Suppress("SameParameterValue") method: String,
         route: String,
     ): Timer =
         Timer

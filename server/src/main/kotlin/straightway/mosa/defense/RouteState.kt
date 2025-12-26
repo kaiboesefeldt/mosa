@@ -2,12 +2,13 @@ package straightway.mosa.defense
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import straightway.mosa.NanoClock
 import java.util.Locale
 import kotlin.math.max
 
 class RouteState(
     private val config: RequestDurationSheddingDecider.Config,
-    private val nanoTime: () -> Long,
+    private val nanoClock: NanoClock,
     private val samplingGate: SamplingGate,
     private val timerWindowState: TimerWindowState,
     private val latencyStats: LatencyStats,
@@ -17,7 +18,7 @@ class RouteState(
     private val mutex = Mutex()
 
     suspend fun decide(request: SheddingRequest): SheddingDecider.Result =
-        nanoTime().let { nowNs ->
+        nanoClock.nanoTime().let { nowNs ->
             if (isSamplingIntervalNotElapsed(nowNs)) {
                 sheddingState.cachedDecision
             } else {

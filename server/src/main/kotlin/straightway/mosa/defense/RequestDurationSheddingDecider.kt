@@ -4,11 +4,12 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import straightway.mosa.NanoClock
 import java.util.concurrent.ConcurrentHashMap
 
 class RequestDurationSheddingDecider(
     private val meterRegistry: MeterRegistry,
-    private val nanoTime: () -> Long = System::nanoTime,
+    private val nanoClock: NanoClock,
     val config: Config = Config(),
     private val samplingGateFactory: () -> SamplingGate = { SamplingGate() },
     private val timerWindowStateFactory: ((SheddingRequest) -> Timer?) -> TimerWindowState = { timerProvider ->
@@ -54,7 +55,7 @@ class RequestDurationSheddingDecider(
         states[request] ?: stateCreationMutex.withLock {
             states[request] ?: RouteState(
                 config = config,
-                nanoTime = nanoTime,
+                nanoClock = nanoClock,
                 samplingGate = samplingGateFactory(),
                 timerWindowState = timerWindowStateFactory(timerProvider),
                 latencyStats = latencyStatsFactory(),
