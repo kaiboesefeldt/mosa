@@ -93,6 +93,7 @@ class PostPublisherTest {
                 podAccessFactory = { podAccess },
                 jwtBuilder = { identity, certificate -> jwtBuilder.build(identity, certificate) },
                 certificateCache = certificateCache,
+                timeService = timeService,
                 logger = logger,
             )
         )
@@ -104,7 +105,11 @@ private class RecordingPublishPodAccess : PodAccess {
 
     override suspend fun approveGid(gid: String): PodCertificate {
         approveInvocations += gid
-        return PodCertificate(gid, 1, "sig", "inf")
+        return PodCertificate(gid, 100_000, "sig", "inf")
+    }
+
+    override suspend fun refreshGid(jwt: String): PodCertificate {
+        error("not used")
     }
 
     override suspend fun publish(request: PublishRequest, jwt: String) {

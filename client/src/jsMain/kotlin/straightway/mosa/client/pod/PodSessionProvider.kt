@@ -2,11 +2,13 @@ package straightway.mosa.client.pod
 
 import io.ktor.http.HttpStatusCode
 import straightway.mosa.auth.PodCertificate
+import straightway.mosa.client.aux.TimeService
 import straightway.mosa.client.content.PodAccessFactory
 import straightway.mosa.client.content.JwtBuilder
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.logging.Logger
+import kotlin.time.Duration.Companion.hours
 
 class PodSessionProvider(
     private val identityRepository: IdentitySelectionRepository,
@@ -14,6 +16,7 @@ class PodSessionProvider(
     private val podAccessFactory: PodAccessFactory,
     private val jwtBuilder: JwtBuilder,
     private val certificateCache: PodCertificateCache,
+    private val timeService: TimeService,
     private val logger: Logger,
 ) {
     suspend fun <T> execute(
@@ -70,13 +73,14 @@ class PodSessionProvider(
         podAccess: PodAccess,
     ): PodCertificate? {
         val cached = certificateCache.cached(podBase, identity.gid)
-        if (cached != null) return cached
-        return runCatching { podAccess.approveGid(identity.gid) }
-            .onSuccess { certificateCache.store(podBase, identity.gid, it) }
-            .getOrElse {
-                logger.error("Pod certificate retrieval failed", it)
-                null
+        if (cached != null) {
+            val refreshed = refreshIfNeeded(podBase, identity, podAccess, cached) ?: return null
+            if (refreshed != cached) {
+                certificateCache.store(podBase, identity.gid, refreshed)
             }
+            return refreshed
+        }
+        return approveNewCertificate(podBase, identity, podAccess)
     }
 
     private suspend fun jwt(identity: Identity, certificate: PodCertificate): String? =
@@ -86,10 +90,50 @@ class PodSessionProvider(
                 null
             }
 
+    private suspend fun refreshIfNeeded(
+        podBase: String,
+        identity: Identity,
+        podAccess: PodAccess,
+        cached: PodCertificate,
+    ): PodCertificate? {
+        if (!shouldRefresh(cached)) return cached
+        val refreshJwt = jwt(identity, cached) ?: return cached
+        val refreshedAttempt = runCatching { podAccess.refreshGid(refreshJwt) }
+        val refreshed = refreshedAttempt.getOrNull()
+        if (refreshed != null) return refreshed
+
+        val failure = refreshedAttempt.exceptionOrNull()
+        if (failure is PodRequestFailed) {
+            if (failure.status == POD_BAD_REQUEST) return cached
+            if (failure.status == POD_UNAUTHORIZED) return approveNewCertificate(podBase, identity, podAccess)
+        }
+        logger.warn("Pod certificate refresh failed", failure)
+        return cached
+    }
+
+    private suspend fun approveNewCertificate(
+        podBase: String,
+        identity: Identity,
+        podAccess: PodAccess,
+    ): PodCertificate? =
+        runCatching { podAccess.approveGid(identity.gid) }
+            .onSuccess { certificateCache.store(podBase, identity.gid, it) }
+            .getOrElse {
+                logger.error("Pod certificate retrieval failed", it)
+                null
+            }
+
+    private fun shouldRefresh(certificate: PodCertificate): Boolean {
+        val remainingSeconds = certificate.exp - timeService.now
+        return remainingSeconds < refreshThresholdSeconds
+    }
+
     private fun PodRequestFailed.isUnauthorized(): Boolean = status == POD_UNAUTHORIZED
 
     companion object {
         val POD_UNAUTHORIZED = HttpStatusCode.Unauthorized
+        private val POD_BAD_REQUEST = HttpStatusCode.BadRequest
+        private val refreshThresholdSeconds = 2.hours.inWholeSeconds
     }
 }
 

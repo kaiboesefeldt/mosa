@@ -59,6 +59,29 @@ class PodAccessTest {
     }
 
     @Test
+    fun `refreshGid posts without body and returns certificate`() = runTest {
+        val expectedCertificate = PodCertificate("gid-123", 1234, "signature", "info")
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedCertificate)
+
+        val certificate = podAccess.refreshGid("jwt-token")
+
+        assertEquals(expectedCertificate, certificate)
+        assertRefreshRequest(
+            capturedRequests.single(),
+            route = "v1/refreshgid",
+            bearerToken = "jwt-token"
+        )
+    }
+
+    @Test
+    fun `refreshGid throws when backend returns error`() = runTest {
+        val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
+
+        assertRestError("/v1/refreshgid", HttpStatusCode.BadRequest) { podAccess.refreshGid("jwt-token") }
+    }
+
+    @Test
     fun `publish posts content and accepts success`() = runTest {
         val publishRequest = PublishRequest("message")
         val capturedRequests = mutableListOf<HttpRequestData>()
@@ -260,6 +283,16 @@ class PodAccessTest {
 
         val payload = json.decodeFromString<T>(body.text)
         assertEquals(expectedPayload, payload)
+    }
+
+    private fun assertRefreshRequest(
+        request: HttpRequestData,
+        route: String,
+        bearerToken: String,
+    ) {
+        assertEquals(HttpMethod.Post, request.method)
+        assertEquals("https://pod.example/$route", request.url.toString())
+        assertEquals("Bearer $bearerToken", request.headers[HttpHeaders.Authorization])
     }
 
     private suspend fun assertRestError(path: String, status: HttpStatusCode, call: suspend () -> Unit) {

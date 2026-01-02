@@ -297,6 +297,7 @@ class TopicSearchServiceTest {
                         "generated-jwt"
                     },
                     certificateCache = certificateCache,
+                    timeService = timeService,
                     logger = logger,
                 ),
             postCache = cache,
@@ -320,7 +321,11 @@ private class FakePodAccess(
 
     override suspend fun approveGid(gid: String): PodCertificate {
         approveInvocations += gid
-        return PodCertificate(gid, 1, "sig", "inf")
+        return PodCertificate(gid, 100_000, "sig", "inf")
+    }
+
+    override suspend fun refreshGid(jwt: String): PodCertificate {
+        error("Not implemented")
     }
 
     override suspend fun publish(request: PublishRequest, jwt: String) {

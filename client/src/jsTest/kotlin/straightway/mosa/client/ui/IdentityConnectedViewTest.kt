@@ -613,6 +613,7 @@ private fun scrollPostsToEnd(container: Element) {
                         get(),
                         get(),
                         get(),
+                        get(),
                     )
                 }
                 single { PostPublisher(get()) }
@@ -735,7 +736,11 @@ private class RecordingPodAccess(
 
     override suspend fun approveGid(gid: String): PodCertificate {
         approveInvocations += gid
-        return PodCertificate(gid, 1, "sig", "info")
+        return PodCertificate(gid, 100_000, "sig", "info")
+    }
+
+    override suspend fun refreshGid(jwt: String): PodCertificate {
+        error("Not implemented")
     }
 
     override suspend fun publish(request: straightway.mosa.content.PublishRequest, jwt: String) {

@@ -113,6 +113,7 @@ object AppModule : KoinComponent {
                                 get(),
                                 get(),
                                 get(),
+                                get(),
                             )
                         }
                         single {

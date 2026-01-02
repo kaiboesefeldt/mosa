@@ -15,11 +15,13 @@ import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.SearchResult
+import io.ktor.http.HttpStatusCode
 import kotlin.js.unsafeCast
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
+import kotlin.time.Duration.Companion.hours
 
 class PodSessionProviderTest {
     private val timeService = TestTimeService(0)
@@ -75,30 +77,100 @@ class PodSessionProviderTest {
         assertEquals("jwt-2", result)
     }
 
-    private fun provider(podAccess: FakeSessionPodAccess): PodSessionProvider {
-        val baseProvider = PodBaseProvider()
+    @Test
+    fun `refreshes certificate when close to expiration`() = runTest {
+        val podAccess = FakeSessionPodAccess()
         val certificateCache = PodCertificateCache(timeService)
+        val cached = PodCertificate(identity.gid, refreshThresholdSeconds - 1, "sig-cached", null)
+        certificateCache.store(POD_BASE, identity.gid, cached)
+        val provider = provider(podAccess, certificateCache)
+
+        val result = provider.execute("publish") { it.jwt }
+
+        assertEquals(1, podAccess.refreshCalls)
+        assertEquals(0, podAccess.approveCalls)
+        assertEquals("jwt-r1", result)
+    }
+
+    @Test
+    fun `keeps certificate when refresh returns bad request`() = runTest {
+        val podAccess = FakeSessionPodAccess(
+            refreshFailure = PodRequestFailed("/v1/refreshgid", Unit, HttpStatusCode.BadRequest),
+        )
+        val certificateCache = PodCertificateCache(timeService)
+        val cached = PodCertificate(identity.gid, refreshThresholdSeconds - 1, "sig-cached", null)
+        certificateCache.store(POD_BASE, identity.gid, cached)
+        val provider = provider(podAccess, certificateCache)
+
+        val result = provider.execute("publish") { it.jwt }
+
+        assertEquals(1, podAccess.refreshCalls)
+        assertEquals(0, podAccess.approveCalls)
+        assertEquals("jwt-cached", result)
+    }
+
+    @Test
+    fun `approves new certificate when refresh is unauthorized`() = runTest {
+        val podAccess = FakeSessionPodAccess(
+            refreshFailure = PodRequestFailed("/v1/refreshgid", Unit, PodSessionProvider.POD_UNAUTHORIZED),
+        )
+        val certificateCache = PodCertificateCache(timeService)
+        val cached = PodCertificate(identity.gid, refreshThresholdSeconds - 1, "sig-cached", null)
+        certificateCache.store(POD_BASE, identity.gid, cached)
+        val provider = provider(podAccess, certificateCache)
+
+        val result = provider.execute("publish") { it.jwt }
+
+        assertEquals(1, podAccess.refreshCalls)
+        assertEquals(1, podAccess.approveCalls)
+        assertEquals("jwt-1", result)
+    }
+
+    private fun provider(
+        podAccess: FakeSessionPodAccess,
+        certificateCache: PodCertificateCache = PodCertificateCache(timeService),
+    ): PodSessionProvider {
+        val baseProvider = PodBaseProvider()
         return PodSessionProvider(
             identityRepository = StaticIdentityRepository(identity),
             podBaseProvider = baseProvider,
             podAccessFactory = { podAccess },
             jwtBuilder = recordingJwtBuilder(),
             certificateCache = certificateCache,
+            timeService = timeService,
             logger = RecordingPodSessionLogger(),
         )
     }
 
     private fun recordingJwtBuilder(): JwtBuilder = { _, certificate ->
-        "jwt-${certificate.sig.removePrefix("sig-")}"
+        if (certificate.sig.startsWith("sig-r")) {
+            "jwt-r${certificate.sig.removePrefix("sig-r")}"
+        } else {
+            "jwt-${certificate.sig.removePrefix("sig-")}"
+        }
+    }
+
+    private companion object {
+        private const val POD_BASE = "https://pod.example"
+        private val refreshThresholdSeconds = 2.hours.inWholeSeconds
     }
 }
 
-private class FakeSessionPodAccess : PodAccess {
+private class FakeSessionPodAccess(
+    private val refreshFailure: PodRequestFailed? = null,
+) : PodAccess {
     var approveCalls = 0
+    var refreshCalls = 0
 
     override suspend fun approveGid(gid: String): PodCertificate {
         approveCalls++
-        return PodCertificate(gid = gid, exp = 10_000, sig = "sig-$approveCalls", inf = null)
+        return PodCertificate(gid = gid, exp = 100_000, sig = "sig-$approveCalls", inf = null)
+    }
+
+    override suspend fun refreshGid(jwt: String): PodCertificate {
+        refreshCalls++
+        refreshFailure?.let { throw it }
+        return PodCertificate(gid = "gid-1", exp = 20_000, sig = "sig-r$refreshCalls", inf = null)
     }
 
     override suspend fun publish(request: PublishRequest, jwt: String) {

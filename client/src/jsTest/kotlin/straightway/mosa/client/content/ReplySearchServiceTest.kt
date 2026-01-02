@@ -32,6 +32,7 @@ class ReplySearchServiceTest {
     private lateinit var cache: FakeReplyCache
     private lateinit var logger: ReplyTestLogger
     private lateinit var certificateCache: PodCertificateCache
+    private lateinit var timeService: TimeService
     private val jwtInvocations = mutableListOf<Pair<Identity, PodCertificate>>()
     private val identity =
         Identity(
@@ -49,7 +50,8 @@ class ReplySearchServiceTest {
     fun setup() {
         cache = FakeReplyCache()
         logger = ReplyTestLogger()
-        certificateCache = PodCertificateCache(FixedTimeService(0))
+        timeService = FixedTimeService(0)
+        certificateCache = PodCertificateCache(timeService)
         window.asDynamic().MOSA_POD_BASE = null
         jwtInvocations.clear()
     }
@@ -217,6 +219,7 @@ class ReplySearchServiceTest {
                         "generated-jwt"
                     },
                     certificateCache = certificateCache,
+                    timeService = timeService,
                     logger = logger,
                 ),
             replyCache = cache,
@@ -250,7 +253,11 @@ private class RecordingPodAccess(
 
     override suspend fun approveGid(gid: String): PodCertificate {
         approveInvocations += gid
-        return PodCertificate(gid, 1, "sig", "inf")
+        return PodCertificate(gid, 100_000, "sig", "inf")
+    }
+
+    override suspend fun refreshGid(jwt: String): PodCertificate {
+        error("Not implemented")
     }
 
     override suspend fun publish(request: PublishRequest, jwt: String) {

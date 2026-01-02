@@ -21,6 +21,7 @@ import straightway.mosa.content.SearchResult
 
 interface PodAccess {
     suspend fun approveGid(gid: String): PodCertificate
+    suspend fun refreshGid(jwt: String): PodCertificate
     suspend fun publish(request: PublishRequest, jwt: String)
     suspend fun reply(request: ReplyRequest, jwt: String)
     suspend fun search(request: QueryRequest, jwt: String): SearchResult
@@ -36,6 +37,13 @@ class PodAccessImpl(
         val path = "/v1/approvegid"
         return post(path, AuthenticationApprovalRequest(gid))
             .ensureSuccess(path, gid)
+            .body()
+    }
+
+    override suspend fun refreshGid(jwt: String): PodCertificate {
+        val path = "/v1/refreshgid"
+        return post(path, jwt)
+            .ensureSuccess(path, Unit)
             .body()
     }
 
@@ -70,6 +78,12 @@ class PodAccessImpl(
             setBody(payload)
             if (jwt != null)
                 header(HttpHeaders.Authorization, "Bearer $jwt")
+        }
+
+    private suspend fun post(path: String, jwt: String): HttpResponse =
+        httpClient.post("$podBase$path") {
+            contentType(ContentType.Application.Json)
+            header(HttpHeaders.Authorization, "Bearer $jwt")
         }
 
     private fun HttpResponse.ensureSuccess(path: String, payload: Any): HttpResponse =
