@@ -25,7 +25,9 @@ import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.defense.core.CombinedSheddingDecider
 import straightway.mosa.defense.core.RequestMetricsPlugin
 import straightway.mosa.defense.core.createMosaLoadSheddingPlugin
+import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingDecider
+import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.defense.memory.MemorySheddingDecider
 import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
 import straightway.mosa.defense.requestduration.RequestDurationSheddingDecider
@@ -36,8 +38,8 @@ import kotlin.time.Duration
 
 fun Application.installNetworkServerPlugins(
     requireTlsForPod: Boolean,
-    loadSheddingThreshold: Double,
-    memorySheddingThreshold: Double,
+    cpuSheddingConfig: CpuSheddingConfig,
+    memorySheddingConfig: MemorySheddingConfig,
     loadSheddingRetryAfter: Duration,
     meterRegistry: MeterRegistry,
     requestDurationForRouteStateRegistry: RequestDurationForRouteStateRegistry,
@@ -50,8 +52,8 @@ fun Application.installNetworkServerPlugins(
         decider =
             CombinedSheddingDecider(
                 listOf(
-                    CpuSheddingDecider(loadSheddingThreshold = loadSheddingThreshold),
-                    MemorySheddingDecider(memorySheddingThreshold = memorySheddingThreshold),
+                    CpuSheddingDecider(cpuSheddingConfig),
+                    MemorySheddingDecider(memorySheddingConfig),
                     RequestDurationSheddingDecider(requestDurationForRouteStateRegistry),
                 ),
             )

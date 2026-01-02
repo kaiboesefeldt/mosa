@@ -4,6 +4,8 @@ import io.ktor.server.application.Application
 import io.micrometer.core.instrument.MeterRegistry
 import io.mockk.mockk
 import straightway.mosa.TokenUtil
+import straightway.mosa.defense.cpu.CpuSheddingConfig
+import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
 import straightway.mosa.installNetworkServerPlugins
 import kotlin.time.Duration.Companion.seconds
@@ -15,8 +17,16 @@ fun Application.installTestNetworkServerPlugins(
 ) {
     installNetworkServerPlugins(
         requireTlsForPod = requireTlsForPod,
-        loadSheddingThreshold = Double.MAX_VALUE,
-        memorySheddingThreshold = Double.MAX_VALUE,
+        cpuSheddingConfig =
+            CpuSheddingConfig(
+                loadSheddingStart = Double.MAX_VALUE,
+                loadSheddingFull = Double.MAX_VALUE,
+            ),
+        memorySheddingConfig =
+            MemorySheddingConfig(
+                memorySheddingStart = Double.MAX_VALUE,
+                memorySheddingFull = Double.MAX_VALUE,
+            ),
         loadSheddingRetryAfter = 30.seconds,
         requestDurationForRouteStateRegistry = RequestDurationForRouteStateRegistry(meterRegistry, mockk(relaxed = true)),
         meterRegistry = meterRegistry,

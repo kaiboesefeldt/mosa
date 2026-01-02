@@ -51,17 +51,26 @@ class MainArgumentsTest {
     }
 
     @Test
-    fun `store returns default memory shedding threshold when argument omitted`() {
+    fun `store returns default memory shedding range when argument omitted`() {
         val store = parseStore("serve")
 
-        assertEquals(0.85, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_THRESHOLD))
+        assertEquals(0.85, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_START))
+        assertEquals(0.85, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_FULL))
     }
 
     @Test
-    fun `store returns provided memory shedding threshold`() {
-        val store = parseStore("serve", "--memory-shedding-threshold", "0.9")
+    fun `store returns provided memory shedding range`() {
+        val store =
+            parseStore(
+                "serve",
+                "--memory-shedding-start",
+                "0.7",
+                "--memory-shedding-full",
+                "0.9",
+            )
 
-        assertEquals(0.9, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_THRESHOLD))
+        assertEquals(0.7, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_START))
+        assertEquals(0.9, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_FULL))
     }
 
     private fun parseStore(vararg args: String): CommandLineArgumentStore? {

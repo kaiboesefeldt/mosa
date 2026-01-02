@@ -18,7 +18,10 @@ class MemorySheddingDeciderTest {
         runTest {
             val decider =
                 MemorySheddingDecider(
-                    memorySheddingThreshold = 0.9,
+                    MemorySheddingConfig(
+                        memorySheddingStart = 0.9,
+                        memorySheddingFull = 0.9,
+                    ),
                 ) { 0.95 }
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
@@ -28,11 +31,31 @@ class MemorySheddingDeciderTest {
         }
 
     @Test
+    fun `sheds proportionally within range`() =
+        runTest {
+            val decider =
+                MemorySheddingDecider(
+                    MemorySheddingConfig(
+                        memorySheddingStart = 0.7,
+                        memorySheddingFull = 0.9,
+                    ),
+                ) { 0.8 }
+
+            val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
+
+            assertEquals(0.5, deciderResult.sheddingFactor, 1e-6)
+            assertEquals("Heap usage in shedding range 0.7-0.9 (80.0%)", deciderResult.reason)
+        }
+
+    @Test
     fun `does not shed when heap usage is below threshold`() =
         runTest {
             val decider =
                 MemorySheddingDecider(
-                    memorySheddingThreshold = 0.9,
+                    MemorySheddingConfig(
+                        memorySheddingStart = 0.9,
+                        memorySheddingFull = 0.9,
+                    ),
                 ) { 0.5 }
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
@@ -45,7 +68,10 @@ class MemorySheddingDeciderTest {
         runTest {
             val decider =
                 MemorySheddingDecider(
-                    memorySheddingThreshold = 0.1,
+                    MemorySheddingConfig(
+                        memorySheddingStart = 0.1,
+                        memorySheddingFull = 0.1,
+                    ),
                 ) { -0.5 }
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
@@ -58,7 +84,10 @@ class MemorySheddingDeciderTest {
         runTest {
             val decider =
                 MemorySheddingDecider(
-                    memorySheddingThreshold = 0.1,
+                    MemorySheddingConfig(
+                        memorySheddingStart = 0.1,
+                        memorySheddingFull = 0.1,
+                    ),
                 ) { Double.NaN }
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
@@ -78,7 +107,14 @@ class MemorySheddingDeciderTest {
                     "Expected baseline to be below threshold (baseline=$baseline threshold=$threshold)",
                 )
 
-                val decider = MemorySheddingDecider(threshold, gauge::sample)
+                val decider =
+                    MemorySheddingDecider(
+                        MemorySheddingConfig(
+                            memorySheddingStart = threshold,
+                            memorySheddingFull = threshold,
+                        ),
+                        gauge::sample,
+                    )
                 val initialResult = decider.decideShedding(SheddingRequest("GET", "/test"))
                 assertEquals(
                     0.0,

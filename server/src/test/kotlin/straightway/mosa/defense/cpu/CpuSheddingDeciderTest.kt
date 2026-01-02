@@ -20,7 +20,10 @@ class CpuSheddingDeciderTest {
         runTest {
             val decider =
                 CpuSheddingDecider(
-                    loadSheddingThreshold = 0.9,
+                    CpuSheddingConfig(
+                        loadSheddingStart = 0.9,
+                        loadSheddingFull = 0.9,
+                    ),
                 ) { 0.95 }
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
@@ -30,11 +33,31 @@ class CpuSheddingDeciderTest {
         }
 
     @Test
+    fun `sheds proportionally within range`() =
+        runTest {
+            val decider =
+                CpuSheddingDecider(
+                    CpuSheddingConfig(
+                        loadSheddingStart = 0.6,
+                        loadSheddingFull = 1.0,
+                    ),
+                ) { 0.8 }
+
+            val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
+
+            assertEquals(0.5, deciderResult.sheddingFactor, 1e-6)
+            assertEquals("CPU load per core in shedding range 0.6-1.0 (0.8)", deciderResult.reason)
+        }
+
+    @Test
     fun `ignores negative sampler results`() =
         runTest {
             val decider =
                 CpuSheddingDecider(
-                    loadSheddingThreshold = 0.1,
+                    CpuSheddingConfig(
+                        loadSheddingStart = 0.1,
+                        loadSheddingFull = 0.1,
+                    ),
                 ) { -0.5 }
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
@@ -55,7 +78,14 @@ class CpuSheddingDeciderTest {
                     withTimeout(1.minutes) {
                         while (true) {
                             threshold *= 1.001
-                            val decider = CpuSheddingDecider(threshold, gauge::sample)
+                            val decider =
+                                CpuSheddingDecider(
+                                    CpuSheddingConfig(
+                                        loadSheddingStart = threshold,
+                                        loadSheddingFull = threshold,
+                                    ),
+                                    gauge::sample,
+                                )
 
                             Thread.sleep(5) // Calm down
                             if (decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor == 1.0) {

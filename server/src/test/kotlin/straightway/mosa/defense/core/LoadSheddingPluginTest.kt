@@ -10,6 +10,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.mockk.mockk
+import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingDecider
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,7 +22,10 @@ class LoadSheddingPluginTest {
         testApplication {
             val decider =
                 CpuSheddingDecider(
-                    loadSheddingThreshold = 0.9,
+                    CpuSheddingConfig(
+                        loadSheddingStart = 0.9,
+                        loadSheddingFull = 0.9,
+                    ),
                 ) { 1.0 }
             application {
                 install(createMosaLoadSheddingPlugin(mockk())) {
@@ -43,7 +47,12 @@ class LoadSheddingPluginTest {
     fun `passes requests when load is acceptable`() =
         testApplication {
             val decider =
-                CpuSheddingDecider(loadSheddingThreshold = 0.85) { 0.2 }
+                CpuSheddingDecider(
+                    CpuSheddingConfig(
+                        loadSheddingStart = 0.85,
+                        loadSheddingFull = 0.85,
+                    ),
+                ) { 0.2 }
             application {
                 install(createMosaLoadSheddingPlugin(mockk())) {
                     this.decider = decider

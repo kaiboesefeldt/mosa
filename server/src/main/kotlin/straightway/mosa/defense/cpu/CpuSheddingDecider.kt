@@ -6,19 +6,41 @@ import java.lang.management.ManagementFactory
 import kotlin.math.max
 
 class CpuSheddingDecider(
-    private val loadSheddingThreshold: Double,
+    private val config: CpuSheddingConfig,
     private val loadSampler: () -> Double = CpuLoadGauge()::sample,
 ) : SheddingDecider {
     override suspend fun decideShedding(request: SheddingRequest) =
-        loadSampler().coerceAtLeast(0.0).let { load ->
-            if (loadSheddingThreshold <= load) {
-                SheddingDecider.Result(
-                    sheddingFactor = 1.0,
-                    reason = "CPU load per core above $loadSheddingThreshold ($load)",
-                )
-            } else {
+        normalizedLoad().let { load ->
+            val sheddingFactor = sheddingFactorFor(load)
+            if (sheddingFactor <= 0.0) {
                 SheddingDecider.Result.NO_SHEDDING
+            } else {
+                SheddingDecider.Result(
+                    sheddingFactor = sheddingFactor,
+                    reason = sheddingReason(load),
+                )
             }
+        }
+
+    private fun normalizedLoad(): Double =
+        loadSampler()
+            .let { if (it.isFinite()) it else 0.0 }
+            .coerceAtLeast(0.0)
+
+    private fun sheddingFactorFor(load: Double): Double =
+        when {
+            load < config.loadSheddingStart -> 0.0
+            config.loadSheddingFull <= load -> 1.0
+            else ->
+                ((load - config.loadSheddingStart) / (config.loadSheddingFull - config.loadSheddingStart))
+                    .coerceIn(0.0, 1.0)
+        }
+
+    private fun sheddingReason(load: Double): String =
+        if (config.loadSheddingFull <= load) {
+            "CPU load per core above ${config.loadSheddingFull} ($load)"
+        } else {
+            "CPU load per core in shedding range ${config.loadSheddingStart}-${config.loadSheddingFull} ($load)"
         }
 }
 
