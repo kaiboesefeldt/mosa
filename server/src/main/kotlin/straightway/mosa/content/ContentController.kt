@@ -1,14 +1,10 @@
 package straightway.mosa.content
 
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.authenticate
-import io.ktor.server.auth.principal
-import io.ktor.server.request.path
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
-import io.ktor.server.routing.RoutingContext
 import io.ktor.util.reflect.typeInfo
 import straightway.mosa.base.BaseController
 import java.time.Clock
@@ -63,19 +59,5 @@ class ContentController(
                 call.respond(HttpStatusCode.OK, result, typeInfo<FetchResult>())
             }
         }
-    }
-
-    private suspend fun RoutingContext.userGidOrRespondUnauthorized(): String? {
-        val principal =
-            runCatching {
-                requireNotNull(call.principal<UserIdPrincipal>()) {
-                    "Missing authenticated principal for ${call.request.path()}"
-                }
-            }.getOrElse {
-                val description = it.message ?: "Missing authenticated principal"
-                call.respond(HttpStatusCode.Unauthorized, mapOf("message" to description))
-                return null
-            }
-        return principal.name
     }
 }

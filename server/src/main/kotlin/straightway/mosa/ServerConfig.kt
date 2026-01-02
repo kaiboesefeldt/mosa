@@ -13,7 +13,6 @@ import io.ktor.server.application.ApplicationPlugin
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
-import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.bearer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
@@ -22,6 +21,8 @@ import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import io.micrometer.core.instrument.MeterRegistry
 import straightway.mosa.auth.InvalidPodCertificateRequest
+import straightway.mosa.auth.PodPrincipal
+import straightway.mosa.auth.toPodCertificate
 import straightway.mosa.defense.core.CombinedSheddingDecider
 import straightway.mosa.defense.core.RequestMetricsPlugin
 import straightway.mosa.defense.core.createMosaLoadSheddingPlugin
@@ -74,9 +75,8 @@ fun Application.installNetworkServerPlugins(
                 runCatching {
                     val jwt = tokenUtil.decode(credentials.token)
                     if (!tokenUtil.isValidMisJwt(jwt)) return@runCatching null
-                    val cert = jwt.claims["cert"]?.asMap()
-                    val userGID = cert?.let { it["gid"] }?.toString()
-                    userGID?.let { UserIdPrincipal(userGID) }
+                    val cert = jwt.claims["cert"]?.asMap()?.toPodCertificate() ?: return@runCatching null
+                    PodPrincipal(cert)
                 }.onFailure {
                     val reason = it::class.simpleName ?: "AuthenticationError"
                     log.debug { "Authentication failed: $reason" }

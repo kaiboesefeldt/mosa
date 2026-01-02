@@ -104,7 +104,7 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     single<CommandLineArgumentStore> { arguments }
 
     single { ContentController(get(), get()) } bind BaseController::class
-    single { AuthenticationController(get()) } bind BaseController::class
+    single { AuthenticationController(get(), get()) } bind BaseController::class
     single {
         val cliArguments: CommandLineArgumentStore = get()
         WebClientController(

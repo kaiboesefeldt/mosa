@@ -1,15 +1,18 @@
 package straightway.mosa.auth
 
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import straightway.mosa.base.BaseController
+import java.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 
 class AuthenticationController(
     private val podCertificateService: PodCertificateService,
+    private val clock: Clock,
 ) : BaseController() {
     override fun Route.register() {
         postRoute("/approvegid") {
@@ -21,9 +24,31 @@ class AuthenticationController(
                 )
             call.respond<PodCertificate>(HttpStatusCode.Accepted, cert)
         }
+        authenticate {
+            postRoute("/refreshgid") {
+                val certificate = userPodCertificateOrRespondUnauthorized() ?: return@postRoute
+                val remainingSeconds = certificate.exp - clock.instant().epochSecond
+                if (refreshThresholdSeconds <= remainingSeconds) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        mapOf("message" to REFRESH_TOO_FRESH_MESSAGE),
+                    )
+                    return@postRoute
+                }
+                val cert =
+                    podCertificateService.approveGid(
+                        gid = certificate.gid,
+                        validitySeconds = certificateLifeTime.inWholeSeconds,
+                        inf = certificate.inf,
+                    )
+                call.respond<PodCertificate>(HttpStatusCode.Accepted, cert)
+            }
+        }
     }
 
     private companion object {
         private val certificateLifeTime: Duration = 7.days
+        private val refreshThresholdSeconds = certificateLifeTime.inWholeSeconds / 10
+        private const val REFRESH_TOO_FRESH_MESSAGE = "Certificate is too fresh to refresh"
     }
 }

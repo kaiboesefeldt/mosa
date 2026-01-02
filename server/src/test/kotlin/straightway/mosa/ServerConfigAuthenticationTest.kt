@@ -7,7 +7,6 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.response.respondText
@@ -16,6 +15,7 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.mockk.every
 import io.mockk.mockk
+import straightway.mosa.auth.PodPrincipal
 import straightway.mosa.testutils.installTestNetworkServerPlugins
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,7 +30,7 @@ class ServerConfigAuthenticationTest {
         every { tokenUtil.decode("valid") } returns decodedJwt
         every { tokenUtil.isValidMisJwt(decodedJwt) } returns true
         every { decodedJwt.claims } returns mapOf("cert" to certClaim)
-        every { certClaim.asMap() } returns mapOf("gid" to "user-123")
+        every { certClaim.asMap() } returns mapOf("gid" to "user-123", "exp" to 1, "sig" to "sig")
 
         testApplication {
             application {
@@ -38,8 +38,8 @@ class ServerConfigAuthenticationTest {
                 routing {
                     authenticate {
                         get("/secure") {
-                            val principal = call.principal<UserIdPrincipal>()
-                            call.respondText(principal?.name ?: "none")
+                            val principal = call.principal<PodPrincipal>()
+                            call.respondText(principal?.gid ?: "none")
                         }
                     }
                 }
