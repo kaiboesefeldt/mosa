@@ -13,6 +13,7 @@ import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.client.pod.PodCertificateCache
+import straightway.mosa.client.pod.InMemoryPodCertificateStore
 import straightway.mosa.client.pod.PodSessionProvider
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
@@ -51,7 +52,7 @@ class ReplySearchServiceTest {
         cache = FakeReplyCache()
         logger = ReplyTestLogger()
         timeService = FixedTimeService(0)
-        certificateCache = PodCertificateCache(timeService)
+        certificateCache = PodCertificateCache(timeService, InMemoryPodCertificateStore())
         window.asDynamic().MOSA_POD_BASE = null
         jwtInvocations.clear()
     }

@@ -38,6 +38,8 @@ import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodAccessImpl
 import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.client.pod.PodCertificateCache
+import straightway.mosa.client.pod.BrowserPodCertificateStore
+import straightway.mosa.client.pod.PodCertificateStore
 import straightway.mosa.client.pod.PodSessionProvider
 import straightway.mosa.client.content.IndexedDbPostCache
 import straightway.mosa.client.content.IndexedDbTopicStore
@@ -69,7 +71,8 @@ object AppModule : KoinComponent {
                 modules(
                     module {
                         single { TimeService() }
-                        single { PodCertificateCache(get()) }
+                        single<PodCertificateStore> { BrowserPodCertificateStore() }
+                        single { PodCertificateCache(get(), get()) }
                         single {
                             MisJwtService(
                                 get(),

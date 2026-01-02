@@ -80,7 +80,8 @@ class PodSessionProviderTest {
     @Test
     fun `refreshes certificate when close to expiration`() = runTest {
         val podAccess = FakeSessionPodAccess()
-        val certificateCache = PodCertificateCache(timeService)
+        val store = InMemoryPodCertificateStore()
+        val certificateCache = PodCertificateCache(timeService, store)
         val cached = PodCertificate(identity.gid, refreshThresholdSeconds - 1, "sig-cached", null)
         certificateCache.store(POD_BASE, identity.gid, cached)
         val provider = provider(podAccess, certificateCache)
@@ -97,7 +98,8 @@ class PodSessionProviderTest {
         val podAccess = FakeSessionPodAccess(
             refreshFailure = PodRequestFailed("/v1/refreshgid", Unit, HttpStatusCode.BadRequest),
         )
-        val certificateCache = PodCertificateCache(timeService)
+        val store = InMemoryPodCertificateStore()
+        val certificateCache = PodCertificateCache(timeService, store)
         val cached = PodCertificate(identity.gid, refreshThresholdSeconds - 1, "sig-cached", null)
         certificateCache.store(POD_BASE, identity.gid, cached)
         val provider = provider(podAccess, certificateCache)
@@ -114,7 +116,8 @@ class PodSessionProviderTest {
         val podAccess = FakeSessionPodAccess(
             refreshFailure = PodRequestFailed("/v1/refreshgid", Unit, PodSessionProvider.POD_UNAUTHORIZED),
         )
-        val certificateCache = PodCertificateCache(timeService)
+        val store = InMemoryPodCertificateStore()
+        val certificateCache = PodCertificateCache(timeService, store)
         val cached = PodCertificate(identity.gid, refreshThresholdSeconds - 1, "sig-cached", null)
         certificateCache.store(POD_BASE, identity.gid, cached)
         val provider = provider(podAccess, certificateCache)
@@ -128,7 +131,7 @@ class PodSessionProviderTest {
 
     private fun provider(
         podAccess: FakeSessionPodAccess,
-        certificateCache: PodCertificateCache = PodCertificateCache(timeService),
+        certificateCache: PodCertificateCache = PodCertificateCache(timeService, InMemoryPodCertificateStore()),
     ): PodSessionProvider {
         val baseProvider = PodBaseProvider()
         return PodSessionProvider(

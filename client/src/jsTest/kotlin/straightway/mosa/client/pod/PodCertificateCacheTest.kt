@@ -11,7 +11,8 @@ class PodCertificateCacheTest {
     @Test
     fun `returns cached certificate until expiration`() = runTest {
         val time = TestTimeService(1000)
-        val cache = PodCertificateCache(time)
+        val store = InMemoryPodCertificateStore()
+        val cache = PodCertificateCache(time, store)
         val certificate = PodCertificate(gid = "gid-1", exp = 1200, sig = "sig", inf = null)
 
         cache.store("https://pod.example", "gid-1", certificate)
@@ -21,5 +22,66 @@ class PodCertificateCacheTest {
         time.nowValue = 1201
 
         assertNull(cache.cached("https://pod.example", "gid-1"))
+    }
+
+    @Test
+    fun `loads certificate from store after reload`() = runTest {
+        val time = TestTimeService(1000)
+        val store = InMemoryPodCertificateStore()
+        val certificate = PodCertificate(gid = "gid-1", exp = 1200, sig = "sig", inf = null)
+        val firstCache = PodCertificateCache(time, store)
+
+        firstCache.store("https://pod.example", "gid-1", certificate)
+
+        val reloadedCache = PodCertificateCache(time, store)
+
+        assertEquals(certificate, reloadedCache.cached("https://pod.example", "gid-1"))
+    }
+
+    @Test
+    fun `stores certificates per pod and gid`() = runTest {
+        val time = TestTimeService(1000)
+        val store = RecordingPodCertificateStore()
+        val cache = PodCertificateCache(time, store)
+        val certificate = PodCertificate(gid = "gid-1", exp = 1200, sig = "sig", inf = null)
+
+        cache.store("https://pod-a.example", "gid-1", certificate)
+        cache.store("https://pod-b.example", "gid-2", certificate.copy(gid = "gid-2"))
+
+        assertEquals(
+            listOf(
+                "store:https://pod-a.example:gid-1",
+                "store:https://pod-b.example:gid-2",
+            ),
+            store.calls,
+        )
+    }
+
+    @Test
+    fun `removes certificates per pod and gid`() = runTest {
+        val time = TestTimeService(1000)
+        val store = RecordingPodCertificateStore()
+        val cache = PodCertificateCache(time, store)
+
+        cache.invalidate("https://pod-a.example", "gid-1")
+
+        assertEquals(listOf("remove:https://pod-a.example:gid-1"), store.calls)
+    }
+}
+
+private class RecordingPodCertificateStore : PodCertificateStore {
+    val calls = mutableListOf<String>()
+
+    override fun load(podBase: String, gid: String): PodCertificate? {
+        calls += "load:$podBase:$gid"
+        return null
+    }
+
+    override fun store(podBase: String, gid: String, certificate: PodCertificate) {
+        calls += "store:$podBase:$gid"
+    }
+
+    override fun remove(podBase: String, gid: String) {
+        calls += "remove:$podBase:$gid"
     }
 }

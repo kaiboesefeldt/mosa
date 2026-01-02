@@ -30,7 +30,9 @@ import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.client.pod.PodCertificateCache
+import straightway.mosa.client.pod.InMemoryPodCertificateStore
 import straightway.mosa.client.pod.PodSessionProvider
+import straightway.mosa.client.pod.PodCertificateStore
 import straightway.mosa.client.testing.RenderResult
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.render
@@ -604,7 +606,8 @@ private fun scrollPostsToEnd(container: Element) {
                 single<PodAccessFactory> { { podAccess } }
                 single<JwtBuilder> { { _, _ -> "jwt" } }
                 single<Logger> { RecordingLogger() }
-                single { PodCertificateCache(get()) }
+                single<PodCertificateStore> { InMemoryPodCertificateStore() }
+                single { PodCertificateCache(get(), get()) }
                 single {
                     PodSessionProvider(
                         get(),

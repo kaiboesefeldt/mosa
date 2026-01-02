@@ -12,6 +12,7 @@ import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.client.pod.PodCertificateCache
+import straightway.mosa.client.pod.InMemoryPodCertificateStore
 import straightway.mosa.client.pod.PodSessionProvider
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.ReplyRequest
@@ -51,7 +52,7 @@ class PostPublisherTest {
         logger = PublishRecordingLogger()
         jwtBuilder = RecordingJwtBuilder()
         timeService = TestTimeService(0)
-        certificateCache = PodCertificateCache(timeService)
+        certificateCache = PodCertificateCache(timeService, InMemoryPodCertificateStore())
     }
 
     @AfterTest
