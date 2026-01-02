@@ -83,19 +83,19 @@ internal class ServeCommand(
             ArgType.Double,
             fullName = ServerCommandLineArguments.LOAD_SHEDDING_FULL,
             description = "Normalized CPU load where shedding is full (0.0-1.0)",
-        ).default(0.85)
+        ).default(0.95)
     private val memorySheddingStart by
         option(
             ArgType.Double,
             fullName = ServerCommandLineArguments.MEMORY_SHEDDING_START,
             description = "Heap usage where shedding starts (0.0-1.0)",
-        ).default(0.85)
+        ).default(0.9)
     private val memorySheddingFull by
         option(
             ArgType.Double,
             fullName = ServerCommandLineArguments.MEMORY_SHEDDING_FULL,
             description = "Heap usage where shedding is full (0.0-1.0)",
-        ).default(0.85)
+        ).default(0.98)
     private val loadSheddingRetryAfterSeconds by
         option(
             ArgType.Int,
@@ -180,9 +180,9 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
     val httpsPort = argumentStore.getInt(ServerCommandLineArguments.HTTPS_PORT) ?: 8443
     val devCertHost = argumentStore.getString(ServerCommandLineArguments.DEV_CERT_HOST) ?: "localhost"
     val loadSheddingStart = argumentStore.getDouble(ServerCommandLineArguments.LOAD_SHEDDING_START) ?: 0.85
-    val loadSheddingFull = argumentStore.getDouble(ServerCommandLineArguments.LOAD_SHEDDING_FULL) ?: 0.85
-    val memorySheddingStart = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_START) ?: 0.85
-    val memorySheddingFull = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_FULL) ?: 0.85
+    val loadSheddingFull = argumentStore.getDouble(ServerCommandLineArguments.LOAD_SHEDDING_FULL) ?: 0.95
+    val memorySheddingStart = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_START) ?: 0.9
+    val memorySheddingFull = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_FULL) ?: 0.98
     val loadSheddingRetryAfterSeconds = argumentStore.getInt(ServerCommandLineArguments.LOAD_SHEDDING_RETRY_AFTER) ?: 30
     val cpuSheddingConfig =
         CpuSheddingConfig(
