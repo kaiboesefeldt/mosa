@@ -34,7 +34,39 @@ typealias HasherFactory = () -> MessageDigest
 
 fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY) {
     single<MeterRegistry> { SimpleMeterRegistry() } onClose { it?.close() }
-    single<RequestDurationSheddingConfig> { RequestDurationSheddingConfig() }
+    single<RequestDurationSheddingConfig> {
+        val cliArguments: CommandLineArgumentStore = get()
+        val minSamplesForBaseline =
+            cliArguments.getInt(ServerCommandLineArguments.REQUEST_DURATION_MIN_SAMPLES)?.toLong()
+                ?: 200L
+        val minBaselineMs =
+            cliArguments.getDouble(ServerCommandLineArguments.REQUEST_DURATION_MIN_BASELINE_MS)
+                ?: 1.0
+        val ratioSlack =
+            cliArguments.getDouble(ServerCommandLineArguments.REQUEST_DURATION_RATIO_SLACK)
+                ?: 0.15
+        val fullSheddingRatio =
+            cliArguments.getDouble(ServerCommandLineArguments.REQUEST_DURATION_FULL_SHEDDING_RATIO)
+                ?: 2.0
+        val sheddingSampleAlpha =
+            cliArguments.getDouble(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_ALPHA)
+                ?: 0.2
+        val sheddingDecayAlpha =
+            cliArguments.getDouble(ServerCommandLineArguments.REQUEST_DURATION_DECAY_ALPHA)
+                ?: 0.2
+        val sampleIntervalMs =
+            cliArguments.getInt(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_INTERVAL_MS)
+                ?: 250
+        RequestDurationSheddingConfig(
+            minSamplesForBaseline = minSamplesForBaseline,
+            minBaselineMs = minBaselineMs,
+            ratioSlack = ratioSlack,
+            fullSheddingRatio = fullSheddingRatio,
+            sheddingSampleAlpha = sheddingSampleAlpha,
+            sheddingDecayAlpha = sheddingDecayAlpha,
+            sampleIntervalNs = sampleIntervalMs.toLong() * 1_000_000L,
+        )
+    }
     single { RequestDurationSheddingRatioMapper(get()) }
     single<RequestDurationForRouteState.Factory> {
         RequestDurationForRouteState.Factory { timer ->

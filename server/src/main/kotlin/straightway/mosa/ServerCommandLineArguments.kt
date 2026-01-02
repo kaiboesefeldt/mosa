@@ -12,4 +12,11 @@ object ServerCommandLineArguments {
     const val LOAD_SHEDDING_RETRY_AFTER = "load-shedding-retry-after"
     const val MEMORY_SHEDDING_START = "memory-shedding-start"
     const val MEMORY_SHEDDING_FULL = "memory-shedding-full"
+    const val REQUEST_DURATION_MIN_SAMPLES = "request-duration-shedding-min-samples"
+    const val REQUEST_DURATION_MIN_BASELINE_MS = "request-duration-shedding-min-baseline-ms"
+    const val REQUEST_DURATION_RATIO_SLACK = "request-duration-shedding-ratio-slack"
+    const val REQUEST_DURATION_FULL_SHEDDING_RATIO = "request-duration-shedding-full-ratio"
+    const val REQUEST_DURATION_SAMPLE_ALPHA = "request-duration-shedding-sample-alpha"
+    const val REQUEST_DURATION_DECAY_ALPHA = "request-duration-shedding-decay-alpha"
+    const val REQUEST_DURATION_SAMPLE_INTERVAL_MS = "request-duration-shedding-sample-interval-ms"
 }

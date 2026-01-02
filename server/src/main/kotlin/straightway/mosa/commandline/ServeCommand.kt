@@ -102,6 +102,48 @@ internal class ServeCommand(
             fullName = ServerCommandLineArguments.LOAD_SHEDDING_RETRY_AFTER,
             description = "Seconds to publish in the Retry-After header when shedding",
         ).default(30)
+    private val requestDurationMinSamples by
+        option(
+            ArgType.Int,
+            fullName = ServerCommandLineArguments.REQUEST_DURATION_MIN_SAMPLES,
+            description = "Minimum samples required before request duration shedding starts",
+        ).default(200)
+    private val requestDurationMinBaselineMs by
+        option(
+            ArgType.Double,
+            fullName = ServerCommandLineArguments.REQUEST_DURATION_MIN_BASELINE_MS,
+            description = "Minimum baseline latency in milliseconds for request duration shedding",
+        ).default(1.0)
+    private val requestDurationRatioSlack by
+        option(
+            ArgType.Double,
+            fullName = ServerCommandLineArguments.REQUEST_DURATION_RATIO_SLACK,
+            description = "Ratio slack before request duration shedding ramps up",
+        ).default(0.15)
+    private val requestDurationFullSheddingRatio by
+        option(
+            ArgType.Double,
+            fullName = ServerCommandLineArguments.REQUEST_DURATION_FULL_SHEDDING_RATIO,
+            description = "Ratio at which request duration shedding is full",
+        ).default(2.0)
+    private val requestDurationSampleAlpha by
+        option(
+            ArgType.Double,
+            fullName = ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_ALPHA,
+            description = "EWMA alpha for request duration shedding samples",
+        ).default(0.2)
+    private val requestDurationDecayAlpha by
+        option(
+            ArgType.Double,
+            fullName = ServerCommandLineArguments.REQUEST_DURATION_DECAY_ALPHA,
+            description = "EWMA alpha for request duration shedding decay",
+        ).default(0.2)
+    private val requestDurationSampleIntervalMs by
+        option(
+            ArgType.Int,
+            fullName = ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_INTERVAL_MS,
+            description = "Sampling interval in milliseconds for request duration shedding",
+        ).default(250)
 
     override fun execute() {
         val argumentValues =
@@ -117,6 +159,13 @@ internal class ServeCommand(
                 ServerCommandLineArguments.MEMORY_SHEDDING_START to memorySheddingStart,
                 ServerCommandLineArguments.MEMORY_SHEDDING_FULL to memorySheddingFull,
                 ServerCommandLineArguments.LOAD_SHEDDING_RETRY_AFTER to loadSheddingRetryAfterSeconds,
+                ServerCommandLineArguments.REQUEST_DURATION_MIN_SAMPLES to requestDurationMinSamples,
+                ServerCommandLineArguments.REQUEST_DURATION_MIN_BASELINE_MS to requestDurationMinBaselineMs,
+                ServerCommandLineArguments.REQUEST_DURATION_RATIO_SLACK to requestDurationRatioSlack,
+                ServerCommandLineArguments.REQUEST_DURATION_FULL_SHEDDING_RATIO to requestDurationFullSheddingRatio,
+                ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_ALPHA to requestDurationSampleAlpha,
+                ServerCommandLineArguments.REQUEST_DURATION_DECAY_ALPHA to requestDurationDecayAlpha,
+                ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_INTERVAL_MS to requestDurationSampleIntervalMs,
             )
         logArguments(argumentValues)
         startServer(CommandLineArgumentStore.from { name -> argumentValues[name] })

@@ -73,6 +73,49 @@ class MainArgumentsTest {
         assertEquals(0.9, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_FULL))
     }
 
+    @Test
+    fun `store returns default request duration shedding configuration when argument omitted`() {
+        val store = parseStore("serve")
+
+        assertEquals(200, store?.getInt(ServerCommandLineArguments.REQUEST_DURATION_MIN_SAMPLES))
+        assertEquals(1.0, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_MIN_BASELINE_MS))
+        assertEquals(0.15, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_RATIO_SLACK))
+        assertEquals(2.0, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_FULL_SHEDDING_RATIO))
+        assertEquals(0.2, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_ALPHA))
+        assertEquals(0.2, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_DECAY_ALPHA))
+        assertEquals(250, store?.getInt(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_INTERVAL_MS))
+    }
+
+    @Test
+    fun `store returns provided request duration shedding configuration`() {
+        val store =
+            parseStore(
+                "serve",
+                "--request-duration-shedding-min-samples",
+                "150",
+                "--request-duration-shedding-min-baseline-ms",
+                "3.5",
+                "--request-duration-shedding-ratio-slack",
+                "0.25",
+                "--request-duration-shedding-full-ratio",
+                "2.5",
+                "--request-duration-shedding-sample-alpha",
+                "0.3",
+                "--request-duration-shedding-decay-alpha",
+                "0.4",
+                "--request-duration-shedding-sample-interval-ms",
+                "500",
+            )
+
+        assertEquals(150, store?.getInt(ServerCommandLineArguments.REQUEST_DURATION_MIN_SAMPLES))
+        assertEquals(3.5, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_MIN_BASELINE_MS))
+        assertEquals(0.25, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_RATIO_SLACK))
+        assertEquals(2.5, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_FULL_SHEDDING_RATIO))
+        assertEquals(0.3, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_ALPHA))
+        assertEquals(0.4, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_DECAY_ALPHA))
+        assertEquals(500, store?.getInt(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_INTERVAL_MS))
+    }
+
     private fun parseStore(vararg args: String): CommandLineArgumentStore? {
         var capturedStore: CommandLineArgumentStore? = null
         val parser = ArgParser("mosa")
