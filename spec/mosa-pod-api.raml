@@ -218,6 +218,25 @@ securitySchemes:
         5xx:
           description: Server error
 
+  /refreshgid:
+    post:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Refresh Identity Approval
+      description: |
+        Refresh a Pod certificate using a valid MIS-JWT. Returns 202 with a new certificate when eligible.
+      responses:
+        202:
+          body:
+            application/json:
+              type: PodCertificateResponse
+        400:
+          description: Certificate is too fresh to refresh
+        401:
+          description: Missing or invalid bearer token
+        5xx:
+          description: Server error
+
   /publish:
     post:
       is: [ rateLimited ]
