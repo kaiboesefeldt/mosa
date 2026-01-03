@@ -10,7 +10,7 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import straightway.mosa.auth.AuthenticationApprovalRequest
 import straightway.mosa.auth.JwtBuilder
-import straightway.mosa.auth.PodCertificate
+import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryResult
@@ -57,7 +57,7 @@ class MosaRestClient(
         return response.body<QueryResult>()
     }
 
-    suspend fun approveGid(request: AuthenticationApprovalRequest): PodCertificate {
+    suspend fun approveGid(request: AuthenticationApprovalRequest): PodCertificateResponse {
         val response =
             httpClient.post(URI("$podUrl/v1/approvegid").toURL()) {
                 contentType(ContentType.Application.Json)
@@ -68,7 +68,7 @@ class MosaRestClient(
             throw RuntimeException("Authorization request $request got an error response: $response")
         }
 
-        return response.body<PodCertificate>()
+        return response.body<PodCertificateResponse>()
     }
 
     private suspend fun createJWT(): String {
@@ -83,7 +83,7 @@ class MosaRestClient(
             Base64.UrlSafe
                 .withPadding(Base64.PaddingOption.ABSENT)
                 .encode(publicKeyHash)
-        val podCert = approveGid(AuthenticationApprovalRequest(gid))
+        val podCert = approveGid(AuthenticationApprovalRequest(gid)).certificate
 
         val jwtBuilder = JwtBuilder(Clock.system(ZoneId.of("GMT")), 1.hours)
         return jwtBuilder.buildMisJwt(

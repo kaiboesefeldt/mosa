@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import straightway.mosa.auth.AuthenticationApprovalRequest
 import straightway.mosa.auth.PodCertificate
+import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.PublishRequest
@@ -36,7 +37,11 @@ class PodAccessTest {
 
     @Test
     fun `approveGid posts gid and returns certificate`() = runTest {
-        val expectedCertificate = PodCertificate("gid-123", 1234, "signature", "info")
+        val expectedCertificate =
+            PodCertificateResponse(
+                certificate = PodCertificate("gid-123", 1234, "signature", "info"),
+                refreshRecommendedAt = 1200,
+            )
         val capturedRequests = mutableListOf<HttpRequestData>()
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedCertificate)
 
@@ -60,7 +65,11 @@ class PodAccessTest {
 
     @Test
     fun `refreshGid posts without body and returns certificate`() = runTest {
-        val expectedCertificate = PodCertificate("gid-123", 1234, "signature", "info")
+        val expectedCertificate =
+            PodCertificateResponse(
+                certificate = PodCertificate("gid-123", 1234, "signature", "info"),
+                refreshRecommendedAt = 1200,
+            )
         val capturedRequests = mutableListOf<HttpRequestData>()
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedCertificate)
 

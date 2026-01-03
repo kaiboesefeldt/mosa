@@ -4,6 +4,7 @@ import kotlinx.browser.window
 import kotlinx.coroutines.test.runTest
 import kotlin.js.unsafeCast
 import straightway.mosa.auth.PodCertificate
+import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
@@ -104,12 +105,15 @@ private class RecordingPublishPodAccess : PodAccess {
     val approveInvocations = mutableListOf<String>()
     val publishRequests = mutableListOf<PublishRequest>()
 
-    override suspend fun approveGid(gid: String): PodCertificate {
+    override suspend fun approveGid(gid: String): PodCertificateResponse {
         approveInvocations += gid
-        return PodCertificate(gid, 100_000, "sig", "inf")
+        return PodCertificateResponse(
+            certificate = PodCertificate(gid, 100_000, "sig", "inf"),
+            refreshRecommendedAt = 50_000,
+        )
     }
 
-    override suspend fun refreshGid(jwt: String): PodCertificate {
+    override suspend fun refreshGid(jwt: String): PodCertificateResponse {
         error("not used")
     }
 

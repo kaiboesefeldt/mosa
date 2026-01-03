@@ -2,6 +2,7 @@ package straightway.mosa.client.pod
 
 import io.ktor.http.HttpStatusCode
 import straightway.mosa.auth.PodCertificate
+import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.client.aux.TimeService
 import straightway.mosa.client.content.PodAccessFactory
 import straightway.mosa.client.content.JwtBuilder
@@ -62,8 +63,8 @@ class PodSessionProvider(
         identity: Identity,
         podAccess: PodAccess,
     ): PodSession? {
-        val certificate = certificate(podBase, identity, podAccess) ?: return null
-        val jwt = jwt(identity, certificate) ?: return null
+        val response = certificate(podBase, identity, podAccess) ?: return null
+        val jwt = jwt(identity, response.certificate) ?: return null
         return PodSession(podAccess, jwt)
     }
 
@@ -71,7 +72,7 @@ class PodSessionProvider(
         podBase: String,
         identity: Identity,
         podAccess: PodAccess,
-    ): PodCertificate? {
+    ): PodCertificateResponse? {
         val cached = certificateCache.cached(podBase, identity.gid)
         if (cached != null) {
             val refreshed = refreshIfNeeded(podBase, identity, podAccess, cached) ?: return null
@@ -94,10 +95,10 @@ class PodSessionProvider(
         podBase: String,
         identity: Identity,
         podAccess: PodAccess,
-        cached: PodCertificate,
-    ): PodCertificate? {
+        cached: PodCertificateResponse,
+    ): PodCertificateResponse? {
         if (!shouldRefresh(cached)) return cached
-        val refreshJwt = jwt(identity, cached) ?: return cached
+        val refreshJwt = jwt(identity, cached.certificate) ?: return cached
         val refreshedAttempt = runCatching { podAccess.refreshGid(refreshJwt) }
         val refreshed = refreshedAttempt.getOrNull()
         if (refreshed != null) return refreshed
@@ -115,7 +116,7 @@ class PodSessionProvider(
         podBase: String,
         identity: Identity,
         podAccess: PodAccess,
-    ): PodCertificate? =
+    ): PodCertificateResponse? =
         runCatching { podAccess.approveGid(identity.gid) }
             .onSuccess { certificateCache.store(podBase, identity.gid, it) }
             .getOrElse {
@@ -123,8 +124,10 @@ class PodSessionProvider(
                 null
             }
 
-    private fun shouldRefresh(certificate: PodCertificate): Boolean {
-        val remainingSeconds = certificate.exp - timeService.now
+    private fun shouldRefresh(certificate: PodCertificateResponse): Boolean {
+        val recommendedAt = certificate.refreshRecommendedAt
+        if (recommendedAt > 0) return timeService.now >= recommendedAt
+        val remainingSeconds = certificate.certificate.exp - timeService.now
         return remainingSeconds < refreshThresholdSeconds
     }
 

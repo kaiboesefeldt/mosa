@@ -2,7 +2,7 @@ package straightway.mosa.client.pod
 
 import kotlinx.coroutines.test.runTest
 import straightway.mosa.auth.PodCertificate
-import straightway.mosa.client.pod.TestTimeService
+import straightway.mosa.auth.PodCertificateResponse
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -13,7 +13,11 @@ class PodCertificateCacheTest {
         val time = TestTimeService(1000)
         val store = InMemoryPodCertificateStore()
         val cache = PodCertificateCache(time, store)
-        val certificate = PodCertificate(gid = "gid-1", exp = 1200, sig = "sig", inf = null)
+        val certificate =
+            PodCertificateResponse(
+                certificate = PodCertificate(gid = "gid-1", exp = 1200, sig = "sig", inf = null),
+                refreshRecommendedAt = 1100,
+            )
 
         cache.store("https://pod.example", "gid-1", certificate)
 
@@ -28,7 +32,11 @@ class PodCertificateCacheTest {
     fun `loads certificate from store after reload`() = runTest {
         val time = TestTimeService(1000)
         val store = InMemoryPodCertificateStore()
-        val certificate = PodCertificate(gid = "gid-1", exp = 1200, sig = "sig", inf = null)
+        val certificate =
+            PodCertificateResponse(
+                certificate = PodCertificate(gid = "gid-1", exp = 1200, sig = "sig", inf = null),
+                refreshRecommendedAt = 1100,
+            )
         val firstCache = PodCertificateCache(time, store)
 
         firstCache.store("https://pod.example", "gid-1", certificate)
@@ -43,10 +51,18 @@ class PodCertificateCacheTest {
         val time = TestTimeService(1000)
         val store = RecordingPodCertificateStore()
         val cache = PodCertificateCache(time, store)
-        val certificate = PodCertificate(gid = "gid-1", exp = 1200, sig = "sig", inf = null)
+        val certificate =
+            PodCertificateResponse(
+                certificate = PodCertificate(gid = "gid-1", exp = 1200, sig = "sig", inf = null),
+                refreshRecommendedAt = 1100,
+            )
 
         cache.store("https://pod-a.example", "gid-1", certificate)
-        cache.store("https://pod-b.example", "gid-2", certificate.copy(gid = "gid-2"))
+        cache.store(
+            "https://pod-b.example",
+            "gid-2",
+            certificate.copy(certificate = certificate.certificate.copy(gid = "gid-2")),
+        )
 
         assertEquals(
             listOf(
@@ -72,12 +88,12 @@ class PodCertificateCacheTest {
 private class RecordingPodCertificateStore : PodCertificateStore {
     val calls = mutableListOf<String>()
 
-    override fun load(podBase: String, gid: String): PodCertificate? {
+    override fun load(podBase: String, gid: String): PodCertificateResponse? {
         calls += "load:$podBase:$gid"
         return null
     }
 
-    override fun store(podBase: String, gid: String, certificate: PodCertificate) {
+    override fun store(podBase: String, gid: String, certificate: PodCertificateResponse) {
         calls += "store:$podBase:$gid"
     }
 

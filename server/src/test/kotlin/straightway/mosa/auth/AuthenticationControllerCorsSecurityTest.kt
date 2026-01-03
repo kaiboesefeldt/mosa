@@ -97,6 +97,24 @@ class AuthenticationControllerCorsSecurityTest {
         }
 
     @Test
+    fun `approvegid returns refresh recommendation timestamp`() =
+        environment {
+            val response =
+                client.post("/v1/approvegid") {
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        AuthenticationApprovalRequest(
+                            gid = "gid".toBase64Url(),
+                        ),
+                    )
+                }
+
+            assertEquals(HttpStatusCode.Accepted, response.status)
+            val certificate = response.body<PodCertificateResponse>()
+            assertEquals(expectedRefreshRecommendation, certificate.refreshRecommendedAt)
+        }
+
+    @Test
     fun `approvegid bad request includes cors headers`() =
         environment {
             val response =
@@ -135,9 +153,25 @@ class AuthenticationControllerCorsSecurityTest {
                 }
 
             assertEquals(HttpStatusCode.Accepted, response.status)
-            val refreshed = response.body<PodCertificate>()
-            assertEquals(environment.gid, refreshed.gid)
-            assertEquals(inf, refreshed.inf)
+            val refreshed = response.body<PodCertificateResponse>()
+            assertEquals(environment.gid, refreshed.certificate.gid)
+            assertEquals(inf, refreshed.certificate.inf)
+        }
+
+    @Test
+    fun `refreshgid returns refresh recommendation timestamp`() =
+        environment {
+            val cert = podCertificateService.approveGid(environment.gid, validitySeconds = refreshThresholdSeconds - 1)
+            val token = environment.jwtBuilder.buildMisJwt(environment.clientKeyPair, cert)
+
+            val response =
+                client.post("/v1/refreshgid") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+            assertEquals(HttpStatusCode.Accepted, response.status)
+            val refreshed = response.body<PodCertificateResponse>()
+            assertEquals(expectedRefreshRecommendation, refreshed.refreshRecommendedAt)
         }
 
     @Test
@@ -159,5 +193,7 @@ class AuthenticationControllerCorsSecurityTest {
 
     private companion object {
         private val certificateLifeTime: Duration = 7.days
+        private val refreshThresholdSeconds = certificateLifeTime.inWholeSeconds / 10
+        private val expectedRefreshRecommendation = 170000000L + certificateLifeTime.inWholeSeconds - (refreshThresholdSeconds / 2)
     }
 }

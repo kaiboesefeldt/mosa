@@ -10,7 +10,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import straightway.mosa.auth.AuthenticationApprovalRequest
-import straightway.mosa.auth.PodCertificate
+import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryOnRequest
@@ -20,8 +20,8 @@ import straightway.mosa.content.FetchResult
 import straightway.mosa.content.SearchResult
 
 interface PodAccess {
-    suspend fun approveGid(gid: String): PodCertificate
-    suspend fun refreshGid(jwt: String): PodCertificate
+    suspend fun approveGid(gid: String): PodCertificateResponse
+    suspend fun refreshGid(jwt: String): PodCertificateResponse
     suspend fun publish(request: PublishRequest, jwt: String)
     suspend fun reply(request: ReplyRequest, jwt: String)
     suspend fun search(request: QueryRequest, jwt: String): SearchResult
@@ -33,14 +33,14 @@ class PodAccessImpl(
     private val podBase: String,
     private val httpClient: HttpClient,
 ): PodAccess  {
-    override suspend fun approveGid(gid: String): PodCertificate {
+    override suspend fun approveGid(gid: String): PodCertificateResponse {
         val path = "/v1/approvegid"
         return post(path, AuthenticationApprovalRequest(gid))
             .ensureSuccess(path, gid)
             .body()
     }
 
-    override suspend fun refreshGid(jwt: String): PodCertificate {
+    override suspend fun refreshGid(jwt: String): PodCertificateResponse {
         val path = "/v1/refreshgid"
         return post(path, jwt)
             .ensureSuccess(path, Unit)

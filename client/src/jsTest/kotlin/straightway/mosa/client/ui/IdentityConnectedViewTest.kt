@@ -20,6 +20,7 @@ import react.FC
 import react.Props
 import react.create
 import straightway.mosa.auth.PodCertificate
+import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.i18n.Translator
@@ -737,12 +738,15 @@ private class RecordingPodAccess(
             .associateBy { it.id }
     private val queryOnRoots = mutableMapOf<String, String>()
 
-    override suspend fun approveGid(gid: String): PodCertificate {
+    override suspend fun approveGid(gid: String): PodCertificateResponse {
         approveInvocations += gid
-        return PodCertificate(gid, 100_000, "sig", "info")
+        return PodCertificateResponse(
+            certificate = PodCertificate(gid, 100_000, "sig", "info"),
+            refreshRecommendedAt = 50_000,
+        )
     }
 
-    override suspend fun refreshGid(jwt: String): PodCertificate {
+    override suspend fun refreshGid(jwt: String): PodCertificateResponse {
         error("Not implemented")
     }
 

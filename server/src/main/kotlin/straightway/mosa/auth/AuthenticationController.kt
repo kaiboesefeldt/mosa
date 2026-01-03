@@ -22,7 +22,10 @@ class AuthenticationController(
                     gid = request.gid,
                     validitySeconds = certificateLifeTime.inWholeSeconds,
                 )
-            call.respond<PodCertificate>(HttpStatusCode.Accepted, cert)
+            call.respond<PodCertificateResponse>(
+                HttpStatusCode.Accepted,
+                cert.withRefreshRecommendation(),
+            )
         }
         authenticate {
             postRoute("/refreshgid") {
@@ -41,10 +44,21 @@ class AuthenticationController(
                         validitySeconds = certificateLifeTime.inWholeSeconds,
                         inf = certificate.inf,
                     )
-                call.respond<PodCertificate>(HttpStatusCode.Accepted, cert)
+                call.respond<PodCertificateResponse>(
+                    HttpStatusCode.Accepted,
+                    cert.withRefreshRecommendation(),
+                )
             }
         }
     }
+
+    private fun PodCertificate.withRefreshRecommendation(): PodCertificateResponse =
+        PodCertificateResponse(
+            certificate = this,
+            refreshRecommendedAt = refreshRecommendationAt(exp),
+        )
+
+    private fun refreshRecommendationAt(expiration: Long): Long = expiration - (refreshThresholdSeconds / 2)
 
     private companion object {
         private val certificateLifeTime: Duration = 7.days

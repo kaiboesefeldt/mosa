@@ -42,6 +42,21 @@ types:
       exp: 1700600000
       sig: 'MEUCIC1...'
 
+  PodCertificateResponse:
+    type: object
+    properties:
+      certificate: PodCertificate
+      refreshRecommendedAt:
+        type: integer
+        format: int64
+        description: Recommended refresh timestamp (epoch seconds)
+    example:
+      certificate:
+        gid: 'mZ0axz0t0z4IQsD4YBq1Hk3mQz0W9r1o'
+        exp: 1700600000
+        sig: 'MEUCIC1...'
+      refreshRecommendedAt: 1700300000
+
   PublishRequest:
     type: object
     properties:
@@ -197,7 +212,7 @@ securitySchemes:
         202:
           body:
             application/json:
-              type: PodCertificate
+              type: PodCertificateResponse
         400:
           description: Invalid request (e.g., malformed body)
         5xx:

@@ -1,6 +1,6 @@
 package straightway.mosa.client.pod
 
-import straightway.mosa.auth.PodCertificate
+import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.client.aux.TimeService
 
 class PodCertificateCache(
@@ -10,7 +10,7 @@ class PodCertificateCache(
     fun cached(
         podBase: String,
         gid: String,
-    ): PodCertificate? {
+    ): PodCertificateResponse? {
         val key = CacheKey(podBase, gid)
         val certificate = certificates[key] ?: store.load(podBase, gid) ?: return null
         if (isValid(certificate)) {
@@ -25,7 +25,7 @@ class PodCertificateCache(
     fun store(
         podBase: String,
         gid: String,
-        certificate: PodCertificate,
+        certificate: PodCertificateResponse,
     ) {
         certificates[CacheKey(podBase, gid)] = certificate
         store.store(podBase, gid, certificate)
@@ -39,12 +39,12 @@ class PodCertificateCache(
         store.remove(podBase, gid)
     }
 
-    private fun isValid(certificate: PodCertificate): Boolean = timeService.now < certificate.exp
+    private fun isValid(certificate: PodCertificateResponse): Boolean = timeService.now < certificate.certificate.exp
 
     private data class CacheKey(
         val podBase: String,
         val gid: String,
     )
 
-    private val certificates = mutableMapOf<CacheKey, PodCertificate>()
+    private val certificates = mutableMapOf<CacheKey, PodCertificateResponse>()
 }

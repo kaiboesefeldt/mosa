@@ -2,6 +2,7 @@ package straightway.mosa.client.pod
 
 import kotlinx.coroutines.test.runTest
 import straightway.mosa.auth.PodCertificate
+import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.content.JwtBuilder
 import straightway.mosa.client.identity.Identity
@@ -21,7 +22,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
-import kotlin.time.Duration.Companion.hours
 
 class PodSessionProviderTest {
     private val timeService = TestTimeService(0)
@@ -78,11 +78,16 @@ class PodSessionProviderTest {
     }
 
     @Test
-    fun `refreshes certificate when close to expiration`() = runTest {
+    fun `refreshes certificate when refresh recommendation passed`() = runTest {
         val podAccess = FakeSessionPodAccess()
         val store = InMemoryPodCertificateStore()
         val certificateCache = PodCertificateCache(timeService, store)
-        val cached = PodCertificate(identity.gid, refreshThresholdSeconds - 1, "sig-cached", null)
+        timeService.nowValue = 500
+        val cached =
+            PodCertificateResponse(
+                certificate = PodCertificate(identity.gid, 2000, "sig-cached", null),
+                refreshRecommendedAt = 400,
+            )
         certificateCache.store(POD_BASE, identity.gid, cached)
         val provider = provider(podAccess, certificateCache)
 
@@ -100,7 +105,12 @@ class PodSessionProviderTest {
         )
         val store = InMemoryPodCertificateStore()
         val certificateCache = PodCertificateCache(timeService, store)
-        val cached = PodCertificate(identity.gid, refreshThresholdSeconds - 1, "sig-cached", null)
+        timeService.nowValue = 500
+        val cached =
+            PodCertificateResponse(
+                certificate = PodCertificate(identity.gid, 2000, "sig-cached", null),
+                refreshRecommendedAt = 400,
+            )
         certificateCache.store(POD_BASE, identity.gid, cached)
         val provider = provider(podAccess, certificateCache)
 
@@ -118,7 +128,12 @@ class PodSessionProviderTest {
         )
         val store = InMemoryPodCertificateStore()
         val certificateCache = PodCertificateCache(timeService, store)
-        val cached = PodCertificate(identity.gid, refreshThresholdSeconds - 1, "sig-cached", null)
+        timeService.nowValue = 500
+        val cached =
+            PodCertificateResponse(
+                certificate = PodCertificate(identity.gid, 2000, "sig-cached", null),
+                refreshRecommendedAt = 400,
+            )
         certificateCache.store(POD_BASE, identity.gid, cached)
         val provider = provider(podAccess, certificateCache)
 
@@ -155,7 +170,6 @@ class PodSessionProviderTest {
 
     private companion object {
         private const val POD_BASE = "https://pod.example"
-        private val refreshThresholdSeconds = 2.hours.inWholeSeconds
     }
 }
 
@@ -165,15 +179,21 @@ private class FakeSessionPodAccess(
     var approveCalls = 0
     var refreshCalls = 0
 
-    override suspend fun approveGid(gid: String): PodCertificate {
+    override suspend fun approveGid(gid: String): PodCertificateResponse {
         approveCalls++
-        return PodCertificate(gid = gid, exp = 100_000, sig = "sig-$approveCalls", inf = null)
+        return PodCertificateResponse(
+            certificate = PodCertificate(gid = gid, exp = 100_000, sig = "sig-$approveCalls", inf = null),
+            refreshRecommendedAt = 50_000,
+        )
     }
 
-    override suspend fun refreshGid(jwt: String): PodCertificate {
+    override suspend fun refreshGid(jwt: String): PodCertificateResponse {
         refreshCalls++
         refreshFailure?.let { throw it }
-        return PodCertificate(gid = "gid-1", exp = 20_000, sig = "sig-r$refreshCalls", inf = null)
+        return PodCertificateResponse(
+            certificate = PodCertificate(gid = "gid-1", exp = 20_000, sig = "sig-r$refreshCalls", inf = null),
+            refreshRecommendedAt = 10_000,
+        )
     }
 
     override suspend fun publish(request: PublishRequest, jwt: String) {
