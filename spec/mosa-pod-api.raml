@@ -80,14 +80,14 @@ types:
       topic?:
         type: string
         description: Text describing the semantic topic to search for
-      mustBeEarlierThan?:
-        type: integer
-        format: int64
-        description: Only include results with storedAt <= this epoch second
-      mustBeLaterThan?:
+      fromTime?:
         type: integer
         format: int64
         description: Only include results with storedAt >= this epoch second
+      toTime?:
+        type: integer
+        format: int64
+        description: Only include results with storedAt <= this epoch second
       threadRootId?:
         type: string
         description: Restrict results to a specific thread root
@@ -95,9 +95,13 @@ types:
         type: number
         format: float
         description: Filter entries to those with similarity strictly above this value
+      scoreMustBeBelow?:
+        type: number
+        format: float
+        description: Filter entries to those with similarity strictly below this value
     example:
       topic: 'Functional programming for data processing'
-      mustBeLaterThan: 1700000000
+      fromTime: 1700000000
       threadRootId: 'R0oTId42'
       scoreMustBeAbove: 0.85
 
@@ -141,7 +145,68 @@ types:
           similarity: 0.92
           authorGID: 'mZ0axz0t0z4IQsD4YBq1Hk3mQz0W9r1o'
           storedAt: 1700000000
-          parent: 'R0oTId42'
+          rootId: 'R0oTId42'
+
+  SearchResultEntry:
+    type: object
+    properties:
+      id: string
+      similarity: number
+    example:
+      id: 'AxY0b1p3...'
+      similarity: 0.92
+
+  SearchResult:
+    type: object
+    properties:
+      entries:
+        type: SearchResultEntry[]
+      queryOnId: string
+    example:
+      queryOnId: '6a7b5e3c-1234-5678-9abc-def012345678'
+      entries:
+        - id: 'AxY0b1p3...'
+          similarity: 0.92
+
+  FetchRequest:
+    type: object
+    properties:
+      itemIds:
+        type: string[]
+    example:
+      itemIds:
+        - 'AxY0b1p3...'
+        - 'R0oTId42'
+
+  FetchResultEntry:
+    type: object
+    properties:
+      id: string
+      content: string
+      authorGID: string
+      storedAt:
+        type: integer
+        format: int64
+      rootId?: string
+    example:
+      id: 'AxY0b1p3...'
+      content: 'A concise explanation of vector search.'
+      authorGID: 'mZ0axz0t0z4IQsD4YBq1Hk3mQz0W9r1o'
+      storedAt: 1700000000
+      rootId: 'R0oTId42'
+
+  FetchResult:
+    type: object
+    properties:
+      entries:
+        type: FetchResultEntry[]
+    example:
+      entries:
+        - id: 'AxY0b1p3...'
+          content: 'A concise explanation of vector search.'
+          authorGID: 'mZ0axz0t0z4IQsD4YBq1Hk3mQz0W9r1o'
+          storedAt: 1700000000
+          rootId: 'R0oTId42'
 
 traits:
   rateLimited:
@@ -185,18 +250,67 @@ securitySchemes:
     description: Serves the web client JavaScript bundle when available.
     responses:
       200:
+        description: Returns the bundle when available, otherwise a fallback JS payload
         body:
           application/javascript:
             example: |
               console.log('Mosa client loaded');
+
+/mosa-client.js.map:
+  get:
+    displayName: Get Client Source Map
+    description: Serves the client source map when enabled on the server.
+    responses:
       200:
-        description: Fallback minimal JS if client bundle is not built
         body:
-          application/javascript:
+          application/json:
             example: |
-              console.log('Client not built');
+              { "version": 3, "sources": [] }
       404:
-        description: Script not available
+        description: Source map not available
+
+/styles.css:
+  get:
+    displayName: Get Client Stylesheet
+    description: Serves the client CSS bundle when available.
+    responses:
+      200:
+        body:
+          text/css:
+            example: |
+              body { font-family: sans-serif; }
+      404:
+        description: Stylesheet not available
+
+/webfonts/{fontFile}:
+  get:
+    displayName: Get Font Asset
+    description: Serves bundled webfont files.
+    responses:
+      200:
+        body:
+          font/woff2:
+            example: |
+              (binary)
+      400:
+        description: Invalid font filename
+      404:
+        description: Font not available
+
+/{assetName}:
+  get:
+    displayName: Get Static Asset
+    description: Serves a single static asset from the client bundle.
+    responses:
+      200:
+        body:
+          application/octet-stream:
+            example: |
+              (binary)
+      400:
+        description: Invalid asset name
+      404:
+        description: Asset not available
 
 /v1:
   /approvegid:
@@ -251,6 +365,8 @@ securitySchemes:
       responses:
         201:
           description: Created
+        400:
+          description: Invalid request (e.g., text exceeds 1800 characters)
         401:
           description: Missing or invalid bearer token
         422:
@@ -272,7 +388,7 @@ securitySchemes:
         201:
           description: Created
         400:
-          description: Root not found or target is not a root post
+          description: Root not found, target is not a root post, or text exceeds 1800 characters
         401:
           description: Missing or invalid bearer token
         422:
@@ -286,7 +402,7 @@ securitySchemes:
       securedBy: [ bearerAuth ]
       displayName: Query Content
       description: |
-        Perform a semantic and/or thread/time constrained query. At least one of `topic`, `threadRootId`, `mustBeEarlierThan`, `mustBeLaterThan` must be provided.
+        Perform a semantic and/or thread/time constrained query. At least one of `topic`, `threadRootId`, `fromTime`, `toTime`, `scoreMustBeAbove`, `scoreMustBeBelow` must be provided.
       body:
         application/json:
           type: QueryRequest
@@ -309,7 +425,7 @@ securitySchemes:
       displayName: Continue Query
       description: |
         Continue a previous query using the `queryOnId` returned by `/v1/query`.
-        If `queryOnId` is empty or invalid, the server treats it as starting a new pagination cycle and returns the first page.
+        If `queryOnId` is empty or invalid, the server returns an empty page.
       body:
         application/json:
           type: QueryOnRequest
@@ -323,50 +439,66 @@ securitySchemes:
         5xx:
           description: Server error
 
-  /vote:
+  /search:
     post:
       is: [ rateLimited ]
       securedBy: [ bearerAuth ]
-      displayName: Vote On Content (UNIMPLEMENTED)
+      displayName: Search Content
       description: |
-        UNIMPLEMENTED – Planned endpoint to let users vote or react to content.
-        Exact request/response schema TBD.
+        Perform a semantic and/or thread/time constrained query. Returns only ids with similarity scores.
+        Same query rules as `/v1/query`.
       body:
         application/json:
-          example: |
-            { "UNIMPLEMENTED": true, "note": "Schema TBD" }
+          type: QueryRequest
       responses:
-        501:
-          description: Not implemented
+        200:
+          body:
+            application/json:
+              type: SearchResult
+        400:
+          description: No search criteria provided
+        401:
+          description: Missing or invalid bearer token
+        5xx:
+          description: Server error
 
-  /info:
-    get:
-      is: [ rateLimited ]
-      displayName: Pod Info (UNIMPLEMENTED)
-      description: |
-        UNIMPLEMENTED – Planned endpoint to return pod configuration info (e.g., API version).
-      responses:
-        501:
-          description: Not implemented
-
-  /topics:
-    get:
+  /searchon:
+    post:
       is: [ rateLimited ]
       securedBy: [ bearerAuth ]
-      displayName: Supported Topics (UNIMPLEMENTED)
+      displayName: Continue Search
       description: |
-        UNIMPLEMENTED – Planned endpoint to list supported topics as embedding vectors.
+        Continue a previous search using the `queryOnId` returned by `/v1/search`.
+        If `queryOnId` is empty or invalid, the server returns an empty page.
+      body:
+        application/json:
+          type: QueryOnRequest
       responses:
-        501:
-          description: Not implemented
+        200:
+          body:
+            application/json:
+              type: SearchResult
+        401:
+          description: Missing or invalid bearer token
+        5xx:
+          description: Server error
 
-  /pods:
-    get:
+  /fetch:
+    post:
       is: [ rateLimited ]
       securedBy: [ bearerAuth ]
-      displayName: Known Pods (UNIMPLEMENTED)
+      displayName: Fetch Content
       description: |
-        UNIMPLEMENTED – Planned endpoint to list known/recommended pods.
+        Fetch full content entries by id.
+      body:
+        application/json:
+          type: FetchRequest
       responses:
-        501:
-          description: Not implemented
+        200:
+          body:
+            application/json:
+              type: FetchResult
+        401:
+          description: Missing or invalid bearer token
+        5xx:
+          description: Server error
