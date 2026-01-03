@@ -29,6 +29,7 @@ import straightway.mosa.installNetworkServerPlugins
 import straightway.mosa.tls.DevSelfSignedCertificateFactory
 import straightway.mosa.tls.InMemoryKeyStore
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCli::class)
@@ -144,6 +145,12 @@ internal class ServeCommand(
             fullName = ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_INTERVAL_MS,
             description = "Sampling interval in milliseconds for request duration shedding",
         ).default(250)
+    private val podCertificateValiditySeconds by
+        option(
+            ArgType.Int,
+            fullName = ServerCommandLineArguments.POD_CERT_VALIDITY_SECONDS,
+            description = "Validity duration for pod certificates in seconds",
+        ).default(7.days.inWholeSeconds.toInt())
 
     override fun execute() {
         val argumentValues =
@@ -166,6 +173,7 @@ internal class ServeCommand(
                 ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_ALPHA to requestDurationSampleAlpha,
                 ServerCommandLineArguments.REQUEST_DURATION_DECAY_ALPHA to requestDurationDecayAlpha,
                 ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_INTERVAL_MS to requestDurationSampleIntervalMs,
+                ServerCommandLineArguments.POD_CERT_VALIDITY_SECONDS to podCertificateValiditySeconds,
             )
         logArguments(argumentValues)
         startServer(CommandLineArgumentStore.from { name -> argumentValues[name] })

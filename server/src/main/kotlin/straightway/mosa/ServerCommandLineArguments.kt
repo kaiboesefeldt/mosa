@@ -19,4 +19,5 @@ object ServerCommandLineArguments {
     const val REQUEST_DURATION_SAMPLE_ALPHA = "request-duration-shedding-sample-alpha"
     const val REQUEST_DURATION_DECAY_ALPHA = "request-duration-shedding-decay-alpha"
     const val REQUEST_DURATION_SAMPLE_INTERVAL_MS = "request-duration-shedding-sample-interval-ms"
+    const val POD_CERT_VALIDITY_SECONDS = "pod-cert-validity-seconds"
 }

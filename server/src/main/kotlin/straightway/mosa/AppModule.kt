@@ -29,6 +29,8 @@ import java.nio.file.Paths
 import java.security.MessageDigest
 import java.time.Clock
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.seconds
 
 typealias HasherFactory = () -> MessageDigest
 
@@ -104,7 +106,13 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     single<CommandLineArgumentStore> { arguments }
 
     single { ContentController(get(), get()) } bind BaseController::class
-    single { AuthenticationController(get(), get()) } bind BaseController::class
+    single {
+        val cliArguments: CommandLineArgumentStore = get()
+        val certificateLifetimeSeconds =
+            cliArguments.getInt(ServerCommandLineArguments.POD_CERT_VALIDITY_SECONDS)
+                ?: 7.days.inWholeSeconds.toInt()
+        AuthenticationController(get(), get(), certificateLifetimeSeconds.toLong().seconds)
+    } bind BaseController::class
     single {
         val cliArguments: CommandLineArgumentStore = get()
         WebClientController(

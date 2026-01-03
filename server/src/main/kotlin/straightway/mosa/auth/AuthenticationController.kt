@@ -13,7 +13,10 @@ import kotlin.time.Duration.Companion.days
 class AuthenticationController(
     private val podCertificateService: PodCertificateService,
     private val clock: Clock,
+    private val certificateLifeTime: Duration = DEFAULT_CERTIFICATE_LIFETIME,
 ) : BaseController() {
+    private val refreshThresholdSeconds = certificateLifeTime.inWholeSeconds / 10
+
     override fun Route.register() {
         postRoute("/approvegid") {
             val request = call.receive<AuthenticationApprovalRequest>()
@@ -61,8 +64,7 @@ class AuthenticationController(
     private fun refreshRecommendationAt(expiration: Long): Long = expiration - (refreshThresholdSeconds / 2)
 
     private companion object {
-        private val certificateLifeTime: Duration = 7.days
-        private val refreshThresholdSeconds = certificateLifeTime.inWholeSeconds / 10
+        private val DEFAULT_CERTIFICATE_LIFETIME: Duration = 7.days
         private const val REFRESH_TOO_FRESH_MESSAGE = "Certificate is too fresh to refresh"
     }
 }

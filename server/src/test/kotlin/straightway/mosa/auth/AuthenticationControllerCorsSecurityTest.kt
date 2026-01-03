@@ -28,7 +28,7 @@ class AuthenticationControllerCorsSecurityTest {
     private val signatureFactory = TransientEd25519Factory()
     private val podCertificateService = PodCertificateService(signatureFactory, clock)
     private val environment =
-        ControllerHttpTestEnvironment(AuthenticationController(podCertificateService, clock)) {
+        ControllerHttpTestEnvironment(AuthenticationController(podCertificateService, clock, certificateLifeTime)) {
             single { podCertificateService }
             single { clock }
         }
@@ -54,7 +54,7 @@ class AuthenticationControllerCorsSecurityTest {
     fun `approvegid accepts unauthenticated http request when tls allowed`() {
         val httpEnvironment =
             ControllerHttpTestEnvironment(
-                AuthenticationController(podCertificateService, clock),
+                AuthenticationController(podCertificateService, clock, certificateLifeTime),
                 requireTlsForPod = false,
             ) {
                 single { podCertificateService }
