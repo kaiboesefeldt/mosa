@@ -18,6 +18,7 @@ class AuthenticationController(
     private val clock: Clock,
     private val certificateLifeTime: Duration = 7.days,
     private val approveGidRateLimiter: IpRateLimiter,
+    private val clientIpResolver: ClientIpResolver,
 ) : BaseController() {
     private val refreshThresholdSeconds = certificateLifeTime.inWholeSeconds / 10
 
@@ -76,16 +77,11 @@ class AuthenticationController(
 
     private fun refreshRecommendationAt(expiration: Long): Long = expiration - (refreshThresholdSeconds / 2)
 
-    private fun ApplicationCall.clientIpAddress(): String {
-        val forwardedFor = request.headers[HttpHeaders.XForwardedFor]
-        if (!forwardedFor.isNullOrBlank()) {
-            val parsed = forwardedFor.split(",").firstOrNull()?.trim()
-            if (!parsed.isNullOrBlank()) {
-                return parsed
-            }
-        }
-        return request.local.remoteHost
-    }
+    private fun ApplicationCall.clientIpAddress(): String =
+        clientIpResolver.resolve(
+            remoteHost = request.local.remoteHost,
+            forwardedFor = request.headers[HttpHeaders.XForwardedFor],
+        )
 
     private companion object {
         private const val REFRESH_TOO_FRESH_MESSAGE = "Certificate is too fresh to refresh"

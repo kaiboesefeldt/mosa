@@ -30,10 +30,13 @@ class AuthenticationControllerCorsSecurityTest {
         )
     private val nanoClock = NanoClock { 0L }
     private val rateLimiter = IpRateLimiter(nanoClock, IpRateLimitConfig(permitsPerMinute = 1, burst = 10_000))
+    private val clientIpResolver = ClientIpResolver(emptySet())
     private val signatureFactory = TransientEd25519Factory()
     private val podCertificateService = PodCertificateService(signatureFactory, clock)
     private val environment =
-        ControllerHttpTestEnvironment(AuthenticationController(podCertificateService, clock, certificateLifeTime, rateLimiter)) {
+        ControllerHttpTestEnvironment(
+            AuthenticationController(podCertificateService, clock, certificateLifeTime, rateLimiter, clientIpResolver),
+        ) {
             single { podCertificateService }
             single { clock }
         }
@@ -59,7 +62,7 @@ class AuthenticationControllerCorsSecurityTest {
     fun `approvegid accepts unauthenticated http request when tls allowed`() {
         val httpEnvironment =
             ControllerHttpTestEnvironment(
-                AuthenticationController(podCertificateService, clock, certificateLifeTime, rateLimiter),
+                AuthenticationController(podCertificateService, clock, certificateLifeTime, rateLimiter, clientIpResolver),
                 requireTlsForPod = false,
             ) {
                 single { podCertificateService }

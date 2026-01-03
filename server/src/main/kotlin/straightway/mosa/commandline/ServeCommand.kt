@@ -163,6 +163,12 @@ internal class ServeCommand(
             fullName = ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST,
             description = "Burst size for approvegid rate limiting per IP (positive value)",
         ).default(20)
+    private val trustedProxyIps by
+        option(
+            ArgType.String,
+            fullName = ServerCommandLineArguments.TRUSTED_PROXY_IPS,
+            description = "Comma-separated IPs of trusted proxies for forwarded headers",
+        ).default("")
 
     override fun execute() {
         val argumentValues =
@@ -188,6 +194,7 @@ internal class ServeCommand(
                 ServerCommandLineArguments.POD_CERT_VALIDITY_SECONDS to podCertificateValiditySeconds,
                 ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PER_MINUTE to approveGidRateLimitPerMinute,
                 ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST to approveGidRateLimitBurst,
+                ServerCommandLineArguments.TRUSTED_PROXY_IPS to trustedProxyIps,
             )
         logArguments(argumentValues)
         startServer(CommandLineArgumentStore.from { name -> argumentValues[name] })

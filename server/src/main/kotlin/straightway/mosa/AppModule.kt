@@ -8,6 +8,7 @@ import org.koin.dsl.bind
 import org.koin.dsl.onClose
 import straightway.mosa.auth.Auth0TokenUtil
 import straightway.mosa.auth.AuthenticationController
+import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.auth.PodCertificateService
 import straightway.mosa.auth.ThreadLocalEd25519VerifierProvider
 import straightway.mosa.auth.TransientEd25519Factory
@@ -116,6 +117,17 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
         IpRateLimitConfig(permitsPerMinute = permitsPerMinute, burst = burst)
     }
     single<IpRateLimiter> { IpRateLimiter(get(), get()) }
+    single<ClientIpResolver> {
+        val cliArguments: CommandLineArgumentStore = get()
+        val raw = cliArguments.getString(ServerCommandLineArguments.TRUSTED_PROXY_IPS).orEmpty()
+        val trustedProxyIps =
+            raw
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .toSet()
+        ClientIpResolver(trustedProxyIps)
+    }
 
     single { ContentController(get(), get()) } bind BaseController::class
     single {
@@ -123,7 +135,7 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
         val certificateLifetimeSeconds =
             cliArguments.getInt(ServerCommandLineArguments.POD_CERT_VALIDITY_SECONDS)
                 ?: 7.days.inWholeSeconds.toInt()
-        AuthenticationController(get(), get(), certificateLifetimeSeconds.toLong().seconds, get())
+        AuthenticationController(get(), get(), certificateLifetimeSeconds.toLong().seconds, get(), get())
     } bind BaseController::class
     single {
         val cliArguments: CommandLineArgumentStore = get()
