@@ -20,4 +20,6 @@ object ServerCommandLineArguments {
     const val REQUEST_DURATION_DECAY_ALPHA = "request-duration-shedding-decay-alpha"
     const val REQUEST_DURATION_SAMPLE_INTERVAL_MS = "request-duration-shedding-sample-interval-ms"
     const val POD_CERT_VALIDITY_SECONDS = "pod-cert-validity-seconds"
+    const val APPROVE_GID_RATE_LIMIT_PER_MINUTE = "approvegid-rate-limit-per-minute"
+    const val APPROVE_GID_RATE_LIMIT_BURST = "approvegid-rate-limit-burst"
 }

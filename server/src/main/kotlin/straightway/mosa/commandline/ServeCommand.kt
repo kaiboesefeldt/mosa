@@ -151,6 +151,18 @@ internal class ServeCommand(
             fullName = ServerCommandLineArguments.POD_CERT_VALIDITY_SECONDS,
             description = "Validity duration for pod certificates in seconds",
         ).default(7.days.inWholeSeconds.toInt())
+    private val approveGidRateLimitPerMinute by
+        option(
+            ArgType.Int,
+            fullName = ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PER_MINUTE,
+            description = "Allowed approvegid requests per minute per IP (positive value)",
+        ).default(60)
+    private val approveGidRateLimitBurst by
+        option(
+            ArgType.Int,
+            fullName = ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST,
+            description = "Burst size for approvegid rate limiting per IP (positive value)",
+        ).default(20)
 
     override fun execute() {
         val argumentValues =
@@ -174,6 +186,8 @@ internal class ServeCommand(
                 ServerCommandLineArguments.REQUEST_DURATION_DECAY_ALPHA to requestDurationDecayAlpha,
                 ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_INTERVAL_MS to requestDurationSampleIntervalMs,
                 ServerCommandLineArguments.POD_CERT_VALIDITY_SECONDS to podCertificateValiditySeconds,
+                ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PER_MINUTE to approveGidRateLimitPerMinute,
+                ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST to approveGidRateLimitBurst,
             )
         logArguments(argumentValues)
         startServer(CommandLineArgumentStore.from { name -> argumentValues[name] })

@@ -8,7 +8,10 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import straightway.mosa.NanoClock
 import straightway.mosa.content.ControllerHttpTestEnvironment
+import straightway.mosa.defense.ratelimit.IpRateLimitConfig
+import straightway.mosa.defense.ratelimit.IpRateLimiter
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -25,10 +28,12 @@ class AuthenticationControllerCorsSecurityTest {
             Instant.ofEpochSecond(170000000L),
             ZoneId.of("UTC"),
         )
+    private val nanoClock = NanoClock { 0L }
+    private val rateLimiter = IpRateLimiter(nanoClock, IpRateLimitConfig(permitsPerMinute = 1, burst = 10_000))
     private val signatureFactory = TransientEd25519Factory()
     private val podCertificateService = PodCertificateService(signatureFactory, clock)
     private val environment =
-        ControllerHttpTestEnvironment(AuthenticationController(podCertificateService, clock, certificateLifeTime)) {
+        ControllerHttpTestEnvironment(AuthenticationController(podCertificateService, clock, certificateLifeTime, rateLimiter)) {
             single { podCertificateService }
             single { clock }
         }
@@ -54,7 +59,7 @@ class AuthenticationControllerCorsSecurityTest {
     fun `approvegid accepts unauthenticated http request when tls allowed`() {
         val httpEnvironment =
             ControllerHttpTestEnvironment(
-                AuthenticationController(podCertificateService, clock, certificateLifeTime),
+                AuthenticationController(podCertificateService, clock, certificateLifeTime, rateLimiter),
                 requireTlsForPod = false,
             ) {
                 single { podCertificateService }

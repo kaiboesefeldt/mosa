@@ -319,6 +319,7 @@ securitySchemes:
       displayName: Request Identity Approval
       description: |
         Approve a MIS `gid` to obtain a Pod certificate. This endpoint is unauthenticated.
+        Requests are rate limited per IP. Limits are configured server-side and must be positive values.
       body:
         application/json:
           type: AuthenticationApprovalRequest
