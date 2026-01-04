@@ -20,9 +20,11 @@ import org.koin.ktor.plugin.Koin
 import org.koin.ktor.plugin.koin
 import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.ServerCommandLineArguments
+import straightway.mosa.authenticatedRateLimit
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
 import straightway.mosa.configureMosaAppModule
+import straightway.mosa.createMosaAuthenticatedRateLimitPlugin
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.installNetworkServerPlugins
@@ -163,6 +165,18 @@ internal class ServeCommand(
             fullName = ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST,
             description = "Burst size for approvegid rate limiting per IP (positive value)",
         ).default(20)
+    private val authenticatedRateLimitPerMinute by
+        option(
+            ArgType.Int,
+            fullName = ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PER_MINUTE,
+            description = "Allowed authenticated requests per minute per gid (positive value)",
+        ).default(60)
+    private val authenticatedRateLimitBurst by
+        option(
+            ArgType.Int,
+            fullName = ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_BURST,
+            description = "Burst size for authenticated rate limiting per gid (positive value)",
+        ).default(20)
     private val trustedProxyIps by
         option(
             ArgType.String,
@@ -194,6 +208,8 @@ internal class ServeCommand(
                 ServerCommandLineArguments.POD_CERT_VALIDITY_SECONDS to podCertificateValiditySeconds,
                 ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PER_MINUTE to approveGidRateLimitPerMinute,
                 ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST to approveGidRateLimitBurst,
+                ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PER_MINUTE to authenticatedRateLimitPerMinute,
+                ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_BURST to authenticatedRateLimitBurst,
                 ServerCommandLineArguments.TRUSTED_PROXY_IPS to trustedProxyIps,
             )
         logArguments(argumentValues)
@@ -240,6 +256,7 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
                 tokenUtil = get(),
             )
             routing {
+                install(createMosaAuthenticatedRateLimitPlugin(get(authenticatedRateLimit)))
                 getAll<BaseController>().forEach { register(it) }
             }
         }

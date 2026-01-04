@@ -4,6 +4,8 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.apache.lucene.store.MMapDirectory
 import org.koin.core.module.Module
+import org.koin.core.qualifier.Qualifier
+import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.onClose
 import straightway.mosa.auth.Auth0TokenUtil
@@ -37,9 +39,12 @@ import kotlin.time.Duration.Companion.seconds
 
 typealias HasherFactory = () -> MessageDigest
 
+val approvegidRateLimit: Qualifier = named("approvegidRateLimit")
+val authenticatedRateLimit: Qualifier = named("authenticatedRateLimit")
+
 fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY) {
     single<MeterRegistry> { SimpleMeterRegistry() } onClose { it?.close() }
-    single<RequestDurationSheddingConfig> {
+    single {
         val cliArguments: CommandLineArgumentStore = get()
         val minSamplesForBaseline =
             cliArguments.getInt(ServerCommandLineArguments.REQUEST_DURATION_MIN_SAMPLES)?.toLong()
@@ -73,21 +78,21 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
         )
     }
     single { RequestDurationSheddingRatioMapper(get()) }
-    single<RequestDurationForRouteState.Factory> {
+    single {
         RequestDurationForRouteState.Factory { timer ->
             RequestDurationForRouteState(get(), get(), timer, get())
         }
     }
-    single<RequestDurationForRouteStateRegistry> { RequestDurationForRouteStateRegistry(get(), get()) }
+    single { RequestDurationForRouteStateRegistry(get(), get()) }
     single<EmbeddingService> { OnnxLocalEmbeddingService.create() } onClose { (it as? AutoCloseable)?.close() }
-    single<Clock> { Clock.systemUTC() }
-    single<NanoClock> { NanoClock(System::nanoTime) }
-    single<Random> { Random(get<NanoClock>().nanoTime()) }
-    single<LuceneIndexAccess> { LuceneIndexAccess { MMapDirectory(Paths.get("mosa_lucene_index")) } } onClose
+    single { Clock.systemUTC() }
+    single { NanoClock(System::nanoTime) }
+    single { Random(get<NanoClock>().nanoTime()) }
+    single { LuceneIndexAccess { MMapDirectory(Paths.get("mosa_lucene_index")) } } onClose
         { (it as? AutoCloseable)?.close() }
-    single<QueryOnRegistry> { QueryOnRegistry(pageSize = 10, maxNotFinishedQueries = 10000) }
-    single<LuceneQueryPlanner> { LuceneQueryPlanner(maxResults = 1000) }
-    single<VectorStore> {
+    single { QueryOnRegistry(pageSize = 10, maxNotFinishedQueries = 10000) }
+    single { LuceneQueryPlanner(maxResults = 1000) }
+    single {
         LuceneLocalVectorStore.create(
             indexAccess = get(),
             paginationRegistry = get(),
@@ -102,13 +107,13 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     single<Crypto> { CryptoEd25519() }
     single<TokenUtil> { Auth0TokenUtil(get(), get(), get(), get(), get()) }
 
-    single<ContentService> { ContentService(get(), get(), get()) }
+    single { ContentService(get(), get(), get()) }
 
-    single<PodCertificateService> { PodCertificateService(get()) }
+    single { PodCertificateService(get()) }
 
-    single<CommandLineArgumentStore> { arguments }
+    single { arguments }
 
-    single<RateLimitConfig> {
+    single(approvegidRateLimit) {
         val cliArguments: CommandLineArgumentStore = get()
         val permitsPerMinute =
             cliArguments.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PER_MINUTE)
@@ -116,8 +121,21 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
         val burst = cliArguments.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST) ?: 20
         RateLimitConfig(permitsPerMinute = permitsPerMinute, burst = burst)
     }
-    single<RateLimiter> { RateLimiter(get(), get()) }
-    single<ClientIpResolver> {
+    single(authenticatedRateLimit) {
+        val cliArguments: CommandLineArgumentStore = get()
+        val permitsPerMinute =
+            cliArguments.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PER_MINUTE)
+                ?: 60
+        val burst = cliArguments.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_BURST) ?: 20
+        RateLimitConfig(permitsPerMinute = permitsPerMinute, burst = burst)
+    }
+    single(approvegidRateLimit) {
+        RateLimiter(get(), get(approvegidRateLimit))
+    }
+    single(authenticatedRateLimit) {
+        RateLimiter(get(), get(authenticatedRateLimit))
+    }
+    single {
         val cliArguments: CommandLineArgumentStore = get()
         val raw = cliArguments.getString(ServerCommandLineArguments.TRUSTED_PROXY_IPS).orEmpty()
         val trustedProxyIps =
@@ -135,7 +153,13 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
         val certificateLifetimeSeconds =
             cliArguments.getInt(ServerCommandLineArguments.POD_CERT_VALIDITY_SECONDS)
                 ?: 7.days.inWholeSeconds.toInt()
-        AuthenticationController(get(), get(), certificateLifetimeSeconds.toLong().seconds, get(), get())
+        AuthenticationController(
+            get(),
+            get(),
+            certificateLifetimeSeconds.toLong().seconds,
+            get(approvegidRateLimit),
+            get(),
+        )
     } bind BaseController::class
     single {
         val cliArguments: CommandLineArgumentStore = get()

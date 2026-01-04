@@ -11,9 +11,12 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationPlugin
 import io.ktor.server.application.createApplicationPlugin
+import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.AuthenticationChecked
 import io.ktor.server.auth.bearer
+import io.ktor.server.auth.principal
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
@@ -30,6 +33,7 @@ import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingDecider
 import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.defense.memory.MemorySheddingDecider
+import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
 import straightway.mosa.defense.requestduration.RequestDurationSheddingDecider
 import straightway.mosa.jackson.InstantJacksonSerializers
@@ -118,6 +122,20 @@ fun createMosaApiCorsPlugin(requireTlsForPod: Boolean): ApplicationPlugin<Unit> 
         }
     }
 
+fun createMosaAuthenticatedRateLimitPlugin(rateLimiter: RateLimiter) =
+    createRouteScopedPlugin("MosaAuthenticatedRateLimit") {
+        on(AuthenticationChecked) { call ->
+            val principal = call.principal<PodPrincipal>() ?: return@on
+            val decision = rateLimiter.check(principal.gid)
+            if (decision.allowed) return@on
+            call.response.headers.append(HttpHeaders.RetryAfter, decision.retryAfterSeconds.toString())
+            call.respond(
+                HttpStatusCode.TooManyRequests,
+                mapOf("message" to AUTHENTICATED_RATE_LIMIT_MESSAGE),
+            )
+        }
+    }
+
 private fun createMosaRequireTlsPlugin(): ApplicationPlugin<Unit> =
     createApplicationPlugin("MosaRequireTls") {
         onCall { call ->
@@ -132,6 +150,7 @@ private val log = KotlinLogging.logger {}
 
 private const val API_ROUTE_PREFIX = "/v1/"
 private const val APPROVE_GID_ROUTE = "/v1/approvegid"
+private const val AUTHENTICATED_RATE_LIMIT_MESSAGE = "Rate limit exceeded"
 private const val ALLOWED_CORS_METHODS = "POST, GET, OPTIONS"
 private const val ALLOWED_CORS_HEADERS = "Authorization, Content-Type"
 private const val CORS_MAX_AGE_SECONDS = "7200"

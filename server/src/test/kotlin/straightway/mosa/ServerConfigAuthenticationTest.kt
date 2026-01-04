@@ -16,6 +16,8 @@ import io.ktor.server.testing.testApplication
 import io.mockk.every
 import io.mockk.mockk
 import straightway.mosa.auth.PodPrincipal
+import straightway.mosa.defense.ratelimit.RateLimitConfig
+import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.testutils.installTestNetworkServerPlugins
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -53,6 +55,49 @@ class ServerConfigAuthenticationTest {
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertEquals("user-123", response.bodyAsText())
+        }
+    }
+
+    @Test
+    fun `rate limits authenticated requests`() {
+        val tokenUtil = mockk<TokenUtil>()
+        val decodedJwt = mockk<DecodedJWT>()
+        val certClaim = mockk<Claim>()
+        val rateLimiter = RateLimiter({ 0L }, RateLimitConfig(permitsPerMinute = 60, burst = 1))
+
+        every { tokenUtil.decode("valid") } returns decodedJwt
+        every { tokenUtil.isValidMisJwt(decodedJwt) } returns true
+        every { decodedJwt.claims } returns mapOf("cert" to certClaim)
+        every { certClaim.asMap() } returns mapOf("gid" to "user-123", "exp" to 1, "sig" to "sig")
+
+        testApplication {
+            application {
+                installTestNetworkServerPlugins(tokenUtil = tokenUtil)
+                routing {
+                    install(createMosaAuthenticatedRateLimitPlugin(rateLimiter))
+                    authenticate {
+                        get("/secure") {
+                            call.respondText("ok")
+                        }
+                    }
+                }
+            }
+
+            val first =
+                client.get("/secure") {
+                    header(HttpHeaders.Authorization, "Bearer valid")
+                    header(HttpHeaders.XForwardedProto, "https")
+                }
+
+            val second =
+                client.get("/secure") {
+                    header(HttpHeaders.Authorization, "Bearer valid")
+                    header(HttpHeaders.XForwardedProto, "https")
+                }
+
+            assertEquals(HttpStatusCode.OK, first.status)
+            assertEquals(HttpStatusCode.TooManyRequests, second.status)
+            assertEquals("2", second.headers[HttpHeaders.RetryAfter])
         }
     }
 

@@ -32,7 +32,10 @@ import straightway.mosa.auth.ThreadLocalEd25519VerifierProvider
 import straightway.mosa.auth.TransientEd25519Factory
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
+import straightway.mosa.createMosaAuthenticatedRateLimitPlugin
 import straightway.mosa.crypto.CryptoEd25519
+import straightway.mosa.defense.ratelimit.RateLimitConfig
+import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.jackson.InstantJacksonSerializers
 import straightway.mosa.testutils.installTestNetworkServerPlugins
 import straightway.mosa.vectorstore.LuceneIndexAccess
@@ -64,6 +67,8 @@ class ControllerHttpTestEnvironment(
     val signatureVerifierProvider = ThreadLocalEd25519VerifierProvider()
     val podCertService = PodCertificateService(signatureFactory)
     val hasherFactory = { MessageDigest.getInstance("SHA-256") }
+    val authenticatedRateLimiter =
+        RateLimiter({ 0L }, RateLimitConfig(permitsPerMinute = 60, burst = 1_000_000))
     val gid =
         Base64.UrlSafe
             .withPadding(Base64.PaddingOption.ABSENT)
@@ -132,6 +137,7 @@ class ControllerHttpTestEnvironment(
                     tokenUtil = getKoin().get(),
                 )
                 routing {
+                    install(createMosaAuthenticatedRateLimitPlugin(authenticatedRateLimiter))
                     (this@ControllerHttpTestEnvironment.controllers + controllers).forEach {
                         register(it)
                     }
