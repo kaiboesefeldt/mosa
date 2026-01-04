@@ -8,7 +8,7 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import straightway.mosa.base.BaseController
-import straightway.mosa.defense.ratelimit.IpRateLimiter
+import straightway.mosa.defense.ratelimit.RateLimiter
 import java.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
@@ -17,7 +17,7 @@ class AuthenticationController(
     private val podCertificateService: PodCertificateService,
     private val clock: Clock,
     private val certificateLifeTime: Duration = 7.days,
-    private val approveGidRateLimiter: IpRateLimiter,
+    private val approveGidRateLimiter: RateLimiter,
     private val clientIpResolver: ClientIpResolver,
 ) : BaseController() {
     private val refreshThresholdSeconds = certificateLifeTime.inWholeSeconds / 10

@@ -16,8 +16,8 @@ import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.crypto.CryptoEd25519
-import straightway.mosa.defense.ratelimit.IpRateLimitConfig
-import straightway.mosa.defense.ratelimit.IpRateLimiter
+import straightway.mosa.defense.ratelimit.RateLimitConfig
+import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.requestduration.RequestDurationForRouteState
 import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
 import straightway.mosa.defense.requestduration.RequestDurationSheddingConfig
@@ -108,15 +108,15 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
 
     single<CommandLineArgumentStore> { arguments }
 
-    single<IpRateLimitConfig> {
+    single<RateLimitConfig> {
         val cliArguments: CommandLineArgumentStore = get()
         val permitsPerMinute =
             cliArguments.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PER_MINUTE)
                 ?: 60
         val burst = cliArguments.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST) ?: 20
-        IpRateLimitConfig(permitsPerMinute = permitsPerMinute, burst = burst)
+        RateLimitConfig(permitsPerMinute = permitsPerMinute, burst = burst)
     }
-    single<IpRateLimiter> { IpRateLimiter(get(), get()) }
+    single<RateLimiter> { RateLimiter(get(), get()) }
     single<ClientIpResolver> {
         val cliArguments: CommandLineArgumentStore = get()
         val raw = cliArguments.getString(ServerCommandLineArguments.TRUSTED_PROXY_IPS).orEmpty()

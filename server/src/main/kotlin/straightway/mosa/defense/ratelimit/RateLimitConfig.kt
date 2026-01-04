@@ -1,6 +1,6 @@
 package straightway.mosa.defense.ratelimit
 
-data class IpRateLimitConfig(
+data class RateLimitConfig(
     val permitsPerMinute: Int,
     val burst: Int,
     val maxEntries: Int = 10_000,

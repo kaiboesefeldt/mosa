@@ -7,18 +7,18 @@ import java.util.LinkedHashMap
 import kotlin.math.max
 import kotlin.math.min
 
-class IpRateLimiter(
+class RateLimiter(
     private val nanoClock: NanoClock,
-    private val config: IpRateLimitConfig,
+    private val config: RateLimitConfig,
 ) {
     private val retryDurations = (60L / config.permitsPerMinute).coerceAtLeast(1L) * 2L
     private val mutex = Mutex()
     private val buckets = LruBucketMap(config.maxEntries)
 
-    suspend fun check(ip: String) =
+    suspend fun check(key: String) =
         mutex
             .withLock {
-                check(ip, nanoClock.nanoTime())
+                check(key, nanoClock.nanoTime())
             }.let { allowed ->
                 if (allowed) {
                     RateLimitDecision.allowed()
@@ -28,14 +28,14 @@ class IpRateLimiter(
             }
 
     private fun check(
-        ip: String,
+        key: String,
         nowNanos: Long,
     ): Boolean {
         val (nextState, allowed) =
-            buckets[ip]?.run {
+            buckets[key]?.run {
                 refill(nowNanos).run { consume() to allowed }
             } ?: (BucketState(tokens = config.burst - 1, lastRefillAtNanos = nowNanos) to true)
-        buckets[ip] = nextState
+        buckets[key] = nextState
         return allowed
     }
 

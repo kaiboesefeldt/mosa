@@ -10,8 +10,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import straightway.mosa.NanoClock
 import straightway.mosa.content.ControllerHttpTestEnvironment
-import straightway.mosa.defense.ratelimit.IpRateLimitConfig
-import straightway.mosa.defense.ratelimit.IpRateLimiter
+import straightway.mosa.defense.ratelimit.RateLimitConfig
+import straightway.mosa.defense.ratelimit.RateLimiter
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -29,7 +29,7 @@ class AuthenticationControllerCorsSecurityTest {
             ZoneId.of("UTC"),
         )
     private val nanoClock = NanoClock { 0L }
-    private val rateLimiter = IpRateLimiter(nanoClock, IpRateLimitConfig(permitsPerMinute = 1, burst = 10_000))
+    private val rateLimiter = RateLimiter(nanoClock, RateLimitConfig(permitsPerMinute = 1, burst = 10_000))
     private val clientIpResolver = ClientIpResolver(emptySet())
     private val signatureFactory = TransientEd25519Factory()
     private val podCertificateService = PodCertificateService(signatureFactory, clock)

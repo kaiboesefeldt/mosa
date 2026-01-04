@@ -10,12 +10,12 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-class IpRateLimiterTest {
+class RateLimiterTest {
     @Test
     fun `allows burst within capacity`() =
         runTest {
             val clock = NanoClock { 0L }
-            val limiter = IpRateLimiter(clock, IpRateLimitConfig(permitsPerMinute = 60, burst = 2))
+            val limiter = RateLimiter(clock, RateLimitConfig(permitsPerMinute = 60, burst = 2))
 
             val first = limiter.check("10.0.0.1")
             val second = limiter.check("10.0.0.1")
@@ -28,7 +28,7 @@ class IpRateLimiterTest {
     fun `rejects when bucket is empty`() =
         runTest {
             val clock = NanoClock { 0L }
-            val limiter = IpRateLimiter(clock, IpRateLimitConfig(permitsPerMinute = 60, burst = 1))
+            val limiter = RateLimiter(clock, RateLimitConfig(permitsPerMinute = 60, burst = 1))
 
             assertTrue(limiter.check("10.0.0.1").allowed)
             val decision = limiter.check("10.0.0.1")
@@ -42,7 +42,7 @@ class IpRateLimiterTest {
         runTest {
             var nowNanos = 0L
             val clock = NanoClock { nowNanos }
-            val limiter = IpRateLimiter(clock, IpRateLimitConfig(permitsPerMinute = 60, burst = 1))
+            val limiter = RateLimiter(clock, RateLimitConfig(permitsPerMinute = 60, burst = 1))
 
             assertTrue(limiter.check("10.0.0.1").allowed)
             assertFalse(limiter.check("10.0.0.1").allowed)
@@ -57,7 +57,7 @@ class IpRateLimiterTest {
         runTest {
             var nowNanos = 0L
             val clock = NanoClock { nowNanos }
-            val limiter = IpRateLimiter(clock, IpRateLimitConfig(permitsPerMinute = 60, burst = 1))
+            val limiter = RateLimiter(clock, RateLimitConfig(permitsPerMinute = 60, burst = 1))
 
             assertTrue(limiter.check("10.0.0.1").allowed)
 
@@ -71,7 +71,7 @@ class IpRateLimiterTest {
         runTest {
             var nowNanos = 0L
             val clock = NanoClock { nowNanos }
-            val limiter = IpRateLimiter(clock, IpRateLimitConfig(permitsPerMinute = 60, burst = 5))
+            val limiter = RateLimiter(clock, RateLimitConfig(permitsPerMinute = 60, burst = 5))
 
             repeat(5) { assertTrue(limiter.check("10.0.0.1").allowed) }
             assertFalse(limiter.check("10.0.0.1").allowed)
@@ -88,7 +88,7 @@ class IpRateLimiterTest {
         runTest {
             var nowNanos = 0L
             val clock = NanoClock { nowNanos }
-            val limiter = IpRateLimiter(clock, IpRateLimitConfig(permitsPerMinute = 60, burst = 2))
+            val limiter = RateLimiter(clock, RateLimitConfig(permitsPerMinute = 60, burst = 2))
 
             assertTrue(limiter.check("10.0.0.1").allowed)
             assertTrue(limiter.check("10.0.0.1").allowed)
@@ -105,7 +105,7 @@ class IpRateLimiterTest {
     fun `evicts oldest entry when max entries exceeded`() =
         runTest {
             val clock = NanoClock { 0L }
-            val limiter = IpRateLimiter(clock, IpRateLimitConfig(permitsPerMinute = 60, burst = 1, maxEntries = 1))
+            val limiter = RateLimiter(clock, RateLimitConfig(permitsPerMinute = 60, burst = 1, maxEntries = 1))
 
             assertTrue(limiter.check("10.0.0.1").allowed)
             assertFalse(limiter.check("10.0.0.1").allowed)
@@ -119,7 +119,7 @@ class IpRateLimiterTest {
     fun `retry-after reflects token interval`() =
         runTest {
             val clock = NanoClock { 0L }
-            val limiter = IpRateLimiter(clock, IpRateLimitConfig(permitsPerMinute = 10, burst = 1))
+            val limiter = RateLimiter(clock, RateLimitConfig(permitsPerMinute = 10, burst = 1))
 
             assertTrue(limiter.check("10.0.0.1").allowed)
             val decision = limiter.check("10.0.0.1")
@@ -132,7 +132,7 @@ class IpRateLimiterTest {
     fun `allows burst across concurrent checks`() =
         runTest {
             val clock = NanoClock { 0L }
-            val limiter = IpRateLimiter(clock, IpRateLimitConfig(permitsPerMinute = 60, burst = 2))
+            val limiter = RateLimiter(clock, RateLimitConfig(permitsPerMinute = 60, burst = 2))
 
             val results =
                 listOf(1, 2, 3)
