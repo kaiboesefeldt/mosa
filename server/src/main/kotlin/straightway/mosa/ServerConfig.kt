@@ -9,7 +9,10 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.ApplicationPlugin
+import io.ktor.server.application.Plugin
+import io.ktor.server.application.call
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.install
@@ -22,7 +25,9 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
+import io.ktor.util.AttributeKey
 import io.micrometer.core.instrument.MeterRegistry
+import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.auth.PodPrincipal
 import straightway.mosa.auth.toPodCertificate
@@ -51,6 +56,8 @@ fun Application.installNetworkServerPlugins(
     nanoClock: NanoClock,
     rng: Random,
     tokenUtil: TokenUtil,
+    ipRateLimiter: RateLimiter,
+    clientIpResolver: ClientIpResolver,
 ) {
     install(RequestMetricsPlugin(meterRegistry, nanoClock))
     install(createMosaLoadSheddingPlugin(rng)) {
@@ -64,6 +71,7 @@ fun Application.installNetworkServerPlugins(
             )
         retryAfter = loadSheddingRetryAfter
     }
+    install(createMosaIpRateLimitPlugin(ipRateLimiter, clientIpResolver))
     if (requireTlsForPod) {
         install(createMosaRequireTlsPlugin())
     }
@@ -136,6 +144,32 @@ fun createMosaAuthenticatedRateLimitPlugin(rateLimiter: RateLimiter) =
         }
     }
 
+fun createMosaIpRateLimitPlugin(
+    rateLimiter: RateLimiter,
+    clientIpResolver: ClientIpResolver,
+): Plugin<Application, Unit, Unit> =
+    object : Plugin<Application, Unit, Unit> {
+        override val key = AttributeKey<Unit>("MosaIpRateLimit")
+
+        override fun install(
+            pipeline: Application,
+            configure: Unit.() -> Unit,
+        ) {
+            pipeline.intercept(ApplicationCallPipeline.Plugins) {
+                val path = call.request.path()
+                if (!path.startsWith(API_ROUTE_PREFIX)) return@intercept
+                val decision = rateLimiter.check(call.clientIpAddress(clientIpResolver))
+                if (decision.allowed) return@intercept
+                call.response.headers.append(HttpHeaders.RetryAfter, decision.retryAfterSeconds.toString())
+                call.respond(
+                    HttpStatusCode.TooManyRequests,
+                    mapOf("message" to IP_RATE_LIMIT_MESSAGE),
+                )
+                finish()
+            }
+        }
+    }
+
 private fun createMosaRequireTlsPlugin(): ApplicationPlugin<Unit> =
     createApplicationPlugin("MosaRequireTls") {
         onCall { call ->
@@ -151,6 +185,7 @@ private val log = KotlinLogging.logger {}
 private const val API_ROUTE_PREFIX = "/v1/"
 private const val APPROVE_GID_ROUTE = "/v1/approvegid"
 private const val AUTHENTICATED_RATE_LIMIT_MESSAGE = "Rate limit exceeded"
+private const val IP_RATE_LIMIT_MESSAGE = "Rate limit exceeded"
 private const val ALLOWED_CORS_METHODS = "POST, GET, OPTIONS"
 private const val ALLOWED_CORS_HEADERS = "Authorization, Content-Type"
 private const val CORS_MAX_AGE_SECONDS = "7200"
@@ -192,3 +227,9 @@ private fun ApplicationCall.isSecureRequest(): Boolean {
 
     return request.local.scheme.equals("https", ignoreCase = true)
 }
+
+private fun ApplicationCall.clientIpAddress(clientIpResolver: ClientIpResolver): String =
+    clientIpResolver.resolve(
+        remoteHost = request.local.remoteHost,
+        forwardedFor = request.headers[HttpHeaders.XForwardedFor],
+    )

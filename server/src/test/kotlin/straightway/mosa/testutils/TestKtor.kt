@@ -3,9 +3,13 @@ package straightway.mosa.testutils
 import io.ktor.server.application.Application
 import io.micrometer.core.instrument.MeterRegistry
 import io.mockk.mockk
+import straightway.mosa.NanoClock
 import straightway.mosa.TokenUtil
+import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.memory.MemorySheddingConfig
+import straightway.mosa.defense.ratelimit.RateLimitConfig
+import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
 import straightway.mosa.installNetworkServerPlugins
 import kotlin.time.Duration.Companion.seconds
@@ -14,6 +18,12 @@ fun Application.installTestNetworkServerPlugins(
     requireTlsForPod: Boolean = true,
     tokenUtil: TokenUtil = mockk(),
     meterRegistry: MeterRegistry = mockk(relaxed = true),
+    ipRateLimiter: RateLimiter =
+        RateLimiter(
+            NanoClock { 0L },
+            RateLimitConfig(permitsPerMinute = 10_000, burst = 10_000),
+        ),
+    clientIpResolver: ClientIpResolver = ClientIpResolver(emptySet()),
 ) {
     installNetworkServerPlugins(
         requireTlsForPod = requireTlsForPod,
@@ -33,5 +43,7 @@ fun Application.installTestNetworkServerPlugins(
         nanoClock = mockk(relaxed = true),
         rng = mockk(),
         tokenUtil = tokenUtil,
+        ipRateLimiter = ipRateLimiter,
+        clientIpResolver = clientIpResolver,
     )
 }

@@ -41,6 +41,7 @@ typealias HasherFactory = () -> MessageDigest
 
 val approvegidRateLimit: Qualifier = named("approvegidRateLimit")
 val authenticatedRateLimit: Qualifier = named("authenticatedRateLimit")
+val ipRateLimit: Qualifier = named("ipRateLimit")
 
 fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY) {
     single<MeterRegistry> { SimpleMeterRegistry() } onClose { it?.close() }
@@ -129,11 +130,22 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
         val burst = cliArguments.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_BURST) ?: 20
         RateLimitConfig(permitsPerMinute = permitsPerMinute, burst = burst)
     }
+    single(ipRateLimit) {
+        val cliArguments: CommandLineArgumentStore = get()
+        val permitsPerMinute =
+            cliArguments.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_PER_MINUTE)
+                ?: 600
+        val burst = cliArguments.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_BURST) ?: 200
+        RateLimitConfig(permitsPerMinute = permitsPerMinute, burst = burst)
+    }
     single(approvegidRateLimit) {
         RateLimiter(get(), get(approvegidRateLimit))
     }
     single(authenticatedRateLimit) {
         RateLimiter(get(), get(authenticatedRateLimit))
+    }
+    single(ipRateLimit) {
+        RateLimiter(get(), get(ipRateLimit))
     }
     single {
         val cliArguments: CommandLineArgumentStore = get()

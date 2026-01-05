@@ -11,6 +11,9 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import straightway.mosa.auth.ClientIpResolver
+import straightway.mosa.defense.ratelimit.RateLimitConfig
+import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.testutils.installTestNetworkServerPlugins
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -104,6 +107,69 @@ class ServerConfigTest {
             val response = client.post("/v1/query")
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
+        }
+
+    @Test
+    fun `rate limits unauthenticated requests by ip before auth`() =
+        testApplication {
+            val rateLimiter =
+                RateLimiter(
+                    { 0L },
+                    RateLimitConfig(permitsPerMinute = 1, burst = 1, maxEntries = 10),
+                )
+            application {
+                installTestNetworkServerPlugins(
+                    requireTlsForPod = false,
+                    ipRateLimiter = rateLimiter,
+                    clientIpResolver = ClientIpResolver(emptySet()),
+                )
+                routing {
+                    post("/v1/query") { call.respond(HttpStatusCode.OK) }
+                }
+            }
+
+            val first = client.post("/v1/query")
+            val second = client.post("/v1/query")
+
+            assertEquals(HttpStatusCode.Unauthorized, first.status)
+            assertEquals(HttpStatusCode.TooManyRequests, second.status)
+        }
+
+    @Test
+    fun `ip rate limit stops pipeline before route executes`() =
+        testApplication {
+            val rateLimiter =
+                RateLimiter(
+                    { 0L },
+                    RateLimitConfig(permitsPerMinute = 1, burst = 1, maxEntries = 10),
+                )
+            var routeCalls = 0
+            application {
+                installTestNetworkServerPlugins(
+                    requireTlsForPod = false,
+                    ipRateLimiter = rateLimiter,
+                    clientIpResolver = ClientIpResolver(emptySet()),
+                )
+                routing {
+                    post("/v1/query") {
+                        routeCalls += 1
+                        call.respond(HttpStatusCode.OK)
+                    }
+                }
+            }
+
+            val first =
+                client.post("/v1/query") {
+                    header(HttpHeaders.Authorization, "Bearer test")
+                }
+            val second =
+                client.post("/v1/query") {
+                    header(HttpHeaders.Authorization, "Bearer test")
+                }
+
+            assertEquals(HttpStatusCode.OK, first.status)
+            assertEquals(HttpStatusCode.TooManyRequests, second.status)
+            assertEquals(1, routeCalls)
         }
 
     private fun ApplicationTestBuilder.configureTestServer(requireTls: Boolean = true) {

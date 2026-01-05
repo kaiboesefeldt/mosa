@@ -6,21 +6,7 @@ Evaluation of the cyber defense mechanisms in the server-side `defense` package 
 
 ## Findings
 
-### 1) Rate limit only after successful authentication
-
-**Description**  
-The rate limit for “authenticated” requests is only applied after successful authentication. Flooding with invalid or missing tokens remains unlimited.
-
-**Affected location**  
-`server/src/main/kotlin/straightway/mosa/ServerConfig.kt:125`
-
-**Risk**  
-Attackers can trigger authentication and parsing costs without being slowed down by rate limits, which increases the DoS attack surface.
-
-**Mitigation idea**  
-Add an upstream IP-based rate limit for all `/v1/*` requests (regardless of authentication), or a separate limit keyed by IP for failed authentications before JWT parsing.
-
-### 2) CPU load shedding is not container-robust
+### 1) CPU load shedding is not container-robust
 
 **Description**  
 CPU shedding is based on `systemLoadAverage`. In containers or certain JVMs, this value can return `-1`, causing the system to incorrectly assume a load of 0.
@@ -34,7 +20,7 @@ In environments without a valid load average, CPU shedding is completely absent;
 **Mitigation idea**  
 Fall back to container-compatible metrics (e.g., CGroup CPU usage or `OperatingSystemMXBean` process CPU usage, if available) and allow explicit configuration for the preferred measurement method.
 
-### 3) Memory shedding ignores off-heap and MMap usage
+### 2) Memory shedding ignores off-heap and MMap usage
 
 **Description**  
 The memory decision is based solely on heap usage. Off-heap memory (Lucene `MMapDirectory`, ONNX Runtime, Direct Buffers) is not taken into account.
@@ -48,7 +34,7 @@ OOM risks can occur despite low heap utilization; shedding reacts too late or no
 **Mitigation idea**  
 Include non-heap/total memory metrics (e.g., `MemoryMXBean.nonHeapMemoryUsage`, `BufferPoolMXBean`, OS-level RSS) or enforce a configurable process-memory guard that triggers shedding before OOM.
 
-### 4) Retry-After in rate limit is static and inaccurate
+### 3) Retry-After in rate limit is static and inaccurate
 
 **Description**  
 `Retry-After` is calculated from `permitsPerMinute` and is not linked to the actual token refill of the respective bucket instance.
@@ -62,7 +48,7 @@ Clients receive unreliable backoff notices, which can trigger unnecessary retry 
 **Mitigation idea**  
 Calculate `Retry-After` per key based on the current token status and refill time instead of a static approximation.
 
-### 5) Lack of protection mechanisms beyond shedding and rate limits
+### 4) Lack of protection mechanisms beyond shedding and rate limits
 
 **Description**  
 The current defense stack covers peak loads via shedding and rate limits, but there is a lack of complementary cyber defense mechanisms for abuse and anomaly protection as well as request-side hardening.
