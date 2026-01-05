@@ -3,11 +3,14 @@ package straightway.mosa.defense.core
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.ApplicationPlugin
-import io.ktor.server.application.createApplicationPlugin
+import io.ktor.server.application.ApplicationCallPipeline
+import io.ktor.server.application.Plugin
+import io.ktor.server.application.call
 import io.ktor.server.request.httpMethod
 import io.ktor.server.response.respond
+import io.ktor.util.AttributeKey
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.math.max
@@ -20,20 +23,30 @@ class LoadSheddingConfiguration {
 }
 
 @OptIn(ExperimentalAtomicApi::class)
-fun createMosaLoadSheddingPlugin(rng: Random): ApplicationPlugin<LoadSheddingConfiguration> =
-    createApplicationPlugin("MosaLoadShedding", ::LoadSheddingConfiguration) {
-        val decider = pluginConfig.decider
-        val retryAfterInfo = pluginConfig.retryAfter.toRetryAfterInfo()
-        val startShedding = AtomicBoolean(false)
+fun createMosaLoadSheddingPlugin(rng: Random): Plugin<Application, LoadSheddingConfiguration, Unit> =
+    object : Plugin<Application, LoadSheddingConfiguration, Unit> {
+        override val key = AttributeKey<Unit>("MosaLoadShedding")
 
-        onCall { call ->
-            handleLoadSheddingCall(
-                call = call,
-                decider = decider,
-                retryAfterInfo = retryAfterInfo,
-                startShedding = startShedding,
-                rng = rng,
-            )
+        override fun install(
+            pipeline: Application,
+            configure: LoadSheddingConfiguration.() -> Unit,
+        ) {
+            val pluginConfig = LoadSheddingConfiguration().apply(configure)
+            val decider = pluginConfig.decider
+            val retryAfterInfo = pluginConfig.retryAfter.toRetryAfterInfo()
+            val startShedding = AtomicBoolean(false)
+
+            pipeline.intercept(ApplicationCallPipeline.Plugins) {
+                val didShed =
+                    handleLoadSheddingCall(
+                        call = call,
+                        decider = decider,
+                        retryAfterInfo = retryAfterInfo,
+                        startShedding = startShedding,
+                        rng = rng,
+                    )
+                if (didShed) finish()
+            }
         }
     }
 
@@ -99,20 +112,21 @@ private suspend fun handleLoadSheddingCall(
     retryAfterInfo: RetryAfterInfo,
     startShedding: AtomicBoolean,
     rng: Random,
-) {
-    if (decider == null) return
+): Boolean {
+    if (decider == null) return false
 
     val result = decider.decideShedding(toSheddingRequest(call))
 
     if (result.noShedding) {
         stopSheddingIfActive(startShedding)
-        return
+        return false
     }
 
-    if (!result.shouldShedThisRequest(rng)) return
+    if (!result.shouldShedThisRequest(rng)) return false
 
     logStartSheddingIfNeeded(startShedding, result, retryAfterInfo)
     respondServiceUnavailable(call, retryAfterInfo)
+    return true
 }
 
 private fun SheddingDecider.Result.shouldShedThisRequest(rng: Random) = fullShedding || rng.nextDouble(0.0, 1.0) < sheddingFactor

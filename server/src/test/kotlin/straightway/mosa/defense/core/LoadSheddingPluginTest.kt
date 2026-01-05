@@ -4,6 +4,7 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.install
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -12,6 +13,7 @@ import io.ktor.server.testing.testApplication
 import io.mockk.mockk
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingDecider
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
@@ -66,5 +68,64 @@ class LoadSheddingPluginTest {
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertEquals("ok", response.bodyAsText())
+        }
+
+    @Test
+    fun `terminates pipeline when shedding`() =
+        testApplication {
+            val decider =
+                CpuSheddingDecider(
+                    CpuSheddingConfig(
+                        loadSheddingStart = 0.9,
+                        loadSheddingFull = 0.9,
+                    ),
+                ) { 1.0 }
+            val callPhaseReached = AtomicBoolean(false)
+            application {
+                install(createMosaLoadSheddingPlugin(mockk())) {
+                    this.decider = decider
+                }
+                intercept(ApplicationCallPipeline.Call) {
+                    callPhaseReached.set(true)
+                    proceed()
+                }
+                routing {
+                    get("/health") { call.respondText("ok") }
+                }
+            }
+
+            val response = client.get("/health")
+
+            assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+            assertEquals(false, callPhaseReached.get())
+        }
+
+    @Test
+    fun `executes route when shedding is disabled`() =
+        testApplication {
+            val decider =
+                CpuSheddingDecider(
+                    CpuSheddingConfig(
+                        loadSheddingStart = 0.9,
+                        loadSheddingFull = 0.9,
+                    ),
+                ) { 0.2 }
+            val routeReached = AtomicBoolean(false)
+            application {
+                install(createMosaLoadSheddingPlugin(mockk())) {
+                    this.decider = decider
+                }
+                routing {
+                    get("/health") {
+                        routeReached.set(true)
+                        call.respondText("ok")
+                    }
+                }
+            }
+
+            val response = client.get("/health")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals(true, routeReached.get())
         }
 }

@@ -6,22 +6,7 @@ Evaluation of the cyber defense mechanisms in the server-side `defense` package 
 
 ## Findings
 
-### 1) Load shedding responds without request termination
-
-**Description**  
-The load shedding plugin responds with `503 Service Unavailable`, but allows the pipeline to continue running. This means that resources continue to be consumed even though the request has already been “rejected.”
-
-**Affected location**  
-`server/src/main/kotlin/straightway/mosa/defense/core/LoadSheddingConfiguration.kt:87`  
-`server/src/main/kotlin/straightway/mosa/defense/core/LoadSheddingConfiguration.kt:96`
-
-**Risk**  
-Shedding only affects the client, not the server itself; under load, this can lead to overcommitment and exacerbate DoS situations.
-
-**Mitigation idea**  
-After sending the 503 response, terminate the pipeline (e.g., `finish()` on the call or abort in an early phase) so that no downstream handlers are executed.
-
-### 2) Rate limit only after successful authentication
+### 1) Rate limit only after successful authentication
 
 **Description**  
 The rate limit for “authenticated” requests is only applied after successful authentication. Flooding with invalid or missing tokens remains unlimited.
@@ -35,7 +20,7 @@ Attackers can trigger authentication and parsing costs without being slowed down
 **Mitigation idea**  
 Add an upstream IP-based rate limit for all `/v1/*` requests (regardless of authentication), or a separate limit keyed by IP for failed authentications before JWT parsing.
 
-### 3) CPU load shedding is not container-robust
+### 2) CPU load shedding is not container-robust
 
 **Description**  
 CPU shedding is based on `systemLoadAverage`. In containers or certain JVMs, this value can return `-1`, causing the system to incorrectly assume a load of 0.
@@ -49,7 +34,7 @@ In environments without a valid load average, CPU shedding is completely absent;
 **Mitigation idea**  
 Fall back to container-compatible metrics (e.g., CGroup CPU usage or `OperatingSystemMXBean` process CPU usage, if available) and allow explicit configuration for the preferred measurement method.
 
-### 4) Memory shedding ignores off-heap and MMap usage
+### 3) Memory shedding ignores off-heap and MMap usage
 
 **Description**  
 The memory decision is based solely on heap usage. Off-heap memory (Lucene `MMapDirectory`, ONNX Runtime, Direct Buffers) is not taken into account.
@@ -63,7 +48,7 @@ OOM risks can occur despite low heap utilization; shedding reacts too late or no
 **Mitigation idea**  
 Include non-heap/total memory metrics (e.g., `MemoryMXBean.nonHeapMemoryUsage`, `BufferPoolMXBean`, OS-level RSS) or enforce a configurable process-memory guard that triggers shedding before OOM.
 
-### 5) Retry-After in rate limit is static and inaccurate
+### 4) Retry-After in rate limit is static and inaccurate
 
 **Description**  
 `Retry-After` is calculated from `permitsPerMinute` and is not linked to the actual token refill of the respective bucket instance.
@@ -77,7 +62,7 @@ Clients receive unreliable backoff notices, which can trigger unnecessary retry 
 **Mitigation idea**  
 Calculate `Retry-After` per key based on the current token status and refill time instead of a static approximation.
 
-### 6) Lack of protection mechanisms beyond shedding and rate limits
+### 5) Lack of protection mechanisms beyond shedding and rate limits
 
 **Description**  
 The current defense stack covers peak loads via shedding and rate limits, but there is a lack of complementary cyber defense mechanisms for abuse and anomaly protection as well as request-side hardening.
@@ -99,7 +84,7 @@ Targeted additions to the pipeline, e.g.:
 
 ## Summary
 
-The existing mechanisms address load protection and auth rate limits, but have weaknesses in actual resource conservation (shedding without termination), protection against unauthenticated floods, and robustness against containerized or off-heap memory loads. Strengthening the termination logic and metric sources would significantly improve effectiveness in all environments.
+The existing mechanisms address load protection and auth rate limits, but have weaknesses in protection against unauthenticated floods and robustness against containerized or off-heap memory loads. Strengthening the metric sources would significantly improve effectiveness in all environments.
 
 ## Specific attack scenarios without adequate defense
 
