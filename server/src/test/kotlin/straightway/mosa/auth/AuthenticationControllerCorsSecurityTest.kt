@@ -3,15 +3,13 @@ package straightway.mosa.auth
 import io.ktor.client.call.body
 import io.ktor.client.request.header
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
 import straightway.mosa.NanoClock
 import straightway.mosa.content.ControllerHttpTestEnvironment
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
+import straightway.mosa.testutils.setJsonBody
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -47,8 +45,7 @@ class AuthenticationControllerCorsSecurityTest {
             val response =
                 client.post("/v1/approvegid") {
                     header(HttpHeaders.XForwardedProto, "http")
-                    contentType(ContentType.Application.Json)
-                    setBody(
+                    setJsonBody(
                         AuthenticationApprovalRequest(
                             gid = "gid".toBase64Url(),
                         ),
@@ -73,8 +70,7 @@ class AuthenticationControllerCorsSecurityTest {
             val response =
                 client.post("/v1/approvegid") {
                     header(HttpHeaders.XForwardedProto, "http")
-                    contentType(ContentType.Application.Json)
-                    setBody(
+                    setJsonBody(
                         AuthenticationApprovalRequest(
                             gid = "gid".toBase64Url(),
                         ),
@@ -93,8 +89,7 @@ class AuthenticationControllerCorsSecurityTest {
         environment {
             val response =
                 client.post("/v1/approvegid") {
-                    contentType(ContentType.Application.Json)
-                    setBody(
+                    setJsonBody(
                         AuthenticationApprovalRequest(
                             gid = "not base64",
                         ),
@@ -109,8 +104,7 @@ class AuthenticationControllerCorsSecurityTest {
         environment {
             val response =
                 client.post("/v1/approvegid") {
-                    contentType(ContentType.Application.Json)
-                    setBody(
+                    setJsonBody(
                         AuthenticationApprovalRequest(
                             gid = "gid".toBase64Url(),
                         ),
@@ -127,8 +121,7 @@ class AuthenticationControllerCorsSecurityTest {
         environment {
             val response =
                 client.post("/v1/approvegid") {
-                    contentType(ContentType.Application.Json)
-                    setBody(
+                    setJsonBody(
                         AuthenticationApprovalRequest(
                             gid = "not base64",
                         ),

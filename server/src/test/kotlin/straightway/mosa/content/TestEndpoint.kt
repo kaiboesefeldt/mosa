@@ -2,11 +2,9 @@ package straightway.mosa.content
 
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
 import org.junit.jupiter.api.Test
+import straightway.mosa.testutils.setRawJsonBody
 import kotlin.test.assertEquals
 
 abstract class TestEndpoint(
@@ -23,8 +21,7 @@ abstract class TestEndpoint(
         env {
             val response =
                 client.post(endpoint) {
-                    contentType(ContentType.Application.Json)
-                    setBody("hello")
+                    setRawJsonBody("hello")
                     bearerAuth(env.bearerToken)
                 }
             assertEquals(HttpStatusCode.BadRequest, response.status)

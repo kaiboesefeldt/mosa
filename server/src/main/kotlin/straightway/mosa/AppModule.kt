@@ -108,7 +108,11 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     single<Crypto> { CryptoEd25519() }
     single<TokenUtil> { Auth0TokenUtil(get(), get(), get(), get(), get()) }
 
-    single { ContentService(get(), get(), get()) }
+    single {
+        val cliArguments: CommandLineArgumentStore = get()
+        val maxFetchItems = cliArguments.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS) ?: 100
+        ContentService(get(), get(), get(), maxFetchItems)
+    }
 
     single { PodCertificateService(get()) }
 

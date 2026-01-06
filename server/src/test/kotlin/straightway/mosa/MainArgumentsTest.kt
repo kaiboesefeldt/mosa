@@ -116,6 +116,37 @@ class MainArgumentsTest {
         assertEquals(500, store?.getInt(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_INTERVAL_MS))
     }
 
+    @Test
+    fun `store returns default request hardening configuration when argument omitted`() {
+        val store = parseStore("serve")
+
+        assertEquals(null, store?.getInt(ServerCommandLineArguments.MAX_REQUEST_BODY_BYTES))
+        assertEquals(20, store?.getInt(ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS))
+        assertEquals(30, store?.getInt(ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS))
+        assertEquals(100, store?.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS))
+    }
+
+    @Test
+    fun `store returns provided request hardening configuration`() {
+        val store =
+            parseStore(
+                "serve",
+                "--max-request-body-bytes",
+                "1024",
+                "--request-read-timeout-seconds",
+                "5",
+                "--response-write-timeout-seconds",
+                "12",
+                "--max-fetch-items",
+                "250",
+            )
+
+        assertEquals(1024, store?.getInt(ServerCommandLineArguments.MAX_REQUEST_BODY_BYTES))
+        assertEquals(5, store?.getInt(ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS))
+        assertEquals(12, store?.getInt(ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS))
+        assertEquals(250, store?.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS))
+    }
+
     private fun parseStore(vararg args: String): CommandLineArgumentStore? {
         var capturedStore: CommandLineArgumentStore? = null
         val parser = ArgParser("mosa")

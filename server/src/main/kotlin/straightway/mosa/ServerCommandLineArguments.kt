@@ -27,4 +27,8 @@ object ServerCommandLineArguments {
     const val AUTHENTICATED_RATE_LIMIT_PER_MINUTE = "authenticated-rate-limit-per-minute"
     const val AUTHENTICATED_RATE_LIMIT_BURST = "authenticated-rate-limit-burst"
     const val TRUSTED_PROXY_IPS = "trusted-proxy-ips"
+    const val MAX_REQUEST_BODY_BYTES = "max-request-body-bytes"
+    const val REQUEST_READ_TIMEOUT_SECONDS = "request-read-timeout-seconds"
+    const val RESPONSE_WRITE_TIMEOUT_SECONDS = "response-write-timeout-seconds"
+    const val MAX_FETCH_ITEMS = "max-fetch-items"
 }

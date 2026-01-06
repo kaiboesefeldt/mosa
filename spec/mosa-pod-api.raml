@@ -16,6 +16,7 @@ documentation:
       - Time fields use epoch seconds (integer) for `Instant` values.
       - Pagination for queries uses `queryOnId` returned by `/v1/query` and consumed by `/v1/queryon`.
       - Some endpoints are described but not yet implemented; they are clearly marked as UNIMPLEMENTED.
+      - Request bodies are size-limited based on server configuration (`max-fetch-items` and optional `max-request-body-bytes`).
 
 types:
   AuthenticationApprovalRequest:
@@ -60,7 +61,9 @@ types:
   PublishRequest:
     type: object
     properties:
-      text: string
+      text:
+        type: string
+        maxLength: 1800
     example:
       text: 'Hello Mosa! This is my first post.'
 
@@ -173,6 +176,8 @@ types:
     properties:
       itemIds:
         type: string[]
+        maxItems: 100
+        description: Maximum number of items allowed per request (configurable on the server).
     example:
       itemIds:
         - 'AxY0b1p3...'
@@ -499,6 +504,8 @@ securitySchemes:
           body:
             application/json:
               type: FetchResult
+        400:
+          description: Too many itemIds in request
         401:
           description: Missing or invalid bearer token
         5xx:

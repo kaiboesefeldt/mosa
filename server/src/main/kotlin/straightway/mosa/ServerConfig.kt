@@ -41,6 +41,8 @@ import straightway.mosa.defense.memory.MemorySheddingDecider
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
 import straightway.mosa.defense.requestduration.RequestDurationSheddingDecider
+import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
+import straightway.mosa.defense.requestguard.createMosaRequestBodyLimitPlugin
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.util.TimeZone
 import kotlin.random.Random
@@ -58,6 +60,7 @@ fun Application.installNetworkServerPlugins(
     tokenUtil: TokenUtil,
     ipRateLimiter: RateLimiter,
     clientIpResolver: ClientIpResolver,
+    requestBodyLimitConfig: RequestBodyLimitConfig,
 ) {
     install(RequestMetricsPlugin(meterRegistry, nanoClock))
     install(createMosaLoadSheddingPlugin(rng)) {
@@ -72,6 +75,7 @@ fun Application.installNetworkServerPlugins(
         retryAfter = loadSheddingRetryAfter
     }
     install(createMosaIpRateLimitPlugin(ipRateLimiter, clientIpResolver))
+    install(createMosaRequestBodyLimitPlugin(requestBodyLimitConfig))
     if (requireTlsForPod) {
         install(createMosaRequireTlsPlugin())
     }

@@ -3,10 +3,7 @@ package straightway.mosa.content
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
 import io.ktor.server.auth.authentication
@@ -15,6 +12,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import straightway.mosa.testutils.setJsonBody
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -66,8 +64,7 @@ class ContentControllerTest {
 
                     val response =
                         client.post("/v1/publish") {
-                            contentType(ContentType.Application.Json)
-                            setBody(request)
+                            setJsonBody(request)
                             bearerAuth(env.bearerToken)
                         }
 
@@ -101,8 +98,7 @@ class ContentControllerTest {
 
                     val response =
                         client.post("/v1/publish") {
-                            contentType(ContentType.Application.Json)
-                            setBody(request)
+                            setJsonBody(request)
                             bearerAuth(env.bearerToken)
                         }
 
@@ -141,8 +137,7 @@ class ContentControllerTest {
 
                     val response =
                         client.post("/v1/reply") {
-                            contentType(ContentType.Application.Json)
-                            setBody(request)
+                            setJsonBody(request)
                             bearerAuth(env.bearerToken)
                         }
 
@@ -177,8 +172,7 @@ class ContentControllerTest {
 
                     val response =
                         client.post("/v1/query") {
-                            contentType(ContentType.Application.Json)
-                            setBody(request)
+                            setJsonBody(request)
                             bearerAuth(env.bearerToken)
                         }
 
@@ -210,8 +204,7 @@ class ContentControllerTest {
 
                     val response =
                         client.post("/v1/queryon") {
-                            contentType(ContentType.Application.Json)
-                            setBody(request)
+                            setJsonBody(request)
                             bearerAuth(env.bearerToken)
                         }
 
@@ -247,8 +240,7 @@ class ContentControllerTest {
 
                     val response =
                         client.post("/v1/search") {
-                            contentType(ContentType.Application.Json)
-                            setBody(request)
+                            setJsonBody(request)
                             bearerAuth(env.bearerToken)
                         }
 
@@ -280,8 +272,7 @@ class ContentControllerTest {
 
                     val response =
                         client.post("/v1/searchon") {
-                            contentType(ContentType.Application.Json)
-                            setBody(request)
+                            setJsonBody(request)
                             bearerAuth(env.bearerToken)
                         }
 
@@ -334,8 +325,7 @@ class ContentControllerTest {
 
                     val response =
                         client.post("/v1/fetch") {
-                            contentType(ContentType.Application.Json)
-                            setBody(request)
+                            setJsonBody(request)
                             bearerAuth(env.bearerToken)
                         }
 

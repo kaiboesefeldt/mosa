@@ -4,13 +4,13 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.header
 import io.ktor.client.request.request
-import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.mockk.mockk
+import straightway.mosa.testutils.setRawJsonBody
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -67,7 +67,7 @@ class ApiCorsSecurityTest {
                     method = HttpMethod.Post
                     header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                     header("X-Forwarded-Proto", "https")
-                    setBody("""{"text":"ignored"}""")
+                    setRawJsonBody("""{"text":"ignored"}""")
                 }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -86,7 +86,7 @@ class ApiCorsSecurityTest {
                     header(HttpHeaders.Host, "example.com")
                     header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                     bearerAuth(this@ApiCorsSecurityTest.environment.bearerToken)
-                    setBody("""{"text":"ignored"}""")
+                    setRawJsonBody("""{"text":"ignored"}""")
                 }
 
             assertEquals(HttpStatusCode.BadRequest, response.status)
@@ -120,7 +120,7 @@ class ApiCorsSecurityTest {
                     header("X-Forwarded-Proto", "https")
                     header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                     bearerAuth(this@ApiCorsSecurityTest.environment.bearerToken)
-                    setBody("""{"text":"content"}""")
+                    setRawJsonBody("""{"text":"content"}""")
                 }
 
             assertEquals(HttpStatusCode.Created, response.status)

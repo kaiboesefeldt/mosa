@@ -11,6 +11,8 @@ import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
+import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
+import straightway.mosa.defense.requestguard.defaultMaxRequestBodyBytes
 import straightway.mosa.installNetworkServerPlugins
 import kotlin.time.Duration.Companion.seconds
 
@@ -24,6 +26,10 @@ fun Application.installTestNetworkServerPlugins(
             RateLimitConfig(permitsPerMinute = 10_000, burst = 10_000),
         ),
     clientIpResolver: ClientIpResolver = ClientIpResolver(emptySet()),
+    requestBodyLimitConfig: RequestBodyLimitConfig =
+        RequestBodyLimitConfig(
+            maxBodyBytes = defaultMaxRequestBodyBytes(maxFetchItems = 100),
+        ),
 ) {
     installNetworkServerPlugins(
         requireTlsForPod = requireTlsForPod,
@@ -45,5 +51,6 @@ fun Application.installTestNetworkServerPlugins(
         tokenUtil = tokenUtil,
         ipRateLimiter = ipRateLimiter,
         clientIpResolver = clientIpResolver,
+        requestBodyLimitConfig = requestBodyLimitConfig,
     )
 }

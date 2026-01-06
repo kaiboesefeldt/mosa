@@ -41,6 +41,7 @@ class QualityTest {
             embeddingService,
             vectorStore,
             { MessageDigest.getInstance("SHA-256") },
+            maxFetchItems = 100,
         )
     val gid = "gid"
 

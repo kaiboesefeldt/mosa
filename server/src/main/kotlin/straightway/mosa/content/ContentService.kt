@@ -17,6 +17,7 @@ class ContentService(
     private val embeddingService: EmbeddingService,
     private val vectorStore: VectorStore,
     private val hasherFactory: () -> MessageDigest,
+    private val maxFetchItems: Int,
 ) {
     suspend fun publish(
         userGID: String,
@@ -88,18 +89,22 @@ class ContentService(
 
     suspend fun searchOn(request: QueryOnRequest): SearchResult = queryOn(request).toSearchResult()
 
-    suspend fun fetch(request: FetchRequest) =
-        FetchResult(
-            vectorStore.fetch(request.itemIds).map {
-                FetchResult.Entry(
-                    it.id,
-                    it.text,
-                    authorGID = it.fields.requireMetadata(it.id, AUTHOR_GID_KEY),
-                    storedAt = it.fields.requireMetadata(it.id, RECEIVED_AT_KEY).toLong(),
-                    rootId = it.fields[ROOT_ID_KEY],
-                )
-            },
-        )
+    suspend fun fetch(request: FetchRequest): FetchResult =
+        if (maxFetchItems < request.itemIds.size) {
+            throw BadRequestException("too many itemIds")
+        } else {
+            FetchResult(
+                vectorStore.fetch(request.itemIds).map {
+                    FetchResult.Entry(
+                        it.id,
+                        it.text,
+                        authorGID = it.fields.requireMetadata(it.id, AUTHOR_GID_KEY),
+                        storedAt = it.fields.requireMetadata(it.id, RECEIVED_AT_KEY).toLong(),
+                        rootId = it.fields[ROOT_ID_KEY],
+                    )
+                },
+            )
+        }
 
     private fun QueryResult.toSearchResult(): SearchResult =
         SearchResult(

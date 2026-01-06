@@ -28,7 +28,8 @@ class ContentServiceTest {
     private val messageDigest = mockk<MessageDigest>()
     private val hasherFactory = mockk<() -> MessageDigest>()
     private val transaction = mockk<VectorStore.Transaction>(relaxed = true)
-    private val sut = ContentService(embeddingService, vectorStore, hasherFactory)
+    private val maxFetchItems = 100
+    private val sut = ContentService(embeddingService, vectorStore, hasherFactory, maxFetchItems)
 
     private val testUserGID = "test-user-gid"
     private val testEmbedding = floatArrayOf(0.1f, 0.2f, 0.3f)
@@ -957,6 +958,19 @@ class ContentServiceTest {
 
     @Nested
     inner class Fetch {
+        @Test
+        fun `fetching too many IDs rejects the request`() =
+            runTest {
+                val service = ContentService(embeddingService, vectorStore, hasherFactory, maxFetchItems = 2)
+
+                val ex =
+                    assertFailsWith<BadRequestException> {
+                        service.fetch(FetchRequest(listOf("id1", "id2", "id3")))
+                    }
+
+                assertEquals("too many itemIds", ex.message)
+            }
+
         @Test
         fun `fetching multiple of IDs returns according content`() =
             runTest {
