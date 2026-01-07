@@ -2,6 +2,7 @@ package straightway.mosa.base
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.principal
+import io.ktor.server.plugins.PayloadTooLargeException
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -27,7 +28,9 @@ abstract class BaseController(
         build: suspend RoutingContext.() -> Unit,
     ) = route("$pathPrefix$path") {
         post {
-            build()
+            translateExceptions {
+                build()
+            }
         }
     }
 
@@ -36,7 +39,9 @@ abstract class BaseController(
         build: suspend RoutingContext.() -> Unit,
     ) = route("$pathPrefix$path") {
         get {
-            build()
+            translateExceptions {
+                build()
+            }
         }
     }
 
@@ -70,8 +75,28 @@ abstract class BaseController(
         return certificate
     }
 
+    private suspend fun RoutingContext.translateExceptions(block: suspend RoutingContext.() -> Unit) {
+        try {
+            block()
+        } catch (e: Throwable) {
+            val payloadTooLargeException = e.findPayloadTooLarge() ?: throw e
+            call.respond(HttpStatusCode.PayloadTooLarge, mapOf("message" to payloadTooLargeException.message))
+        }
+    }
+
     companion object {
         const val CURRENT_API_VERSION = "/v1/"
         const val ROOT = "/"
     }
+}
+
+fun Throwable.findPayloadTooLarge(): PayloadTooLargeException? {
+    var current: Throwable? = this
+    while (current != null) {
+        if (current is PayloadTooLargeException) {
+            return current
+        }
+        current = current.cause
+    }
+    return null
 }

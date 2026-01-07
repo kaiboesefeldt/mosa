@@ -20,6 +20,8 @@ import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.AuthenticationChecked
 import io.ktor.server.auth.bearer
 import io.ktor.server.auth.principal
+import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.PayloadTooLargeException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
@@ -31,6 +33,7 @@ import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.auth.PodPrincipal
 import straightway.mosa.auth.toPodCertificate
+import straightway.mosa.base.findPayloadTooLarge
 import straightway.mosa.defense.core.CombinedSheddingDecider
 import straightway.mosa.defense.core.RequestMetricsPlugin
 import straightway.mosa.defense.core.createMosaLoadSheddingPlugin
@@ -83,6 +86,17 @@ fun Application.installNetworkServerPlugins(
     install(StatusPages) {
         exception<InvalidPodCertificateRequest> { call, cause ->
             call.respond(HttpStatusCode.BadRequest, mapOf("message" to cause.message))
+        }
+        exception<BadRequestException> { call, cause ->
+            val findPayloadTooLargeException = cause.findPayloadTooLarge()
+            if (findPayloadTooLargeException != null) {
+                call.respond(HttpStatusCode.PayloadTooLarge, mapOf("message" to findPayloadTooLargeException.message))
+            } else {
+                call.respond(HttpStatusCode.BadRequest, mapOf("message" to cause.message))
+            }
+        }
+        exception<PayloadTooLargeException> { call, _ ->
+            call.respond(HttpStatusCode.PayloadTooLarge)
         }
     }
     install(Authentication) {
