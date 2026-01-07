@@ -5,7 +5,15 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.jackson.jackson
+import io.ktor.server.application.install
+import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.Principal
+import io.ktor.server.auth.bearer
+import io.ktor.server.routing.routing
+import io.ktor.server.testing.testApplication
 import straightway.mosa.NanoClock
+import straightway.mosa.base.register
 import straightway.mosa.content.ControllerHttpTestEnvironment
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
@@ -19,6 +27,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 
 class AuthenticationControllerTest {
     private val clock =
@@ -177,6 +187,39 @@ class AuthenticationControllerTest {
             val response = client.post("/v1/refreshgid")
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
+        }
+
+    @Test
+    fun `refreshgid responds unauthorized when principal lacks certificate`() =
+        testApplication {
+            application {
+                install(Authentication) {
+                    bearer {
+                        authenticate { object : Principal {} }
+                    }
+                }
+                install(ServerContentNegotiation) {
+                    jackson()
+                }
+                routing {
+                    register(AuthenticationController(podCertificateService, clock, certificateLifeTime, rateLimiter, clientIpResolver))
+                }
+            }
+
+            client =
+                createClient {
+                    install(ClientContentNegotiation) {
+                        jackson()
+                    }
+                }
+
+            val response =
+                client.post("/v1/refreshgid") {
+                    header(HttpHeaders.Authorization, "Bearer token")
+                }
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+            assertEquals(mapOf("message" to "Missing authenticated certificate for /v1/refreshgid"), response.body())
         }
 
     @Test
