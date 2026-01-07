@@ -1,11 +1,15 @@
 package straightway.mosa.defense.memory
 
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import straightway.mosa.defense.core.SheddingDecider
 import straightway.mosa.defense.core.SheddingRequest
+import java.lang.management.MemoryMXBean
+import java.lang.management.MemoryUsage
 import kotlin.math.max
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -136,6 +140,30 @@ class MemorySheddingDeciderTest {
                 assertTrue(retained.isNotEmpty())
             }
         }
+
+    @Test
+    fun `uses committed heap when max is unavailable`() {
+        val memoryBean =
+            mockk<MemoryMXBean> {
+                every { heapMemoryUsage } returns MemoryUsage(0L, 50L, 200L, -1L)
+            }
+
+        val gauge = HeapUsageGauge(memoryBean)
+
+        assertEquals(0.25, gauge.sample(), 1e-6)
+    }
+
+    @Test
+    fun `returns zero when heap usage has no committed or max`() {
+        val memoryBean =
+            mockk<MemoryMXBean> {
+                every { heapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
+            }
+
+        val gauge = HeapUsageGauge(memoryBean)
+
+        assertEquals(0.0, gauge.sample(), 1e-6)
+    }
 
     private val allocationChunkSizeBytes by lazy {
         val oneMiB = 1024 * 1024
