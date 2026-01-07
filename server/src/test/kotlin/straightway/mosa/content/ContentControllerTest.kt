@@ -4,19 +4,29 @@ import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
 import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
+import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.authentication
+import io.ktor.server.auth.bearer
+import io.ktor.server.routing.routing
+import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import straightway.mosa.auth.PodPrincipal
+import straightway.mosa.base.register
 import straightway.mosa.testutils.setJsonBody
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import kotlin.test.assertEquals
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 
 class ContentControllerTest {
     private val test get() =
@@ -106,6 +116,59 @@ class ContentControllerTest {
                     coVerify(exactly = 0) {
                         contentService.publish(any(), any(), any())
                     }
+                }
+            }
+
+        @Test
+        fun `should return 401 Unauthorized when principal gid access fails without message`() =
+            testApplication {
+                val contentService = mockk<ContentService>()
+                val principal = mockk<PodPrincipal>()
+                every { principal.gid } throws RuntimeException()
+
+                application {
+                    install(Authentication) {
+                        bearer {
+                            authenticate { principal }
+                        }
+                    }
+                    install(ServerContentNegotiation) {
+                        jackson()
+                    }
+                    routing {
+                        register(
+                            ContentController(
+                                contentService,
+                                Clock.fixed(
+                                    Instant.ofEpochSecond(170000000L),
+                                    ZoneId.of("UTC"),
+                                ),
+                            ),
+                        )
+                    }
+                }
+
+                client =
+                    createClient {
+                        install(ClientContentNegotiation) {
+                            jackson()
+                        }
+                    }
+
+                val response =
+                    client.post("/v1/publish") {
+                        setJsonBody(
+                            PublishRequest(
+                                text = "Text to publish",
+                            ),
+                        )
+                        bearerAuth("token")
+                    }
+
+                assertEquals(HttpStatusCode.Unauthorized, response.status)
+                assertEquals(mapOf("message" to "Missing authenticated principal"), response.body())
+                coVerify(exactly = 0) {
+                    contentService.publish(any(), any(), any())
                 }
             }
     }

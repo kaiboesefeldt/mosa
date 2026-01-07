@@ -12,6 +12,8 @@ import io.ktor.server.auth.Principal
 import io.ktor.server.auth.bearer
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import io.mockk.every
+import io.mockk.mockk
 import straightway.mosa.NanoClock
 import straightway.mosa.base.register
 import straightway.mosa.content.ControllerHttpTestEnvironment
@@ -220,6 +222,42 @@ class AuthenticationControllerTest {
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
             assertEquals(mapOf("message" to "Missing authenticated certificate for /v1/refreshgid"), response.body())
+        }
+
+    @Test
+    fun `refreshgid responds unauthorized when certificate access fails without message`() =
+        testApplication {
+            val principal = mockk<PodPrincipal>()
+            every { principal.certificate } throws RuntimeException()
+
+            application {
+                install(Authentication) {
+                    bearer {
+                        authenticate { principal }
+                    }
+                }
+                install(ServerContentNegotiation) {
+                    jackson()
+                }
+                routing {
+                    register(AuthenticationController(podCertificateService, clock, certificateLifeTime, rateLimiter, clientIpResolver))
+                }
+            }
+
+            client =
+                createClient {
+                    install(ClientContentNegotiation) {
+                        jackson()
+                    }
+                }
+
+            val response =
+                client.post("/v1/refreshgid") {
+                    header(HttpHeaders.Authorization, "Bearer token")
+                }
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+            assertEquals(mapOf("message" to "Missing authenticated certificate"), response.body())
         }
 
     @Test
