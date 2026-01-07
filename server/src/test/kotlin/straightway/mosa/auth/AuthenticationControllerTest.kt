@@ -20,7 +20,7 @@ import kotlin.test.assertNull
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 
-class AuthenticationControllerCorsSecurityTest {
+class AuthenticationControllerTest {
     private val clock =
         Clock.fixed(
             Instant.ofEpochSecond(170000000L),
@@ -132,6 +132,44 @@ class AuthenticationControllerCorsSecurityTest {
             assertEquals("*", response.headers[HttpHeaders.AccessControlAllowOrigin])
             assertEquals("Retry-After", response.headers[HttpHeaders.AccessControlExposeHeaders])
         }
+
+    @Test
+    fun `approvegid returns too many requests when rate limit exceeded`() {
+        val strictRateLimiter = RateLimiter(nanoClock, RateLimitConfig(permitsPerMinute = 1, burst = 1))
+        val strictEnvironment =
+            ControllerHttpTestEnvironment(
+                AuthenticationController(podCertificateService, clock, certificateLifeTime, strictRateLimiter, clientIpResolver),
+            ) {
+                single { podCertificateService }
+                single { clock }
+            }
+
+        strictEnvironment {
+            val firstResponse =
+                client.post("/v1/approvegid") {
+                    setJsonBody(
+                        AuthenticationApprovalRequest(
+                            gid = "gid".toBase64Url(),
+                        ),
+                    )
+                }
+
+            assertEquals(HttpStatusCode.Accepted, firstResponse.status)
+
+            val response =
+                client.post("/v1/approvegid") {
+                    setJsonBody(
+                        AuthenticationApprovalRequest(
+                            gid = "gid".toBase64Url(),
+                        ),
+                    )
+                }
+
+            assertEquals(HttpStatusCode.TooManyRequests, response.status)
+            assertEquals("120", response.headers[HttpHeaders.RetryAfter])
+            assertEquals(mapOf("message" to "Rate limit exceeded"), response.body())
+        }
+    }
 
     @Test
     fun `refreshgid rejects unauthenticated request`() =
