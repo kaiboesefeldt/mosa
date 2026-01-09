@@ -174,8 +174,6 @@ fun createMosaIpRateLimitPlugin(
             configure: Unit.() -> Unit,
         ) {
             pipeline.intercept(ApplicationCallPipeline.Plugins) {
-                val path = call.request.path()
-                if (!path.startsWith(API_ROUTE_PREFIX)) return@intercept
                 val decision = rateLimiter.check(call.clientIpAddress(clientIpResolver))
                 if (decision.allowed) return@intercept
                 call.response.headers.append(HttpHeaders.RetryAfter, decision.retryAfterSeconds.toString())
