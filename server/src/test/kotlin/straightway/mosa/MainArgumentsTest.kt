@@ -117,6 +117,33 @@ class MainArgumentsTest {
     }
 
     @Test
+    fun `store returns default rate limit penalties when argument omitted`() {
+        val store = parseStore("serve")
+
+        assertEquals(15, store?.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS))
+        assertEquals(5, store?.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS))
+        assertEquals(10, store?.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS))
+    }
+
+    @Test
+    fun `store returns provided rate limit penalties`() {
+        val store =
+            parseStore(
+                "serve",
+                "--approvegid-rate-limit-penalty-seconds",
+                "25",
+                "--authenticated-rate-limit-penalty-seconds",
+                "8",
+                "--ip-rate-limit-penalty-seconds",
+                "12",
+            )
+
+        assertEquals(25, store?.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS))
+        assertEquals(8, store?.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS))
+        assertEquals(12, store?.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS))
+    }
+
+    @Test
     fun `store returns default request hardening configuration when argument omitted`() {
         val store = parseStore("serve")
 

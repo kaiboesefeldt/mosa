@@ -168,6 +168,12 @@ internal class ServeCommand(
             fullName = ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST,
             description = "Burst size for approvegid rate limiting per IP (positive value)",
         ).default(20)
+    private val approveGidRateLimitPenaltySeconds by
+        option(
+            ArgType.Int,
+            fullName = ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS,
+            description = "Penalty duration in seconds for approvegid rate limit blocks (non-negative value)",
+        ).default(15)
     private val ipRateLimitPerMinute by
         option(
             ArgType.Int,
@@ -198,6 +204,12 @@ internal class ServeCommand(
             fullName = ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_BURST,
             description = "Burst size for authenticated rate limiting per gid (positive value)",
         ).default(20)
+    private val authenticatedRateLimitPenaltySeconds by
+        option(
+            ArgType.Int,
+            fullName = ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS,
+            description = "Penalty duration in seconds for authenticated rate limit blocks (non-negative value)",
+        ).default(5)
     private val trustedProxyIps by
         option(
             ArgType.String,
@@ -253,11 +265,13 @@ internal class ServeCommand(
                 ServerCommandLineArguments.POD_CERT_VALIDITY_SECONDS to podCertificateValiditySeconds,
                 ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PER_MINUTE to approveGidRateLimitPerMinute,
                 ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST to approveGidRateLimitBurst,
+                ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS to approveGidRateLimitPenaltySeconds,
                 ServerCommandLineArguments.IP_RATE_LIMIT_PER_MINUTE to ipRateLimitPerMinute,
                 ServerCommandLineArguments.IP_RATE_LIMIT_BURST to ipRateLimitBurst,
                 ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS to ipRateLimitPenaltySeconds,
                 ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PER_MINUTE to authenticatedRateLimitPerMinute,
                 ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_BURST to authenticatedRateLimitBurst,
+                ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS to authenticatedRateLimitPenaltySeconds,
                 ServerCommandLineArguments.TRUSTED_PROXY_IPS to trustedProxyIps,
                 ServerCommandLineArguments.MAX_REQUEST_BODY_BYTES to maxRequestBodyBytes,
                 ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS to requestReadTimeoutSeconds,

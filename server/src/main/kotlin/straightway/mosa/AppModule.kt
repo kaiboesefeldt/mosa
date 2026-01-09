@@ -124,7 +124,14 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
             cliArguments.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PER_MINUTE)
                 ?: 60
         val burst = cliArguments.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST) ?: 20
-        RateLimitConfig(permitsPerMinute = permitsPerMinute, burst = burst)
+        val penaltySeconds =
+            cliArguments.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS)?.toLong()
+                ?: 15L
+        RateLimitConfig(
+            permitsPerMinute = permitsPerMinute,
+            burst = burst,
+            penaltySeconds = penaltySeconds,
+        )
     }
     single(authenticatedRateLimit) {
         val cliArguments: CommandLineArgumentStore = get()
@@ -132,7 +139,14 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
             cliArguments.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PER_MINUTE)
                 ?: 60
         val burst = cliArguments.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_BURST) ?: 20
-        RateLimitConfig(permitsPerMinute = permitsPerMinute, burst = burst)
+        val penaltySeconds =
+            cliArguments.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS)?.toLong()
+                ?: 5L
+        RateLimitConfig(
+            permitsPerMinute = permitsPerMinute,
+            burst = burst,
+            penaltySeconds = penaltySeconds,
+        )
     }
     single(ipRateLimit) {
         val cliArguments: CommandLineArgumentStore = get()
