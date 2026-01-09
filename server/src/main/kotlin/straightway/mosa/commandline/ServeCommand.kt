@@ -180,6 +180,12 @@ internal class ServeCommand(
             fullName = ServerCommandLineArguments.IP_RATE_LIMIT_BURST,
             description = "Burst size for API rate limiting per IP (positive value)",
         ).default(200)
+    private val ipRateLimitPenaltySeconds by
+        option(
+            ArgType.Int,
+            fullName = ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS,
+            description = "Penalty duration in seconds for IP rate limit blocks (non-negative value)",
+        ).default(10)
     private val authenticatedRateLimitPerMinute by
         option(
             ArgType.Int,
@@ -249,6 +255,7 @@ internal class ServeCommand(
                 ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST to approveGidRateLimitBurst,
                 ServerCommandLineArguments.IP_RATE_LIMIT_PER_MINUTE to ipRateLimitPerMinute,
                 ServerCommandLineArguments.IP_RATE_LIMIT_BURST to ipRateLimitBurst,
+                ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS to ipRateLimitPenaltySeconds,
                 ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PER_MINUTE to authenticatedRateLimitPerMinute,
                 ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_BURST to authenticatedRateLimitBurst,
                 ServerCommandLineArguments.TRUSTED_PROXY_IPS to trustedProxyIps,

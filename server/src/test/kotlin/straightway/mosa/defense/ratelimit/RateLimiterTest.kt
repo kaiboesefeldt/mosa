@@ -129,6 +129,89 @@ class RateLimiterTest {
         }
 
     @Test
+    fun `blocks within penalty window after rejection`() =
+        runTest {
+            var nowNanos = 0L
+            val clock = NanoClock { nowNanos }
+            val limiter =
+                RateLimiter(
+                    clock,
+                    RateLimitConfig(
+                        permitsPerMinute = 60,
+                        burst = 1,
+                        penaltySeconds = 10,
+                    ),
+                )
+
+            assertTrue(limiter.check("10.0.0.1").allowed)
+            assertFalse(limiter.check("10.0.0.1").allowed)
+
+            nowNanos += 1.seconds.inWholeNanoseconds
+
+            assertFalse(limiter.check("10.0.0.1").allowed)
+
+            nowNanos += 8.seconds.inWholeNanoseconds
+
+            assertFalse(limiter.check("10.0.0.1").allowed)
+
+            nowNanos += 2.seconds.inWholeNanoseconds
+
+            assertTrue(limiter.check("10.0.0.1").allowed)
+        }
+
+    @Test
+    fun `does not refill during penalty window`() =
+        runTest {
+            var nowNanos = 0L
+            val clock = NanoClock { nowNanos }
+            val limiter =
+                RateLimiter(
+                    clock,
+                    RateLimitConfig(
+                        permitsPerMinute = 60,
+                        burst = 1,
+                        penaltySeconds = 10,
+                    ),
+                )
+
+            assertTrue(limiter.check("10.0.0.1").allowed)
+            assertFalse(limiter.check("10.0.0.1").allowed)
+
+            nowNanos += 10.seconds.inWholeNanoseconds + 500_000_000L
+
+            assertFalse(limiter.check("10.0.0.1").allowed)
+        }
+
+    @Test
+    fun `reapplies penalty after it expires without refilling tokens`() =
+        runTest {
+            var nowNanos = 0L
+            val clock = NanoClock { nowNanos }
+            val limiter =
+                RateLimiter(
+                    clock,
+                    RateLimitConfig(
+                        permitsPerMinute = 60,
+                        burst = 1,
+                        penaltySeconds = 10,
+                    ),
+                )
+
+            assertTrue(limiter.check("10.0.0.1").allowed)
+            val firstRejection = limiter.check("10.0.0.1")
+
+            assertFalse(firstRejection.allowed)
+            assertEquals(10, firstRejection.retryAfterSeconds)
+
+            nowNanos += 10.seconds.inWholeNanoseconds
+
+            val secondRejection = limiter.check("10.0.0.1")
+
+            assertFalse(secondRejection.allowed)
+            assertEquals(10, secondRejection.retryAfterSeconds)
+        }
+
+    @Test
     fun `allows burst across concurrent checks`() =
         runTest {
             val clock = NanoClock { 0L }

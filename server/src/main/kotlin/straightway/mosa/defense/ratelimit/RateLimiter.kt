@@ -11,32 +11,45 @@ class RateLimiter(
     private val nanoClock: NanoClock,
     private val config: RateLimitConfig,
 ) {
-    private val retryDurations = (60L / config.permitsPerMinute).coerceAtLeast(1L) * 2L
+    private val secondsToGainOneToken get() = (60L / config.permitsPerMinute).coerceAtLeast(1L)
+    private val tokenRetryAfterSeconds = secondsToGainOneToken * RETRY_SAFETY_FACTOR
     private val mutex = Mutex()
     private val buckets = LruBucketMap(config.maxEntries)
+    private val penaltyDurationNanos = config.penaltySeconds * NANOS_PER_SECOND
 
-    suspend fun check(key: String) =
-        mutex
-            .withLock {
-                check(key, nanoClock.nanoTime())
-            }.let { allowed ->
-                if (allowed) {
-                    RateLimitDecision.allowed()
-                } else {
-                    RateLimitDecision.rejected(retryDurations)
-                }
-            }
+    suspend fun check(key: String): RateLimitDecision =
+        mutex.withLock {
+            check(key, nanoClock.nanoTime())
+        }
 
     private fun check(
         key: String,
         nowNanos: Long,
-    ): Boolean {
-        val (nextState, allowed) =
-            buckets[key]?.run {
-                refill(nowNanos).run { consume() to allowed }
-            } ?: (BucketState(tokens = config.burst - 1, lastRefillAtNanos = nowNanos) to true)
-        buckets[key] = nextState
-        return allowed
+    ): RateLimitDecision {
+        val currentState = buckets[key]
+        val refreshedState = currentState.refreshedUntil(nowNanos)
+        val decision = refreshedState.decideRateLimiting(nowNanos)
+        buckets[key] = refreshedState.run { if (decision.allowed) consume() else penaltyState(nowNanos) }
+        return decision
+    }
+
+    private fun BucketState?.refreshedUntil(nowNanos: Long) =
+        when {
+            this == null -> BucketState(tokens = config.burst, lastRefillAtNanos = nowNanos)
+            this.isPenaltyActive(nowNanos) -> this
+            else -> this.refill(nowNanos)
+        }
+
+    private fun BucketState.decideRateLimiting(nowNanos: Long): RateLimitDecision {
+        val remainingPenaltySeconds = penaltyRemainingSeconds(nowNanos)
+        return when {
+            0L < remainingPenaltySeconds ->
+                RateLimitDecision.rejected(max(tokenRetryAfterSeconds, remainingPenaltySeconds))
+            allowed ->
+                RateLimitDecision.allowed()
+            else ->
+                RateLimitDecision.rejected(max(tokenRetryAfterSeconds, config.penaltySeconds))
+        }
     }
 
     private fun BucketState.refill(nowNanos: Long): BucketState {
@@ -56,11 +69,34 @@ class RateLimiter(
     private data class BucketState(
         val tokens: Int,
         val lastRefillAtNanos: Long,
+        val penaltyUntilNanos: Long = 0,
     )
+
+    private fun BucketState.isPenaltyActive(nowNanos: Long) = nowNanos < penaltyUntilNanos
+
+    private fun BucketState.shouldBePenalized(nowNanos: Long) = 0 < penaltyDurationNanos && !isPenaltyActive(nowNanos)
+
+    private fun BucketState.penalizeUntil(penaltyUntilNanos: Long) =
+        copy(penaltyUntilNanos = penaltyUntilNanos, lastRefillAtNanos = penaltyUntilNanos)
+
+    private fun BucketState.penaltyState(nowNanos: Long) =
+        takeUnless { it.shouldBePenalized(nowNanos) }
+            ?: penalizeUntil(nowNanos + penaltyDurationNanos)
+
+    private fun BucketState.penaltyRemainingSeconds(nowNanos: Long): Long {
+        val remainingPenaltySeconds =
+            if (penaltyUntilNanos <= nowNanos) {
+                0L
+            } else {
+                (penaltyUntilNanos - nowNanos) / NANOS_PER_SECOND + 1
+            }
+        return remainingPenaltySeconds
+    }
 
     private companion object {
         private const val NANOS_PER_SECOND = 1_000_000_000L
         private const val NANOS_PER_MINUTE = 60L * NANOS_PER_SECOND
+        private const val RETRY_SAFETY_FACTOR = 2L
     }
 
     private class LruBucketMap(

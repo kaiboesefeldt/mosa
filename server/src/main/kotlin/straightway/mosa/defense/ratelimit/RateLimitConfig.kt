@@ -4,10 +4,12 @@ data class RateLimitConfig(
     val permitsPerMinute: Int,
     val burst: Int,
     val maxEntries: Int = 10_000,
+    val penaltySeconds: Long = 0,
 ) {
     init {
-        require(permitsPerMinute > 0) { "permitsPerMinute must be positive" }
-        require(burst > 0) { "burst must be positive" }
-        require(maxEntries > 0) { "maxEntries must be positive" }
+        require(0 < permitsPerMinute) { "permitsPerMinute must be positive" }
+        require(0 < burst) { "burst must be positive" }
+        require(0 < maxEntries) { "maxEntries must be positive" }
+        require(0 <= penaltySeconds) { "penaltySeconds must be non-negative" }
     }
 }

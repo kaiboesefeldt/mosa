@@ -24,6 +24,7 @@ object ServerCommandLineArguments {
     const val APPROVE_GID_RATE_LIMIT_BURST = "approvegid-rate-limit-burst"
     const val IP_RATE_LIMIT_PER_MINUTE = "ip-rate-limit-per-minute"
     const val IP_RATE_LIMIT_BURST = "ip-rate-limit-burst"
+    const val IP_RATE_LIMIT_PENALTY_SECONDS = "ip-rate-limit-penalty-seconds"
     const val AUTHENTICATED_RATE_LIMIT_PER_MINUTE = "authenticated-rate-limit-per-minute"
     const val AUTHENTICATED_RATE_LIMIT_BURST = "authenticated-rate-limit-burst"
     const val TRUSTED_PROXY_IPS = "trusted-proxy-ips"

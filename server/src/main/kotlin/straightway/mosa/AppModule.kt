@@ -140,7 +140,10 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
             cliArguments.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_PER_MINUTE)
                 ?: 600
         val burst = cliArguments.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_BURST) ?: 200
-        RateLimitConfig(permitsPerMinute = permitsPerMinute, burst = burst)
+        val penaltySeconds =
+            cliArguments.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS)?.toLong()
+                ?: 10L
+        RateLimitConfig(permitsPerMinute = permitsPerMinute, burst = burst, penaltySeconds = penaltySeconds)
     }
     single(approvegidRateLimit) {
         RateLimiter(get(), get(approvegidRateLimit))
