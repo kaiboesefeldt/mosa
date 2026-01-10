@@ -2,7 +2,7 @@
 
 ## Context
 
-Evaluation of the cyber defense mechanisms in the server-side `defense` package and the integration in the server stack. Focus on load protection (shedding), rate limits, and their effectiveness in different runtime environments.
+Evaluation of the server-side cyber defense mechanisms and their integration in the Ktor stack, with emphasis on load shedding, rate limiting, request guards, and transport enforcement.
 
 ## Findings
 
@@ -48,43 +48,34 @@ Clients receive unreliable backoff notices, which can trigger unnecessary retry 
 **Mitigation idea**  
 Calculate `Retry-After` per key based on the current token status and refill time instead of a static approximation.
 
-### 4) Lack of protection mechanisms beyond shedding and rate limits
+### 4) TLS enforcement can be bypassed via spoofed `X-Forwarded-Proto`
 
 **Description**  
-The current defense stack covers peak loads via shedding and rate limits, but there is a lack of complementary cyber defense mechanisms for abuse and anomaly protection as well as request-side hardening.
+`isSecureRequest` trusts `X-Forwarded-Proto` without validating that the request actually came from a trusted proxy. A direct client can set the header to `https` and bypass the TLS requirement when `ALLOW_HTTP` is `false`.
 
-**Affected area**  
-System-wide, no specific code path. No additional protection plugins are visible in the current server pipeline.
+**Affected location**  
+`server/src/main/kotlin/straightway/mosa/ServerConfig.kt:116`
 
 **Risk**  
-Increased attack surface for payload abuse, automated crawling, credential stuffing-like patterns, or resource-intensive requests that remain below rate limits.
+Unauthenticated HTTP requests can be accepted as “secure,” undermining the transport security expectation of the pod endpoints.
 
 **Mitigation idea**  
-Targeted additions to the pipeline, e.g.:
-- Request body size limits and parsing guards for large payloads.
-- IP/ASN-based block and allow lists or adaptive abuse detection.
-- Circuit breakers or concurrency limits per route/feature.
-- Dedicated abuse signals (e.g., error rate, auth failures, query complexity) with automatic throttling.
-- Strict request and idle timeouts, especially for slow uploads or long-running responses.
-- Optional validation of request complexity (e.g., query length, number of filters, embedding size) with rejection thresholds.
+Only honor forwarded proto headers for requests coming from `trustedProxyIps`, or install and configure Ktor’s forwarded headers plugin with strict proxy trust rules; otherwise rely solely on the local scheme.
 
 ## Summary
 
-The existing mechanisms address load protection and auth rate limits, but have weaknesses in protection against unauthenticated floods and robustness against containerized or off-heap memory loads. Strengthening the metric sources would significantly improve effectiveness in all environments.
+The server now includes request body limits, IP + authenticated rate limits, request duration shedding, and read/write timeouts. The remaining gaps are the container robustness of CPU/memory signals, static rate-limit backoff hints, and transport enforcement that can be spoofed via forwarded headers.
 
 ## Specific attack scenarios without adequate defense
 
-1) **Auth flooding**  
-   Many requests with invalid signatures/tokens cause CPU load due to JWT parsing and verification, without an upstream rate limit.
+1) **TLS downgrade by header spoofing**  
+   A client sends HTTP requests with `X-Forwarded-Proto: https`, bypassing the TLS enforcement while still being treated as secure.
 
-2) **Payload DoS**  
-   Very large JSON bodies at content endpoints drive up parsing costs and heap/GC pressure, as no body size limits are apparent.
+2) **Containerized CPU overload**  
+   `systemLoadAverage` returns `-1`, which disables CPU-based shedding and allows sustained overload.
 
-3) **Query amplification**  
-   Many expensive search or query requests with valid tokens remain below the rate limit but can saturate Lucene/embedding resources.
+3) **Off-heap exhaustion**  
+   MMap/ONNX/DirectBuffer usage grows while heap usage stays low, so memory shedding never triggers.
 
-4) **Slow request abuse**  
-   Slow connections (Slowloris-like) tie up resources if no strict request/idle timeouts are active.
-
-5) **Off-heap exhaustion**  
-   High off-heap usage (Lucene MMap, ONNX, Direct Buffers) increases without a heap-based shedding protection layer.
+4) **Rate-limit retry storms**  
+   Clients receive inaccurate `Retry-After` values and retry too aggressively after a block.
