@@ -3,11 +3,13 @@ package straightway.mosa.auth
 class ClientIpResolver(
     private val trustedProxyIps: Set<String>,
 ) {
+    fun isTrustedProxy(remoteHost: String): Boolean = trustedProxyIps.contains(remoteHost)
+
     fun resolve(
         remoteHost: String,
         forwardedFor: String?,
     ): String {
-        if (!trustedProxyIps.contains(remoteHost)) {
+        if (!isTrustedProxy(remoteHost)) {
             return remoteHost
         }
         val firstForwarded =

@@ -48,34 +48,17 @@ Clients receive unreliable backoff notices, which can trigger unnecessary retry 
 **Mitigation idea**  
 Calculate `Retry-After` per key based on the current token status and refill time instead of a static approximation.
 
-### 4) TLS enforcement can be bypassed via spoofed `X-Forwarded-Proto`
-
-**Description**  
-`isSecureRequest` trusts `X-Forwarded-Proto` without validating that the request actually came from a trusted proxy. A direct client can set the header to `https` and bypass the TLS requirement when `ALLOW_HTTP` is `false`.
-
-**Affected location**  
-`server/src/main/kotlin/straightway/mosa/ServerConfig.kt:116`
-
-**Risk**  
-Unauthenticated HTTP requests can be accepted as “secure,” undermining the transport security expectation of the pod endpoints.
-
-**Mitigation idea**  
-Only honor forwarded proto headers for requests coming from `trustedProxyIps`, or install and configure Ktor’s forwarded headers plugin with strict proxy trust rules; otherwise rely solely on the local scheme.
-
 ## Summary
 
-The server now includes request body limits, IP + authenticated rate limits, request duration shedding, and read/write timeouts. The remaining gaps are the container robustness of CPU/memory signals, static rate-limit backoff hints, and transport enforcement that can be spoofed via forwarded headers.
+The server now includes request body limits, IP + authenticated rate limits, request duration shedding, and read/write timeouts. The remaining gaps are the container robustness of CPU/memory signals and static rate-limit backoff hints.
 
 ## Specific attack scenarios without adequate defense
 
-1) **TLS downgrade by header spoofing**  
-   A client sends HTTP requests with `X-Forwarded-Proto: https`, bypassing the TLS enforcement while still being treated as secure.
-
-2) **Containerized CPU overload**  
+1) **Containerized CPU overload**  
    `systemLoadAverage` returns `-1`, which disables CPU-based shedding and allows sustained overload.
 
-3) **Off-heap exhaustion**  
+2) **Off-heap exhaustion**  
    MMap/ONNX/DirectBuffer usage grows while heap usage stays low, so memory shedding never triggers.
 
-4) **Rate-limit retry storms**  
+3) **Rate-limit retry storms**  
    Clients receive inaccurate `Retry-After` values and retry too aggressively after a block.

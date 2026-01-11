@@ -26,6 +26,7 @@ import straightway.mosa.SignatureVerifierProvider
 import straightway.mosa.TokenUtil
 import straightway.mosa.VectorStore
 import straightway.mosa.auth.Auth0TokenUtil
+import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.auth.JwtBuilder
 import straightway.mosa.auth.PodCertificateService
 import straightway.mosa.auth.ThreadLocalEd25519VerifierProvider
@@ -135,6 +136,7 @@ class ControllerHttpTestEnvironment(
                 installTestNetworkServerPlugins(
                     requireTlsForPod = requireTlsForPod,
                     tokenUtil = getKoin().get(),
+                    clientIpResolver = ClientIpResolver(setOf("localhost", "127.0.0.1")),
                 )
                 routing {
                     install(createMosaAuthenticatedRateLimitPlugin(authenticatedRateLimiter))

@@ -73,9 +73,38 @@ class ServerConfigTest {
         }
 
     @Test
-    fun `respects forwarded https headers`() =
+    fun `rejects forwarded https headers from untrusted proxies`() =
         testApplication {
             configureTestServer()
+
+            val response =
+                client.post("/v1/query") {
+                    header(HttpHeaders.XForwardedProto, "https")
+                    header(HttpHeaders.Host, "example.com")
+                }
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+        }
+
+    @Test
+    fun `rejects spoofed forwarded https headers even with authorization`() =
+        testApplication {
+            configureTestServer()
+
+            val response =
+                client.post("/v1/query") {
+                    header(HttpHeaders.XForwardedProto, "https")
+                    header(HttpHeaders.Authorization, "Bearer token")
+                    header(HttpHeaders.Host, "example.com")
+                }
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+        }
+
+    @Test
+    fun `respects forwarded https headers from trusted proxies`() =
+        testApplication {
+            configureTestServer(clientIpResolver = ClientIpResolver(setOf("localhost")))
 
             val response =
                 client.post("/v1/query") {
@@ -172,9 +201,15 @@ class ServerConfigTest {
             assertEquals(1, routeCalls)
         }
 
-    private fun ApplicationTestBuilder.configureTestServer(requireTls: Boolean = true) {
+    private fun ApplicationTestBuilder.configureTestServer(
+        requireTls: Boolean = true,
+        clientIpResolver: ClientIpResolver = ClientIpResolver(emptySet()),
+    ) {
         application {
-            installTestNetworkServerPlugins(requireTlsForPod = requireTls)
+            installTestNetworkServerPlugins(
+                requireTlsForPod = requireTls,
+                clientIpResolver = clientIpResolver,
+            )
             routing {
                 post("/v1/query") { call.respond(HttpStatusCode.OK) }
             }

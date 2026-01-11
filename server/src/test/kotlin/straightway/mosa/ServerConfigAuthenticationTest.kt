@@ -15,6 +15,7 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.mockk.every
 import io.mockk.mockk
+import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.auth.PodPrincipal
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
@@ -23,6 +24,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ServerConfigAuthenticationTest {
+    private val trustedProxyResolver = ClientIpResolver(setOf("localhost"))
+
     @Test
     fun `authenticates valid jwt`() {
         val tokenUtil = mockk<TokenUtil>()
@@ -36,7 +39,7 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installTestNetworkServerPlugins(tokenUtil = tokenUtil)
+                installTestNetworkServerPlugins(tokenUtil = tokenUtil, clientIpResolver = trustedProxyResolver)
                 routing {
                     authenticate {
                         get("/secure") {
@@ -72,7 +75,7 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installTestNetworkServerPlugins(tokenUtil = tokenUtil)
+                installTestNetworkServerPlugins(tokenUtil = tokenUtil, clientIpResolver = trustedProxyResolver)
                 routing {
                     install(createMosaAuthenticatedRateLimitPlugin(rateLimiter))
                     authenticate {
@@ -111,7 +114,7 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installTestNetworkServerPlugins(tokenUtil = tokenUtil)
+                installTestNetworkServerPlugins(tokenUtil = tokenUtil, clientIpResolver = trustedProxyResolver)
                 routing {
                     authenticate {
                         get("/secure") {
@@ -143,7 +146,7 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installTestNetworkServerPlugins(tokenUtil = tokenUtil)
+                installTestNetworkServerPlugins(tokenUtil = tokenUtil, clientIpResolver = trustedProxyResolver)
                 routing {
                     authenticate {
                         get("/secure") {
@@ -176,7 +179,7 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installTestNetworkServerPlugins(tokenUtil = tokenUtil)
+                installTestNetworkServerPlugins(tokenUtil = tokenUtil, clientIpResolver = trustedProxyResolver)
                 routing {
                     authenticate {
                         get("/secure") {
@@ -206,7 +209,7 @@ class ServerConfigAuthenticationTest {
 
         testApplication {
             application {
-                installTestNetworkServerPlugins(tokenUtil = tokenUtil)
+                installTestNetworkServerPlugins(tokenUtil = tokenUtil, clientIpResolver = trustedProxyResolver)
                 routing {
                     authenticate {
                         get("/secure") {

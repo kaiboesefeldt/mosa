@@ -20,6 +20,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import straightway.mosa.auth.ClientIpResolver
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -27,11 +28,13 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ServerCorsPluginTest {
+    private val trustedProxyResolver = ClientIpResolver(setOf("localhost"))
+
     @Test
     fun `ignores non v1 routes`() =
         testApplication {
             application {
-                install(createMosaApiCorsPlugin(requireTlsForPod = true))
+                install(createMosaApiCorsPlugin(requireTlsForPod = true, clientIpResolver = trustedProxyResolver))
                 routing {
                     get("/status") {
                         call.respondText("ok")
@@ -55,7 +58,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin(requireTlsForPod = true))
+                install(createMosaApiCorsPlugin(requireTlsForPod = true, clientIpResolver = trustedProxyResolver))
                 routing {
                     delete("/v1/items") {
                         handlerInvoked = true
@@ -83,7 +86,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin(requireTlsForPod = true))
+                install(createMosaApiCorsPlugin(requireTlsForPod = true, clientIpResolver = trustedProxyResolver))
                 routing {
                     put("/v1/items") {
                         handlerInvoked = true
@@ -111,7 +114,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin(requireTlsForPod = true))
+                install(createMosaApiCorsPlugin(requireTlsForPod = true, clientIpResolver = trustedProxyResolver))
                 routing {
                     post("/v1/items") {
                         handlerInvoked = true
@@ -142,7 +145,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin(requireTlsForPod = true))
+                install(createMosaApiCorsPlugin(requireTlsForPod = true, clientIpResolver = trustedProxyResolver))
                 routing {
                     get("/v1/items") {
                         handlerInvoked = true
@@ -173,7 +176,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin(requireTlsForPod = true))
+                install(createMosaApiCorsPlugin(requireTlsForPod = true, clientIpResolver = trustedProxyResolver))
                 routing {
                     post("/v1/APPROVEGID") {
                         handlerInvoked = true
@@ -200,7 +203,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin(requireTlsForPod = true))
+                install(createMosaApiCorsPlugin(requireTlsForPod = true, clientIpResolver = trustedProxyResolver))
                 routing {
                     get("/v1/APPROVEGID") {
                         handlerInvoked = true
@@ -227,7 +230,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin(requireTlsForPod = true))
+                install(createMosaApiCorsPlugin(requireTlsForPod = true, clientIpResolver = trustedProxyResolver))
                 routing {
                     post("/v1/items") {
                         handlerInvoked = true
@@ -256,7 +259,7 @@ class ServerCorsPluginTest {
 
         testApplication {
             application {
-                install(createMosaApiCorsPlugin(requireTlsForPod = true))
+                install(createMosaApiCorsPlugin(requireTlsForPod = true, clientIpResolver = trustedProxyResolver))
                 routing {
                     post("/v1/items") {
                         handlerInvoked = true

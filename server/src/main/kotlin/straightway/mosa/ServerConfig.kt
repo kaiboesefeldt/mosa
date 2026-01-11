@@ -80,9 +80,9 @@ fun Application.installNetworkServerPlugins(
     install(createMosaIpRateLimitPlugin(ipRateLimiter, clientIpResolver))
     install(createMosaRequestBodyLimitPlugin(requestBodyLimitConfig))
     if (requireTlsForPod) {
-        install(createMosaRequireTlsPlugin())
+        install(createMosaRequireTlsPlugin(clientIpResolver))
     }
-    install(createMosaApiCorsPlugin(requireTlsForPod))
+    install(createMosaApiCorsPlugin(requireTlsForPod, clientIpResolver))
     install(StatusPages) {
         exception<InvalidPodCertificateRequest> { call, cause ->
             call.respond(HttpStatusCode.BadRequest, mapOf("message" to cause.message))
@@ -124,7 +124,10 @@ fun Application.installNetworkServerPlugins(
     }
 }
 
-fun createMosaApiCorsPlugin(requireTlsForPod: Boolean): ApplicationPlugin<Unit> =
+fun createMosaApiCorsPlugin(
+    requireTlsForPod: Boolean,
+    clientIpResolver: ClientIpResolver,
+): ApplicationPlugin<Unit> =
     createApplicationPlugin("MosaApiCors") {
         onCall { call ->
             call.appendCorsBaseHeaders()
@@ -138,10 +141,15 @@ fun createMosaApiCorsPlugin(requireTlsForPod: Boolean): ApplicationPlugin<Unit> 
 
                 HttpMethod.Post -> {
                     if (path.equals(APPROVE_GID_ROUTE, ignoreCase = true)) return@onCall
-                    call.secureEndpointViolation(requireTlsForPod)?.let { call.respond(it) }
+                    call
+                        .secureEndpointViolation(requireTlsForPod, clientIpResolver)
+                        ?.let { call.respond(it) }
                 }
 
-                HttpMethod.Get -> call.secureEndpointViolation(requireTlsForPod)?.let { call.respond(it) }
+                HttpMethod.Get ->
+                    call
+                        .secureEndpointViolation(requireTlsForPod, clientIpResolver)
+                        ?.let { call.respond(it) }
 
                 else -> call.respond(HttpStatusCode.MethodNotAllowed)
             }
@@ -186,10 +194,10 @@ fun createMosaIpRateLimitPlugin(
         }
     }
 
-private fun createMosaRequireTlsPlugin(): ApplicationPlugin<Unit> =
+private fun createMosaRequireTlsPlugin(clientIpResolver: ClientIpResolver): ApplicationPlugin<Unit> =
     createApplicationPlugin("MosaRequireTls") {
         onCall { call ->
-            if (!call.isSecureRequest()) {
+            if (!call.isSecureRequest(clientIpResolver)) {
                 call.respond(HttpStatusCode.BadRequest)
                 return@onCall
             }
@@ -222,8 +230,11 @@ private fun ApplicationCall.appendPreflightHeaders() {
     response.headers.append(HttpHeaders.AccessControlMaxAge, CORS_MAX_AGE_SECONDS)
 }
 
-private fun ApplicationCall.secureEndpointViolation(requireTlsForPod: Boolean): HttpStatusCode? {
-    if (requireTlsForPod && !isSecureRequest()) {
+private fun ApplicationCall.secureEndpointViolation(
+    requireTlsForPod: Boolean,
+    clientIpResolver: ClientIpResolver,
+): HttpStatusCode? {
+    if (requireTlsForPod && !isSecureRequest(clientIpResolver)) {
         return HttpStatusCode.BadRequest
     }
 
@@ -235,9 +246,12 @@ private fun ApplicationCall.secureEndpointViolation(requireTlsForPod: Boolean): 
     return null
 }
 
-private fun ApplicationCall.isSecureRequest(): Boolean {
+private fun ApplicationCall.isSecureRequest(clientIpResolver: ClientIpResolver): Boolean {
     val forwardedProto = request.headers[HttpHeaders.XForwardedProto]
-    if (forwardedProto.equals("https", ignoreCase = true)) {
+    if (
+        clientIpResolver.isTrustedProxy(request.local.remoteHost) &&
+        forwardedProto.equals("https", ignoreCase = true)
+    ) {
         return true
     }
 
