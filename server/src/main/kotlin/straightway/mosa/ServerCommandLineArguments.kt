@@ -23,6 +23,7 @@ object ServerCommandLineArguments {
     const val APPROVE_GID_RATE_LIMIT_PER_MINUTE = "approvegid-rate-limit-per-minute"
     const val APPROVE_GID_RATE_LIMIT_BURST = "approvegid-rate-limit-burst"
     const val APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS = "approvegid-rate-limit-penalty-seconds"
+    const val RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS = "rate-limit-retry-after-jitter-seconds"
     const val IP_RATE_LIMIT_PER_MINUTE = "ip-rate-limit-per-minute"
     const val IP_RATE_LIMIT_BURST = "ip-rate-limit-burst"
     const val IP_RATE_LIMIT_PENALTY_SECONDS = "ip-rate-limit-penalty-seconds"

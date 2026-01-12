@@ -22,6 +22,7 @@ import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.testutils.installTestNetworkServerPlugins
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class ServerConfigAuthenticationTest {
     private val trustedProxyResolver = ClientIpResolver(setOf("localhost"))
@@ -100,7 +101,8 @@ class ServerConfigAuthenticationTest {
 
             assertEquals(HttpStatusCode.OK, first.status)
             assertEquals(HttpStatusCode.TooManyRequests, second.status)
-            assertEquals("2", second.headers[HttpHeaders.RetryAfter])
+            val retryAfter = second.headers[HttpHeaders.RetryAfter]?.toInt()
+            assertTrue(retryAfter in 1..2)
         }
     }
 

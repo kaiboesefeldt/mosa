@@ -127,10 +127,14 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
         val penaltySeconds =
             cliArguments.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS)?.toLong()
                 ?: 15L
+        val retryAfterJitterSeconds =
+            cliArguments.getInt(ServerCommandLineArguments.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS)?.toLong()
+                ?: 1L
         RateLimitConfig(
             permitsPerMinute = permitsPerMinute,
             burst = burst,
             penaltySeconds = penaltySeconds,
+            retryAfterJitterSeconds = retryAfterJitterSeconds,
         )
     }
     single(authenticatedRateLimit) {
@@ -142,10 +146,14 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
         val penaltySeconds =
             cliArguments.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS)?.toLong()
                 ?: 5L
+        val retryAfterJitterSeconds =
+            cliArguments.getInt(ServerCommandLineArguments.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS)?.toLong()
+                ?: 1L
         RateLimitConfig(
             permitsPerMinute = permitsPerMinute,
             burst = burst,
             penaltySeconds = penaltySeconds,
+            retryAfterJitterSeconds = retryAfterJitterSeconds,
         )
     }
     single(ipRateLimit) {
@@ -157,7 +165,15 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
         val penaltySeconds =
             cliArguments.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS)?.toLong()
                 ?: 10L
-        RateLimitConfig(permitsPerMinute = permitsPerMinute, burst = burst, penaltySeconds = penaltySeconds)
+        val retryAfterJitterSeconds =
+            cliArguments.getInt(ServerCommandLineArguments.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS)?.toLong()
+                ?: 1L
+        RateLimitConfig(
+            permitsPerMinute = permitsPerMinute,
+            burst = burst,
+            penaltySeconds = penaltySeconds,
+            retryAfterJitterSeconds = retryAfterJitterSeconds,
+        )
     }
     single(approvegidRateLimit) {
         RateLimiter(get(), get(approvegidRateLimit))

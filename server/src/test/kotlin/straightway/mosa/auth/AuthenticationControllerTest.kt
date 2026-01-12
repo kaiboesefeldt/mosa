@@ -27,6 +27,7 @@ import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
@@ -178,7 +179,8 @@ class AuthenticationControllerTest {
                 }
 
             assertEquals(HttpStatusCode.TooManyRequests, response.status)
-            assertEquals("120", response.headers[HttpHeaders.RetryAfter])
+            val retryAfter = response.headers[HttpHeaders.RetryAfter]?.toInt()
+            assertTrue(retryAfter in 60..61)
             assertEquals(mapOf("message" to "Rate limit exceeded"), response.body())
         }
     }

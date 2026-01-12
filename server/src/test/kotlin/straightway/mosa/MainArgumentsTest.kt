@@ -117,21 +117,24 @@ class MainArgumentsTest {
     }
 
     @Test
-    fun `store returns default rate limit penalties when argument omitted`() {
+    fun `store returns default rate limit penalties and jitter when argument omitted`() {
         val store = parseStore("serve")
 
         assertEquals(15, store?.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS))
+        assertEquals(1, store?.getInt(ServerCommandLineArguments.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS))
         assertEquals(5, store?.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS))
         assertEquals(10, store?.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS))
     }
 
     @Test
-    fun `store returns provided rate limit penalties`() {
+    fun `store returns provided rate limit penalties and jitter`() {
         val store =
             parseStore(
                 "serve",
                 "--approvegid-rate-limit-penalty-seconds",
                 "25",
+                "--rate-limit-retry-after-jitter-seconds",
+                "0",
                 "--authenticated-rate-limit-penalty-seconds",
                 "8",
                 "--ip-rate-limit-penalty-seconds",
@@ -139,6 +142,7 @@ class MainArgumentsTest {
             )
 
         assertEquals(25, store?.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS))
+        assertEquals(0, store?.getInt(ServerCommandLineArguments.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS))
         assertEquals(8, store?.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS))
         assertEquals(12, store?.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS))
     }

@@ -34,23 +34,10 @@ OOM risks can occur despite low heap utilization; shedding reacts too late or no
 **Mitigation idea**  
 Include non-heap/total memory metrics (e.g., `MemoryMXBean.nonHeapMemoryUsage`, `BufferPoolMXBean`, OS-level RSS) or enforce a configurable process-memory guard that triggers shedding before OOM.
 
-### 3) Retry-After in rate limit is static and inaccurate
-
-**Description**  
-`Retry-After` is calculated from `permitsPerMinute` and is not linked to the actual token refill of the respective bucket instance.
-
-**Affected location**  
-`server/src/main/kotlin/straightway/mosa/defense/ratelimit/RateLimiter.kt:14`
-
-**Risk**  
-Clients receive unreliable backoff notices, which can trigger unnecessary retry spikes.
-
-**Mitigation idea**  
-Calculate `Retry-After` per key based on the current token status and refill time instead of a static approximation.
 
 ## Summary
 
-The server now includes request body limits, IP + authenticated rate limits, request duration shedding, and read/write timeouts. The remaining gaps are the container robustness of CPU/memory signals and static rate-limit backoff hints.
+The server now includes request body limits, IP + authenticated rate limits, request duration shedding, and read/write timeouts. The remaining gaps are the container robustness of CPU/memory signals.
 
 ## Specific attack scenarios without adequate defense
 
@@ -59,6 +46,3 @@ The server now includes request body limits, IP + authenticated rate limits, req
 
 2) **Off-heap exhaustion**  
    MMap/ONNX/DirectBuffer usage grows while heap usage stays low, so memory shedding never triggers.
-
-3) **Rate-limit retry storms**  
-   Clients receive inaccurate `Retry-After` values and retry too aggressively after a block.

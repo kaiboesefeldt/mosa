@@ -174,6 +174,12 @@ internal class ServeCommand(
             fullName = ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS,
             description = "Penalty duration in seconds for approvegid rate limit blocks (non-negative value)",
         ).default(15)
+    private val rateLimitRetryAfterJitterSeconds by
+        option(
+            ArgType.Int,
+            fullName = ServerCommandLineArguments.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS,
+            description = "Maximum Retry-After jitter in seconds for rate limit responses (non-negative value)",
+        ).default(1)
     private val ipRateLimitPerMinute by
         option(
             ArgType.Int,
@@ -266,6 +272,7 @@ internal class ServeCommand(
                 ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PER_MINUTE to approveGidRateLimitPerMinute,
                 ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST to approveGidRateLimitBurst,
                 ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS to approveGidRateLimitPenaltySeconds,
+                ServerCommandLineArguments.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS to rateLimitRetryAfterJitterSeconds,
                 ServerCommandLineArguments.IP_RATE_LIMIT_PER_MINUTE to ipRateLimitPerMinute,
                 ServerCommandLineArguments.IP_RATE_LIMIT_BURST to ipRateLimitBurst,
                 ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS to ipRateLimitPenaltySeconds,

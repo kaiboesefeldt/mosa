@@ -34,7 +34,7 @@ class RateLimiterTest {
             val decision = limiter.check("10.0.0.1")
 
             assertFalse(decision.allowed)
-            assertEquals(2, decision.retryAfterSeconds)
+            assertTrue(decision.retryAfterSeconds in 1..2)
         }
 
     @Test
@@ -125,7 +125,66 @@ class RateLimiterTest {
             val decision = limiter.check("10.0.0.1")
 
             assertFalse(decision.allowed)
-            assertEquals(12, decision.retryAfterSeconds)
+            assertTrue(decision.retryAfterSeconds in 6..7)
+        }
+
+    @Test
+    fun `retry-after reflects elapsed refill time`() =
+        runTest {
+            var nowNanos = 0L
+            val clock = NanoClock { nowNanos }
+            val limiter = RateLimiter(clock, RateLimitConfig(permitsPerMinute = 10, burst = 1))
+
+            assertTrue(limiter.check("10.0.0.1").allowed)
+
+            nowNanos += 4.seconds.inWholeNanoseconds
+
+            val decision = limiter.check("10.0.0.1")
+
+            assertFalse(decision.allowed)
+            assertTrue(decision.retryAfterSeconds in 2..3)
+        }
+
+    @Test
+    fun `retry-after can disable jitter`() =
+        runTest {
+            val clock = NanoClock { 0L }
+            val limiter =
+                RateLimiter(
+                    clock,
+                    RateLimitConfig(
+                        permitsPerMinute = 60,
+                        burst = 1,
+                        retryAfterJitterSeconds = 0,
+                    ),
+                )
+
+            assertTrue(limiter.check("10.0.0.1").allowed)
+            val decision = limiter.check("10.0.0.1")
+
+            assertFalse(decision.allowed)
+            assertEquals(1, decision.retryAfterSeconds)
+        }
+
+    @Test
+    fun `retry-after adds jitter when configured`() =
+        runTest {
+            val clock = NanoClock { 0L }
+            val limiter =
+                RateLimiter(
+                    clock,
+                    RateLimitConfig(
+                        permitsPerMinute = 60,
+                        burst = 1,
+                        retryAfterJitterSeconds = 2,
+                    ),
+                )
+
+            assertTrue(limiter.check("10.0.0.1").allowed)
+            val decision = limiter.check("10.0.0.1")
+
+            assertFalse(decision.allowed)
+            assertTrue(decision.retryAfterSeconds in 1..3)
         }
 
     @Test
@@ -201,14 +260,14 @@ class RateLimiterTest {
             val firstRejection = limiter.check("10.0.0.1")
 
             assertFalse(firstRejection.allowed)
-            assertEquals(10, firstRejection.retryAfterSeconds)
+            assertTrue(firstRejection.retryAfterSeconds in 10..11)
 
             nowNanos += 10.seconds.inWholeNanoseconds
 
             val secondRejection = limiter.check("10.0.0.1")
 
             assertFalse(secondRejection.allowed)
-            assertEquals(10, secondRejection.retryAfterSeconds)
+            assertTrue(secondRejection.retryAfterSeconds in 10..11)
         }
 
     @Test
