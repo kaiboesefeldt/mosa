@@ -11,6 +11,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.mockk.mockk
+import straightway.mosa.defense.cpu.ConstCpuLoadSampler
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingDecider
 import java.util.concurrent.atomic.AtomicBoolean
@@ -28,7 +29,8 @@ class LoadSheddingPluginTest {
                         loadSheddingStart = 0.9,
                         loadSheddingFull = 0.9,
                     ),
-                ) { 1.0 }
+                    ConstCpuLoadSampler(1.0),
+                )
             application {
                 install(createMosaLoadSheddingPlugin(mockk())) {
                     this.decider = decider
@@ -54,7 +56,8 @@ class LoadSheddingPluginTest {
                         loadSheddingStart = 0.85,
                         loadSheddingFull = 0.85,
                     ),
-                ) { 0.2 }
+                    ConstCpuLoadSampler(0.2),
+                )
             application {
                 install(createMosaLoadSheddingPlugin(mockk())) {
                     this.decider = decider
@@ -79,7 +82,8 @@ class LoadSheddingPluginTest {
                         loadSheddingStart = 0.9,
                         loadSheddingFull = 0.9,
                     ),
-                ) { 1.0 }
+                    ConstCpuLoadSampler(1.0),
+                )
             val callPhaseReached = AtomicBoolean(false)
             application {
                 install(createMosaLoadSheddingPlugin(mockk())) {
@@ -109,7 +113,8 @@ class LoadSheddingPluginTest {
                         loadSheddingStart = 0.9,
                         loadSheddingFull = 0.9,
                     ),
-                ) { 0.2 }
+                    ConstCpuLoadSampler(0.2),
+                )
             val routeReached = AtomicBoolean(false)
             application {
                 install(createMosaLoadSheddingPlugin(mockk())) {

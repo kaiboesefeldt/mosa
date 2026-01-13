@@ -39,6 +39,9 @@ import straightway.mosa.defense.core.RequestMetricsPlugin
 import straightway.mosa.defense.core.createMosaLoadSheddingPlugin
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingDecider
+import straightway.mosa.defense.cpu.FirstOperationalCpuLoadSampler
+import straightway.mosa.defense.cpu.PerCoreCpuLoadSampler
+import straightway.mosa.defense.cpu.SystemLoadAverageCpuLoadSampler
 import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.defense.memory.MemorySheddingDecider
 import straightway.mosa.defense.ratelimit.RateLimiter
@@ -70,7 +73,14 @@ fun Application.installNetworkServerPlugins(
         decider =
             CombinedSheddingDecider(
                 listOf(
-                    CpuSheddingDecider(cpuSheddingConfig),
+                    CpuSheddingDecider(
+                        cpuSheddingConfig,
+                        PerCoreCpuLoadSampler(
+                            FirstOperationalCpuLoadSampler(
+                                SystemLoadAverageCpuLoadSampler(),
+                            ),
+                        ),
+                    ),
                     MemorySheddingDecider(memorySheddingConfig),
                     RequestDurationSheddingDecider(requestDurationForRouteStateRegistry),
                 ),

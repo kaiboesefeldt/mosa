@@ -6,6 +6,6 @@ data class CpuSheddingConfig(
 ) {
     init {
         require(0.0 <= loadSheddingStart) { "loadSheddingStart must be >= 0.0" }
-        require(loadSheddingFull >= loadSheddingStart) { "loadSheddingFull must be >= loadSheddingStart" }
+        require(loadSheddingStart <= loadSheddingFull) { "loadSheddingFull must be >= loadSheddingStart" }
     }
 }

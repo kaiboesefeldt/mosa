@@ -24,7 +24,8 @@ class CpuSheddingDeciderTest {
                         loadSheddingStart = 0.9,
                         loadSheddingFull = 0.9,
                     ),
-                ) { 0.95 }
+                    ConstCpuLoadSampler(0.95),
+                )
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
@@ -41,7 +42,8 @@ class CpuSheddingDeciderTest {
                         loadSheddingStart = 0.6,
                         loadSheddingFull = 1.0,
                     ),
-                ) { 0.8 }
+                    ConstCpuLoadSampler(0.8),
+                )
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
@@ -58,7 +60,8 @@ class CpuSheddingDeciderTest {
                         loadSheddingStart = 0.1,
                         loadSheddingFull = 0.1,
                     ),
-                ) { -0.5 }
+                    ConstCpuLoadSampler(-0.5, isOperational = false),
+                )
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
@@ -69,7 +72,7 @@ class CpuSheddingDeciderTest {
     fun `sheds under generated cpu load`() =
         runTest {
             withContext(Dispatchers.Default) {
-                val gauge = CpuLoadGauge()
+                val gauge = PerCoreCpuLoadSampler()
                 var threshold = gauge.sample() * 0.93 // Try with a low threshold
                 var loadThreads: List<Thread>? = null
 
@@ -84,7 +87,7 @@ class CpuSheddingDeciderTest {
                                         loadSheddingStart = threshold,
                                         loadSheddingFull = threshold,
                                     ),
-                                    gauge::sample,
+                                    gauge,
                                 )
 
                             Thread.sleep(5) // Calm down

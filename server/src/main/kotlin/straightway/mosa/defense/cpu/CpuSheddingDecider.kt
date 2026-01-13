@@ -2,30 +2,26 @@ package straightway.mosa.defense.cpu
 
 import straightway.mosa.defense.core.SheddingDecider
 import straightway.mosa.defense.core.SheddingRequest
-import java.lang.management.ManagementFactory
-import kotlin.math.max
 
 class CpuSheddingDecider(
     private val config: CpuSheddingConfig,
-    private val loadSampler: () -> Double = CpuLoadGauge()::sample,
+    private val loadSampler: CpuLoadSampler = PerCoreCpuLoadSampler(SystemLoadAverageCpuLoadSampler()),
 ) : SheddingDecider {
-    override suspend fun decideShedding(request: SheddingRequest) =
-        normalizedLoad().let { load ->
-            val sheddingFactor = sheddingFactorFor(load)
-            if (sheddingFactor <= 0.0) {
-                SheddingDecider.Result.NO_SHEDDING
-            } else {
-                SheddingDecider.Result(
-                    sheddingFactor = sheddingFactor,
-                    reason = sheddingReason(load),
-                )
+    override suspend fun decideShedding(request: SheddingRequest): SheddingDecider.Result =
+        with(loadSampler) {
+            if (!isOperational) return SheddingDecider.Result.NO_SHEDDING
+            sample().let { load ->
+                val sheddingFactor = sheddingFactorFor(load)
+                if (sheddingFactor <= 0.0) {
+                    SheddingDecider.Result.NO_SHEDDING
+                } else {
+                    SheddingDecider.Result(
+                        sheddingFactor = sheddingFactor,
+                        reason = sheddingReason(load),
+                    )
+                }
             }
         }
-
-    private fun normalizedLoad(): Double =
-        loadSampler()
-            .let { if (it.isFinite()) it else 0.0 }
-            .coerceAtLeast(0.0)
 
     private fun sheddingFactorFor(load: Double): Double =
         when {
@@ -42,18 +38,4 @@ class CpuSheddingDecider(
         } else {
             "CPU load per core in shedding range ${config.loadSheddingStart}-${config.loadSheddingFull} ($load)"
         }
-}
-
-class CpuLoadGauge(
-    private val systemLoadAverageProvider: () -> Double =
-        { ManagementFactory.getOperatingSystemMXBean().systemLoadAverage },
-    private val processorCount: Int = Runtime.getRuntime().availableProcessors(),
-) {
-    fun sample(): Double = normalizedCpuLoad()
-
-    private fun normalizedCpuLoad(): Double {
-        val loadAverage = systemLoadAverageProvider()
-        if (loadAverage < 0.0) return 0.0
-        return loadAverage / max(processorCount, 1)
-    }
 }
