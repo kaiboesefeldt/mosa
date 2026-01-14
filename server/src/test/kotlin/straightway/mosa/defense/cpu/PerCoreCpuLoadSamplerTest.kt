@@ -36,4 +36,12 @@ class PerCoreCpuLoadSamplerTest {
             assertEquals(2.0, sampler.sample())
         }
     }
+
+    @Test
+    fun `formats toString with sampler and processor count`() {
+        val delegate = ConstCpuLoadSampler(1.0, isOperational = true)
+        val sampler = PerCoreCpuLoadSampler(delegate, processorCount = 4)
+
+        assertEquals("PerCoreCpuLoadSampler($delegate, processorCount=4)", sampler.toString())
+    }
 }

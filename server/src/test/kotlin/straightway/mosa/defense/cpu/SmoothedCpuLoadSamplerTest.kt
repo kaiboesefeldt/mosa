@@ -74,11 +74,28 @@ class SmoothedCpuLoadSamplerTest {
         assertEquals(0.5, sampler.sample(), absoluteTolerance = 1e-9)
     }
 
+    @Test
+    fun `formats toString with sampler and smoothing time`() {
+        val delegate = ConstCpuLoadSampler(0.1, isOperational = true)
+        val halfLifeNs = 1_000_000_000L
+        val expectedSmoothingTime = SmoothedCpuLoadSampler.smoothingTimeNsForHalfLifeNs(halfLifeNs)
+        val sampler =
+            SmoothedCpuLoadSampler(
+                delegate,
+                halfLifeNs = halfLifeNs,
+                nanoClock = { 0L },
+            )
+
+        assertEquals("SmoothedCpuLoadSampler($delegate, smoothingTimeNs=$expectedSmoothingTime)", sampler.toString())
+    }
+
     private class SequenceCpuLoadSampler(
         private val samples: List<Double>,
         override val isOperational: Boolean = true,
     ) : CpuLoadSampler {
         private var index = 0
+
+        override fun toString() = "SequenceCpuLoadSampler($samples, isOperational=$isOperational)"
 
         override fun sample(): Double = samples.getOrElse(index++) { samples.last() }
     }

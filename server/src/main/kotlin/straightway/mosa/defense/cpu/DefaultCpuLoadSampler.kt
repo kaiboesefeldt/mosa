@@ -1,5 +1,6 @@
 package straightway.mosa.defense.cpu
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import straightway.mosa.NanoClock
 
 fun defaultCpuLoadSampler(
@@ -14,4 +15,6 @@ fun defaultCpuLoadSampler(
         SmoothedCpuLoadSampler(oshiSampler, smoothingHalfLifeNs, nanoClock),
         SmoothedCpuLoadSampler(processSampler, smoothingHalfLifeNs, nanoClock),
         PerCoreCpuLoadSampler(systemLoadAverageSampler, processorCount),
-    )
+    ).also { logger.info { "CPU load sampler: $it" } }
+
+private val logger = KotlinLogging.logger {}

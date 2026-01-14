@@ -21,6 +21,8 @@ class SmoothedCpuLoadSampler(
 
     override val isOperational: Boolean get() = sampler.isOperational
 
+    override fun toString() = "SmoothedCpuLoadSampler($sampler, smoothingTimeNs=$smoothingTimeNs)"
+
     override fun sample(): Double {
         if (!sampler.isOperational) return Double.NaN
         val nowNs = nanoClock.nanoTime()

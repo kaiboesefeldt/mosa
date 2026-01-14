@@ -73,4 +73,11 @@ class SystemLoadAverageCpuLoadSamplerTest {
 
         assertFalse(sampler.isOperational)
     }
+
+    @Test
+    fun `formats toString`() {
+        val sampler = SystemLoadAverageCpuLoadSampler()
+
+        assertEquals("SystemLoadAverageCpuLoadSampler", sampler.toString())
+    }
 }

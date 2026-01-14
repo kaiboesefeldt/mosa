@@ -1,6 +1,6 @@
 package straightway.mosa.defense.cpu
 
-class ConstCpuLoadSampler(
+data class ConstCpuLoadSampler(
     val fixedSample: Double,
     override val isOperational: Boolean = true,
 ) : CpuLoadSampler {

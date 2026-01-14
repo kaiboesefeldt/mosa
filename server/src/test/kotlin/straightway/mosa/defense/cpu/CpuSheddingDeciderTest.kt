@@ -72,7 +72,7 @@ class CpuSheddingDeciderTest {
     fun `sheds under generated cpu load`() =
         runTest {
             withContext(Dispatchers.Default) {
-                val gauge = PerCoreCpuLoadSampler()
+                val gauge = PerCoreCpuLoadSampler(SystemLoadAverageCpuLoadSampler())
                 var threshold = gauge.sample() * 0.93 // Try with a low threshold
                 var loadThreads: List<Thread>? = null
 

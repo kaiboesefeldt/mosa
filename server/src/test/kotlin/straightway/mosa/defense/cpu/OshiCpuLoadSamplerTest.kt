@@ -100,6 +100,15 @@ class OshiCpuLoadSamplerTest {
         }
     }
 
+    @Test
+    fun `formats toString`() {
+        withMockedProcessor(load = 0.1) {
+            val sampler = OshiCpuLoadSampler()
+
+            assertEquals("OshiCpuLoadSampler", sampler.toString())
+        }
+    }
+
     private fun withMockedProcessor(
         ticks: List<LongArray> = listOf(longArrayOf(1), longArrayOf(2)),
         load: Double,

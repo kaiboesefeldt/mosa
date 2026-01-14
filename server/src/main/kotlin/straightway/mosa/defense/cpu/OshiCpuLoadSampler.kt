@@ -9,6 +9,8 @@ class OshiCpuLoadSampler : CpuLoadSampler {
 
     override val isOperational: Boolean get() = sample().let { it.isFinite() && 0.0 <= it }
 
+    override fun toString() = "OshiCpuLoadSampler"
+
     override fun sample(): Double =
         oshiHwProcessor?.run {
             runCatching {

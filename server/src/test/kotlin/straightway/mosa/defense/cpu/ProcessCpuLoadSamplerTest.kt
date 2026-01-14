@@ -85,6 +85,13 @@ class ProcessCpuLoadSamplerTest {
         assertTrue(sampler.sample().isNaN())
     }
 
+    @Test
+    fun `formats toString`() {
+        val sampler = ProcessCpuLoadSampler()
+
+        assertEquals("ProcessCpuLoadSampler", sampler.toString())
+    }
+
     @Suppress("JavaDefaultMethodsNotOverriddenByDelegation")
     private fun createFakeOsMxBean(): OperatingSystemMXBean =
         object : OperatingSystemMXBean by originalOsMxBean {

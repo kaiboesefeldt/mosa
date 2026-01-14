@@ -30,4 +30,12 @@ class FirstOperationalCpuLoadSamplerTest {
         assertFalse(sampler.isOperational)
         assertEquals(Double.NaN, sampler.sample())
     }
+
+    @Test
+    fun `formats toString with delegate`() {
+        val delegate = ConstCpuLoadSampler(0.4, isOperational = true)
+        val sampler = FirstOperationalCpuLoadSampler(delegate, ConstCpuLoadSampler(0.2, isOperational = true))
+
+        assertEquals("FirstOperationalCpuLoadSampler($delegate)", sampler.toString())
+    }
 }
