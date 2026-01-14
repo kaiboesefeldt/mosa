@@ -73,7 +73,7 @@ fun Application.installNetworkServerPlugins(
                 listOf(
                     CpuSheddingDecider(
                         cpuSheddingConfig,
-                        defaultCpuLoadSampler(),
+                        defaultCpuLoadSampler(nanoClock = nanoClock),
                     ),
                     MemorySheddingDecider(memorySheddingConfig),
                     RequestDurationSheddingDecider(requestDurationForRouteStateRegistry),
