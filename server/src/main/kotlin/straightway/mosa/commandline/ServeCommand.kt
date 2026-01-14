@@ -34,6 +34,7 @@ import straightway.mosa.installNetworkServerPlugins
 import straightway.mosa.ipRateLimit
 import straightway.mosa.tls.DevSelfSignedCertificateFactory
 import straightway.mosa.tls.InMemoryKeyStore
+import kotlin.math.roundToLong
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
 
@@ -90,6 +91,12 @@ internal class ServeCommand(
             fullName = ServerCommandLineArguments.LOAD_SHEDDING_FULL,
             description = "Normalized CPU load where shedding is full (0.0-1.0)",
         ).default(0.95)
+    private val cpuLoadSmoothingHalfLifeSeconds by
+        option(
+            ArgType.Double,
+            fullName = ServerCommandLineArguments.CPU_LOAD_SMOOTHING_HALF_LIFE_SECONDS,
+            description = "Half-life in seconds for CPU load smoothing",
+        ).default(10.0)
     private val memorySheddingStart by
         option(
             ArgType.Double,
@@ -258,6 +265,7 @@ internal class ServeCommand(
                 ServerCommandLineArguments.DEV_CERT_HOST to devCertHost,
                 ServerCommandLineArguments.LOAD_SHEDDING_START to loadSheddingStart,
                 ServerCommandLineArguments.LOAD_SHEDDING_FULL to loadSheddingFull,
+                ServerCommandLineArguments.CPU_LOAD_SMOOTHING_HALF_LIFE_SECONDS to cpuLoadSmoothingHalfLifeSeconds,
                 ServerCommandLineArguments.MEMORY_SHEDDING_START to memorySheddingStart,
                 ServerCommandLineArguments.MEMORY_SHEDDING_FULL to memorySheddingFull,
                 ServerCommandLineArguments.LOAD_SHEDDING_RETRY_AFTER to loadSheddingRetryAfterSeconds,
@@ -299,6 +307,10 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
     val devCertHost = argumentStore.getString(ServerCommandLineArguments.DEV_CERT_HOST) ?: "localhost"
     val loadSheddingStart = argumentStore.getDouble(ServerCommandLineArguments.LOAD_SHEDDING_START) ?: 0.85
     val loadSheddingFull = argumentStore.getDouble(ServerCommandLineArguments.LOAD_SHEDDING_FULL) ?: 0.95
+    val cpuLoadSmoothingHalfLifeSeconds =
+        argumentStore.getDouble(ServerCommandLineArguments.CPU_LOAD_SMOOTHING_HALF_LIFE_SECONDS) ?: 10.0
+    val cpuLoadSmoothingHalfLifeNs =
+        (cpuLoadSmoothingHalfLifeSeconds * 1_000_000_000.0).roundToLong()
     val memorySheddingStart = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_START) ?: 0.9
     val memorySheddingFull = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_FULL) ?: 0.98
     val loadSheddingRetryAfterSeconds = argumentStore.getInt(ServerCommandLineArguments.LOAD_SHEDDING_RETRY_AFTER) ?: 30
@@ -335,6 +347,7 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
                 requireTlsForPod,
                 cpuSheddingConfig,
                 memorySheddingConfig,
+                cpuLoadSmoothingHalfLifeNs,
                 loadSheddingRetryAfterSeconds.seconds,
                 requestDurationForRouteStateRegistry = get(),
                 meterRegistry = get(),

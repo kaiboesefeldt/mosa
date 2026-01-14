@@ -2,6 +2,7 @@ package straightway.mosa.defense.cpu
 
 import straightway.mosa.NanoClock
 import kotlin.math.exp
+import kotlin.math.ln
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -14,7 +15,7 @@ class SmoothedCpuLoadSamplerTest {
         val sampler =
             SmoothedCpuLoadSampler(
                 SequenceCpuLoadSampler(listOf(0.6)),
-                smoothingTimeNs = 1_000_000_000L,
+                halfLifeNs = 1_000_000_000L,
                 nanoClock = NanoClock { times.removeFirst() },
             )
 
@@ -27,10 +28,10 @@ class SmoothedCpuLoadSamplerTest {
         val sampler =
             SmoothedCpuLoadSampler(
                 SequenceCpuLoadSampler(listOf(0.0, 1.0)),
-                smoothingTimeNs = 1_000_000_000L,
+                halfLifeNs = 1_000_000_000L,
                 nanoClock = NanoClock { times.removeFirst() },
             )
-        val expected = 1.0 - exp(-0.5)
+        val expected = 1.0 - exp(-0.5 * ln(2.0))
 
         assertEquals(0.0, sampler.sample())
         assertEquals(expected, sampler.sample(), absoluteTolerance = 1e-9)
@@ -42,7 +43,7 @@ class SmoothedCpuLoadSamplerTest {
         val sampler =
             SmoothedCpuLoadSampler(
                 SequenceCpuLoadSampler(listOf(0.4, Double.NaN)),
-                smoothingTimeNs = 1_000_000_000L,
+                halfLifeNs = 1_000_000_000L,
                 nanoClock = NanoClock { times.removeFirst() },
             )
 
@@ -56,6 +57,21 @@ class SmoothedCpuLoadSamplerTest {
 
         assertFalse(sampler.isOperational)
         assertTrue(sampler.sample().isNaN())
+    }
+
+    @Test
+    fun `uses half life when smoothing time is derived`() {
+        val halfLifeNs = 10_000_000_000L
+        val times = ArrayDeque(listOf(0L, halfLifeNs))
+        val sampler =
+            SmoothedCpuLoadSampler(
+                SequenceCpuLoadSampler(listOf(0.0, 1.0)),
+                halfLifeNs = halfLifeNs,
+                nanoClock = NanoClock { times.removeFirst() },
+            )
+
+        assertEquals(0.0, sampler.sample())
+        assertEquals(0.5, sampler.sample(), absoluteTolerance = 1e-9)
     }
 
     private class SequenceCpuLoadSampler(

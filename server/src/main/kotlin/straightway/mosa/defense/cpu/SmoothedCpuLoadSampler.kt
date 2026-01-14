@@ -4,16 +4,19 @@ import straightway.mosa.NanoClock
 import straightway.mosa.defense.requestduration.ewmaMovingAverage
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.exp
+import kotlin.math.ln
+import kotlin.math.roundToLong
 
 class SmoothedCpuLoadSampler(
     private val sampler: CpuLoadSampler,
-    private val smoothingTimeNs: Long = 250_000_000L,
+    halfLifeNs: Long = 10000_000_000L,
     private val nanoClock: NanoClock = NanoClock(System::nanoTime),
 ) : CpuLoadSampler {
     private val state = AtomicReference(State(Double.NaN, Long.MIN_VALUE))
+    private val smoothingTimeNs = smoothingTimeNsForHalfLifeNs(halfLifeNs)
 
     init {
-        require(0 < smoothingTimeNs) { "smoothingTimeNs must be positive" }
+        require(0 < halfLifeNs) { "halfLifeNs must be positive" }
     }
 
     override val isOperational: Boolean get() = sampler.isOperational
@@ -48,4 +51,8 @@ class SmoothedCpuLoadSampler(
         val value: Double,
         val lastSampleNs: Long,
     )
+
+    companion object {
+        internal fun smoothingTimeNsForHalfLifeNs(halfLifeNs: Long) = (halfLifeNs.toDouble() / ln(2.0)).roundToLong()
+    }
 }

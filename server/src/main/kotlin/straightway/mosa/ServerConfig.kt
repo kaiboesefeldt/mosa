@@ -56,6 +56,7 @@ fun Application.installNetworkServerPlugins(
     requireTlsForPod: Boolean,
     cpuSheddingConfig: CpuSheddingConfig,
     memorySheddingConfig: MemorySheddingConfig,
+    cpuLoadSmoothingHalfLifeNs: Long,
     loadSheddingRetryAfter: Duration,
     meterRegistry: MeterRegistry,
     requestDurationForRouteStateRegistry: RequestDurationForRouteStateRegistry,
@@ -73,7 +74,7 @@ fun Application.installNetworkServerPlugins(
                 listOf(
                     CpuSheddingDecider(
                         cpuSheddingConfig,
-                        defaultCpuLoadSampler(nanoClock = nanoClock),
+                        defaultCpuLoadSampler(nanoClock = nanoClock, smoothingHalfLifeNs = cpuLoadSmoothingHalfLifeNs),
                     ),
                     MemorySheddingDecider(memorySheddingConfig),
                     RequestDurationSheddingDecider(requestDurationForRouteStateRegistry),

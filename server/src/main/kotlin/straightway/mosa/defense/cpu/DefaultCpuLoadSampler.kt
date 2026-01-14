@@ -7,11 +7,11 @@ fun defaultCpuLoadSampler(
     processSampler: CpuLoadSampler = ProcessCpuLoadSampler(),
     systemLoadAverageSampler: CpuLoadSampler = SystemLoadAverageCpuLoadSampler(),
     processorCount: Int = Runtime.getRuntime().availableProcessors(),
-    smoothingTimeNs: Long = 250_000_000L,
+    smoothingHalfLifeNs: Long = 250_000_000L,
     nanoClock: NanoClock = NanoClock(System::nanoTime),
 ): CpuLoadSampler =
     FirstOperationalCpuLoadSampler(
-        SmoothedCpuLoadSampler(oshiSampler, smoothingTimeNs, nanoClock),
-        SmoothedCpuLoadSampler(processSampler, smoothingTimeNs, nanoClock),
+        SmoothedCpuLoadSampler(oshiSampler, smoothingHalfLifeNs, nanoClock),
+        SmoothedCpuLoadSampler(processSampler, smoothingHalfLifeNs, nanoClock),
         PerCoreCpuLoadSampler(systemLoadAverageSampler, processorCount),
     )
