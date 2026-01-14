@@ -40,7 +40,9 @@ import straightway.mosa.defense.core.createMosaLoadSheddingPlugin
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingDecider
 import straightway.mosa.defense.cpu.FirstOperationalCpuLoadSampler
+import straightway.mosa.defense.cpu.OshiCpuLoadSampler
 import straightway.mosa.defense.cpu.PerCoreCpuLoadSampler
+import straightway.mosa.defense.cpu.ProcessCpuLoadSampler
 import straightway.mosa.defense.cpu.SystemLoadAverageCpuLoadSampler
 import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.defense.memory.MemorySheddingDecider
@@ -77,6 +79,8 @@ fun Application.installNetworkServerPlugins(
                         cpuSheddingConfig,
                         PerCoreCpuLoadSampler(
                             FirstOperationalCpuLoadSampler(
+                                OshiCpuLoadSampler(),
+                                ProcessCpuLoadSampler(),
                                 SystemLoadAverageCpuLoadSampler(),
                             ),
                         ),
