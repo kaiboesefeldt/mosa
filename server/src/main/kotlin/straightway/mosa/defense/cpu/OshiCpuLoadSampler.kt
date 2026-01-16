@@ -7,7 +7,7 @@ class OshiCpuLoadSampler : CpuLoadSampler {
     private val oshiHwProcessor = runCatching { SystemInfo().hardware.processor }.getOrNull()
     private val previousTicks = AtomicReference(initialTicks())
 
-    override val isOperational: Boolean get() = sample().let { it.isFinite() && 0.0 <= it }
+    override val isOperational = oshiHwProcessor != null
 
     override fun toString() = "OshiCpuLoadSampler"
 
