@@ -17,6 +17,7 @@ class SmoothedCpuLoadSampler(
 
     init {
         require(0 < halfLifeNs) { "halfLifeNs must be positive" }
+        repeat(10) { sample() }
     }
 
     override val isOperational: Boolean get() = sampler.isOperational
