@@ -1,6 +1,7 @@
 package straightway.mosa.defense.cpu
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -69,18 +70,37 @@ class CpuSheddingDeciderTest {
         }
 
     @Test
-    fun `sheds under generated cpu load`() =
+    fun `sheds under generated cpu load with SystemLoadAverageCpuLoadSampler`() {
+        `sheds under generated cpu load`(PerCoreCpuLoadSampler(SystemLoadAverageCpuLoadSampler()))
+    }
+
+    @Test
+    fun `sheds under generated cpu load with OshiCpuLoadSampler`() {
+        `sheds under generated cpu load`(SmoothedCpuLoadSampler(OshiCpuLoadSampler()))
+    }
+
+    @Test
+    fun `sheds under generated cpu load with ProcessCpuLoadSampler`() {
+        `sheds under generated cpu load`(SmoothedCpuLoadSampler(ProcessCpuLoadSampler()))
+    }
+
+    fun `sheds under generated cpu load`(gauge: CpuLoadSampler) =
         runTest {
+            if (!gauge.isOperational) throw AssertionError("$gauge is not operational")
             withContext(Dispatchers.Default) {
-                val gauge = PerCoreCpuLoadSampler(SystemLoadAverageCpuLoadSampler())
-                var threshold = gauge.sample() * 0.93 // Try with a low threshold
+                var threshold = 0.0
+                while (threshold <= 0.0) {
+                    delay(5)
+                    threshold = gauge.sample() * 0.93 // Try with a low threshold
+                }
+
                 var loadThreads: List<Thread>? = null
 
                 val isLoadActive = AtomicBoolean(true)
                 try {
                     withTimeout(1.minutes) {
                         while (true) {
-                            threshold *= 1.001
+                            threshold *= 1.1
                             val decider =
                                 CpuSheddingDecider(
                                     CpuSheddingConfig(
@@ -90,10 +110,13 @@ class CpuSheddingDeciderTest {
                                     gauge,
                                 )
 
-                            Thread.sleep(5) // Calm down
+                            delay(5) // Calm down
                             if (decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor == 1.0) {
                                 continue
                             }
+
+                            println()
+                            println("Threshold for $gauge: $threshold")
 
                             val workerCount = max(Runtime.getRuntime().availableProcessors() * 20, 20)
                             loadThreads =
