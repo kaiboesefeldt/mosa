@@ -82,13 +82,13 @@ internal class ServeCommand(
     private val loadSheddingStart by
         option(
             ArgType.Double,
-            fullName = ServerCommandLineArguments.LOAD_SHEDDING_START,
+            fullName = ServerCommandLineArguments.CPU_LOAD_SHEDDING_START,
             description = "Normalized CPU load where shedding starts (0.0-1.0)",
         ).default(0.85)
     private val loadSheddingFull by
         option(
             ArgType.Double,
-            fullName = ServerCommandLineArguments.LOAD_SHEDDING_FULL,
+            fullName = ServerCommandLineArguments.CPU_LOAD_SHEDDING_FULL,
             description = "Normalized CPU load where shedding is full (0.0-1.0)",
         ).default(0.95)
     private val cpuLoadSmoothingHalfLifeSeconds by
@@ -112,7 +112,7 @@ internal class ServeCommand(
     private val loadSheddingRetryAfterSeconds by
         option(
             ArgType.Int,
-            fullName = ServerCommandLineArguments.LOAD_SHEDDING_RETRY_AFTER,
+            fullName = ServerCommandLineArguments.CPU_LOAD_SHEDDING_RETRY_AFTER,
             description = "Seconds to publish in the Retry-After header when shedding",
         ).default(30)
     private val requestDurationMinSamples by
@@ -263,12 +263,12 @@ internal class ServeCommand(
                 ServerCommandLineArguments.DEV_SELF_SIGNED_TLS to devSelfSignedTls,
                 ServerCommandLineArguments.HTTPS_PORT to httpsPort,
                 ServerCommandLineArguments.DEV_CERT_HOST to devCertHost,
-                ServerCommandLineArguments.LOAD_SHEDDING_START to loadSheddingStart,
-                ServerCommandLineArguments.LOAD_SHEDDING_FULL to loadSheddingFull,
+                ServerCommandLineArguments.CPU_LOAD_SHEDDING_START to loadSheddingStart,
+                ServerCommandLineArguments.CPU_LOAD_SHEDDING_FULL to loadSheddingFull,
                 ServerCommandLineArguments.CPU_LOAD_SMOOTHING_HALF_LIFE_SECONDS to cpuLoadSmoothingHalfLifeSeconds,
                 ServerCommandLineArguments.MEMORY_SHEDDING_START to memorySheddingStart,
                 ServerCommandLineArguments.MEMORY_SHEDDING_FULL to memorySheddingFull,
-                ServerCommandLineArguments.LOAD_SHEDDING_RETRY_AFTER to loadSheddingRetryAfterSeconds,
+                ServerCommandLineArguments.CPU_LOAD_SHEDDING_RETRY_AFTER to loadSheddingRetryAfterSeconds,
                 ServerCommandLineArguments.REQUEST_DURATION_MIN_SAMPLES to requestDurationMinSamples,
                 ServerCommandLineArguments.REQUEST_DURATION_MIN_BASELINE_MS to requestDurationMinBaselineMs,
                 ServerCommandLineArguments.REQUEST_DURATION_RATIO_SLACK to requestDurationRatioSlack,
@@ -305,15 +305,15 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
     val enableSelfSignedTls = argumentStore.getBoolean(ServerCommandLineArguments.DEV_SELF_SIGNED_TLS) ?: false
     val httpsPort = argumentStore.getInt(ServerCommandLineArguments.HTTPS_PORT) ?: 8443
     val devCertHost = argumentStore.getString(ServerCommandLineArguments.DEV_CERT_HOST) ?: "localhost"
-    val loadSheddingStart = argumentStore.getDouble(ServerCommandLineArguments.LOAD_SHEDDING_START) ?: 0.85
-    val loadSheddingFull = argumentStore.getDouble(ServerCommandLineArguments.LOAD_SHEDDING_FULL) ?: 0.95
+    val loadSheddingStart = argumentStore.getDouble(ServerCommandLineArguments.CPU_LOAD_SHEDDING_START) ?: 0.85
+    val loadSheddingFull = argumentStore.getDouble(ServerCommandLineArguments.CPU_LOAD_SHEDDING_FULL) ?: 0.95
     val cpuLoadSmoothingHalfLifeSeconds =
         argumentStore.getDouble(ServerCommandLineArguments.CPU_LOAD_SMOOTHING_HALF_LIFE_SECONDS) ?: 10.0
     val cpuLoadSmoothingHalfLifeNs =
         (cpuLoadSmoothingHalfLifeSeconds * 1_000_000_000.0).roundToLong()
     val memorySheddingStart = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_START) ?: 0.9
     val memorySheddingFull = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_FULL) ?: 0.98
-    val loadSheddingRetryAfterSeconds = argumentStore.getInt(ServerCommandLineArguments.LOAD_SHEDDING_RETRY_AFTER) ?: 30
+    val loadSheddingRetryAfterSeconds = argumentStore.getInt(ServerCommandLineArguments.CPU_LOAD_SHEDDING_RETRY_AFTER) ?: 30
     val maxFetchItems = argumentStore.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS) ?: 100
     val maxRequestBodyBytes =
         argumentStore.getInt(ServerCommandLineArguments.MAX_REQUEST_BODY_BYTES)?.toLong()

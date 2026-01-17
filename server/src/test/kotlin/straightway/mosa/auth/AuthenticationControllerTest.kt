@@ -8,7 +8,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
-import io.ktor.server.auth.Principal
 import io.ktor.server.auth.bearer
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
@@ -199,7 +198,7 @@ class AuthenticationControllerTest {
             application {
                 install(Authentication) {
                     bearer {
-                        authenticate { object : Principal {} }
+                        authenticate { object {} }
                     }
                 }
                 install(ServerContentNegotiation) {

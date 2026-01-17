@@ -70,28 +70,15 @@ class CpuSheddingDeciderTest {
         }
 
     @Test
-    fun `sheds under generated cpu load with SystemLoadAverageCpuLoadSampler`() {
-        `sheds under generated cpu load`(PerCoreCpuLoadSampler(SystemLoadAverageCpuLoadSampler()))
-    }
-
-    @Test
-    fun `sheds under generated cpu load with OshiCpuLoadSampler`() {
-        `sheds under generated cpu load`(SmoothedCpuLoadSampler(OshiCpuLoadSampler()))
-    }
-
-    @Test
     fun `sheds under generated cpu load with ProcessCpuLoadSampler`() {
-        `sheds under generated cpu load`(SmoothedCpuLoadSampler(ProcessCpuLoadSampler()))
-    }
-
-    fun `sheds under generated cpu load`(gauge: CpuLoadSampler) =
         runTest {
-            if (!gauge.isOperational) throw AssertionError("$gauge is not operational")
+            val sampler = SmoothedCpuLoadSampler(ProcessCpuLoadSampler())
+            if (!sampler.isOperational) throw AssertionError("$sampler is not operational")
             withContext(Dispatchers.Default) {
                 var threshold = 0.0
                 while (threshold <= 0.0) {
                     delay(5)
-                    threshold = gauge.sample() * 0.93 // Try with a low threshold
+                    threshold = sampler.sample() * 0.93 // Try with a low threshold
                 }
 
                 var loadThreads: List<Thread>? = null
@@ -107,18 +94,23 @@ class CpuSheddingDeciderTest {
                                         loadSheddingStart = threshold,
                                         loadSheddingFull = threshold,
                                     ),
-                                    gauge,
+                                    sampler,
                                 )
 
                             delay(5) // Calm down
-                            if (decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor == 1.0) {
+                            if (decider
+                                    .decideShedding(
+                                        SheddingRequest(
+                                            "GET",
+                                            "/test",
+                                        ),
+                                    ).sheddingFactor == 1.0
+                            ) {
                                 continue
                             }
 
-                            println()
-                            println("Threshold for $gauge: $threshold")
-
-                            val workerCount = max(Runtime.getRuntime().availableProcessors() * 20, 20)
+                            val workerCount =
+                                max(Runtime.getRuntime().availableProcessors() * 20, 20)
                             loadThreads =
                                 (0 until workerCount).map { worker ->
                                     thread(start = true, isDaemon = true) {
@@ -126,11 +118,18 @@ class CpuSheddingDeciderTest {
                                         while (isLoadActive.get()) {
                                             value = value xor 1_234_567L
                                         }
-                                    }.apply { name = "cpu-load-$worker" }
+                                    }.apply { this.name = "cpu-load-$worker" }
                                 }
 
                             var value = 1234L
-                            while (decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor == 0.0) {
+                            while (decider
+                                    .decideShedding(
+                                        SheddingRequest(
+                                            "GET",
+                                            "/test",
+                                        ),
+                                    ).sheddingFactor == 0.0
+                            ) {
                                 value = value xor 1_234_567L
                             }
                             isLoadActive.set(false)
@@ -145,4 +144,5 @@ class CpuSheddingDeciderTest {
                 assertNotNull(loadThreads)
             }
         }
+    }
 }

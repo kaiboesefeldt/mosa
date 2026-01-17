@@ -30,7 +30,6 @@ dependencies {
     val kotlinxCliVersion = "0.3.6"
     val kotlinxCoroutinesVersion = "1.10.2"
     val micrometerVersion = "1.16.1"
-    val oshiVersion = "6.9.2"
     val jnaVersion = "5.18.1"
 
     implementation(project(":shared"))
@@ -86,7 +85,6 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:${logbackVersion}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:$kotlinxCoroutinesVersion")
     implementation("io.micrometer:micrometer-core:$micrometerVersion")
-    implementation("com.github.oshi:oshi-core:$oshiVersion")
     implementation("net.java.dev.jna:jna:$jnaVersion")
     implementation("net.java.dev.jna:jna-platform:$jnaVersion")
 

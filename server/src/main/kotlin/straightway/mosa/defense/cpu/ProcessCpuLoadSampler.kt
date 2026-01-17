@@ -4,7 +4,9 @@ import java.lang.management.ManagementFactory
 
 class ProcessCpuLoadSampler : CpuLoadSampler {
     private val processBean = ManagementFactory.getOperatingSystemMXBean() as? com.sun.management.OperatingSystemMXBean
-    override val isOperational = processBean != null
+
+    override val isAvailable: Boolean = processBean != null
+    override val isOperational get() = sample().let { it.isFinite() && 0 <= it }
 
     override fun toString() = "ProcessCpuLoadSampler"
 

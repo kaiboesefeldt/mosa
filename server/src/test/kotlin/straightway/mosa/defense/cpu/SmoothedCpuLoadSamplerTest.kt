@@ -1,6 +1,5 @@
 package straightway.mosa.defense.cpu
 
-import straightway.mosa.NanoClock
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.test.Test
@@ -16,7 +15,8 @@ class SmoothedCpuLoadSamplerTest {
             SmoothedCpuLoadSampler(
                 SequenceCpuLoadSampler(listOf(0.6)),
                 halfLifeNs = 1_000_000_000L,
-                nanoClock = NanoClock { times.removeFirst() },
+                nanoClock = { times.removeFirst() },
+                warmUpSamples = 0,
             )
 
         assertEquals(0.6, sampler.sample())
@@ -29,7 +29,8 @@ class SmoothedCpuLoadSamplerTest {
             SmoothedCpuLoadSampler(
                 SequenceCpuLoadSampler(listOf(0.0, 1.0)),
                 halfLifeNs = 1_000_000_000L,
-                nanoClock = NanoClock { times.removeFirst() },
+                nanoClock = { times.removeFirst() },
+                warmUpSamples = 0,
             )
         val expected = 1.0 - exp(-0.5 * ln(2.0))
 
@@ -44,11 +45,20 @@ class SmoothedCpuLoadSamplerTest {
             SmoothedCpuLoadSampler(
                 SequenceCpuLoadSampler(listOf(0.4, Double.NaN)),
                 halfLifeNs = 1_000_000_000L,
-                nanoClock = NanoClock { times.removeFirst() },
+                nanoClock = { times.removeFirst() },
+                warmUpSamples = 0,
             )
 
         assertEquals(0.4, sampler.sample())
         assertEquals(0.4, sampler.sample())
+    }
+
+    @Test
+    fun `is operational when wrapped sampler is operational`() {
+        val sampler = SmoothedCpuLoadSampler(ConstCpuLoadSampler(0.2, isOperational = true))
+
+        assertTrue(sampler.isOperational)
+        assertFalse(sampler.sample().isNaN())
     }
 
     @Test
@@ -60,6 +70,20 @@ class SmoothedCpuLoadSamplerTest {
     }
 
     @Test
+    fun `is available when wrapped sampler is available`() {
+        val sampler = SmoothedCpuLoadSampler(ConstCpuLoadSampler(0.2, isAvailable = true))
+
+        assertTrue(sampler.isAvailable)
+    }
+
+    @Test
+    fun `is not available when wrapped sampler is not available`() {
+        val sampler = SmoothedCpuLoadSampler(ConstCpuLoadSampler(0.2, isAvailable = false))
+
+        assertFalse(sampler.isAvailable)
+    }
+
+    @Test
     fun `uses half life when smoothing time is derived`() {
         val halfLifeNs = 10_000_000_000L
         val times = ArrayDeque(listOf(0L, halfLifeNs))
@@ -67,10 +91,27 @@ class SmoothedCpuLoadSamplerTest {
             SmoothedCpuLoadSampler(
                 SequenceCpuLoadSampler(listOf(0.0, 1.0)),
                 halfLifeNs = halfLifeNs,
-                nanoClock = NanoClock { times.removeFirst() },
+                nanoClock = { times.removeFirst() },
+                warmUpSamples = 0,
             )
 
         assertEquals(0.0, sampler.sample())
+        assertEquals(0.5, sampler.sample(), absoluteTolerance = 1e-9)
+    }
+
+    @Test
+    fun `uses warm up samples during construction`() {
+        val halfLifeNs = 10_000_000_000L
+        val times = ArrayDeque(listOf(0L, halfLifeNs))
+        val sampler =
+            SmoothedCpuLoadSampler(
+                SequenceCpuLoadSampler(listOf(0.0, 1.0)),
+                halfLifeNs = halfLifeNs,
+                nanoClock = { times.removeFirst() },
+                warmUpSamples = 1,
+            )
+
+        assertEquals(1, times.size)
         assertEquals(0.5, sampler.sample(), absoluteTolerance = 1e-9)
     }
 
@@ -91,6 +132,7 @@ class SmoothedCpuLoadSamplerTest {
 
     private class SequenceCpuLoadSampler(
         private val samples: List<Double>,
+        override val isAvailable: Boolean = true,
         override val isOperational: Boolean = true,
     ) : CpuLoadSampler {
         private var index = 0

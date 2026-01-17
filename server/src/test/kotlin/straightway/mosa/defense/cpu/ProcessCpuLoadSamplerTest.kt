@@ -41,10 +41,11 @@ class ProcessCpuLoadSamplerTest {
     }
 
     @Test
-    fun `is operational when process cpu load is finite and non-negative`() {
+    fun `is operational and available when process cpu load is finite and non-negative`() {
         val sampler = ProcessCpuLoadSampler()
         sample = 0.0
 
+        assertTrue(sampler.isAvailable)
         assertTrue(sampler.isOperational)
     }
 
@@ -66,11 +67,12 @@ class ProcessCpuLoadSamplerTest {
     }
 
     @Test
-    fun `is not operational if OperatingSystemMxBean is null`() {
+    fun `is not operational and not available if OperatingSystemMxBean is null`() {
         every { ManagementFactory.getOperatingSystemMXBean() } returns null
         sample = 0.5
         val sampler = ProcessCpuLoadSampler()
 
+        assertFalse(sampler.isAvailable)
         assertFalse(sampler.isOperational)
         assertTrue(sampler.sample().isNaN())
     }

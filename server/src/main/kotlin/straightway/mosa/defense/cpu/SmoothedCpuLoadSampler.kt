@@ -11,15 +11,17 @@ class SmoothedCpuLoadSampler(
     private val sampler: CpuLoadSampler,
     halfLifeNs: Long = 10000_000_000L,
     private val nanoClock: NanoClock = NanoClock(System::nanoTime),
+    warmUpSamples: Int = 10,
 ) : CpuLoadSampler {
     private val state = AtomicReference(State(Double.NaN, Long.MIN_VALUE))
     private val smoothingTimeNs = smoothingTimeNsForHalfLifeNs(halfLifeNs)
 
     init {
         require(0 < halfLifeNs) { "halfLifeNs must be positive" }
-        repeat(10) { sample() }
+        repeat(warmUpSamples) { sample() }
     }
 
+    override val isAvailable: Boolean get() = sampler.isAvailable
     override val isOperational: Boolean get() = sampler.isOperational
 
     override fun toString() = "SmoothedCpuLoadSampler($sampler, smoothingTimeNs=$smoothingTimeNs)"
