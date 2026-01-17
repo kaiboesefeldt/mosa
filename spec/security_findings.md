@@ -6,21 +6,7 @@ Evaluation of the server-side cyber defense mechanisms and their integration in 
 
 ## Findings
 
-### 1) CPU load shedding is not container-robust
-
-**Description**  
-CPU shedding is based on `systemLoadAverage`. In containers or certain JVMs, this value can return `-1`, causing the system to incorrectly assume a load of 0.
-
-**Affected location**  
-`server/src/main/kotlin/straightway/mosa/defense/cpu/CpuSheddingDecider.kt:54`
-
-**Risk**  
-In environments without a valid load average, CPU shedding is completely absent; overload is not detected.
-
-**Mitigation idea**  
-Fall back to container-compatible metrics (e.g., CGroup CPU usage or `OperatingSystemMXBean` process CPU usage, if available) and allow explicit configuration for the preferred measurement method.
-
-### 2) Memory shedding ignores off-heap and MMap usage
+### 1) Memory shedding ignores off-heap and MMap usage
 
 **Description**  
 The memory decision is based solely on heap usage. Off-heap memory (Lucene `MMapDirectory`, ONNX Runtime, Direct Buffers) is not taken into account.
@@ -33,6 +19,8 @@ OOM risks can occur despite low heap utilization; shedding reacts too late or no
 
 **Mitigation idea**  
 Include non-heap/total memory metrics (e.g., `MemoryMXBean.nonHeapMemoryUsage`, `BufferPoolMXBean`, OS-level RSS) or enforce a configurable process-memory guard that triggers shedding before OOM.
+**Status**  
+Implemented: memory shedding now includes non-heap usage plus JVM buffer pool usage.
 
 
 ## Summary

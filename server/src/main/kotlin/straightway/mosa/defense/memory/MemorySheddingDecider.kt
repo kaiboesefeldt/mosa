@@ -2,6 +2,7 @@ package straightway.mosa.defense.memory
 
 import straightway.mosa.defense.core.SheddingDecider
 import straightway.mosa.defense.core.SheddingRequest
+import java.lang.management.BufferPoolMXBean
 import java.lang.management.ManagementFactory
 import java.lang.management.MemoryMXBean
 import java.util.Locale
@@ -9,7 +10,7 @@ import kotlin.math.max
 
 class MemorySheddingDecider(
     private val config: MemorySheddingConfig,
-    private val memorySampler: () -> Double = HeapUsageGauge()::sample,
+    private val memorySampler: () -> Double = ProcessMemoryUsageGauge()::sample,
 ) : SheddingDecider {
     override suspend fun decideShedding(request: SheddingRequest) =
         normalizedUsage().let { usage ->
@@ -42,28 +43,59 @@ class MemorySheddingDecider(
 
     private fun sheddingReason(usage: Double): String =
         if (config.memorySheddingFull <= usage) {
-            "Heap usage above ${config.memorySheddingFull} (${formatPct(usage)})"
+            "Memory usage above ${config.memorySheddingFull} (${formatPct(usage)})"
         } else {
-            "Heap usage in shedding range ${config.memorySheddingStart}-${config.memorySheddingFull} (${formatPct(usage)})"
+            "Memory usage in shedding range ${config.memorySheddingStart}-${config.memorySheddingFull} (${formatPct(usage)})"
         }
 }
 
-class HeapUsageGauge(
+class ProcessMemoryUsageGauge(
     private val memoryBean: MemoryMXBean = ManagementFactory.getMemoryMXBean(),
+    private val bufferPools: List<BufferPoolMXBean> =
+        ManagementFactory.getPlatformMXBeans(BufferPoolMXBean::class.java),
 ) {
-    fun sample(): Double = heapUsageRatio()
+    fun sample(): Double = totalUsageRatio()
 
-    private fun heapUsageRatio(): Double {
-        val heap = memoryBean.heapMemoryUsage
-        val used = heap.used.toDouble().coerceAtLeast(0.0)
+    private fun totalUsageRatio(): Double {
+        val heapUsage = usageSlice(memoryBean.heapMemoryUsage)
+        val nonHeapUsage = usageSlice(memoryBean.nonHeapMemoryUsage)
+        val bufferUsage =
+            bufferPools
+                .mapNotNull { bufferSlice(it) }
 
-        val maxOrCommitted =
+        val totalUsed = listOfNotNull(heapUsage, nonHeapUsage).sumOf { it.used } + bufferUsage.sumOf { it.used }
+        val totalLimit = listOfNotNull(heapUsage, nonHeapUsage).sumOf { it.limit } + bufferUsage.sumOf { it.limit }
+
+        if (totalLimit <= 0.0) return 0.0
+        return (totalUsed / max(totalLimit, 1.0)).coerceIn(0.0, 10.0)
+    }
+
+    private fun usageSlice(usage: java.lang.management.MemoryUsage): UsageSlice? {
+        val limit =
             when {
-                heap.max > 0L -> heap.max.toDouble()
-                heap.committed > 0L -> heap.committed.toDouble()
-                else -> return 0.0
+                usage.max > 0L -> usage.max.toDouble()
+                usage.committed > 0L -> usage.committed.toDouble()
+                else -> 0.0
             }
+        if (limit <= 0.0) return null
+        val used = usage.used.toDouble().coerceAtLeast(0.0)
+        return UsageSlice(used, limit)
+    }
 
-        return (used / max(maxOrCommitted, 1.0)).coerceIn(0.0, 10.0)
+    private fun bufferSlice(bufferPool: BufferPoolMXBean): UsageSlice? {
+        val used = bufferPool.memoryUsed.toDouble().coerceAtLeast(0.0)
+        val limit =
+            when {
+                bufferPool.totalCapacity > 0L -> bufferPool.totalCapacity.toDouble()
+                used > 0.0 -> used
+                else -> 0.0
+            }
+        if (limit <= 0.0) return null
+        return UsageSlice(used, limit)
     }
 }
+
+private data class UsageSlice(
+    val used: Double,
+    val limit: Double,
+)

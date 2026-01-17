@@ -31,7 +31,7 @@ class MemorySheddingDeciderTest {
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
             assertEquals(1.0, deciderResult.sheddingFactor)
-            assertEquals("Heap usage above 0.9 (95.0%)", deciderResult.reason)
+            assertEquals("Memory usage above 0.9 (95.0%)", deciderResult.reason)
         }
 
     @Test
@@ -48,7 +48,7 @@ class MemorySheddingDeciderTest {
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
             assertEquals(0.5, deciderResult.sheddingFactor, 1e-6)
-            assertEquals("Heap usage in shedding range 0.7-0.9 (80.0%)", deciderResult.reason)
+            assertEquals("Memory usage in shedding range 0.7-0.9 (80.0%)", deciderResult.reason)
         }
 
     @Test
@@ -103,7 +103,7 @@ class MemorySheddingDeciderTest {
     fun `sheds under allocated heap usage`() =
         runTest {
             withContext(Dispatchers.Default) {
-                val gauge = HeapUsageGauge()
+                val gauge = ProcessMemoryUsageGauge()
                 val baseline = gauge.sample()
                 val threshold = baseline * 1.2
                 assertTrue(
@@ -146,9 +146,10 @@ class MemorySheddingDeciderTest {
         val memoryBean =
             mockk<MemoryMXBean> {
                 every { heapMemoryUsage } returns MemoryUsage(0L, 50L, 200L, -1L)
+                every { nonHeapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
             }
 
-        val gauge = HeapUsageGauge(memoryBean)
+        val gauge = ProcessMemoryUsageGauge(memoryBean, emptyList())
 
         assertEquals(0.25, gauge.sample(), 1e-6)
     }
@@ -158,11 +159,30 @@ class MemorySheddingDeciderTest {
         val memoryBean =
             mockk<MemoryMXBean> {
                 every { heapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
+                every { nonHeapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
             }
 
-        val gauge = HeapUsageGauge(memoryBean)
+        val gauge = ProcessMemoryUsageGauge(memoryBean, emptyList())
 
         assertEquals(0.0, gauge.sample(), 1e-6)
+    }
+
+    @Test
+    fun `includes buffer pool usage in total`() {
+        val memoryBean =
+            mockk<MemoryMXBean> {
+                every { heapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
+                every { nonHeapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
+            }
+        val bufferPool =
+            mockk<java.lang.management.BufferPoolMXBean> {
+                every { memoryUsed } returns 50L
+                every { totalCapacity } returns 100L
+            }
+
+        val gauge = ProcessMemoryUsageGauge(memoryBean, listOf(bufferPool))
+
+        assertEquals(0.5, gauge.sample(), 1e-6)
     }
 
     private val allocationChunkSizeBytes by lazy {
