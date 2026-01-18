@@ -72,7 +72,8 @@
   2. Notice, that coverage for KotlinJs code is currently not measured. 
 - Names of code identifiers or tests, code comments and commit messages MUST be in english
 - Prefer using < and <= oder > and >=
-- 
+- Use SOLID principles
+- Declare one top-level class per file.
 
 ## Testing Guidelines
 - Prefer fast, deterministic unit tests; use MockK for collaborators; Ktor test host for endpoint tests.
