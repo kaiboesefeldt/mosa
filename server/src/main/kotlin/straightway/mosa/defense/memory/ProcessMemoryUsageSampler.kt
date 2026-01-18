@@ -7,24 +7,16 @@ import kotlin.math.max
 
 class ProcessMemoryUsageSampler(
     memoryBean: MemoryMXBean? = ManagementFactory.getMemoryMXBean(),
+    private val sampleFn: MemoryMXBean.() -> MemoryUsage,
 ) : MemoryUsageSampler {
     private val memoryBean by lazy { memoryBean!! }
-    override val isAvailable: Boolean =
-        memoryBean?.run {
-            heapMemoryUsage != null && nonHeapMemoryUsage != null
-        } ?: false
+    override val isAvailable = memoryBean?.sampleFn() != null
 
     override fun sample(): Double = totalUsageRatio()
 
     private fun totalUsageRatio(): Double {
-        val heapUsage = usageSlice(memoryBean.heapMemoryUsage)
-        val nonHeapUsage = usageSlice(memoryBean.nonHeapMemoryUsage)
-
-        val totalUsed = listOfNotNull(heapUsage, nonHeapUsage).sumOf { it.used }
-        val totalLimit = listOfNotNull(heapUsage, nonHeapUsage).sumOf { it.limit }
-
-        if (totalLimit <= 0.0) return 0.0
-        return (totalUsed / max(totalLimit, 1.0)).coerceIn(0.0, 10.0)
+        val usage = usageSlice(memoryBean.sampleFn()) ?: return Double.NaN
+        return (usage.used / max(usage.limit, 1.0)).coerceIn(0.0, 10.0)
     }
 
     private fun usageSlice(usage: MemoryUsage): MemoryUsageSlice? {

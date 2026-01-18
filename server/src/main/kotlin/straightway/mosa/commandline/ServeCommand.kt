@@ -97,18 +97,30 @@ internal class ServeCommand(
             fullName = ServerCommandLineArguments.CPU_LOAD_SMOOTHING_HALF_LIFE_SECONDS,
             description = "Half-life in seconds for CPU load smoothing",
         ).default(10.0)
-    private val memorySheddingStart by
+    private val memorySheddingHeapStart by
         option(
             ArgType.Double,
-            fullName = ServerCommandLineArguments.MEMORY_SHEDDING_START,
+            fullName = ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_START,
             description = "Heap usage where shedding starts (0.0-1.0)",
         ).default(0.9)
-    private val memorySheddingFull by
+    private val memorySheddingHeapFull by
         option(
             ArgType.Double,
-            fullName = ServerCommandLineArguments.MEMORY_SHEDDING_FULL,
+            fullName = ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_FULL,
             description = "Heap usage where shedding is full (0.0-1.0)",
         ).default(0.98)
+    private val memorySheddingNonHeapStart by
+        option(
+            ArgType.Double,
+            fullName = ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_START,
+            description = "Non-heap usage where shedding starts (0.0-1.0)",
+        ).default(0.98)
+    private val memorySheddingNonHeapFull by
+        option(
+            ArgType.Double,
+            fullName = ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_FULL,
+            description = "Non-heap usage where shedding is full (0.0-1.0)",
+        ).default(0.999)
     private val loadSheddingRetryAfterSeconds by
         option(
             ArgType.Int,
@@ -266,8 +278,10 @@ internal class ServeCommand(
                 ServerCommandLineArguments.CPU_LOAD_SHEDDING_START to loadSheddingStart,
                 ServerCommandLineArguments.CPU_LOAD_SHEDDING_FULL to loadSheddingFull,
                 ServerCommandLineArguments.CPU_LOAD_SMOOTHING_HALF_LIFE_SECONDS to cpuLoadSmoothingHalfLifeSeconds,
-                ServerCommandLineArguments.MEMORY_SHEDDING_START to memorySheddingStart,
-                ServerCommandLineArguments.MEMORY_SHEDDING_FULL to memorySheddingFull,
+                ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_START to memorySheddingHeapStart,
+                ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_FULL to memorySheddingHeapFull,
+                ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_START to memorySheddingNonHeapStart,
+                ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_FULL to memorySheddingNonHeapFull,
                 ServerCommandLineArguments.CPU_LOAD_SHEDDING_RETRY_AFTER to loadSheddingRetryAfterSeconds,
                 ServerCommandLineArguments.REQUEST_DURATION_MIN_SAMPLES to requestDurationMinSamples,
                 ServerCommandLineArguments.REQUEST_DURATION_MIN_BASELINE_MS to requestDurationMinBaselineMs,
@@ -311,8 +325,10 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
         argumentStore.getDouble(ServerCommandLineArguments.CPU_LOAD_SMOOTHING_HALF_LIFE_SECONDS) ?: 10.0
     val cpuLoadSmoothingHalfLifeNs =
         (cpuLoadSmoothingHalfLifeSeconds * 1_000_000_000.0).roundToLong()
-    val memorySheddingStart = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_START) ?: 0.9
-    val memorySheddingFull = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_FULL) ?: 0.98
+    val heapMemorySheddingStart = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_START) ?: 0.9
+    val heapMemorySheddingFull = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_FULL) ?: 0.98
+    val nonHeapMemorySheddingStart = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_START) ?: 0.98
+    val nonHeapMemorySheddingFull = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_FULL) ?: 0.999
     val loadSheddingRetryAfterSeconds = argumentStore.getInt(ServerCommandLineArguments.CPU_LOAD_SHEDDING_RETRY_AFTER) ?: 30
     val maxFetchItems = argumentStore.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS) ?: 100
     val maxRequestBodyBytes =
@@ -329,10 +345,15 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
             loadSheddingStart = loadSheddingStart,
             loadSheddingFull = loadSheddingFull,
         )
-    val memorySheddingConfig =
+    val heapMemorySheddingConfig =
         MemorySheddingConfig(
-            memorySheddingStart = memorySheddingStart,
-            memorySheddingFull = memorySheddingFull,
+            memorySheddingStart = heapMemorySheddingStart,
+            memorySheddingFull = heapMemorySheddingFull,
+        )
+    val nonHeapMemorySheddingConfig =
+        MemorySheddingConfig(
+            memorySheddingStart = nonHeapMemorySheddingStart,
+            memorySheddingFull = nonHeapMemorySheddingFull,
         )
     val requestBodyLimitConfig =
         RequestBodyLimitConfig(
@@ -346,7 +367,8 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
             installNetworkServerPlugins(
                 requireTlsForPod,
                 cpuSheddingConfig,
-                memorySheddingConfig,
+                heapMemorySheddingConfig,
+                nonHeapMemorySheddingConfig,
                 cpuLoadSmoothingHalfLifeNs,
                 loadSheddingRetryAfterSeconds.seconds,
                 requestDurationForRouteStateRegistry = get(),

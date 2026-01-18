@@ -57,7 +57,8 @@ import kotlin.time.Duration
 fun Application.installNetworkServerPlugins(
     requireTlsForPod: Boolean,
     cpuSheddingConfig: CpuSheddingConfig,
-    memorySheddingConfig: MemorySheddingConfig,
+    heapMemorySheddingConfig: MemorySheddingConfig,
+    nonHeapMemorySheddingConfig: MemorySheddingConfig,
     cpuLoadSmoothingHalfLifeNs: Long,
     loadSheddingRetryAfter: Duration,
     meterRegistry: MeterRegistry,
@@ -74,19 +75,9 @@ fun Application.installNetworkServerPlugins(
         decider =
             CombinedSheddingDecider(
                 listOf(
-                    CpuSheddingDecider(
-                        cpuSheddingConfig,
-                        SmoothedCpuLoadSampler(
-                            ProcessCpuLoadSampler().also {
-                                if (!it.isAvailable) {
-                                    log.warn { "No CPU load shedding: ProcessCpuLoadSampler not available" }
-                                }
-                            },
-                            cpuLoadSmoothingHalfLifeNs,
-                            nanoClock,
-                        ),
-                    ),
-                    MemorySheddingDecider(memorySheddingConfig, ProcessMemoryUsageSampler()),
+                    cpuSheddingDecider(cpuSheddingConfig, cpuLoadSmoothingHalfLifeNs, nanoClock),
+                    heapMemorySheddingDecider(heapMemorySheddingConfig),
+                    nonHeapMemorySheddingDecider(nonHeapMemorySheddingConfig),
                     RequestDurationSheddingDecider(requestDurationForRouteStateRegistry),
                 ),
             )
@@ -138,6 +129,43 @@ fun Application.installNetworkServerPlugins(
         }
     }
 }
+
+private fun nonHeapMemorySheddingDecider(nonHeapMemorySheddingConfig: MemorySheddingConfig): MemorySheddingDecider =
+    MemorySheddingDecider(
+        nonHeapMemorySheddingConfig,
+        ProcessMemoryUsageSampler { nonHeapMemoryUsage }.also {
+            if (!it.isAvailable) {
+                log.warn { "Memory shedding by non-heap size not available" }
+            }
+        },
+    )
+
+private fun heapMemorySheddingDecider(heapMemorySheddingConfig: MemorySheddingConfig): MemorySheddingDecider =
+    MemorySheddingDecider(
+        heapMemorySheddingConfig,
+        ProcessMemoryUsageSampler { heapMemoryUsage }.also {
+            if (!it.isAvailable) {
+                log.warn { "Memory shedding by heap size not available" }
+            }
+        },
+    )
+
+private fun cpuSheddingDecider(
+    cpuSheddingConfig: CpuSheddingConfig,
+    cpuLoadSmoothingHalfLifeNs: Long,
+    nanoClock: NanoClock,
+) = CpuSheddingDecider(
+    cpuSheddingConfig,
+    SmoothedCpuLoadSampler(
+        ProcessCpuLoadSampler().also {
+            if (!it.isAvailable) {
+                log.warn { "No CPU load shedding: ProcessCpuLoadSampler not available" }
+            }
+        },
+        cpuLoadSmoothingHalfLifeNs,
+        nanoClock,
+    ),
+)
 
 fun createMosaApiCorsPlugin(
     requireTlsForPod: Boolean,

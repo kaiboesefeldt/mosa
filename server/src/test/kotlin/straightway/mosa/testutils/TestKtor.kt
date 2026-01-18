@@ -3,7 +3,6 @@ package straightway.mosa.testutils
 import io.ktor.server.application.Application
 import io.micrometer.core.instrument.MeterRegistry
 import io.mockk.mockk
-import straightway.mosa.NanoClock
 import straightway.mosa.TokenUtil
 import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.defense.cpu.CpuSheddingConfig
@@ -22,7 +21,7 @@ fun Application.installTestNetworkServerPlugins(
     meterRegistry: MeterRegistry = mockk(relaxed = true),
     ipRateLimiter: RateLimiter =
         RateLimiter(
-            NanoClock { 0L },
+            { 0L },
             RateLimitConfig(permitsPerMinute = 10_000, burst = 10_000),
         ),
     clientIpResolver: ClientIpResolver = ClientIpResolver(emptySet()),
@@ -38,7 +37,12 @@ fun Application.installTestNetworkServerPlugins(
                 loadSheddingStart = Double.MAX_VALUE,
                 loadSheddingFull = Double.MAX_VALUE,
             ),
-        memorySheddingConfig =
+        heapMemorySheddingConfig =
+            MemorySheddingConfig(
+                memorySheddingStart = Double.MAX_VALUE,
+                memorySheddingFull = Double.MAX_VALUE,
+            ),
+        nonHeapMemorySheddingConfig =
             MemorySheddingConfig(
                 memorySheddingStart = Double.MAX_VALUE,
                 memorySheddingFull = Double.MAX_VALUE,

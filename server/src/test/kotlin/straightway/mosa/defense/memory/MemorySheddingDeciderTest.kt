@@ -125,7 +125,7 @@ class MemorySheddingDeciderTest {
     fun `sheds under allocated heap usage`() =
         runTest {
             withContext(Dispatchers.Default) {
-                val gauge = ProcessMemoryUsageSampler()
+                val gauge = ProcessMemoryUsageSampler { heapMemoryUsage }
                 val baseline = gauge.sample()
                 val threshold = baseline * 1.2
                 assertTrue(
@@ -168,25 +168,23 @@ class MemorySheddingDeciderTest {
         val memoryBean =
             mockk<MemoryMXBean> {
                 every { heapMemoryUsage } returns MemoryUsage(0L, 50L, 200L, -1L)
-                every { nonHeapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
             }
 
-        val gauge = ProcessMemoryUsageSampler(memoryBean)
+        val gauge = ProcessMemoryUsageSampler(memoryBean) { heapMemoryUsage }
 
         assertEquals(0.25, gauge.sample(), 1e-6)
     }
 
     @Test
-    fun `returns zero when heap usage has no committed or max`() {
+    fun `returns NaN when heap usage has no committed or max`() {
         val memoryBean =
             mockk<MemoryMXBean> {
                 every { heapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
-                every { nonHeapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
             }
 
-        val gauge = ProcessMemoryUsageSampler(memoryBean)
+        val gauge = ProcessMemoryUsageSampler(memoryBean) { heapMemoryUsage }
 
-        assertEquals(0.0, gauge.sample(), 1e-6)
+        assertTrue(gauge.sample().isNaN())
     }
 
     private val allocationChunkSizeBytes by lazy {

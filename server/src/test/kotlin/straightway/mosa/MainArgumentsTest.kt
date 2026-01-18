@@ -54,23 +54,40 @@ class MainArgumentsTest {
     fun `store returns default memory shedding range when argument omitted`() {
         val store = parseStore("serve")
 
-        assertEquals(0.9, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_START))
-        assertEquals(0.98, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_FULL))
+        assertEquals(0.9, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_START))
+        assertEquals(0.98, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_FULL))
+        assertEquals(0.98, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_START))
+        assertEquals(0.999, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_FULL))
     }
 
     @Test
-    fun `store returns provided memory shedding range`() {
+    fun `store returns provided heap memory shedding range`() {
         val store =
             parseStore(
                 "serve",
-                "--memory-shedding-start",
+                "--memory-shedding-heap-start",
                 "0.7",
-                "--memory-shedding-full",
+                "--memory-shedding-heap-full",
                 "0.9",
             )
 
-        assertEquals(0.7, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_START))
-        assertEquals(0.9, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_FULL))
+        assertEquals(0.7, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_START))
+        assertEquals(0.9, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_FULL))
+    }
+
+    @Test
+    fun `store returns provided nonheap memory shedding range`() {
+        val store =
+            parseStore(
+                "serve",
+                "--memory-shedding-nonheap-start",
+                "0.7",
+                "--memory-shedding-nonheap-full",
+                "0.9",
+            )
+
+        assertEquals(0.7, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_START))
+        assertEquals(0.9, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_FULL))
     }
 
     @Test
