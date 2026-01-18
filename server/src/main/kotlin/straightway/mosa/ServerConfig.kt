@@ -52,6 +52,7 @@ import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
 import straightway.mosa.defense.requestguard.createMosaRequestBodyLimitPlugin
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.lang.management.ManagementFactory
+import java.lang.management.MemoryUsage
 import java.util.TimeZone
 import kotlin.random.Random
 import kotlin.time.Duration
@@ -61,6 +62,7 @@ fun Application.installNetworkServerPlugins(
     cpuSheddingConfig: CpuSheddingConfig,
     heapMemorySheddingConfig: MemorySheddingConfig,
     nonHeapMemorySheddingConfig: MemorySheddingConfig,
+    systemMemorySheddingConfig: MemorySheddingConfig,
     cpuLoadSmoothingHalfLifeNs: Long,
     loadSheddingRetryAfter: Duration,
     meterRegistry: MeterRegistry,
@@ -80,6 +82,7 @@ fun Application.installNetworkServerPlugins(
                     cpuSheddingDecider(cpuSheddingConfig, cpuLoadSmoothingHalfLifeNs, nanoClock),
                     heapMemorySheddingDecider(heapMemorySheddingConfig),
                     nonHeapMemorySheddingDecider(nonHeapMemorySheddingConfig),
+                    systemMemorySheddingDecider(systemMemorySheddingConfig),
                     RequestDurationSheddingDecider(requestDurationForRouteStateRegistry),
                 ),
             )
@@ -136,25 +139,38 @@ private fun nonHeapMemorySheddingDecider(nonHeapMemorySheddingConfig: MemoryShed
     ManagementFactory.getMemoryMXBean()?.let { memoryBean ->
         MemorySheddingDecider(
             nonHeapMemorySheddingConfig,
-            GenericMemoryUsageSampler { memoryBean.nonHeapMemoryUsage }.also {
-                if (!it.isAvailable) {
-                    logger.warn { "Memory shedding by non-heap size not available" }
-                }
-            },
+            GenericMemoryUsageSampler { memoryBean.nonHeapMemoryUsage },
         )
-    } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
+    } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }.also {
+        logger.warn { "Memory shedding by non-heap size not available" }
+    }
 
 private fun heapMemorySheddingDecider(heapMemorySheddingConfig: MemorySheddingConfig): SheddingDecider =
     ManagementFactory.getMemoryMXBean()?.let { memoryBean ->
         MemorySheddingDecider(
             heapMemorySheddingConfig,
-            GenericMemoryUsageSampler { memoryBean.heapMemoryUsage }.also {
-                if (!it.isAvailable) {
-                    logger.warn { "Memory shedding by heap size not available" }
-                }
+            GenericMemoryUsageSampler { memoryBean.heapMemoryUsage },
+        )
+    } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }.also {
+        logger.warn { "Memory shedding by heap size not available" }
+    }
+
+private fun systemMemorySheddingDecider(systemMemorySheddingConfig: MemorySheddingConfig): SheddingDecider =
+    (ManagementFactory.getOperatingSystemMXBean() as? com.sun.management.OperatingSystemMXBean)?.let { osBean ->
+        MemorySheddingDecider(
+            systemMemorySheddingConfig,
+            GenericMemoryUsageSampler {
+                MemoryUsage(
+                    0L,
+                    osBean.totalMemorySize - osBean.freeMemorySize,
+                    osBean.totalMemorySize,
+                    osBean.totalMemorySize,
+                )
             },
         )
-    } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
+    } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }.also {
+        logger.warn { "System memory shedding not available" }
+    }
 
 private fun cpuSheddingDecider(
     cpuSheddingConfig: CpuSheddingConfig,

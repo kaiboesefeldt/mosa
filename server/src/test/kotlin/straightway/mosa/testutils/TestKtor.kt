@@ -47,6 +47,11 @@ fun Application.installTestNetworkServerPlugins(
                 memorySheddingStart = Double.MAX_VALUE,
                 memorySheddingFull = Double.MAX_VALUE,
             ),
+        systemMemorySheddingConfig =
+            MemorySheddingConfig(
+                memorySheddingStart = Double.MAX_VALUE,
+                memorySheddingFull = Double.MAX_VALUE,
+            ),
         cpuLoadSmoothingHalfLifeNs = 250_000_000L,
         loadSheddingRetryAfter = 30.seconds,
         requestDurationForRouteStateRegistry = RequestDurationForRouteStateRegistry(meterRegistry, mockk(relaxed = true)),

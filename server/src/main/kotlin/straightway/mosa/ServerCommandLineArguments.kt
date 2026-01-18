@@ -15,6 +15,8 @@ object ServerCommandLineArguments {
     const val MEMORY_SHEDDING_HEAP_FULL = "memory-shedding-heap-full"
     const val MEMORY_SHEDDING_NONHEAP_START = "memory-shedding-nonheap-start"
     const val MEMORY_SHEDDING_NONHEAP_FULL = "memory-shedding-nonheap-full"
+    const val MEMORY_SHEDDING_SYSTEM_START = "memory-shedding-system-start"
+    const val MEMORY_SHEDDING_SYSTEM_FULL = "memory-shedding-system-full"
     const val REQUEST_DURATION_MIN_SAMPLES = "request-duration-shedding-min-samples"
     const val REQUEST_DURATION_MIN_BASELINE_MS = "request-duration-shedding-min-baseline-ms"
     const val REQUEST_DURATION_RATIO_SLACK = "request-duration-shedding-ratio-slack"
