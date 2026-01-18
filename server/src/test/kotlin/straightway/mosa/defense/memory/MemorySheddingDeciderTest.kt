@@ -26,7 +26,8 @@ class MemorySheddingDeciderTest {
                         memorySheddingStart = 0.9,
                         memorySheddingFull = 0.9,
                     ),
-                ) { 0.95 }
+                    ConstMemorySampler(0.95),
+                )
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
@@ -43,7 +44,8 @@ class MemorySheddingDeciderTest {
                         memorySheddingStart = 0.7,
                         memorySheddingFull = 0.9,
                     ),
-                ) { 0.8 }
+                    ConstMemorySampler(0.8),
+                )
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
@@ -60,7 +62,8 @@ class MemorySheddingDeciderTest {
                         memorySheddingStart = 0.9,
                         memorySheddingFull = 0.9,
                     ),
-                ) { 0.5 }
+                    ConstMemorySampler(0.5),
+                )
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
@@ -76,7 +79,8 @@ class MemorySheddingDeciderTest {
                         memorySheddingStart = 0.1,
                         memorySheddingFull = 0.1,
                     ),
-                ) { -0.5 }
+                    ConstMemorySampler(-0.5),
+                )
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
@@ -92,7 +96,25 @@ class MemorySheddingDeciderTest {
                         memorySheddingStart = 0.1,
                         memorySheddingFull = 0.1,
                     ),
-                ) { Double.NaN }
+                    ConstMemorySampler(Double.NaN),
+                )
+
+            val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
+
+            assertEquals(SheddingDecider.Result.NO_SHEDDING, deciderResult)
+        }
+
+    @Test
+    fun `does not shed when sampler is unavailable`() =
+        runTest {
+            val decider =
+                MemorySheddingDecider(
+                    MemorySheddingConfig(
+                        memorySheddingStart = 0.1,
+                        memorySheddingFull = 0.1,
+                    ),
+                    ConstMemorySampler(0.9, isAvailable = false),
+                )
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
@@ -103,7 +125,7 @@ class MemorySheddingDeciderTest {
     fun `sheds under allocated heap usage`() =
         runTest {
             withContext(Dispatchers.Default) {
-                val gauge = ProcessMemoryUsageGauge()
+                val gauge = ProcessMemoryUsageSampler()
                 val baseline = gauge.sample()
                 val threshold = baseline * 1.2
                 assertTrue(
@@ -117,7 +139,7 @@ class MemorySheddingDeciderTest {
                             memorySheddingStart = threshold,
                             memorySheddingFull = threshold,
                         ),
-                        gauge::sample,
+                        gauge,
                     )
                 val initialResult = decider.decideShedding(SheddingRequest("GET", "/test"))
                 assertEquals(
@@ -149,7 +171,7 @@ class MemorySheddingDeciderTest {
                 every { nonHeapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
             }
 
-        val gauge = ProcessMemoryUsageGauge(memoryBean, emptyList())
+        val gauge = ProcessMemoryUsageSampler(memoryBean)
 
         assertEquals(0.25, gauge.sample(), 1e-6)
     }
@@ -162,27 +184,9 @@ class MemorySheddingDeciderTest {
                 every { nonHeapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
             }
 
-        val gauge = ProcessMemoryUsageGauge(memoryBean, emptyList())
+        val gauge = ProcessMemoryUsageSampler(memoryBean)
 
         assertEquals(0.0, gauge.sample(), 1e-6)
-    }
-
-    @Test
-    fun `includes buffer pool usage in total`() {
-        val memoryBean =
-            mockk<MemoryMXBean> {
-                every { heapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
-                every { nonHeapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
-            }
-        val bufferPool =
-            mockk<java.lang.management.BufferPoolMXBean> {
-                every { memoryUsed } returns 50L
-                every { totalCapacity } returns 100L
-            }
-
-        val gauge = ProcessMemoryUsageGauge(memoryBean, listOf(bufferPool))
-
-        assertEquals(0.5, gauge.sample(), 1e-6)
     }
 
     private val allocationChunkSizeBytes by lazy {
@@ -192,5 +196,12 @@ class MemorySheddingDeciderTest {
         (maxMemoryBytes / 64)
             .coerceIn(oneMiB.toLong(), sixteenMiB.toLong())
             .toInt()
+    }
+
+    private data class ConstMemorySampler(
+        val sample: Double,
+        override val isAvailable: Boolean = true,
+    ) : MemoryUsageSampler {
+        override fun sample() = sample
     }
 }

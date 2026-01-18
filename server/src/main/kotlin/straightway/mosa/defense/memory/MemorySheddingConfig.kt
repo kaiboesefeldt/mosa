@@ -6,6 +6,6 @@ data class MemorySheddingConfig(
 ) {
     init {
         require(0.0 <= memorySheddingStart) { "memorySheddingStart must be >= 0.0" }
-        require(memorySheddingFull >= memorySheddingStart) { "memorySheddingFull must be >= memorySheddingStart" }
+        require(memorySheddingStart <= memorySheddingFull) { "memorySheddingStart must be <= memorySheddingFull" }
     }
 }

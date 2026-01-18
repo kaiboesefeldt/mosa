@@ -43,6 +43,7 @@ import straightway.mosa.defense.cpu.ProcessCpuLoadSampler
 import straightway.mosa.defense.cpu.SmoothedCpuLoadSampler
 import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.defense.memory.MemorySheddingDecider
+import straightway.mosa.defense.memory.ProcessMemoryUsageSampler
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
 import straightway.mosa.defense.requestduration.RequestDurationSheddingDecider
@@ -85,7 +86,7 @@ fun Application.installNetworkServerPlugins(
                             nanoClock,
                         ),
                     ),
-                    MemorySheddingDecider(memorySheddingConfig),
+                    MemorySheddingDecider(memorySheddingConfig, ProcessMemoryUsageSampler()),
                     RequestDurationSheddingDecider(requestDurationForRouteStateRegistry),
                 ),
             )
