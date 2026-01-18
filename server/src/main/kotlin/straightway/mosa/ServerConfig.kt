@@ -36,20 +36,22 @@ import straightway.mosa.auth.toPodCertificate
 import straightway.mosa.base.findPayloadTooLarge
 import straightway.mosa.defense.core.CombinedSheddingDecider
 import straightway.mosa.defense.core.RequestMetricsPlugin
+import straightway.mosa.defense.core.SheddingDecider
 import straightway.mosa.defense.core.createMosaLoadSheddingPlugin
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingDecider
 import straightway.mosa.defense.cpu.ProcessCpuLoadSampler
 import straightway.mosa.defense.cpu.SmoothedCpuLoadSampler
+import straightway.mosa.defense.memory.GenericMemoryUsageSampler
 import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.defense.memory.MemorySheddingDecider
-import straightway.mosa.defense.memory.ProcessMemoryUsageSampler
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
 import straightway.mosa.defense.requestduration.RequestDurationSheddingDecider
 import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
 import straightway.mosa.defense.requestguard.createMosaRequestBodyLimitPlugin
 import straightway.mosa.jackson.InstantJacksonSerializers
+import java.lang.management.ManagementFactory
 import java.util.TimeZone
 import kotlin.random.Random
 import kotlin.time.Duration
@@ -115,7 +117,7 @@ fun Application.installNetworkServerPlugins(
                     PodPrincipal(cert)
                 }.onFailure {
                     val reason = it::class.simpleName ?: "AuthenticationError"
-                    log.debug { "Authentication failed: $reason" }
+                    logger.debug { "Authentication failed: $reason" }
                 }.getOrNull()
             }
         }
@@ -130,25 +132,29 @@ fun Application.installNetworkServerPlugins(
     }
 }
 
-private fun nonHeapMemorySheddingDecider(nonHeapMemorySheddingConfig: MemorySheddingConfig): MemorySheddingDecider =
-    MemorySheddingDecider(
-        nonHeapMemorySheddingConfig,
-        ProcessMemoryUsageSampler { nonHeapMemoryUsage }.also {
-            if (!it.isAvailable) {
-                log.warn { "Memory shedding by non-heap size not available" }
-            }
-        },
-    )
+private fun nonHeapMemorySheddingDecider(nonHeapMemorySheddingConfig: MemorySheddingConfig): SheddingDecider =
+    ManagementFactory.getMemoryMXBean()?.let { memoryBean ->
+        MemorySheddingDecider(
+            nonHeapMemorySheddingConfig,
+            GenericMemoryUsageSampler { memoryBean.nonHeapMemoryUsage }.also {
+                if (!it.isAvailable) {
+                    logger.warn { "Memory shedding by non-heap size not available" }
+                }
+            },
+        )
+    } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
 
-private fun heapMemorySheddingDecider(heapMemorySheddingConfig: MemorySheddingConfig): MemorySheddingDecider =
-    MemorySheddingDecider(
-        heapMemorySheddingConfig,
-        ProcessMemoryUsageSampler { heapMemoryUsage }.also {
-            if (!it.isAvailable) {
-                log.warn { "Memory shedding by heap size not available" }
-            }
-        },
-    )
+private fun heapMemorySheddingDecider(heapMemorySheddingConfig: MemorySheddingConfig): SheddingDecider =
+    ManagementFactory.getMemoryMXBean()?.let { memoryBean ->
+        MemorySheddingDecider(
+            heapMemorySheddingConfig,
+            GenericMemoryUsageSampler { memoryBean.heapMemoryUsage }.also {
+                if (!it.isAvailable) {
+                    logger.warn { "Memory shedding by heap size not available" }
+                }
+            },
+        )
+    } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
 
 private fun cpuSheddingDecider(
     cpuSheddingConfig: CpuSheddingConfig,
@@ -159,7 +165,7 @@ private fun cpuSheddingDecider(
     SmoothedCpuLoadSampler(
         ProcessCpuLoadSampler().also {
             if (!it.isAvailable) {
-                log.warn { "No CPU load shedding: ProcessCpuLoadSampler not available" }
+                logger.warn { "No CPU load shedding: ProcessCpuLoadSampler not available" }
             }
         },
         cpuLoadSmoothingHalfLifeNs,
@@ -247,7 +253,7 @@ private fun createMosaRequireTlsPlugin(clientIpResolver: ClientIpResolver): Appl
         }
     }
 
-private val log = KotlinLogging.logger {}
+private val logger = KotlinLogging.logger {}
 
 private const val API_ROUTE_PREFIX = "/v1/"
 private const val APPROVE_GID_ROUTE = "/v1/approvegid"

@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import straightway.mosa.defense.core.SheddingDecider
 import straightway.mosa.defense.core.SheddingRequest
+import java.lang.management.ManagementFactory
 import java.lang.management.MemoryMXBean
 import java.lang.management.MemoryUsage
 import kotlin.math.max
@@ -125,7 +126,8 @@ class MemorySheddingDeciderTest {
     fun `sheds under allocated heap usage`() =
         runTest {
             withContext(Dispatchers.Default) {
-                val gauge = ProcessMemoryUsageSampler { heapMemoryUsage }
+                val memoryBean = ManagementFactory.getMemoryMXBean()
+                val gauge = GenericMemoryUsageSampler { memoryBean.heapMemoryUsage }
                 val baseline = gauge.sample()
                 val threshold = baseline * 1.2
                 assertTrue(
@@ -170,7 +172,7 @@ class MemorySheddingDeciderTest {
                 every { heapMemoryUsage } returns MemoryUsage(0L, 50L, 200L, -1L)
             }
 
-        val gauge = ProcessMemoryUsageSampler(memoryBean) { heapMemoryUsage }
+        val gauge = GenericMemoryUsageSampler { memoryBean.heapMemoryUsage }
 
         assertEquals(0.25, gauge.sample(), 1e-6)
     }
@@ -182,7 +184,7 @@ class MemorySheddingDeciderTest {
                 every { heapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
             }
 
-        val gauge = ProcessMemoryUsageSampler(memoryBean) { heapMemoryUsage }
+        val gauge = GenericMemoryUsageSampler { memoryBean.heapMemoryUsage }
 
         assertTrue(gauge.sample().isNaN())
     }
