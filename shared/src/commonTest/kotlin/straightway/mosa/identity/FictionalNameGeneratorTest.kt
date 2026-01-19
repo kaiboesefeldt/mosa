@@ -16,11 +16,5 @@ class FictionalNameGeneratorTest {
         println("Overall size: ${sut.size} Names (${sut.bits} Bits)")
         val normalNamesCount = 50
         println((sampleNames.take(normalNamesCount)).joinToString("\n") { "- $it" })
-        println((sampleNames.drop(normalNamesCount).filter(::hasDiphtong).take(5)).joinToString("\n") { "- $it" })
-        println((sampleNames.drop(normalNamesCount).filter(::isShort).take(5)).joinToString("\n") { "- $it" })
     }
-
-    private fun hasDiphtong(n: FictionalName): Boolean = Regex("[aeiou]{2}").find(n.toString()) != null
-
-    private fun isShort(n: FictionalName): Boolean = n.sureName.count { it in setOf('a', 'e', 'i', 'o', 'u') } <= 2
 }
