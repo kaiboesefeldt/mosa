@@ -4,11 +4,14 @@ import java.lang.management.MemoryUsage
 import kotlin.math.max
 
 class GenericMemoryUsageSampler(
+    val name: String,
     private val sampleFn: () -> MemoryUsage,
 ) : MemoryUsageSampler {
     override val isAvailable = true
 
     override fun sample(): Double = totalUsageRatio()
+
+    override fun toString() = name
 
     private fun totalUsageRatio(): Double {
         val usage = usageSlice(sampleFn()) ?: return Double.NaN

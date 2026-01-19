@@ -139,7 +139,7 @@ private fun nonHeapMemorySheddingDecider(nonHeapMemorySheddingConfig: MemoryShed
     ManagementFactory.getMemoryMXBean()?.let { memoryBean ->
         MemorySheddingDecider(
             nonHeapMemorySheddingConfig,
-            GenericMemoryUsageSampler { memoryBean.nonHeapMemoryUsage },
+            GenericMemoryUsageSampler("NonHeapMemory") { memoryBean.nonHeapMemoryUsage },
         )
     } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }.also {
         logger.warn { "Memory shedding by non-heap size not available" }
@@ -149,7 +149,7 @@ private fun heapMemorySheddingDecider(heapMemorySheddingConfig: MemorySheddingCo
     ManagementFactory.getMemoryMXBean()?.let { memoryBean ->
         MemorySheddingDecider(
             heapMemorySheddingConfig,
-            GenericMemoryUsageSampler { memoryBean.heapMemoryUsage },
+            GenericMemoryUsageSampler("NonHeapMemory") { memoryBean.heapMemoryUsage },
         )
     } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }.also {
         logger.warn { "Memory shedding by heap size not available" }
@@ -159,7 +159,7 @@ private fun systemMemorySheddingDecider(systemMemorySheddingConfig: MemorySheddi
     (ManagementFactory.getOperatingSystemMXBean() as? com.sun.management.OperatingSystemMXBean)?.let { osBean ->
         MemorySheddingDecider(
             systemMemorySheddingConfig,
-            GenericMemoryUsageSampler {
+            GenericMemoryUsageSampler("SystemHeapMemory") {
                 MemoryUsage(
                     0L,
                     osBean.totalMemorySize - osBean.freeMemorySize,

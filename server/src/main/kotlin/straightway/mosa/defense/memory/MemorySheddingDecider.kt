@@ -46,6 +46,6 @@ class MemorySheddingDecider(
         if (config.memorySheddingFull <= usage) {
             "Memory usage above ${config.memorySheddingFull} (${formatPct(usage)})"
         } else {
-            "Memory usage in shedding range ${config.memorySheddingStart}-${config.memorySheddingFull} (${formatPct(usage)})"
+            "$memorySampler in shedding range ${config.memorySheddingStart}-${config.memorySheddingFull} (${formatPct(usage)})"
         }
 }

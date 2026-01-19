@@ -6,12 +6,13 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import java.lang.management.MemoryMXBean
 import java.lang.management.MemoryUsage
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 
 class GenericMemoryUsageSamplerTest {
     @Test
     fun `is always available`() {
-        val sampler = GenericMemoryUsageSampler { mockk<MemoryUsage>() }
+        val sampler = GenericMemoryUsageSampler("Test") { mockk<MemoryUsage>() }
 
         assertTrue(sampler.isAvailable)
     }
@@ -23,7 +24,7 @@ class GenericMemoryUsageSamplerTest {
                 every { heapMemoryUsage } returns MemoryUsage(0L, 50L, 100L, 100L)
             }
 
-        val sampler = GenericMemoryUsageSampler { memoryBean.heapMemoryUsage }
+        val sampler = GenericMemoryUsageSampler("Test") { memoryBean.heapMemoryUsage }
 
         assertEquals(0.5, sampler.sample(), 1e-6)
     }
@@ -35,8 +36,16 @@ class GenericMemoryUsageSamplerTest {
                 every { nonHeapMemoryUsage } returns MemoryUsage(0L, 25L, 50L, -1L)
             }
 
-        val sampler = GenericMemoryUsageSampler { memoryBean.nonHeapMemoryUsage }
+        val sampler = GenericMemoryUsageSampler("Test") { memoryBean.nonHeapMemoryUsage }
 
         assertEquals(0.5, sampler.sample(), 1e-6)
+    }
+
+    @Test
+    fun `uses name in toString`() {
+        assertContains(
+            "TestSampler",
+            GenericMemoryUsageSampler("TestSampler") { mockk<MemoryUsage>() }.toString(),
+        )
     }
 }

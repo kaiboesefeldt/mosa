@@ -127,7 +127,7 @@ class MemorySheddingDeciderTest {
         runTest {
             withContext(Dispatchers.Default) {
                 val memoryBean = ManagementFactory.getMemoryMXBean()
-                val gauge = GenericMemoryUsageSampler { memoryBean.heapMemoryUsage }
+                val gauge = GenericMemoryUsageSampler("Test") { memoryBean.heapMemoryUsage }
                 val baseline = gauge.sample()
                 val threshold = baseline * 1.2
                 assertTrue(
@@ -172,7 +172,7 @@ class MemorySheddingDeciderTest {
                 every { heapMemoryUsage } returns MemoryUsage(0L, 50L, 200L, -1L)
             }
 
-        val gauge = GenericMemoryUsageSampler { memoryBean.heapMemoryUsage }
+        val gauge = GenericMemoryUsageSampler("Test") { memoryBean.heapMemoryUsage }
 
         assertEquals(0.25, gauge.sample(), 1e-6)
     }
@@ -184,7 +184,7 @@ class MemorySheddingDeciderTest {
                 every { heapMemoryUsage } returns MemoryUsage(0L, 0L, 0L, -1L)
             }
 
-        val gauge = GenericMemoryUsageSampler { memoryBean.heapMemoryUsage }
+        val gauge = GenericMemoryUsageSampler("Test") { memoryBean.heapMemoryUsage }
 
         assertTrue(gauge.sample().isNaN())
     }
