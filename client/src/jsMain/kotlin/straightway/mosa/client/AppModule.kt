@@ -63,6 +63,7 @@ import straightway.mosa.identity.FictionalNameGenerator
 import web.idb.IDBFactory
 import web.idb.indexedDB
 
+@ExperimentalWasmJsInterop
 object AppModule : KoinComponent {
     fun start() {
         val alreadyStarted = runCatching { GlobalContext.get() }.isSuccess

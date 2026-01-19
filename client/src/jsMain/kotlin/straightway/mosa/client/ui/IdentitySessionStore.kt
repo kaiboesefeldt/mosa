@@ -24,6 +24,7 @@ interface IdentitySessionStore {
     suspend fun save(snapshot: IdentitySessionSnapshot)
 }
 
+@ExperimentalWasmJsInterop
 class BrowserIdentitySessionStore(
     indexedDb: IDBFactory?,
     private val asyncBridge: IndexedDbAsyncBridge,

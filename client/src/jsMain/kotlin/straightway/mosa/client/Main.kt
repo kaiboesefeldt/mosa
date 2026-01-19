@@ -16,6 +16,7 @@ import straightway.mosa.client.ui.PasswordPromptOverlay
 import straightway.mosa.client.ui.useIdentitySession
 import web.dom.Element as WebElement
 
+@ExperimentalWasmJsInterop
 fun main() {
     FontAwesomeResources.loadStyles()
     AppModule.start()
