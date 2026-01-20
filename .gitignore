@@ -49,8 +49,9 @@ gradle-app.setting
 kotlin-compiler*
 
 # Mosa
+runtime/**/*
 mosa_lucene_index*
 models
 kotlin-js-store
+*.pem
 .fx/
-.mosa-dev-cert-*

@@ -19,8 +19,8 @@ import org.koin.dsl.module
 import straightway.mosa.VectorStore.Transaction
 import straightway.mosa.auth.Auth0TokenUtil
 import straightway.mosa.auth.AuthenticationController
+import straightway.mosa.auth.FileBackedEd25519Factory
 import straightway.mosa.auth.PodCertificateService
-import straightway.mosa.auth.TransientEd25519Factory
 import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
@@ -28,6 +28,8 @@ import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import straightway.mosa.webclient.WebClientController
+import java.nio.file.Files
+import java.nio.file.Path
 import java.time.Clock
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -40,12 +42,17 @@ class AppModuleTest {
     private val embedding = floatArrayOf(1.0f, 2.0f, 3.0f)
     private var koinApplication: KoinApplication? = null
     private val vectorStore = mockk<LuceneLocalVectorStore>()
+    private var originalUserDir: String? = null
+    private var testWorkingDir: Path? = null
 
     private val koin: Koin
         get() = checkNotNull(koinApplication).koin
 
     @BeforeEach
     fun setUp() {
+        originalUserDir = System.getProperty("user.dir")
+        testWorkingDir = Files.createTempDirectory("mosa-test-")
+        System.setProperty("user.dir", testWorkingDir.toString())
         mockkObject(LuceneLocalVectorStore.Companion)
         mockOnnxEmbeddingService()
         mockVectorStore()
@@ -58,6 +65,9 @@ class AppModuleTest {
         koinApplication = null
         OnnxLocalEmbeddingService.embeddingServiceFactory = null
         unmockkObject(LuceneLocalVectorStore.Companion)
+        testWorkingDir?.resolve("mosa_pod_keypair.pem")?.let { Files.deleteIfExists(it) }
+        testWorkingDir?.let { Files.deleteIfExists(it) }
+        originalUserDir?.let { System.setProperty("user.dir", it) }
     }
 
     @Test
@@ -94,9 +104,9 @@ class AppModuleTest {
     }
 
     @Test
-    fun `provides transient ed25519 signature factory singleton`() {
+    fun `provides file backed ed25519 signature factory singleton`() {
         val signatureFactory = koin.get<SignatureFactory>()
-        assertIs<TransientEd25519Factory>(signatureFactory)
+        assertIs<FileBackedEd25519Factory>(signatureFactory)
     }
 
     @Test
