@@ -4,6 +4,7 @@
     <module name="mosa.server.main" />
     <option name="PROGRAM_PARAMETERS" value="serve --serve-source-maps  --dev-self-signed-tls --dev-cert-host $MOSA_HOST$ --https-port 8443 --memory-shedding-system-start 0.98 --memory-shedding-system-full 0.999" />
     <shortenClasspath name="NONE" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/runtime" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>
