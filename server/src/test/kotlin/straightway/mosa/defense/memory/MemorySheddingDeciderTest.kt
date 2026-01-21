@@ -39,19 +39,20 @@ class MemorySheddingDeciderTest {
     @Test
     fun `sheds proportionally within range`() =
         runTest {
+            val memorySampler = ConstMemorySampler(0.8)
             val decider =
                 MemorySheddingDecider(
                     MemorySheddingConfig(
                         memorySheddingStart = 0.7,
                         memorySheddingFull = 0.9,
                     ),
-                    ConstMemorySampler(0.8),
+                    memorySampler,
                 )
 
             val deciderResult = decider.decideShedding(SheddingRequest("GET", "/test"))
 
             assertEquals(0.5, deciderResult.sheddingFactor, 1e-6)
-            assertEquals("Memory usage in shedding range 0.7-0.9 (80.0%)", deciderResult.reason)
+            assertEquals("$memorySampler in shedding range 0.7-0.9 (80.0%)", deciderResult.reason)
         }
 
     @Test
@@ -126,42 +127,29 @@ class MemorySheddingDeciderTest {
     fun `sheds under allocated heap usage`() =
         runTest {
             withContext(Dispatchers.Default) {
-                val memoryBean = ManagementFactory.getMemoryMXBean()
-                val gauge = GenericMemoryUsageSampler("Test") { memoryBean.heapMemoryUsage }
-                val baseline = gauge.sample()
-                val threshold = baseline * 1.2
-                assertTrue(
-                    baseline < threshold,
-                    "Expected baseline to be below threshold (baseline=$baseline threshold=$threshold)",
-                )
-
-                val decider =
-                    MemorySheddingDecider(
-                        MemorySheddingConfig(
-                            memorySheddingStart = threshold,
-                            memorySheddingFull = threshold,
-                        ),
-                        gauge,
-                    )
-                val initialResult = decider.decideShedding(SheddingRequest("GET", "/test"))
-                assertEquals(
-                    0.0,
-                    initialResult.sheddingFactor,
-                    "Expected no shedding under baseline usage (baseline=$baseline threshold=$threshold reason=${initialResult.reason})",
-                )
-
-                val retained = mutableListOf<ByteArray>()
-
                 withTimeout(1.minutes) {
-                    while (decider.decideShedding(SheddingRequest("GET", "/test")).sheddingFactor == 0.0) {
+                    val memoryBean = ManagementFactory.getMemoryMXBean()
+                    val gauge = GenericMemoryUsageSampler("Test") { memoryBean.heapMemoryUsage }
+                    val decider = createNotSheddingDecider(gauge)
+
+                    val retained = mutableListOf<ByteArray>()
+
+                    while (decider
+                            .decideShedding(
+                                SheddingRequest(
+                                    "GET",
+                                    "/test",
+                                ),
+                            ).sheddingFactor == 0.0
+                    ) {
                         retained.add(ByteArray(allocationChunkSizeBytes))
                         if (retained.size % 8 == 0) {
                             Thread.sleep(1)
                         }
                     }
-                }
 
-                assertTrue(retained.isNotEmpty())
+                    assertTrue(retained.isNotEmpty())
+                }
             }
         }
 
@@ -187,6 +175,33 @@ class MemorySheddingDeciderTest {
         val gauge = GenericMemoryUsageSampler("Test") { memoryBean.heapMemoryUsage }
 
         assertTrue(gauge.sample().isNaN())
+    }
+
+    private suspend fun createNotSheddingDecider(gauge: GenericMemoryUsageSampler): MemorySheddingDecider {
+        val baseline = max(0.1, gauge.sample())
+        var threshold = baseline * 1.1
+        var decider =
+            MemorySheddingDecider(
+                MemorySheddingConfig(
+                    memorySheddingStart = threshold,
+                    memorySheddingFull = threshold,
+                ),
+                gauge,
+            )
+        lateinit var initialResult: SheddingDecider.Result
+        while (true) {
+            initialResult = decider.decideShedding(SheddingRequest("GET", "/test"))
+            if (initialResult.sheddingFactor <= 0.0) return decider
+            threshold *= 1.1
+            decider =
+                MemorySheddingDecider(
+                    MemorySheddingConfig(
+                        memorySheddingStart = threshold,
+                        memorySheddingFull = threshold,
+                    ),
+                    gauge,
+                )
+        }
     }
 
     private val allocationChunkSizeBytes by lazy {
