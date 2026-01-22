@@ -19,7 +19,7 @@ dependencies {
     val koinVersion = "4.1.1"
     val exposedVersion = "1.0.0-beta-2"
     val sqliteVersion = "3.50.3.0"
-    val jacksonVersion = "2.20.1"
+    val jacksonVersion = "2.21.0"
     val kotlinLoggingVersion = "7.0.13"
     val logbackVersion = "1.5.20"
     val djlVersion = "0.35.0"
@@ -31,6 +31,7 @@ dependencies {
     val kotlinxCoroutinesVersion = "1.10.2"
     val micrometerVersion = "1.16.1"
     val jnaVersion = "5.18.1"
+    val commonsValidatorVersion = "1.10.1"
 
     implementation(project(":shared"))
 
@@ -71,6 +72,7 @@ dependencies {
     // JSON & HTTP Client (for Embedding APIs etc.)
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
     implementation("io.ktor:ktor-client-core-jvm:$ktorVersion")
     implementation("io.ktor:ktor-client-cio-jvm:$ktorVersion")
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
@@ -87,6 +89,7 @@ dependencies {
     implementation("io.micrometer:micrometer-core:$micrometerVersion")
     implementation("net.java.dev.jna:jna:$jnaVersion")
     implementation("net.java.dev.jna:jna-platform:$jnaVersion")
+    implementation("commons-validator:commons-validator:$commonsValidatorVersion")
 
     // Test
     testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion")
