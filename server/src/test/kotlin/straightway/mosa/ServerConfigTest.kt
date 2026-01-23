@@ -11,10 +11,15 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import io.mockk.coEvery
+import io.mockk.mockk
 import straightway.mosa.auth.ClientIpResolver
+import straightway.mosa.config.AutoRefreshingFileBackedContent
+import straightway.mosa.config.ClientBlockList
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.testutils.installTestNetworkServerPlugins
+import java.net.InetAddress
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -198,6 +203,74 @@ class ServerConfigTest {
 
             assertEquals(HttpStatusCode.OK, first.status)
             assertEquals(HttpStatusCode.TooManyRequests, second.status)
+            assertEquals(1, routeCalls)
+        }
+
+    @Test
+    fun `blocks requests from blocked ip`() =
+        testApplication {
+            val blockList =
+                ClientBlockList(
+                    listOf(ClientBlockList.BlockedClient(InetAddress.getByName("203.0.113.10"), 32)),
+                )
+            val ipBlockList = mockk<AutoRefreshingFileBackedContent<ClientBlockList>>()
+            coEvery { ipBlockList.get() } returns blockList
+            var routeCalls = 0
+            application {
+                installTestNetworkServerPlugins(
+                    requireTlsForPod = false,
+                    clientIpResolver = ClientIpResolver(setOf("localhost")),
+                    ipBlockList = ipBlockList,
+                )
+                routing {
+                    post("/v1/query") {
+                        routeCalls += 1
+                        call.respond(HttpStatusCode.OK)
+                    }
+                }
+            }
+
+            val response =
+                client.post("/v1/query") {
+                    header(HttpHeaders.Authorization, "Bearer token")
+                    header(HttpHeaders.XForwardedFor, "203.0.113.10")
+                }
+
+            assertEquals(HttpStatusCode.Forbidden, response.status)
+            assertEquals(0, routeCalls)
+        }
+
+    @Test
+    fun `allows requests when ip not blocked`() =
+        testApplication {
+            val blockList =
+                ClientBlockList(
+                    listOf(ClientBlockList.BlockedClient(InetAddress.getByName("203.0.113.10"), 32)),
+                )
+            val ipBlockList = mockk<AutoRefreshingFileBackedContent<ClientBlockList>>()
+            coEvery { ipBlockList.get() } returns blockList
+            var routeCalls = 0
+            application {
+                installTestNetworkServerPlugins(
+                    requireTlsForPod = false,
+                    clientIpResolver = ClientIpResolver(setOf("localhost")),
+                    ipBlockList = ipBlockList,
+                )
+                routing {
+                    post("/v1/query") {
+                        routeCalls += 1
+                        call.respond(HttpStatusCode.OK)
+                    }
+                }
+            }
+
+            val response =
+                client.post("/v1/query") {
+                    header(HttpHeaders.Authorization, "Bearer token")
+                    header(HttpHeaders.XForwardedFor, "198.51.100.4")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
             assertEquals(1, routeCalls)
         }
 

@@ -240,4 +240,36 @@ class ClientBlockListTest {
 
         assertEquals(false, InetAddress.getByName("192.168.1.1") in list)
     }
+
+    @Test
+    fun `toString returns ipv4 without prefix when full length`() {
+        val address = InetAddress.getByName("10.0.0.1")
+        val blocked = ClientBlockList.BlockedClient(address, 32)
+
+        assertEquals(address.hostAddress, blocked.toString())
+    }
+
+    @Test
+    fun `toString returns ipv4 with prefix when not full length`() {
+        val address = InetAddress.getByName("10.0.0.0")
+        val blocked = ClientBlockList.BlockedClient(address, 8)
+
+        assertEquals("${address.hostAddress}/8", blocked.toString())
+    }
+
+    @Test
+    fun `toString returns ipv6 without prefix when full length`() {
+        val address = InetAddress.getByName("2001:db8::1")
+        val blocked = ClientBlockList.BlockedClient(address, 128)
+
+        assertEquals(address.hostAddress, blocked.toString())
+    }
+
+    @Test
+    fun `toString returns ipv6 with prefix when not full length`() {
+        val address = InetAddress.getByName("2001:db8::")
+        val blocked = ClientBlockList.BlockedClient(address, 32)
+
+        assertEquals("${address.hostAddress}/32", blocked.toString())
+    }
 }

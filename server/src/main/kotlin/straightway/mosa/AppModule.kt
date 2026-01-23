@@ -1,5 +1,6 @@
 package straightway.mosa
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.apache.lucene.store.MMapDirectory
@@ -15,6 +16,8 @@ import straightway.mosa.auth.FileBackedEd25519Factory
 import straightway.mosa.auth.PodCertificateService
 import straightway.mosa.auth.ThreadLocalEd25519VerifierProvider
 import straightway.mosa.base.BaseController
+import straightway.mosa.config.AutoRefreshingFileBackedContent
+import straightway.mosa.config.ClientBlockList
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.crypto.CryptoEd25519
@@ -30,6 +33,7 @@ import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import straightway.mosa.vectorstore.LuceneQueryPlanner
 import straightway.mosa.vectorstore.QueryOnRegistry
 import straightway.mosa.webclient.WebClientController
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.security.MessageDigest
 import java.time.Clock
@@ -42,6 +46,7 @@ typealias HasherFactory = () -> MessageDigest
 val approvegidRateLimit: Qualifier = named("approvegidRateLimit")
 val authenticatedRateLimit: Qualifier = named("authenticatedRateLimit")
 val ipRateLimit: Qualifier = named("ipRateLimit")
+val ipBlockList: Qualifier = named("ipBlockList")
 
 fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY) {
     single<MeterRegistry> { SimpleMeterRegistry() } onClose { it?.close() }
@@ -184,6 +189,22 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     single(ipRateLimit) {
         RateLimiter(get(), get(ipRateLimit))
     }
+    single(ipBlockList) {
+        AutoRefreshingFileBackedContent(
+            AutoRefreshingFileBackedContent.Config(
+                path = Path.of("mosa_ip_blocklist.yaml"),
+                refreshInterval = 5.seconds,
+            ),
+            get(),
+            onError = { error -> klogger.error(error) { "mosa_ip_blocklist has invalid format" } },
+        ) {
+            ClientBlockList.transformer.transform(it).also { blockList ->
+                klogger.info {
+                    "blocked client IP addresses: ${blockList.blockedClients.joinToString(", ")}"
+                }
+            }
+        }
+    }
     single {
         val cliArguments: CommandLineArgumentStore = get()
         val raw = cliArguments.getString(ServerCommandLineArguments.TRUSTED_PROXY_IPS).orEmpty()
@@ -218,3 +239,5 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
         )
     } bind BaseController::class
 }
+
+private val klogger = KotlinLogging.logger {}

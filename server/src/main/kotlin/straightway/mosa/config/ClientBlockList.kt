@@ -13,7 +13,14 @@ data class ClientBlockList(
     data class BlockedClient(
         val address: InetAddress,
         val prefixLength: Int,
-    )
+    ) {
+        override fun toString(): String =
+            if (prefixLength == address.maxPrefixLength()) {
+                address.hostAddress
+            } else {
+                "${address.hostAddress}/$prefixLength"
+            }
+    }
 
     companion object {
         private val yamlMapper = YAMLMapper().registerKotlinModule()

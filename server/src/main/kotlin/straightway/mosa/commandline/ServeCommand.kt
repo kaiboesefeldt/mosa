@@ -31,6 +31,7 @@ import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
 import straightway.mosa.defense.requestguard.defaultMaxRequestBodyBytes
 import straightway.mosa.installNetworkServerPlugins
+import straightway.mosa.ipBlockList
 import straightway.mosa.ipRateLimit
 import straightway.mosa.tls.DevSelfSignedCertificateFactory
 import straightway.mosa.tls.InMemoryKeyStore
@@ -42,12 +43,22 @@ import kotlin.time.Duration.Companion.seconds
 internal class ServeCommand(
     private val startServer: (CommandLineArgumentStore) -> Unit = ::startMosaServer,
     private val logArguments: (Map<String, Any?>) -> Unit = ::logCommandLineArguments,
-) : Subcommand("serve", "Start the MOSA server") {
+) : Subcommand(
+        "serve",
+        "Start the MOSA server",
+    ) {
     private val serveSourceMaps by
         option(
             ArgType.Boolean,
             fullName = ServerCommandLineArguments.SERVE_SOURCE_MAPS,
             description = "Serve source maps for the client bundle",
+        ).default(false)
+    private val doc by
+        option(
+            ArgType.Boolean,
+            shortName = "d",
+            fullName = "doc",
+            description = "Print detailed serve documentation and exit",
         ).default(false)
     private val serverPort by
         option(
@@ -279,6 +290,10 @@ internal class ServeCommand(
         ).default(100)
 
     override fun execute() {
+        if (doc) {
+            println(serveDocumentation())
+            return
+        }
         val argumentValues =
             mapOf(
                 ServerCommandLineArguments.SERVE_SOURCE_MAPS to serveSourceMaps,
@@ -325,6 +340,29 @@ internal class ServeCommand(
         startServer(CommandLineArgumentStore.from { name -> argumentValues[name] })
     }
 }
+
+private fun serveDocumentation(): String =
+    """
+    |Serve command documentation
+    |
+    |Overview:
+    |  Starts the MOSA server and configures TLS, rate limits, and resource shedding based on flags.
+    |
+    |IP blocklist:
+    |  Fixed file name: mosa_ip_blocklist.yaml
+    |  Location: the file must be in the working directory from which the server is started.
+    |  Reload: automatically reloaded when changed, checked every 5 seconds.
+    |  Format (YAML):
+    |
+    |    blockedClients:
+    |      - 203.0.113.10
+    |      - 10.0.0.0/8
+    |      - 2001:db8::1
+    |      - 2001:db8::/32
+    |
+    |  Entries accept IPv4 or IPv6 with optional CIDR prefix.
+    |  If the prefix is omitted, full length is assumed (IPv4 /32, IPv6 /128).
+    """.trimMargin()
 
 private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
     val serverPort = argumentStore.getInt(ServerCommandLineArguments.SERVER_PORT) ?: 8080
@@ -401,6 +439,7 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
                 ipRateLimiter = get(ipRateLimit),
                 clientIpResolver = get(),
                 requestBodyLimitConfig = requestBodyLimitConfig,
+                ipBlockList = get(ipBlockList),
             )
             routing {
                 install(createMosaAuthenticatedRateLimitPlugin(get(authenticatedRateLimit)))

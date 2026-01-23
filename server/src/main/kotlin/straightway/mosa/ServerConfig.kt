@@ -34,6 +34,9 @@ import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.auth.PodPrincipal
 import straightway.mosa.auth.toPodCertificate
 import straightway.mosa.base.findPayloadTooLarge
+import straightway.mosa.config.AutoRefreshingFileBackedContent
+import straightway.mosa.config.ClientBlockList
+import straightway.mosa.config.contains
 import straightway.mosa.defense.core.CombinedSheddingDecider
 import straightway.mosa.defense.core.RequestMetricsPlugin
 import straightway.mosa.defense.core.SheddingDecider
@@ -53,6 +56,7 @@ import straightway.mosa.defense.requestguard.createMosaRequestBodyLimitPlugin
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.lang.management.ManagementFactory
 import java.lang.management.MemoryUsage
+import java.net.InetAddress
 import java.util.TimeZone
 import kotlin.random.Random
 import kotlin.time.Duration
@@ -73,6 +77,7 @@ fun Application.installNetworkServerPlugins(
     ipRateLimiter: RateLimiter,
     clientIpResolver: ClientIpResolver,
     requestBodyLimitConfig: RequestBodyLimitConfig,
+    ipBlockList: AutoRefreshingFileBackedContent<ClientBlockList>,
 ) {
     install(RequestMetricsPlugin(meterRegistry, nanoClock))
     install(createMosaLoadSheddingPlugin(rng)) {
@@ -88,6 +93,7 @@ fun Application.installNetworkServerPlugins(
             )
         retryAfter = loadSheddingRetryAfter
     }
+    install(createMosaIpBlockListPlugin(clientIpResolver, ipBlockList))
     install(createMosaIpRateLimitPlugin(ipRateLimiter, clientIpResolver))
     install(createMosaRequestBodyLimitPlugin(requestBodyLimitConfig))
     if (requireTlsForPod) {
@@ -259,6 +265,29 @@ fun createMosaIpRateLimitPlugin(
         }
     }
 
+fun createMosaIpBlockListPlugin(
+    clientIpResolver: ClientIpResolver,
+    ipBlockList: AutoRefreshingFileBackedContent<ClientBlockList>,
+): Plugin<Application, Unit, Unit> =
+    object : Plugin<Application, Unit, Unit> {
+        override val key = AttributeKey<Unit>("MosaIpBlockList")
+
+        override fun install(
+            pipeline: Application,
+            configure: Unit.() -> Unit,
+        ) {
+            pipeline.intercept(ApplicationCallPipeline.Plugins) {
+                val blockList = ipBlockList.get() ?: return@intercept
+                val address =
+                    runCatching { InetAddress.getByName(call.clientIpAddress(clientIpResolver)) }.getOrNull()
+                        ?: return@intercept
+                if (address !in blockList) return@intercept
+                call.respond(HttpStatusCode.Forbidden, mapOf("message" to CLIENT_BLOCKED_MESSAGE))
+                finish()
+            }
+        }
+    }
+
 private fun createMosaRequireTlsPlugin(clientIpResolver: ClientIpResolver): ApplicationPlugin<Unit> =
     createApplicationPlugin("MosaRequireTls") {
         onCall { call ->
@@ -275,6 +304,7 @@ private const val API_ROUTE_PREFIX = "/v1/"
 private const val APPROVE_GID_ROUTE = "/v1/approvegid"
 private const val AUTHENTICATED_RATE_LIMIT_MESSAGE = "Rate limit exceeded"
 private const val IP_RATE_LIMIT_MESSAGE = "Rate limit exceeded"
+private const val CLIENT_BLOCKED_MESSAGE = "Client blocked"
 private const val ALLOWED_CORS_METHODS = "POST, GET, OPTIONS"
 private const val ALLOWED_CORS_HEADERS = "Authorization, Content-Type"
 private const val CORS_MAX_AGE_SECONDS = "7200"
