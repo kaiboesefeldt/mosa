@@ -34,6 +34,7 @@ import react.useRef
 import react.useState
 import web.dom.Element
 import web.html.HTMLDivElement
+import straightway.mosa.client.assets.LogoResources
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.content.Topic
@@ -750,7 +751,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 className = ClassName("connected-shell__brand")
                 img {
                     className = ClassName("connected-shell__brand-logo")
-                    src = "/logo.png"
+                    src = LogoResources.dataUrl
                     alt = translator.translate("connected.brand.alt")
                 }
                 span {
