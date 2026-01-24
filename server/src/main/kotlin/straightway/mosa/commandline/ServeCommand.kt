@@ -30,6 +30,7 @@ import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
 import straightway.mosa.defense.requestguard.defaultMaxRequestBodyBytes
+import straightway.mosa.doc.ServeDocRenderer
 import straightway.mosa.installNetworkServerPlugins
 import straightway.mosa.ipBlockList
 import straightway.mosa.ipRateLimit
@@ -291,7 +292,7 @@ internal class ServeCommand(
 
     override fun execute() {
         if (doc) {
-            println(serveDocumentation())
+            ServeDocRenderer().render(readServeDocumentation())
             return
         }
         val argumentValues =
@@ -341,28 +342,12 @@ internal class ServeCommand(
     }
 }
 
-private fun serveDocumentation(): String =
-    """
-    |Serve command documentation
-    |
-    |Overview:
-    |  Starts the MOSA server and configures TLS, rate limits, and resource shedding based on flags.
-    |
-    |IP blocklist:
-    |  Fixed file name: mosa_ip_blocklist.yaml
-    |  Location: the file must be in the working directory from which the server is started.
-    |  Reload: automatically reloaded when changed, checked every 5 seconds.
-    |  Format (YAML):
-    |
-    |    blockedClients:
-    |      - 203.0.113.10
-    |      - 10.0.0.0/8
-    |      - 2001:db8::1
-    |      - 2001:db8::/32
-    |
-    |  Entries accept IPv4 or IPv6 with optional CIDR prefix.
-    |  If the prefix is omitted, full length is assumed (IPv4 /32, IPv6 /128).
-    """.trimMargin()
+private fun readServeDocumentation(): String =
+    ServeCommand::class.java
+        .getResourceAsStream("/doc/serve.md")
+        ?.bufferedReader()
+        ?.use { it.readText() }
+        ?: "Missing serve documentation resource: doc/serve.md"
 
 private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
     val serverPort = argumentStore.getInt(ServerCommandLineArguments.SERVER_PORT) ?: 8080

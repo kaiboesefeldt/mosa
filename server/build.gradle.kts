@@ -28,6 +28,7 @@ dependencies {
     val auth0JwtVersion = "4.5.0"
     val bouncyCastleVersion = "1.82"
     val kotlinxCliVersion = "0.3.6"
+    val mordantVersion = "3.0.2"
     val kotlinxCoroutinesVersion = "1.10.2"
     val micrometerVersion = "1.16.1"
     val jnaVersion = "5.18.1"
@@ -50,6 +51,8 @@ dependencies {
     implementation("io.insert-koin:koin-logger-slf4j:$koinVersion")
 
     implementation("org.jetbrains.kotlinx:kotlinx-cli-jvm:$kotlinxCliVersion")
+    implementation("com.github.ajalt.mordant:mordant:$mordantVersion")
+    implementation("com.github.ajalt.mordant:mordant-markdown:$mordantVersion")
 
     // Exposed ORM + SQLite
     implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
