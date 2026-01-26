@@ -26,3 +26,19 @@ blockedClients:
 #### Rules
 - Entries accept IPv4 or IPv6 addresses.
 - CIDR prefix is optional; if omitted, full length is assumed (IPv4 `/32`, IPv6 `/128`).
+
+### Identity blocklist
+It is possible to block specific identities using a file-based gid block list. Blocked gids are rejected on `/v1/approvegid` and all authenticated requests.
+
+**File name:** `mosa_identity_blocklist.yaml`  
+**Reload:** Automatically reloaded when changed, checked every 5 seconds.
+
+#### Format (YAML)
+```yaml
+blockedGids:
+  - "BASE64URL_GID_1"
+  - "BASE64URL_GID_2"
+```
+
+#### Rules
+- Entries accept base64url-encoded gid strings.

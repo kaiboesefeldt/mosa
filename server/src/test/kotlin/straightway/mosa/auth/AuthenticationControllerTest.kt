@@ -15,6 +15,8 @@ import io.mockk.every
 import io.mockk.mockk
 import straightway.mosa.NanoClock
 import straightway.mosa.base.register
+import straightway.mosa.config.AutoRefreshingFileBackedContent
+import straightway.mosa.config.IdentityBlockList
 import straightway.mosa.content.ControllerHttpTestEnvironment
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
@@ -23,12 +25,15 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import kotlin.io.encoding.Base64
+import kotlin.io.path.createTempFile
+import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.seconds
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 
@@ -45,7 +50,14 @@ class AuthenticationControllerTest {
     private val podCertificateService = PodCertificateService(signatureFactory, clock)
     private val environment =
         ControllerHttpTestEnvironment(
-            AuthenticationController(podCertificateService, clock, certificateLifeTime, rateLimiter, clientIpResolver),
+            AuthenticationController(
+                podCertificateService,
+                clock,
+                certificateLifeTime,
+                rateLimiter,
+                clientIpResolver,
+                identityBlockListFromYaml(" "),
+            ),
         ) {
             single { podCertificateService }
             single { clock }
@@ -71,7 +83,14 @@ class AuthenticationControllerTest {
     fun `approvegid accepts unauthenticated http request when tls allowed`() {
         val httpEnvironment =
             ControllerHttpTestEnvironment(
-                AuthenticationController(podCertificateService, clock, certificateLifeTime, rateLimiter, clientIpResolver),
+                AuthenticationController(
+                    podCertificateService,
+                    clock,
+                    certificateLifeTime,
+                    rateLimiter,
+                    clientIpResolver,
+                    identityBlockListFromYaml(" "),
+                ),
                 requireTlsForPod = false,
             ) {
                 single { podCertificateService }
@@ -150,7 +169,14 @@ class AuthenticationControllerTest {
         val strictRateLimiter = RateLimiter(nanoClock, RateLimitConfig(permitsPerMinute = 1, burst = 1))
         val strictEnvironment =
             ControllerHttpTestEnvironment(
-                AuthenticationController(podCertificateService, clock, certificateLifeTime, strictRateLimiter, clientIpResolver),
+                AuthenticationController(
+                    podCertificateService,
+                    clock,
+                    certificateLifeTime,
+                    strictRateLimiter,
+                    clientIpResolver,
+                    identityBlockListFromYaml(" "),
+                ),
             ) {
                 single { podCertificateService }
                 single { clock }
@@ -205,7 +231,16 @@ class AuthenticationControllerTest {
                     jackson()
                 }
                 routing {
-                    register(AuthenticationController(podCertificateService, clock, certificateLifeTime, rateLimiter, clientIpResolver))
+                    register(
+                        AuthenticationController(
+                            podCertificateService,
+                            clock,
+                            certificateLifeTime,
+                            rateLimiter,
+                            clientIpResolver,
+                            identityBlockListFromYaml(" "),
+                        ),
+                    )
                 }
             }
 
@@ -241,7 +276,16 @@ class AuthenticationControllerTest {
                     jackson()
                 }
                 routing {
-                    register(AuthenticationController(podCertificateService, clock, certificateLifeTime, rateLimiter, clientIpResolver))
+                    register(
+                        AuthenticationController(
+                            podCertificateService,
+                            clock,
+                            certificateLifeTime,
+                            rateLimiter,
+                            clientIpResolver,
+                            identityBlockListFromYaml(" "),
+                        ),
+                    )
                 }
             }
 
@@ -310,7 +354,59 @@ class AuthenticationControllerTest {
             assertEquals(mapOf("message" to "Certificate is too fresh to refresh"), response.body())
         }
 
+    @Test
+    fun `approvegid rejects blocked gid`() {
+        val blockedGid = "blocked".toBase64Url()
+        val blockedEnvironment =
+            ControllerHttpTestEnvironment(
+                AuthenticationController(
+                    podCertificateService,
+                    clock,
+                    certificateLifeTime,
+                    rateLimiter,
+                    clientIpResolver,
+                    identityBlockListFromYaml(
+                        """
+                        blockedGids:
+                          - "$blockedGid"
+                        """.trimIndent(),
+                    ),
+                ),
+            ) {
+                single { podCertificateService }
+                single { clock }
+            }
+
+        blockedEnvironment {
+            val response =
+                client.post("/v1/approvegid") {
+                    setJsonBody(
+                        AuthenticationApprovalRequest(
+                            gid = blockedGid,
+                        ),
+                    )
+                }
+
+            assertEquals(HttpStatusCode.Forbidden, response.status)
+            assertEquals(mapOf("message" to "Identity blocked"), response.body())
+        }
+    }
+
     private fun String.toBase64Url(): String = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(encodeToByteArray())
+
+    private fun identityBlockListFromYaml(yaml: String): AutoRefreshingFileBackedContent<IdentityBlockList> {
+        val path = createTempFile("mosa_identity_blocklist_test", ".yaml")
+        path.writeText(yaml)
+        return AutoRefreshingFileBackedContent(
+            AutoRefreshingFileBackedContent.Config(
+                path = path,
+                refreshInterval = 5.seconds,
+            ),
+            Clock.systemUTC(),
+        ) { content ->
+            IdentityBlockList.transformer.transform(content)
+        }
+    }
 
     private companion object {
         private val certificateLifeTime: Duration = 7.days

@@ -8,6 +8,9 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import straightway.mosa.base.BaseController
+import straightway.mosa.config.AutoRefreshingFileBackedContent
+import straightway.mosa.config.IdentityBlockList
+import straightway.mosa.config.contains
 import straightway.mosa.defense.ratelimit.RateLimiter
 import java.time.Clock
 import kotlin.time.Duration
@@ -19,6 +22,7 @@ class AuthenticationController(
     private val certificateLifeTime: Duration = 7.days,
     private val approveGidRateLimiter: RateLimiter,
     private val clientIpResolver: ClientIpResolver,
+    private val identityBlockList: AutoRefreshingFileBackedContent<IdentityBlockList>,
 ) : BaseController() {
     private val refreshThresholdSeconds = certificateLifeTime.inWholeSeconds / 10
 
@@ -34,6 +38,11 @@ class AuthenticationController(
                 return@postRoute
             }
             val request = call.receive<AuthenticationApprovalRequest>()
+            val blockList = identityBlockList.get()
+            if (blockList != null && request.gid in blockList) {
+                call.respond(HttpStatusCode.Forbidden, mapOf("message" to IDENTITY_BLOCKED_MESSAGE))
+                return@postRoute
+            }
             val cert =
                 podCertificateService.approveGid(
                     gid = request.gid,
@@ -86,5 +95,6 @@ class AuthenticationController(
     private companion object {
         private const val REFRESH_TOO_FRESH_MESSAGE = "Certificate is too fresh to refresh"
         private const val APPROVE_GID_RATE_LIMIT_MESSAGE = "Rate limit exceeded"
+        private const val IDENTITY_BLOCKED_MESSAGE = "Identity blocked"
     }
 }

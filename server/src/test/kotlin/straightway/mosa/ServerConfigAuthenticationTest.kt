@@ -17,12 +17,19 @@ import io.mockk.every
 import io.mockk.mockk
 import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.auth.PodPrincipal
+import straightway.mosa.config.AutoRefreshingFileBackedContent
+import straightway.mosa.config.IdentityBlockList
+import straightway.mosa.createMosaAuthenticatedIdentityBlockListPlugin
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.testutils.installTestNetworkServerPlugins
+import java.time.Clock
+import kotlin.io.path.createTempFile
+import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 class ServerConfigAuthenticationTest {
     private val trustedProxyResolver = ClientIpResolver(setOf("localhost"))
@@ -103,6 +110,50 @@ class ServerConfigAuthenticationTest {
             assertEquals(HttpStatusCode.TooManyRequests, second.status)
             val retryAfter = second.headers[HttpHeaders.RetryAfter]?.toInt()
             assertTrue(retryAfter in 1..2)
+        }
+    }
+
+    @Test
+    fun `rejects authenticated request when gid is blocked`() {
+        val tokenUtil = mockk<TokenUtil>()
+        val decodedJwt = mockk<DecodedJWT>()
+        val certClaim = mockk<Claim>()
+        val blockedGid = "blocked-user"
+
+        every { tokenUtil.decode("valid") } returns decodedJwt
+        every { tokenUtil.isValidMisJwt(decodedJwt) } returns true
+        every { decodedJwt.claims } returns mapOf("cert" to certClaim)
+        every { certClaim.asMap() } returns mapOf("gid" to blockedGid, "exp" to 1, "sig" to "sig")
+
+        val identityBlockList =
+            identityBlockListFromYaml(
+                """
+                blockedGids:
+                  - "$blockedGid"
+                """.trimIndent(),
+            )
+
+        testApplication {
+            application {
+                installTestNetworkServerPlugins(tokenUtil = tokenUtil, clientIpResolver = trustedProxyResolver)
+                routing {
+                    install(createMosaAuthenticatedIdentityBlockListPlugin(identityBlockList))
+                    authenticate {
+                        get("/secure") {
+                            call.respondText("ok")
+                        }
+                    }
+                }
+            }
+
+            val response =
+                client.get("/secure") {
+                    header(HttpHeaders.Authorization, "Bearer valid")
+                    header(HttpHeaders.XForwardedProto, "https")
+                }
+
+            assertEquals(HttpStatusCode.Forbidden, response.status)
+            assertEquals("""{"message":"Identity blocked"}""", response.bodyAsText())
         }
     }
 
@@ -228,6 +279,20 @@ class ServerConfigAuthenticationTest {
                 }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
+        }
+    }
+
+    private fun identityBlockListFromYaml(yaml: String): AutoRefreshingFileBackedContent<IdentityBlockList> {
+        val path = createTempFile("mosa_identity_blocklist_test", ".yaml")
+        path.writeText(yaml)
+        return AutoRefreshingFileBackedContent(
+            AutoRefreshingFileBackedContent.Config(
+                path = path,
+                refreshInterval = 5.seconds,
+            ),
+            Clock.systemUTC(),
+        ) { content ->
+            IdentityBlockList.transformer.transform(content)
         }
     }
 }

@@ -25,12 +25,14 @@ import straightway.mosa.authenticatedRateLimit
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
 import straightway.mosa.configureMosaAppModule
+import straightway.mosa.createMosaAuthenticatedIdentityBlockListPlugin
 import straightway.mosa.createMosaAuthenticatedRateLimitPlugin
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
 import straightway.mosa.defense.requestguard.defaultMaxRequestBodyBytes
 import straightway.mosa.doc.ServeDocRenderer
+import straightway.mosa.identityBlockList
 import straightway.mosa.installNetworkServerPlugins
 import straightway.mosa.ipBlockList
 import straightway.mosa.ipRateLimit
@@ -427,6 +429,7 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
                 ipBlockList = get(ipBlockList),
             )
             routing {
+                install(createMosaAuthenticatedIdentityBlockListPlugin(get(identityBlockList)))
                 install(createMosaAuthenticatedRateLimitPlugin(get(authenticatedRateLimit)))
                 getAll<BaseController>().forEach { register(it) }
             }

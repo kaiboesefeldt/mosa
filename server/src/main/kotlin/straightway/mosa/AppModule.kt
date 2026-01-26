@@ -18,6 +18,7 @@ import straightway.mosa.auth.ThreadLocalEd25519VerifierProvider
 import straightway.mosa.base.BaseController
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
+import straightway.mosa.config.IdentityBlockList
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.crypto.CryptoEd25519
@@ -28,6 +29,8 @@ import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegi
 import straightway.mosa.defense.requestduration.RequestDurationSheddingConfig
 import straightway.mosa.defense.requestduration.RequestDurationSheddingRatioMapper
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
+import straightway.mosa.identity.FictionalNameGenerator
+import straightway.mosa.util.BitStream
 import straightway.mosa.vectorstore.LuceneIndexAccess
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import straightway.mosa.vectorstore.LuceneQueryPlanner
@@ -37,6 +40,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.security.MessageDigest
 import java.time.Clock
+import kotlin.io.encoding.Base64
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
@@ -47,6 +51,7 @@ val approvegidRateLimit: Qualifier = named("approvegidRateLimit")
 val authenticatedRateLimit: Qualifier = named("authenticatedRateLimit")
 val ipRateLimit: Qualifier = named("ipRateLimit")
 val ipBlockList: Qualifier = named("ipBlockList")
+val identityBlockList: Qualifier = named("identityBlockList")
 
 fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY) {
     single<MeterRegistry> { SimpleMeterRegistry() } onClose { it?.close() }
@@ -205,6 +210,24 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
             }
         }
     }
+    single(identityBlockList) {
+        AutoRefreshingFileBackedContent(
+            AutoRefreshingFileBackedContent.Config(
+                path = Path.of("mosa_identity_blocklist.yaml"),
+                refreshInterval = 5.seconds,
+            ),
+            get(),
+            onError = { error -> klogger.error(error) { "mosa_identity_blocklist has invalid format" } },
+        ) {
+            val nameGenerator = FictionalNameGenerator()
+            IdentityBlockList.transformer.transform(it).also { blockList ->
+                val entries = blockList.blockedGids.map { gid -> gid.toBlockedIdentityLogEntry(nameGenerator) }
+                klogger.info {
+                    "blocked gids: ${entries.joinToString(", ")}"
+                }
+            }
+        }
+    }
     single {
         val cliArguments: CommandLineArgumentStore = get()
         val raw = cliArguments.getString(ServerCommandLineArguments.TRUSTED_PROXY_IPS).orEmpty()
@@ -229,6 +252,7 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
             certificateLifetimeSeconds.toLong().seconds,
             get(approvegidRateLimit),
             get(),
+            get(identityBlockList),
         )
     } bind BaseController::class
     single {
@@ -238,6 +262,20 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
             allowPlainHttp = cliArguments.getBoolean(ServerCommandLineArguments.ALLOW_HTTP) == true,
         )
     } bind BaseController::class
+}
+
+private fun String.toBlockedIdentityLogEntry(nameGenerator: FictionalNameGenerator): String {
+    val name = toFictionalNameOrNull(nameGenerator) ?: return this
+    return "$this ($name)"
+}
+
+private fun String.toFictionalNameOrNull(nameGenerator: FictionalNameGenerator): String? {
+    val bytes =
+        runCatching {
+            Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).decode(this)
+        }.getOrNull()
+            ?: return null
+    return nameGenerator.generate(BitStream(bytes)).toString()
 }
 
 private val klogger = KotlinLogging.logger {}

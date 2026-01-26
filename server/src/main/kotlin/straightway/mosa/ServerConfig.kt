@@ -36,6 +36,7 @@ import straightway.mosa.auth.toPodCertificate
 import straightway.mosa.base.findPayloadTooLarge
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
+import straightway.mosa.config.IdentityBlockList
 import straightway.mosa.config.contains
 import straightway.mosa.defense.core.CombinedSheddingDecider
 import straightway.mosa.defense.core.RequestMetricsPlugin
@@ -241,6 +242,16 @@ fun createMosaAuthenticatedRateLimitPlugin(rateLimiter: RateLimiter) =
         }
     }
 
+fun createMosaAuthenticatedIdentityBlockListPlugin(identityBlockList: AutoRefreshingFileBackedContent<IdentityBlockList>) =
+    createRouteScopedPlugin("MosaIdentityBlockList") {
+        on(AuthenticationChecked) { call ->
+            val principal = call.principal<PodPrincipal>() ?: return@on
+            val blockList = identityBlockList.get() ?: return@on
+            if (principal.gid !in blockList) return@on
+            call.respond(HttpStatusCode.Forbidden, mapOf("message" to IDENTITY_BLOCKED_MESSAGE))
+        }
+    }
+
 fun createMosaIpRateLimitPlugin(
     rateLimiter: RateLimiter,
     clientIpResolver: ClientIpResolver,
@@ -305,6 +316,7 @@ private const val APPROVE_GID_ROUTE = "/v1/approvegid"
 private const val AUTHENTICATED_RATE_LIMIT_MESSAGE = "Rate limit exceeded"
 private const val IP_RATE_LIMIT_MESSAGE = "Rate limit exceeded"
 private const val CLIENT_BLOCKED_MESSAGE = "Client blocked"
+private const val IDENTITY_BLOCKED_MESSAGE = "Identity blocked"
 private const val ALLOWED_CORS_METHODS = "POST, GET, OPTIONS"
 private const val ALLOWED_CORS_HEADERS = "Authorization, Content-Type"
 private const val CORS_MAX_AGE_SECONDS = "7200"
