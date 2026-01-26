@@ -54,6 +54,7 @@ import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegi
 import straightway.mosa.defense.requestduration.RequestDurationSheddingDecider
 import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
 import straightway.mosa.defense.requestguard.createMosaRequestBodyLimitPlugin
+import straightway.mosa.identity.IdentityLogEntryFormatter
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.lang.management.ManagementFactory
 import java.lang.management.MemoryUsage
@@ -234,6 +235,7 @@ fun createMosaAuthenticatedRateLimitPlugin(rateLimiter: RateLimiter) =
             val principal = call.principal<PodPrincipal>() ?: return@on
             val decision = rateLimiter.check(principal.gid)
             if (decision.allowed) return@on
+            logger.warn { "rate limit exceeded for ${IdentityLogEntryFormatter.format(principal.gid)}" }
             call.response.headers.append(HttpHeaders.RetryAfter, decision.retryAfterSeconds.toString())
             call.respond(
                 HttpStatusCode.TooManyRequests,

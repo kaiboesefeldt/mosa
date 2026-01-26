@@ -29,8 +29,7 @@ import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegi
 import straightway.mosa.defense.requestduration.RequestDurationSheddingConfig
 import straightway.mosa.defense.requestduration.RequestDurationSheddingRatioMapper
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
-import straightway.mosa.identity.FictionalNameGenerator
-import straightway.mosa.util.BitStream
+import straightway.mosa.identity.IdentityLogEntryFormatter
 import straightway.mosa.vectorstore.LuceneIndexAccess
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import straightway.mosa.vectorstore.LuceneQueryPlanner
@@ -40,7 +39,6 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.security.MessageDigest
 import java.time.Clock
-import kotlin.io.encoding.Base64
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
@@ -219,9 +217,8 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
             get(),
             onError = { error -> klogger.error(error) { "mosa_identity_blocklist has invalid format" } },
         ) {
-            val nameGenerator = FictionalNameGenerator()
             IdentityBlockList.transformer.transform(it).also { blockList ->
-                val entries = blockList.blockedGids.map { gid -> gid.toBlockedIdentityLogEntry(nameGenerator) }
+                val entries = blockList.blockedGids.map { gid -> IdentityLogEntryFormatter.format(gid) }
                 klogger.info {
                     "blocked gids: ${entries.joinToString(", ")}"
                 }
@@ -262,20 +259,6 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
             allowPlainHttp = cliArguments.getBoolean(ServerCommandLineArguments.ALLOW_HTTP) == true,
         )
     } bind BaseController::class
-}
-
-private fun String.toBlockedIdentityLogEntry(nameGenerator: FictionalNameGenerator): String {
-    val name = toFictionalNameOrNull(nameGenerator) ?: return this
-    return "$this ($name)"
-}
-
-private fun String.toFictionalNameOrNull(nameGenerator: FictionalNameGenerator): String? {
-    val bytes =
-        runCatching {
-            Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).decode(this)
-        }.getOrNull()
-            ?: return null
-    return nameGenerator.generate(BitStream(bytes)).toString()
 }
 
 private val klogger = KotlinLogging.logger {}

@@ -19,7 +19,6 @@ import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.auth.PodPrincipal
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.IdentityBlockList
-import straightway.mosa.createMosaAuthenticatedIdentityBlockListPlugin
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.testutils.installTestNetworkServerPlugins
