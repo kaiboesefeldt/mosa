@@ -4,17 +4,27 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.install
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import io.mockk.mockk
+import io.mockk.every
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
+import org.koin.core.Koin
+import org.koin.dsl.module
+import org.koin.ktor.plugin.Koin
+import org.koin.ktor.plugin.koin
+import straightway.mosa.LoadSheddingConfig
 import straightway.mosa.defense.cpu.ConstCpuLoadSampler
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingDecider
+import straightway.mosa.defense.memory.MemorySheddingConfig
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
@@ -31,20 +41,24 @@ class LoadSheddingPluginTest {
                     ),
                     ConstCpuLoadSampler(1.0),
                 )
-            application {
-                install(createMosaLoadSheddingPlugin(mockk())) {
-                    this.decider = decider
-                    retryAfter = 2.seconds
+            var unmock: (() -> Unit)? = null
+            try {
+                application {
+                    val koin = installLoadSheddingTestKoin(loadSheddingConfig(2.seconds))
+                    unmock = mockDecider(koin, decider)
+                    install(createMosaLoadSheddingPlugin())
+                    routing {
+                        get("/health") { call.respondText("ok") }
+                    }
                 }
-                routing {
-                    get("/health") { call.respondText("ok") }
-                }
+
+                val response = client.get("/health")
+
+                assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+                assertEquals("2", response.headers[HttpHeaders.RetryAfter])
+            } finally {
+                unmock?.invoke()
             }
-
-            val response = client.get("/health")
-
-            assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
-            assertEquals("2", response.headers[HttpHeaders.RetryAfter])
         }
 
     @Test
@@ -58,19 +72,24 @@ class LoadSheddingPluginTest {
                     ),
                     ConstCpuLoadSampler(0.2),
                 )
-            application {
-                install(createMosaLoadSheddingPlugin(mockk())) {
-                    this.decider = decider
+            var unmock: (() -> Unit)? = null
+            try {
+                application {
+                    val koin = installLoadSheddingTestKoin(loadSheddingConfig())
+                    unmock = mockDecider(koin, decider)
+                    install(createMosaLoadSheddingPlugin())
+                    routing {
+                        get("/health") { call.respondText("ok") }
+                    }
                 }
-                routing {
-                    get("/health") { call.respondText("ok") }
-                }
+
+                val response = client.get("/health")
+
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals("ok", response.bodyAsText())
+            } finally {
+                unmock?.invoke()
             }
-
-            val response = client.get("/health")
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertEquals("ok", response.bodyAsText())
         }
 
     @Test
@@ -85,23 +104,28 @@ class LoadSheddingPluginTest {
                     ConstCpuLoadSampler(1.0),
                 )
             val callPhaseReached = AtomicBoolean(false)
-            application {
-                install(createMosaLoadSheddingPlugin(mockk())) {
-                    this.decider = decider
+            var unmock: (() -> Unit)? = null
+            try {
+                application {
+                    val koin = installLoadSheddingTestKoin(loadSheddingConfig())
+                    unmock = mockDecider(koin, decider)
+                    install(createMosaLoadSheddingPlugin())
+                    intercept(ApplicationCallPipeline.Call) {
+                        callPhaseReached.set(true)
+                        proceed()
+                    }
+                    routing {
+                        get("/health") { call.respondText("ok") }
+                    }
                 }
-                intercept(ApplicationCallPipeline.Call) {
-                    callPhaseReached.set(true)
-                    proceed()
-                }
-                routing {
-                    get("/health") { call.respondText("ok") }
-                }
+
+                val response = client.get("/health")
+
+                assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+                assertEquals(false, callPhaseReached.get())
+            } finally {
+                unmock?.invoke()
             }
-
-            val response = client.get("/health")
-
-            assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
-            assertEquals(false, callPhaseReached.get())
         }
 
     @Test
@@ -116,21 +140,74 @@ class LoadSheddingPluginTest {
                     ConstCpuLoadSampler(0.2),
                 )
             val routeReached = AtomicBoolean(false)
-            application {
-                install(createMosaLoadSheddingPlugin(mockk())) {
-                    this.decider = decider
-                }
-                routing {
-                    get("/health") {
-                        routeReached.set(true)
-                        call.respondText("ok")
+            var unmock: (() -> Unit)? = null
+            try {
+                application {
+                    val koin = installLoadSheddingTestKoin(loadSheddingConfig())
+                    unmock = mockDecider(koin, decider)
+                    install(createMosaLoadSheddingPlugin())
+                    routing {
+                        get("/health") {
+                            routeReached.set(true)
+                            call.respondText("ok")
+                        }
                     }
                 }
+
+                val response = client.get("/health")
+
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals(true, routeReached.get())
+            } finally {
+                unmock?.invoke()
             }
-
-            val response = client.get("/health")
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertEquals(true, routeReached.get())
         }
+
+    private fun mockDecider(
+        koin: Koin,
+        decider: SheddingDecider,
+    ): () -> Unit {
+        mockkStatic("straightway.mosa.defense.core.LoadSheddingConfigurationKt")
+        every { koin.sheddingDeciderChain() } returns decider
+        return { unmockkStatic("straightway.mosa.defense.core.LoadSheddingConfigurationKt") }
+    }
+
+    private fun Application.installLoadSheddingTestKoin(loadSheddingConfig: LoadSheddingConfig): Koin {
+        install(Koin) {
+            allowOverride(true)
+            modules(
+                module {
+                    single { Random(12345L) }
+                    single { loadSheddingConfig }
+                },
+            )
+        }
+        return koin()
+    }
+
+    private fun loadSheddingConfig(retryAfter: kotlin.time.Duration = 30.seconds) =
+        LoadSheddingConfig(
+            cpuSheddingConfig =
+                CpuSheddingConfig(
+                    loadSheddingStart = Double.MAX_VALUE,
+                    loadSheddingFull = Double.MAX_VALUE,
+                ),
+            heapMemorySheddingConfig =
+                MemorySheddingConfig(
+                    memorySheddingStart = Double.MAX_VALUE,
+                    memorySheddingFull = Double.MAX_VALUE,
+                ),
+            nonHeapMemorySheddingConfig =
+                MemorySheddingConfig(
+                    memorySheddingStart = Double.MAX_VALUE,
+                    memorySheddingFull = Double.MAX_VALUE,
+                ),
+            systemMemorySheddingConfig =
+                MemorySheddingConfig(
+                    memorySheddingStart = Double.MAX_VALUE,
+                    memorySheddingFull = Double.MAX_VALUE,
+                ),
+            cpuLoadSmoothingHalfLifeNs = 250_000_000L,
+            loadSheddingRetryAfter = retryAfter,
+        )
 }

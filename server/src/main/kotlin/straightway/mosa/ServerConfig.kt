@@ -28,7 +28,7 @@ import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import io.ktor.util.AttributeKey
-import io.micrometer.core.instrument.MeterRegistry
+import org.koin.ktor.plugin.koin
 import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.auth.PodPrincipal
@@ -38,70 +38,33 @@ import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
 import straightway.mosa.config.IdentityBlockList
 import straightway.mosa.config.contains
-import straightway.mosa.defense.core.CombinedSheddingDecider
 import straightway.mosa.defense.core.RequestMetricsPlugin
-import straightway.mosa.defense.core.SheddingDecider
 import straightway.mosa.defense.core.createMosaLoadSheddingPlugin
-import straightway.mosa.defense.cpu.CpuSheddingConfig
-import straightway.mosa.defense.cpu.CpuSheddingDecider
-import straightway.mosa.defense.cpu.ProcessCpuLoadSampler
-import straightway.mosa.defense.cpu.SmoothedCpuLoadSampler
-import straightway.mosa.defense.memory.GenericMemoryUsageSampler
-import straightway.mosa.defense.memory.MemorySheddingConfig
-import straightway.mosa.defense.memory.MemorySheddingDecider
 import straightway.mosa.defense.ratelimit.RateLimiter
-import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
-import straightway.mosa.defense.requestduration.RequestDurationSheddingDecider
 import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
 import straightway.mosa.defense.requestguard.createMosaRequestBodyLimitPlugin
 import straightway.mosa.identity.IdentityLogEntryFormatter
 import straightway.mosa.jackson.InstantJacksonSerializers
-import java.lang.management.ManagementFactory
-import java.lang.management.MemoryUsage
 import java.net.InetAddress
 import java.util.TimeZone
-import kotlin.random.Random
-import kotlin.time.Duration
 
-fun Application.installNetworkServerPlugins(
-    requireTlsForPod: Boolean,
-    cpuSheddingConfig: CpuSheddingConfig,
-    heapMemorySheddingConfig: MemorySheddingConfig,
-    nonHeapMemorySheddingConfig: MemorySheddingConfig,
-    systemMemorySheddingConfig: MemorySheddingConfig,
-    cpuLoadSmoothingHalfLifeNs: Long,
-    loadSheddingRetryAfter: Duration,
-    meterRegistry: MeterRegistry,
-    requestDurationForRouteStateRegistry: RequestDurationForRouteStateRegistry,
-    nanoClock: NanoClock,
-    rng: Random,
-    tokenUtil: TokenUtil,
-    ipRateLimiter: RateLimiter,
-    clientIpResolver: ClientIpResolver,
-    requestBodyLimitConfig: RequestBodyLimitConfig,
-    ipBlockList: AutoRefreshingFileBackedContent<ClientBlockList>,
-) {
-    install(RequestMetricsPlugin(meterRegistry, nanoClock))
-    install(createMosaLoadSheddingPlugin(rng)) {
-        decider =
-            CombinedSheddingDecider(
-                listOf(
-                    cpuSheddingDecider(cpuSheddingConfig, cpuLoadSmoothingHalfLifeNs, nanoClock),
-                    heapMemorySheddingDecider(heapMemorySheddingConfig),
-                    nonHeapMemorySheddingDecider(nonHeapMemorySheddingConfig),
-                    systemMemorySheddingDecider(systemMemorySheddingConfig),
-                    RequestDurationSheddingDecider(requestDurationForRouteStateRegistry),
-                ),
-            )
-        retryAfter = loadSheddingRetryAfter
-    }
-    install(createMosaIpBlockListPlugin(clientIpResolver, ipBlockList))
-    install(createMosaIpRateLimitPlugin(ipRateLimiter, clientIpResolver))
+fun Application.installNetworkServerPlugins() {
+    val koin = koin()
+    val tlsConfig = koin.get<TlsConfig>()
+    val authConfig = koin.get<AuthConfig>()
+    val requestBodyLimitConfig = koin.get<RequestBodyLimitConfig>()
+    val ipBlockList = koin.get<AutoRefreshingFileBackedContent<ClientBlockList>>(ipBlockList)
+    val ipRateLimiter = koin.get<RateLimiter>(ipRateLimit)
+
+    install(RequestMetricsPlugin())
+    install(createMosaLoadSheddingPlugin())
+    install(createMosaIpBlockListPlugin(authConfig.clientIpResolver, ipBlockList))
+    install(createMosaIpRateLimitPlugin(ipRateLimiter, authConfig.clientIpResolver))
     install(createMosaRequestBodyLimitPlugin(requestBodyLimitConfig))
-    if (requireTlsForPod) {
-        install(createMosaRequireTlsPlugin(clientIpResolver))
+    if (tlsConfig.requireTlsForPod) {
+        install(createMosaRequireTlsPlugin(authConfig.clientIpResolver))
     }
-    install(createMosaApiCorsPlugin(requireTlsForPod, clientIpResolver))
+    install(createMosaApiCorsPlugin(tlsConfig.requireTlsForPod, authConfig.clientIpResolver))
     install(StatusPages) {
         exception<InvalidPodCertificateRequest> { call, cause ->
             call.respond(HttpStatusCode.BadRequest, mapOf("message" to cause.message))
@@ -122,8 +85,8 @@ fun Application.installNetworkServerPlugins(
         bearer {
             authenticate { credentials ->
                 runCatching {
-                    val jwt = tokenUtil.decode(credentials.token)
-                    if (!tokenUtil.isValidMisJwt(jwt)) return@runCatching null
+                    val jwt = authConfig.tokenUtil.decode(credentials.token)
+                    if (!authConfig.tokenUtil.isValidMisJwt(jwt)) return@runCatching null
                     val cert = jwt.claims["cert"]?.asMap()?.toPodCertificate() ?: return@runCatching null
                     PodPrincipal(cert)
                 }.onFailure {
@@ -142,60 +105,6 @@ fun Application.installNetworkServerPlugins(
         }
     }
 }
-
-private fun nonHeapMemorySheddingDecider(nonHeapMemorySheddingConfig: MemorySheddingConfig): SheddingDecider =
-    ManagementFactory.getMemoryMXBean()?.let { memoryBean ->
-        MemorySheddingDecider(
-            nonHeapMemorySheddingConfig,
-            GenericMemoryUsageSampler("NonHeapMemory") { memoryBean.nonHeapMemoryUsage },
-        )
-    } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }.also {
-        logger.warn { "Memory shedding by non-heap size not available" }
-    }
-
-private fun heapMemorySheddingDecider(heapMemorySheddingConfig: MemorySheddingConfig): SheddingDecider =
-    ManagementFactory.getMemoryMXBean()?.let { memoryBean ->
-        MemorySheddingDecider(
-            heapMemorySheddingConfig,
-            GenericMemoryUsageSampler("NonHeapMemory") { memoryBean.heapMemoryUsage },
-        )
-    } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }.also {
-        logger.warn { "Memory shedding by heap size not available" }
-    }
-
-private fun systemMemorySheddingDecider(systemMemorySheddingConfig: MemorySheddingConfig): SheddingDecider =
-    (ManagementFactory.getOperatingSystemMXBean() as? com.sun.management.OperatingSystemMXBean)?.let { osBean ->
-        MemorySheddingDecider(
-            systemMemorySheddingConfig,
-            GenericMemoryUsageSampler("SystemHeapMemory") {
-                MemoryUsage(
-                    0L,
-                    osBean.totalMemorySize - osBean.freeMemorySize,
-                    osBean.totalMemorySize,
-                    osBean.totalMemorySize,
-                )
-            },
-        )
-    } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }.also {
-        logger.warn { "System memory shedding not available" }
-    }
-
-private fun cpuSheddingDecider(
-    cpuSheddingConfig: CpuSheddingConfig,
-    cpuLoadSmoothingHalfLifeNs: Long,
-    nanoClock: NanoClock,
-) = CpuSheddingDecider(
-    cpuSheddingConfig,
-    SmoothedCpuLoadSampler(
-        ProcessCpuLoadSampler().also {
-            if (!it.isAvailable) {
-                logger.warn { "No CPU load shedding: ProcessCpuLoadSampler not available" }
-            }
-        },
-        cpuLoadSmoothingHalfLifeNs,
-        nanoClock,
-    ),
-)
 
 fun createMosaApiCorsPlugin(
     requireTlsForPod: Boolean,

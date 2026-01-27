@@ -19,8 +19,12 @@ import kotlinx.coroutines.Dispatchers
 import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.ktor.plugin.koin
+import straightway.mosa.AuthConfig
 import straightway.mosa.CommandLineArgumentStore
+import straightway.mosa.LoadSheddingConfig
 import straightway.mosa.ServerCommandLineArguments
+import straightway.mosa.TlsConfig
+import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.authenticatedRateLimit
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
@@ -34,8 +38,6 @@ import straightway.mosa.defense.requestguard.defaultMaxRequestBodyBytes
 import straightway.mosa.doc.ServeDocRenderer
 import straightway.mosa.identityBlockList
 import straightway.mosa.installNetworkServerPlugins
-import straightway.mosa.ipBlockList
-import straightway.mosa.ipRateLimit
 import straightway.mosa.tls.DevSelfSignedCertificateFactory
 import straightway.mosa.tls.InMemoryKeyStore
 import kotlin.math.roundToLong
@@ -401,33 +403,38 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
             memorySheddingStart = systemMemorySheddingStart,
             memorySheddingFull = systemMemorySheddingFull,
         )
-    val requestBodyLimitConfig =
-        RequestBodyLimitConfig(
-            maxBodyBytes = maxRequestBodyBytes,
-        )
     val mosaModule: Application.() -> Unit = {
         install(Koin) {
-            modules(module { configureMosaAppModule(argumentStore) })
+            modules(
+                module {
+                    configureMosaAppModule(argumentStore)
+                    single { TlsConfig(requireTlsForPod = requireTlsForPod) }
+                    single {
+                        LoadSheddingConfig(
+                            cpuSheddingConfig = cpuSheddingConfig,
+                            heapMemorySheddingConfig = heapMemorySheddingConfig,
+                            nonHeapMemorySheddingConfig = nonHeapMemorySheddingConfig,
+                            systemMemorySheddingConfig = systemMemorySheddingConfig,
+                            cpuLoadSmoothingHalfLifeNs = cpuLoadSmoothingHalfLifeNs,
+                            loadSheddingRetryAfter = loadSheddingRetryAfterSeconds.seconds,
+                        )
+                    }
+                    single {
+                        AuthConfig(
+                            tokenUtil = get(),
+                            clientIpResolver = get<ClientIpResolver>(),
+                        )
+                    }
+                    single {
+                        RequestBodyLimitConfig(
+                            maxBodyBytes = maxRequestBodyBytes,
+                        )
+                    }
+                },
+            )
         }
         with(koin()) {
-            installNetworkServerPlugins(
-                requireTlsForPod,
-                cpuSheddingConfig,
-                heapMemorySheddingConfig,
-                nonHeapMemorySheddingConfig,
-                systemMemorySheddingConfig,
-                cpuLoadSmoothingHalfLifeNs,
-                loadSheddingRetryAfterSeconds.seconds,
-                requestDurationForRouteStateRegistry = get(),
-                meterRegistry = get(),
-                nanoClock = get(),
-                rng = get(),
-                tokenUtil = get(),
-                ipRateLimiter = get(ipRateLimit),
-                clientIpResolver = get(),
-                requestBodyLimitConfig = requestBodyLimitConfig,
-                ipBlockList = get(ipBlockList),
-            )
+            installNetworkServerPlugins()
             routing {
                 install(createMosaAuthenticatedIdentityBlockListPlugin(get(identityBlockList)))
                 install(createMosaAuthenticatedRateLimitPlugin(get(authenticatedRateLimit)))

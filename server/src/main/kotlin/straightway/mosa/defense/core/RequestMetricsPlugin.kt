@@ -2,6 +2,7 @@ package straightway.mosa.defense.core
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.Plugin
 import io.ktor.server.application.call
@@ -12,16 +13,14 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import kotlinx.coroutines.slf4j.MDCContext
 import kotlinx.coroutines.withContext
+import org.koin.ktor.plugin.koin
 import straightway.mosa.NanoClock
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
-class RequestMetricsPlugin(
-    private val meterRegistry: MeterRegistry,
-    private val nanoClock: NanoClock,
-) : Plugin<Application, Unit, Unit> {
+class RequestMetricsPlugin : Plugin<Application, Unit, Unit> {
     override val key: AttributeKey<Unit> = AttributeKey("RequestMetricsPlugin")
 
     private val timers = ConcurrentHashMap<RequestMetricKey, Timer>()
@@ -31,6 +30,10 @@ class RequestMetricsPlugin(
         configure: (Unit) -> Unit,
     ) {
         configure(Unit)
+
+        val koin = pipeline.koin()
+        val meterRegistry = koin.get<MeterRegistry>()
+        val nanoClock = koin.get<NanoClock>()
 
         val active = AtomicInteger(0)
         val total = AtomicLong(0)
@@ -56,7 +59,7 @@ class RequestMetricsPlugin(
                     throw t
                 } finally {
                     val durationNs = nanoClock.nanoTime() - startNs
-                    recordDuration(call, durationNs)
+                    meterRegistry.recordDuration(call, durationNs)
                     val activeAfter = active.decrementAndGet()
 
                     val status = call.response.status() ?: "<UNKNOWN STATUS>"
@@ -73,8 +76,8 @@ class RequestMetricsPlugin(
         }
     }
 
-    private fun recordDuration(
-        call: io.ktor.server.application.ApplicationCall,
+    private fun MeterRegistry.recordDuration(
+        call: ApplicationCall,
         durationNs: Long,
     ) {
         val route = call.attributes.getOrNull(RouteTagKey) ?: RouteTagResolver.resolveRouteTag(call)
@@ -86,7 +89,7 @@ class RequestMetricsPlugin(
                     .builder(REQUEST_DURATION_METRIC_NAME)
                     .tag("method", method)
                     .tag("route", route)
-                    .register(meterRegistry)
+                    .register(this)
             }.record(durationNs, TimeUnit.NANOSECONDS)
     }
 
