@@ -33,10 +33,10 @@ import straightway.mosa.auth.ThreadLocalEd25519VerifierProvider
 import straightway.mosa.auth.TransientEd25519Factory
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
-import straightway.mosa.createMosaAuthenticatedRateLimitPlugin
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
+import straightway.mosa.defense.ratelimit.createMosaAuthenticatedRateLimitPlugin
 import straightway.mosa.jackson.InstantJacksonSerializers
 import straightway.mosa.testutils.installTestNetworkServerPlugins
 import straightway.mosa.vectorstore.LuceneIndexAccess

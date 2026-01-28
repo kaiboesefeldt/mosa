@@ -27,13 +27,13 @@ import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
 import straightway.mosa.configureMosaAppModule
-import straightway.mosa.createMosaAuthenticatedIdentityBlockListPlugin
-import straightway.mosa.createMosaAuthenticatedRateLimitPlugin
 import straightway.mosa.defense.DefenseCommandLineOptions
 import straightway.mosa.defense.authenticatedRateLimit
+import straightway.mosa.defense.blocklist.createMosaAuthenticatedIdentityBlockListPlugin
 import straightway.mosa.defense.buildLoadSheddingConfig
 import straightway.mosa.defense.buildRequestBodyLimitConfig
 import straightway.mosa.defense.identityBlockList
+import straightway.mosa.defense.ratelimit.createMosaAuthenticatedRateLimitPlugin
 import straightway.mosa.doc.ServeDocRenderer
 import straightway.mosa.installNetworkServerPlugins
 import straightway.mosa.tls.DevSelfSignedCertificateFactory

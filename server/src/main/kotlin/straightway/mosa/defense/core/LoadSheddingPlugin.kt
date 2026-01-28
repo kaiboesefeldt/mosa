@@ -158,8 +158,8 @@ private fun Koin.nonHeapMemorySheddingDecider() =
             )
         } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
             .also {
-            localLogger.warn { "Memory shedding by non-heap size not available" }
-        }
+                localLogger.warn { "Memory shedding by non-heap size not available" }
+            }
     }
 
 private fun Koin.heapMemorySheddingDecider() =
@@ -171,8 +171,8 @@ private fun Koin.heapMemorySheddingDecider() =
             )
         } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
             .also {
-            localLogger.warn { "Memory shedding by heap size not available" }
-        }
+                localLogger.warn { "Memory shedding by heap size not available" }
+            }
     }
 
 private fun Koin.systemMemorySheddingDecider() =
@@ -191,8 +191,8 @@ private fun Koin.systemMemorySheddingDecider() =
             )
         } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
             .also {
-            localLogger.warn { "System memory shedding not available" }
-        }
+                localLogger.warn { "System memory shedding not available" }
+            }
     }
 
 private fun Koin.cpuSheddingDecider() =

@@ -166,9 +166,9 @@ class LoadSheddingPluginTest {
         koin: Koin,
         decider: SheddingDecider,
     ): () -> Unit {
-        mockkStatic("straightway.mosa.defense.core.LoadSheddingConfigurationKt")
+        mockkStatic("straightway.mosa.defense.core.LoadSheddingPluginKt")
         every { koin.sheddingDeciderChain() } returns decider
-        return { unmockkStatic("straightway.mosa.defense.core.LoadSheddingConfigurationKt") }
+        return { unmockkStatic("straightway.mosa.defense.core.LoadSheddingPluginKt") }
     }
 
     private fun Application.installLoadSheddingTestKoin(loadSheddingConfig: LoadSheddingConfig): Koin {
