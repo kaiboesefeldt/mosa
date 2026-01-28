@@ -21,7 +21,6 @@ import org.koin.ktor.plugin.Koin
 import org.koin.ktor.plugin.koin
 import straightway.mosa.AuthConfig
 import straightway.mosa.CommandLineArgumentStore
-import straightway.mosa.LoadSheddingConfig
 import straightway.mosa.ServerCommandLineArguments
 import straightway.mosa.TlsConfig
 import straightway.mosa.auth.ClientIpResolver
@@ -32,18 +31,14 @@ import straightway.mosa.createMosaAuthenticatedIdentityBlockListPlugin
 import straightway.mosa.createMosaAuthenticatedRateLimitPlugin
 import straightway.mosa.defense.DefenseCommandLineOptions
 import straightway.mosa.defense.authenticatedRateLimit
-import straightway.mosa.defense.cpu.CpuSheddingConfig
+import straightway.mosa.defense.buildLoadSheddingConfig
+import straightway.mosa.defense.buildRequestBodyLimitConfig
 import straightway.mosa.defense.identityBlockList
-import straightway.mosa.defense.memory.MemorySheddingConfig
-import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
-import straightway.mosa.defense.requestguard.defaultMaxRequestBodyBytes
 import straightway.mosa.doc.ServeDocRenderer
 import straightway.mosa.installNetworkServerPlugins
 import straightway.mosa.tls.DevSelfSignedCertificateFactory
 import straightway.mosa.tls.InMemoryKeyStore
 import straightway.mosa.vectorstore.VectorStoreCommandLineOptions
-import kotlin.math.roundToLong
-import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCli::class)
 internal class ServeCommand(
@@ -180,49 +175,16 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
     val enableSelfSignedTls = argumentStore.getBoolean(ServerCommandLineArguments.DEV_SELF_SIGNED_TLS) ?: false
     val httpsPort = argumentStore.getInt(ServerCommandLineArguments.HTTPS_PORT) ?: 8443
     val devCertHost = argumentStore.getString(ServerCommandLineArguments.DEV_CERT_HOST) ?: "localhost"
-    val loadSheddingStart = argumentStore.getDouble(ServerCommandLineArguments.CPU_LOAD_SHEDDING_START) ?: 0.85
-    val loadSheddingFull = argumentStore.getDouble(ServerCommandLineArguments.CPU_LOAD_SHEDDING_FULL) ?: 0.95
-    val cpuLoadSmoothingHalfLifeSeconds =
-        argumentStore.getDouble(ServerCommandLineArguments.CPU_LOAD_SMOOTHING_HALF_LIFE_SECONDS) ?: 10.0
-    val cpuLoadSmoothingHalfLifeNs =
-        (cpuLoadSmoothingHalfLifeSeconds * 1_000_000_000.0).roundToLong()
-    val heapMemorySheddingStart = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_START) ?: 0.9
-    val heapMemorySheddingFull = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_FULL) ?: 0.98
-    val nonHeapMemorySheddingStart = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_START) ?: 0.98
-    val nonHeapMemorySheddingFull = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_FULL) ?: 0.999
-    val systemMemorySheddingStart = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_SYSTEM_START) ?: 0.85
-    val systemMemorySheddingFull = argumentStore.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_SYSTEM_FULL) ?: 0.93
-    val loadSheddingRetryAfterSeconds = argumentStore.getInt(ServerCommandLineArguments.CPU_LOAD_SHEDDING_RETRY_AFTER) ?: 30
     val maxFetchItems = argumentStore.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS) ?: 100
-    val maxRequestBodyBytes =
-        argumentStore.getInt(ServerCommandLineArguments.MAX_REQUEST_BODY_BYTES)?.toLong()
-            ?: defaultMaxRequestBodyBytes(maxFetchItems).also {
-                log.info { "Actual Max Request Body Bytes: $it" }
-            }
+    val requestBodyLimitConfig = buildRequestBodyLimitConfig(argumentStore, maxFetchItems)
+    if (argumentStore.getInt(DefenseCommandLineOptions.MAX_REQUEST_BODY_BYTES) == null) {
+        log.info { "Actual Max Request Body Bytes: ${requestBodyLimitConfig.maxBodyBytes}" }
+    }
     val requestReadTimeoutSeconds =
         argumentStore.getInt(ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS) ?: 20
     val responseWriteTimeoutSeconds =
         argumentStore.getInt(ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS) ?: 30
-    val cpuSheddingConfig =
-        CpuSheddingConfig(
-            loadSheddingStart = loadSheddingStart,
-            loadSheddingFull = loadSheddingFull,
-        )
-    val heapMemorySheddingConfig =
-        MemorySheddingConfig(
-            memorySheddingStart = heapMemorySheddingStart,
-            memorySheddingFull = heapMemorySheddingFull,
-        )
-    val nonHeapMemorySheddingConfig =
-        MemorySheddingConfig(
-            memorySheddingStart = nonHeapMemorySheddingStart,
-            memorySheddingFull = nonHeapMemorySheddingFull,
-        )
-    val systemMemorySheddingConfig =
-        MemorySheddingConfig(
-            memorySheddingStart = systemMemorySheddingStart,
-            memorySheddingFull = systemMemorySheddingFull,
-        )
+    val loadSheddingConfig = buildLoadSheddingConfig(argumentStore)
     val mosaModule: Application.() -> Unit = {
         install(Koin) {
             modules(
@@ -230,14 +192,7 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
                     configureMosaAppModule(argumentStore)
                     single { TlsConfig(requireTlsForPod = requireTlsForPod) }
                     single {
-                        LoadSheddingConfig(
-                            cpuSheddingConfig = cpuSheddingConfig,
-                            heapMemorySheddingConfig = heapMemorySheddingConfig,
-                            nonHeapMemorySheddingConfig = nonHeapMemorySheddingConfig,
-                            systemMemorySheddingConfig = systemMemorySheddingConfig,
-                            cpuLoadSmoothingHalfLifeNs = cpuLoadSmoothingHalfLifeNs,
-                            loadSheddingRetryAfter = loadSheddingRetryAfterSeconds.seconds,
-                        )
+                        loadSheddingConfig
                     }
                     single {
                         AuthConfig(
@@ -246,9 +201,7 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
                         )
                     }
                     single {
-                        RequestBodyLimitConfig(
-                            maxBodyBytes = maxRequestBodyBytes,
-                        )
+                        requestBodyLimitConfig
                     }
                 },
             )

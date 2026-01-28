@@ -13,6 +13,7 @@ import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.crypto.CryptoEd25519
+import straightway.mosa.defense.DefenseCommandLineOptions
 import straightway.mosa.defense.approvegidRateLimit
 import straightway.mosa.defense.configureDefenseAppModule
 import straightway.mosa.defense.identityBlockList
@@ -65,7 +66,7 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     single {
         val cliArguments: CommandLineArgumentStore = get()
         val certificateLifetimeSeconds =
-            cliArguments.getInt(ServerCommandLineArguments.POD_CERT_VALIDITY_SECONDS)
+            cliArguments.getInt(DefenseCommandLineOptions.POD_CERT_VALIDITY_SECONDS)
                 ?: 7.days.inWholeSeconds.toInt()
         AuthenticationController(
             get(),

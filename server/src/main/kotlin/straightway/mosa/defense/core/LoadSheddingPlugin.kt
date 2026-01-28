@@ -1,5 +1,6 @@
 package straightway.mosa.defense.core
 
+import com.sun.management.OperatingSystemMXBean
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -13,7 +14,6 @@ import io.ktor.server.response.respond
 import io.ktor.util.AttributeKey
 import org.koin.core.Koin
 import org.koin.ktor.plugin.koin
-import straightway.mosa.LoadSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingDecider
 import straightway.mosa.defense.cpu.ProcessCpuLoadSampler
 import straightway.mosa.defense.cpu.SmoothedCpuLoadSampler
@@ -71,15 +71,15 @@ private fun Duration?.toRetryAfterInfo() =
     } ?: RetryAfterInfo(seconds = null, messageSuffix = "")
 
 private fun resolveOrCacheRouteTag(call: ApplicationCall): String =
-    call.attributes.getOrNull(RequestMetricsPlugin.RouteTagKey)
+    call.attributes.getOrNull(RequestMetricsPlugin.Companion.RouteTagKey)
         ?: RouteTagResolver
             .resolveRouteTag(call)
             .also { resolved ->
-                runCatching { call.attributes.put(RequestMetricsPlugin.RouteTagKey, resolved) }
+                runCatching { call.attributes.put(RequestMetricsPlugin.Companion.RouteTagKey, resolved) }
             }
 
 private fun toSheddingRequest(call: ApplicationCall): SheddingRequest =
-    SheddingRequest(
+    _root_ide_package_.straightway.mosa.defense.core.SheddingRequest(
         method = call.request.httpMethod.value,
         route = resolveOrCacheRouteTag(call),
     )
@@ -137,7 +137,7 @@ private suspend fun handleLoadSheddingCall(
 }
 
 fun Koin.sheddingDeciderChain(): SheddingDecider =
-    CombinedSheddingDecider(
+    _root_ide_package_.straightway.mosa.defense.core.CombinedSheddingDecider(
         listOf(
             cpuSheddingDecider(),
             heapMemorySheddingDecider(),
@@ -156,7 +156,8 @@ private fun Koin.nonHeapMemorySheddingDecider() =
                 nonHeapMemorySheddingConfig,
                 GenericMemoryUsageSampler("NonHeapMemory") { memoryBean.nonHeapMemoryUsage },
             )
-        } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }.also {
+        } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
+            .also {
             localLogger.warn { "Memory shedding by non-heap size not available" }
         }
     }
@@ -168,14 +169,15 @@ private fun Koin.heapMemorySheddingDecider() =
                 heapMemorySheddingConfig,
                 GenericMemoryUsageSampler("NonHeapMemory") { memoryBean.heapMemoryUsage },
             )
-        } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }.also {
+        } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
+            .also {
             localLogger.warn { "Memory shedding by heap size not available" }
         }
     }
 
 private fun Koin.systemMemorySheddingDecider() =
     with(get<LoadSheddingConfig>()) {
-        (ManagementFactory.getOperatingSystemMXBean() as? com.sun.management.OperatingSystemMXBean)?.let { osBean ->
+        (ManagementFactory.getOperatingSystemMXBean() as? OperatingSystemMXBean)?.let { osBean ->
             MemorySheddingDecider(
                 systemMemorySheddingConfig,
                 GenericMemoryUsageSampler("SystemHeapMemory") {
@@ -187,7 +189,8 @@ private fun Koin.systemMemorySheddingDecider() =
                     )
                 },
             )
-        } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }.also {
+        } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
+            .also {
             localLogger.warn { "System memory shedding not available" }
         }
     }

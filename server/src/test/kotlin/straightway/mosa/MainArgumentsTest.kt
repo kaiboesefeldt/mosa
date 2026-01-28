@@ -3,6 +3,7 @@ package straightway.mosa
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ExperimentalCli
 import straightway.mosa.commandline.ServeCommand
+import straightway.mosa.defense.DefenseCommandLineOptions
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -54,10 +55,10 @@ class MainArgumentsTest {
     fun `store returns default memory shedding range when argument omitted`() {
         val store = parseStore("serve")
 
-        assertEquals(0.9, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_START))
-        assertEquals(0.98, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_FULL))
-        assertEquals(0.98, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_START))
-        assertEquals(0.999, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_FULL))
+        assertEquals(0.9, store?.getDouble(DefenseCommandLineOptions.MEMORY_SHEDDING_HEAP_START))
+        assertEquals(0.98, store?.getDouble(DefenseCommandLineOptions.MEMORY_SHEDDING_HEAP_FULL))
+        assertEquals(0.98, store?.getDouble(DefenseCommandLineOptions.MEMORY_SHEDDING_NONHEAP_START))
+        assertEquals(0.999, store?.getDouble(DefenseCommandLineOptions.MEMORY_SHEDDING_NONHEAP_FULL))
     }
 
     @Test
@@ -71,8 +72,8 @@ class MainArgumentsTest {
                 "0.9",
             )
 
-        assertEquals(0.7, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_START))
-        assertEquals(0.9, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_HEAP_FULL))
+        assertEquals(0.7, store?.getDouble(DefenseCommandLineOptions.MEMORY_SHEDDING_HEAP_START))
+        assertEquals(0.9, store?.getDouble(DefenseCommandLineOptions.MEMORY_SHEDDING_HEAP_FULL))
     }
 
     @Test
@@ -86,21 +87,21 @@ class MainArgumentsTest {
                 "0.9",
             )
 
-        assertEquals(0.7, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_START))
-        assertEquals(0.9, store?.getDouble(ServerCommandLineArguments.MEMORY_SHEDDING_NONHEAP_FULL))
+        assertEquals(0.7, store?.getDouble(DefenseCommandLineOptions.MEMORY_SHEDDING_NONHEAP_START))
+        assertEquals(0.9, store?.getDouble(DefenseCommandLineOptions.MEMORY_SHEDDING_NONHEAP_FULL))
     }
 
     @Test
     fun `store returns default request duration shedding configuration when argument omitted`() {
         val store = parseStore("serve")
 
-        assertEquals(200, store?.getInt(ServerCommandLineArguments.REQUEST_DURATION_MIN_SAMPLES))
-        assertEquals(1.0, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_MIN_BASELINE_MS))
-        assertEquals(0.15, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_RATIO_SLACK))
-        assertEquals(2.0, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_FULL_SHEDDING_RATIO))
-        assertEquals(0.2, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_ALPHA))
-        assertEquals(0.2, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_DECAY_ALPHA))
-        assertEquals(250, store?.getInt(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_INTERVAL_MS))
+        assertEquals(200, store?.getInt(DefenseCommandLineOptions.REQUEST_DURATION_MIN_SAMPLES))
+        assertEquals(1.0, store?.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_MIN_BASELINE_MS))
+        assertEquals(0.15, store?.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_RATIO_SLACK))
+        assertEquals(2.0, store?.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_FULL_SHEDDING_RATIO))
+        assertEquals(0.2, store?.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_SAMPLE_ALPHA))
+        assertEquals(0.2, store?.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_DECAY_ALPHA))
+        assertEquals(250, store?.getInt(DefenseCommandLineOptions.REQUEST_DURATION_SAMPLE_INTERVAL_MS))
     }
 
     @Test
@@ -124,23 +125,23 @@ class MainArgumentsTest {
                 "500",
             )
 
-        assertEquals(150, store?.getInt(ServerCommandLineArguments.REQUEST_DURATION_MIN_SAMPLES))
-        assertEquals(3.5, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_MIN_BASELINE_MS))
-        assertEquals(0.25, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_RATIO_SLACK))
-        assertEquals(2.5, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_FULL_SHEDDING_RATIO))
-        assertEquals(0.3, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_ALPHA))
-        assertEquals(0.4, store?.getDouble(ServerCommandLineArguments.REQUEST_DURATION_DECAY_ALPHA))
-        assertEquals(500, store?.getInt(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_INTERVAL_MS))
+        assertEquals(150, store?.getInt(DefenseCommandLineOptions.REQUEST_DURATION_MIN_SAMPLES))
+        assertEquals(3.5, store?.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_MIN_BASELINE_MS))
+        assertEquals(0.25, store?.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_RATIO_SLACK))
+        assertEquals(2.5, store?.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_FULL_SHEDDING_RATIO))
+        assertEquals(0.3, store?.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_SAMPLE_ALPHA))
+        assertEquals(0.4, store?.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_DECAY_ALPHA))
+        assertEquals(500, store?.getInt(DefenseCommandLineOptions.REQUEST_DURATION_SAMPLE_INTERVAL_MS))
     }
 
     @Test
     fun `store returns default rate limit penalties and jitter when argument omitted`() {
         val store = parseStore("serve")
 
-        assertEquals(15, store?.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS))
-        assertEquals(1, store?.getInt(ServerCommandLineArguments.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS))
-        assertEquals(5, store?.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS))
-        assertEquals(10, store?.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS))
+        assertEquals(15, store?.getInt(DefenseCommandLineOptions.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS))
+        assertEquals(1, store?.getInt(DefenseCommandLineOptions.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS))
+        assertEquals(5, store?.getInt(DefenseCommandLineOptions.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS))
+        assertEquals(10, store?.getInt(DefenseCommandLineOptions.IP_RATE_LIMIT_PENALTY_SECONDS))
     }
 
     @Test
@@ -158,17 +159,17 @@ class MainArgumentsTest {
                 "12",
             )
 
-        assertEquals(25, store?.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS))
-        assertEquals(0, store?.getInt(ServerCommandLineArguments.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS))
-        assertEquals(8, store?.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS))
-        assertEquals(12, store?.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS))
+        assertEquals(25, store?.getInt(DefenseCommandLineOptions.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS))
+        assertEquals(0, store?.getInt(DefenseCommandLineOptions.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS))
+        assertEquals(8, store?.getInt(DefenseCommandLineOptions.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS))
+        assertEquals(12, store?.getInt(DefenseCommandLineOptions.IP_RATE_LIMIT_PENALTY_SECONDS))
     }
 
     @Test
     fun `store returns default request hardening configuration when argument omitted`() {
         val store = parseStore("serve")
 
-        assertEquals(null, store?.getInt(ServerCommandLineArguments.MAX_REQUEST_BODY_BYTES))
+        assertEquals(null, store?.getInt(DefenseCommandLineOptions.MAX_REQUEST_BODY_BYTES))
         assertEquals(20, store?.getInt(ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS))
         assertEquals(30, store?.getInt(ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS))
         assertEquals(100, store?.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS))
@@ -189,7 +190,7 @@ class MainArgumentsTest {
                 "250",
             )
 
-        assertEquals(1024, store?.getInt(ServerCommandLineArguments.MAX_REQUEST_BODY_BYTES))
+        assertEquals(1024, store?.getInt(DefenseCommandLineOptions.MAX_REQUEST_BODY_BYTES))
         assertEquals(5, store?.getInt(ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS))
         assertEquals(12, store?.getInt(ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS))
         assertEquals(250, store?.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS))

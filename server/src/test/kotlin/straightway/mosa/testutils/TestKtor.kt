@@ -9,13 +9,13 @@ import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.ktor.plugin.koin
 import straightway.mosa.AuthConfig
-import straightway.mosa.LoadSheddingConfig
 import straightway.mosa.NanoClock
 import straightway.mosa.TlsConfig
 import straightway.mosa.TokenUtil
 import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
+import straightway.mosa.defense.core.LoadSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.ipRateLimit
 import straightway.mosa.defense.memory.MemorySheddingConfig

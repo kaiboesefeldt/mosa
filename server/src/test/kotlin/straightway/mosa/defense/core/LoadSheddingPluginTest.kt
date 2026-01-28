@@ -18,7 +18,6 @@ import org.koin.core.Koin
 import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.ktor.plugin.koin
-import straightway.mosa.LoadSheddingConfig
 import straightway.mosa.defense.cpu.ConstCpuLoadSampler
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingDecider

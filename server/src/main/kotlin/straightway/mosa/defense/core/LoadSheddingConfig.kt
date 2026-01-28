@@ -1,4 +1,4 @@
-package straightway.mosa
+package straightway.mosa.defense.core
 
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.memory.MemorySheddingConfig
