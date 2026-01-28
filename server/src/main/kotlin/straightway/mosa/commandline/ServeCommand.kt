@@ -28,12 +28,8 @@ import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
 import straightway.mosa.configureMosaAppModule
 import straightway.mosa.defense.DefenseCommandLineOptions
-import straightway.mosa.defense.authenticatedRateLimit
-import straightway.mosa.defense.blocklist.createMosaAuthenticatedIdentityBlockListPlugin
-import straightway.mosa.defense.buildLoadSheddingConfig
-import straightway.mosa.defense.buildRequestBodyLimitConfig
-import straightway.mosa.defense.identityBlockList
-import straightway.mosa.defense.ratelimit.createMosaAuthenticatedRateLimitPlugin
+import straightway.mosa.defense.configureDefenseRuntimeModule
+import straightway.mosa.defense.installDefenseRoutingPlugins
 import straightway.mosa.doc.ServeDocRenderer
 import straightway.mosa.installNetworkServerPlugins
 import straightway.mosa.tls.DevSelfSignedCertificateFactory
@@ -41,10 +37,8 @@ import straightway.mosa.tls.InMemoryKeyStore
 import straightway.mosa.vectorstore.VectorStoreCommandLineOptions
 
 @OptIn(ExperimentalCli::class)
-internal class ServeCommand(
-    private val startServer: (CommandLineArgumentStore) -> Unit = ::startMosaServer,
-    private val logArguments: (Map<String, Any?>) -> Unit = ::logCommandLineArguments,
-) : Subcommand(
+internal class ServeCommand :
+    Subcommand(
         "serve",
         "Start the MOSA server",
     ) {
@@ -117,27 +111,45 @@ internal class ServeCommand(
         ).default(100)
     private val defenseOptions = DefenseCommandLineOptions(this)
     private val vectorStoreOptions = VectorStoreCommandLineOptions(this)
+    private val argumentValues by lazy {
+        mapOf(
+            ServerCommandLineArguments.SERVE_SOURCE_MAPS to serveSourceMaps,
+            ServerCommandLineArguments.SERVER_PORT to serverPort,
+            ServerCommandLineArguments.ALLOW_HTTP to allowHttp,
+            ServerCommandLineArguments.DEV_SELF_SIGNED_TLS to devSelfSignedTls,
+            ServerCommandLineArguments.HTTPS_PORT to httpsPort,
+            ServerCommandLineArguments.DEV_CERT_HOST to devCertHost,
+            ServerCommandLineArguments.TRUSTED_PROXY_IPS to trustedProxyIps,
+            ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS to requestReadTimeoutSeconds,
+            ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS to responseWriteTimeoutSeconds,
+            ServerCommandLineArguments.MAX_FETCH_ITEMS to maxFetchItems,
+        ) + defenseOptions.toArgumentValues() + vectorStoreOptions.toArgumentValues()
+    }
 
     override fun execute() {
         if (doc) {
             ServeDocRenderer().render(readServeDocumentation())
             return
         }
-        val argumentValues =
-            mapOf(
-                ServerCommandLineArguments.SERVE_SOURCE_MAPS to serveSourceMaps,
-                ServerCommandLineArguments.SERVER_PORT to serverPort,
-                ServerCommandLineArguments.ALLOW_HTTP to allowHttp,
-                ServerCommandLineArguments.DEV_SELF_SIGNED_TLS to devSelfSignedTls,
-                ServerCommandLineArguments.HTTPS_PORT to httpsPort,
-                ServerCommandLineArguments.DEV_CERT_HOST to devCertHost,
-                ServerCommandLineArguments.TRUSTED_PROXY_IPS to trustedProxyIps,
-                ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS to requestReadTimeoutSeconds,
-                ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS to responseWriteTimeoutSeconds,
-                ServerCommandLineArguments.MAX_FETCH_ITEMS to maxFetchItems,
-            ) + defenseOptions.toArgumentValues() + vectorStoreOptions.toArgumentValues()
-        logArguments(argumentValues)
-        startServer(CommandLineArgumentStore.from { name -> argumentValues[name] })
+        logCommandLineArguments()
+        startMosaServer(CommandLineArgumentStore.from { name -> argumentValues[name] })
+    }
+
+    private fun logCommandLineArguments() {
+        val formattedArguments =
+            buildString {
+                appendLine("Server command line options:")
+                val maxKeyLength = argumentValues.keys.maxOfOrNull { it.length } ?: 0
+                argumentValues
+                    .toSortedMap()
+                    .forEach { (key, value) ->
+                        append("  ")
+                        append(key.padEnd(maxKeyLength))
+                        append(" = ")
+                        appendLine(value.toString())
+                    }
+            }
+        log.info { formattedArguments }
     }
 }
 
@@ -168,40 +180,29 @@ private fun expandMarkdownIncludes(markdown: String): String {
     }.trimEnd()
 }
 
-private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
+internal fun startMosaServer(argumentStore: CommandLineArgumentStore) {
     val serverPort = argumentStore.getInt(ServerCommandLineArguments.SERVER_PORT) ?: 8080
     val allowHttp = argumentStore.getBoolean(ServerCommandLineArguments.ALLOW_HTTP) ?: false
     val requireTlsForPod = !allowHttp
     val enableSelfSignedTls = argumentStore.getBoolean(ServerCommandLineArguments.DEV_SELF_SIGNED_TLS) ?: false
     val httpsPort = argumentStore.getInt(ServerCommandLineArguments.HTTPS_PORT) ?: 8443
     val devCertHost = argumentStore.getString(ServerCommandLineArguments.DEV_CERT_HOST) ?: "localhost"
-    val maxFetchItems = argumentStore.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS) ?: 100
-    val requestBodyLimitConfig = buildRequestBodyLimitConfig(argumentStore, maxFetchItems)
-    if (argumentStore.getInt(DefenseCommandLineOptions.MAX_REQUEST_BODY_BYTES) == null) {
-        log.info { "Actual Max Request Body Bytes: ${requestBodyLimitConfig.maxBodyBytes}" }
-    }
     val requestReadTimeoutSeconds =
         argumentStore.getInt(ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS) ?: 20
     val responseWriteTimeoutSeconds =
         argumentStore.getInt(ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS) ?: 30
-    val loadSheddingConfig = buildLoadSheddingConfig(argumentStore)
     val mosaModule: Application.() -> Unit = {
         install(Koin) {
             modules(
                 module {
                     configureMosaAppModule(argumentStore)
+                    configureDefenseRuntimeModule(argumentStore)
                     single { TlsConfig(requireTlsForPod = requireTlsForPod) }
-                    single {
-                        loadSheddingConfig
-                    }
                     single {
                         AuthConfig(
                             tokenUtil = get(),
                             clientIpResolver = get<ClientIpResolver>(),
                         )
-                    }
-                    single {
-                        requestBodyLimitConfig
                     }
                 },
             )
@@ -209,8 +210,7 @@ private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
         with(koin()) {
             installNetworkServerPlugins()
             routing {
-                install(createMosaAuthenticatedIdentityBlockListPlugin(get(identityBlockList)))
-                install(createMosaAuthenticatedRateLimitPlugin(get(authenticatedRateLimit)))
+                installDefenseRoutingPlugins()
                 getAll<BaseController>().forEach { register(it) }
             }
         }
@@ -266,23 +266,6 @@ private fun devConnectors(
         ).apply { port = httpsPort },
     )
     return connectors
-}
-
-private fun logCommandLineArguments(argumentValues: Map<String, Any?>) {
-    val formattedArguments =
-        buildString {
-            appendLine("Server command line options:")
-            val maxKeyLength = argumentValues.keys.maxOfOrNull { it.length } ?: 0
-            argumentValues
-                .toSortedMap()
-                .forEach { (key, value) ->
-                    append("  ")
-                    append(key.padEnd(maxKeyLength))
-                    append(" = ")
-                    appendLine(value.toString())
-                }
-        }
-    log.info { formattedArguments }
 }
 
 private val log = KotlinLogging.logger {}

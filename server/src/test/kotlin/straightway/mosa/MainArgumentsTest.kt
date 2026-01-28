@@ -1,8 +1,11 @@
 package straightway.mosa
 
+import io.mockk.every
+import io.mockk.mockkStatic
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ExperimentalCli
 import straightway.mosa.commandline.ServeCommand
+import straightway.mosa.commandline.startMosaServer
 import straightway.mosa.defense.DefenseCommandLineOptions
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -198,11 +201,16 @@ class MainArgumentsTest {
 
     private fun parseStore(vararg args: String): CommandLineArgumentStore? {
         var capturedStore: CommandLineArgumentStore? = null
-        val parser = ArgParser("mosa")
-        val serveCommand = ServeCommand(startServer = { capturedStore = it })
+        mockkStatic("straightway.mosa.commandline.ServeCommandKt") {
+            every { startMosaServer(any()) } answers {
+                capturedStore = firstArg()
+            }
+            val parser = ArgParser("mosa")
+            val serveCommand = ServeCommand()
 
-        parser.subcommands(serveCommand)
-        parser.parse(args)
+            parser.subcommands(serveCommand)
+            parser.parse(args)
+        }
 
         return capturedStore
     }
