@@ -9,7 +9,6 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.onClose
 import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.NanoClock
-import straightway.mosa.ServerCommandLineArguments
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
 import straightway.mosa.config.IdentityBlockList
@@ -35,25 +34,25 @@ fun Module.configureDefenseAppModule() {
     single {
         val cliArguments: CommandLineArgumentStore = get()
         val minSamplesForBaseline =
-            cliArguments.getInt(ServerCommandLineArguments.REQUEST_DURATION_MIN_SAMPLES)?.toLong()
+            cliArguments.getInt(DefenseCommandLineOptions.REQUEST_DURATION_MIN_SAMPLES)?.toLong()
                 ?: 200L
         val minBaselineMs =
-            cliArguments.getDouble(ServerCommandLineArguments.REQUEST_DURATION_MIN_BASELINE_MS)
+            cliArguments.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_MIN_BASELINE_MS)
                 ?: 1.0
         val ratioSlack =
-            cliArguments.getDouble(ServerCommandLineArguments.REQUEST_DURATION_RATIO_SLACK)
+            cliArguments.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_RATIO_SLACK)
                 ?: 0.15
         val fullSheddingRatio =
-            cliArguments.getDouble(ServerCommandLineArguments.REQUEST_DURATION_FULL_SHEDDING_RATIO)
+            cliArguments.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_FULL_SHEDDING_RATIO)
                 ?: 2.0
         val sheddingSampleAlpha =
-            cliArguments.getDouble(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_ALPHA)
+            cliArguments.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_SAMPLE_ALPHA)
                 ?: 0.2
         val sheddingDecayAlpha =
-            cliArguments.getDouble(ServerCommandLineArguments.REQUEST_DURATION_DECAY_ALPHA)
+            cliArguments.getDouble(DefenseCommandLineOptions.REQUEST_DURATION_DECAY_ALPHA)
                 ?: 0.2
         val sampleIntervalMs =
-            cliArguments.getInt(ServerCommandLineArguments.REQUEST_DURATION_SAMPLE_INTERVAL_MS)
+            cliArguments.getInt(DefenseCommandLineOptions.REQUEST_DURATION_SAMPLE_INTERVAL_MS)
                 ?: 250
         RequestDurationSheddingConfig(
             minSamplesForBaseline = minSamplesForBaseline,
@@ -76,14 +75,14 @@ fun Module.configureDefenseAppModule() {
     single(approvegidRateLimit) {
         val cliArguments: CommandLineArgumentStore = get()
         val permitsPerMinute =
-            cliArguments.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PER_MINUTE)
+            cliArguments.getInt(DefenseCommandLineOptions.APPROVE_GID_RATE_LIMIT_PER_MINUTE)
                 ?: 60
-        val burst = cliArguments.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_BURST) ?: 20
+        val burst = cliArguments.getInt(DefenseCommandLineOptions.APPROVE_GID_RATE_LIMIT_BURST) ?: 20
         val penaltySeconds =
-            cliArguments.getInt(ServerCommandLineArguments.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS)?.toLong()
+            cliArguments.getInt(DefenseCommandLineOptions.APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS)?.toLong()
                 ?: 15L
         val retryAfterJitterSeconds =
-            cliArguments.getInt(ServerCommandLineArguments.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS)?.toLong()
+            cliArguments.getInt(DefenseCommandLineOptions.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS)?.toLong()
                 ?: 1L
         RateLimitConfig(
             permitsPerMinute = permitsPerMinute,
@@ -95,14 +94,14 @@ fun Module.configureDefenseAppModule() {
     single(authenticatedRateLimit) {
         val cliArguments: CommandLineArgumentStore = get()
         val permitsPerMinute =
-            cliArguments.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PER_MINUTE)
+            cliArguments.getInt(DefenseCommandLineOptions.AUTHENTICATED_RATE_LIMIT_PER_MINUTE)
                 ?: 60
-        val burst = cliArguments.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_BURST) ?: 20
+        val burst = cliArguments.getInt(DefenseCommandLineOptions.AUTHENTICATED_RATE_LIMIT_BURST) ?: 20
         val penaltySeconds =
-            cliArguments.getInt(ServerCommandLineArguments.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS)?.toLong()
+            cliArguments.getInt(DefenseCommandLineOptions.AUTHENTICATED_RATE_LIMIT_PENALTY_SECONDS)?.toLong()
                 ?: 5L
         val retryAfterJitterSeconds =
-            cliArguments.getInt(ServerCommandLineArguments.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS)?.toLong()
+            cliArguments.getInt(DefenseCommandLineOptions.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS)?.toLong()
                 ?: 1L
         RateLimitConfig(
             permitsPerMinute = permitsPerMinute,
@@ -114,14 +113,14 @@ fun Module.configureDefenseAppModule() {
     single(ipRateLimit) {
         val cliArguments: CommandLineArgumentStore = get()
         val permitsPerMinute =
-            cliArguments.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_PER_MINUTE)
+            cliArguments.getInt(DefenseCommandLineOptions.IP_RATE_LIMIT_PER_MINUTE)
                 ?: 600
-        val burst = cliArguments.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_BURST) ?: 200
+        val burst = cliArguments.getInt(DefenseCommandLineOptions.IP_RATE_LIMIT_BURST) ?: 200
         val penaltySeconds =
-            cliArguments.getInt(ServerCommandLineArguments.IP_RATE_LIMIT_PENALTY_SECONDS)?.toLong()
+            cliArguments.getInt(DefenseCommandLineOptions.IP_RATE_LIMIT_PENALTY_SECONDS)?.toLong()
                 ?: 10L
         val retryAfterJitterSeconds =
-            cliArguments.getInt(ServerCommandLineArguments.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS)?.toLong()
+            cliArguments.getInt(DefenseCommandLineOptions.RATE_LIMIT_RETRY_AFTER_JITTER_SECONDS)?.toLong()
                 ?: 1L
         RateLimitConfig(
             permitsPerMinute = permitsPerMinute,
