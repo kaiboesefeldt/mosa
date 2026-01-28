@@ -17,6 +17,7 @@ import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
 import straightway.mosa.defense.cpu.CpuSheddingConfig
+import straightway.mosa.defense.ipRateLimit
 import straightway.mosa.defense.memory.MemorySheddingConfig
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
@@ -24,7 +25,6 @@ import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegi
 import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
 import straightway.mosa.defense.requestguard.defaultMaxRequestBodyBytes
 import straightway.mosa.installNetworkServerPlugins
-import straightway.mosa.ipRateLimit
 import java.nio.file.Path
 import java.time.Clock
 import kotlin.random.Random
@@ -111,7 +111,7 @@ fun Application.installTestNetworkServerPlugins(
                 single(ipRateLimit) {
                     ipRateLimiter
                 }
-                single(straightway.mosa.ipBlockList) {
+                single(straightway.mosa.defense.ipBlockList) {
                     ipBlockList
                 }
             },

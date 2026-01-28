@@ -40,6 +40,8 @@ import straightway.mosa.config.IdentityBlockList
 import straightway.mosa.config.contains
 import straightway.mosa.defense.core.RequestMetricsPlugin
 import straightway.mosa.defense.core.createMosaLoadSheddingPlugin
+import straightway.mosa.defense.ipBlockList
+import straightway.mosa.defense.ipRateLimit
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
 import straightway.mosa.defense.requestguard.createMosaRequestBodyLimitPlugin
