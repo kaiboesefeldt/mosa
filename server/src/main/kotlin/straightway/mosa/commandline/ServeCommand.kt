@@ -144,12 +144,32 @@ internal class ServeCommand(
     }
 }
 
-private fun readServeDocumentation(): String =
-    ServeCommand::class.java
-        .getResourceAsStream("/doc/serve.md")
-        ?.bufferedReader()
-        ?.use { it.readText() }
-        ?: "Missing serve documentation resource: doc/serve.md"
+private fun readServeDocumentation(): String = readMarkdownResource("/doc/serve/index.md")
+
+private fun readMarkdownResource(path: String): String {
+    val content =
+        ServeCommand::class.java
+            .getResourceAsStream(path)
+            ?.bufferedReader()
+            ?.use { it.readText() }
+            ?: return "Missing serve documentation resource: ${path.removePrefix("/")}"
+    return expandMarkdownIncludes(content)
+}
+
+private fun expandMarkdownIncludes(markdown: String): String {
+    val includePattern = Regex("\\{\\{include:([^}]+)\\}\\}")
+    return buildString {
+        markdown.lineSequence().forEach { line ->
+            val match = includePattern.matchEntire(line.trim())
+            if (match == null) {
+                appendLine(line)
+            } else {
+                val includePath = match.groupValues[1].trim()
+                appendLine(readMarkdownResource(includePath))
+            }
+        }
+    }.trimEnd()
+}
 
 private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
     val serverPort = argumentStore.getInt(ServerCommandLineArguments.SERVER_PORT) ?: 8080

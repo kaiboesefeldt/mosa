@@ -1,8 +1,3 @@
-# serve command
-
-## Overview
-Starts the MOSA server and allows varous configurations via command line flags.
-
 ## Files
 The runtime environment and any runtime config files are located in the working
 directory of the MOSA server. It is recommended to create a dedicated directory
