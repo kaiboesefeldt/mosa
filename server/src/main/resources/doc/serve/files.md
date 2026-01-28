@@ -31,9 +31,15 @@ It is possible to block specific identities using a file-based gid block list. B
 #### Format (YAML)
 ```yaml
 blockedGids:
-  - "BASE64URL_GID_1"
-  - "BASE64URL_GID_2"
+  - 9yCzAH4qTNXzm19b8rGRXmtluzmB3DOYCtSrmN4DqVc
+  - TUAZ14ejUY04XseWKMuxTK_mAC72Psyn1t6AdM8UDpo
 ```
 
 #### Rules
 - Entries accept base64url-encoded gid strings.
+
+### Vector store index
+The Lucene vector store persists its index under the server working directory.
+
+**Directory name:** `mosa_lucene_index`  
+**Reset:** Stop the server and delete the directory to delete the index.

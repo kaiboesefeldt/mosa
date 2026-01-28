@@ -41,6 +41,7 @@ import straightway.mosa.doc.ServeDocRenderer
 import straightway.mosa.installNetworkServerPlugins
 import straightway.mosa.tls.DevSelfSignedCertificateFactory
 import straightway.mosa.tls.InMemoryKeyStore
+import straightway.mosa.vectorstore.VectorStoreCommandLineOptions
 import kotlin.math.roundToLong
 import kotlin.time.Duration.Companion.seconds
 
@@ -120,6 +121,7 @@ internal class ServeCommand(
             description = "Maximum number of items allowed per fetch request",
         ).default(100)
     private val defenseOptions = DefenseCommandLineOptions(this)
+    private val vectorStoreOptions = VectorStoreCommandLineOptions(this)
 
     override fun execute() {
         if (doc) {
@@ -138,7 +140,7 @@ internal class ServeCommand(
                 ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS to requestReadTimeoutSeconds,
                 ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS to responseWriteTimeoutSeconds,
                 ServerCommandLineArguments.MAX_FETCH_ITEMS to maxFetchItems,
-            ) + defenseOptions.toArgumentValues()
+            ) + defenseOptions.toArgumentValues() + vectorStoreOptions.toArgumentValues()
         logArguments(argumentValues)
         startServer(CommandLineArgumentStore.from { name -> argumentValues[name] })
     }
@@ -157,7 +159,7 @@ private fun readMarkdownResource(path: String): String {
 }
 
 private fun expandMarkdownIncludes(markdown: String): String {
-    val includePattern = Regex("\\{\\{include:([^}]+)\\}\\}")
+    val includePattern = Regex("\\{\\{include:([^}]+)}}")
     return buildString {
         markdown.lineSequence().forEach { line ->
             val match = includePattern.matchEntire(line.trim())

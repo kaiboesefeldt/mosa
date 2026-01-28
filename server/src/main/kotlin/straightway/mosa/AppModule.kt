@@ -1,6 +1,5 @@
 package straightway.mosa
 
-import org.apache.lucene.store.MMapDirectory
 import org.koin.core.module.Module
 import org.koin.dsl.bind
 import org.koin.dsl.onClose
@@ -18,10 +17,7 @@ import straightway.mosa.defense.approvegidRateLimit
 import straightway.mosa.defense.configureDefenseAppModule
 import straightway.mosa.defense.identityBlockList
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
-import straightway.mosa.vectorstore.LuceneIndexAccess
-import straightway.mosa.vectorstore.LuceneLocalVectorStore
-import straightway.mosa.vectorstore.LuceneQueryPlanner
-import straightway.mosa.vectorstore.QueryOnRegistry
+import straightway.mosa.vectorstore.configureVectorStoreAppModule
 import straightway.mosa.webclient.WebClientController
 import java.nio.file.Paths
 import java.security.MessageDigest
@@ -37,19 +33,7 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     single { Clock.systemUTC() }
     single { NanoClock(System::nanoTime) }
     single { Random(get<NanoClock>().nanoTime()) }
-    single { LuceneIndexAccess { MMapDirectory(Paths.get("mosa_lucene_index")) } } onClose
-        { (it as? AutoCloseable)?.close() }
-    single { QueryOnRegistry(pageSize = 10, maxNotFinishedQueries = 10000) }
-    single { LuceneQueryPlanner(maxResults = 1000) }
-    single {
-        LuceneLocalVectorStore.create(
-            indexAccess = get(),
-            paginationRegistry = get(),
-            queryPlanner = get(),
-            clock = get<Clock>(),
-            vectorSize = get<EmbeddingService>().dimension,
-        )
-    } onClose { (it as? AutoCloseable)?.close() }
+    configureVectorStoreAppModule()
     single<HasherFactory> { { MessageDigest.getInstance("SHA-256") } }
     single<SignatureFactory> { FileBackedEd25519Factory(get(), Paths.get("mosa_pod_keypair.pem")) }
     single<SignatureVerifierProvider> { ThreadLocalEd25519VerifierProvider() }
