@@ -1,4 +1,4 @@
-package straightway.mosa.auth
+package straightway.mosa.network
 
 class ClientIpResolver(
     private val trustedProxyIps: Set<String>,

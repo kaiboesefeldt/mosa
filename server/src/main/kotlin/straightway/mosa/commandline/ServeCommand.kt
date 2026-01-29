@@ -19,11 +19,10 @@ import kotlinx.coroutines.Dispatchers
 import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.ktor.plugin.koin
-import straightway.mosa.AuthConfig
 import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.ServerCommandLineArguments
 import straightway.mosa.TlsConfig
-import straightway.mosa.auth.ClientIpResolver
+import straightway.mosa.auth.AuthCommandLineOptions
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
 import straightway.mosa.configureMosaAppModule
@@ -111,6 +110,8 @@ internal class ServeCommand :
         ).default(100)
     private val defenseOptions = DefenseCommandLineOptions(this)
     private val vectorStoreOptions = VectorStoreCommandLineOptions(this)
+    private val authOptions = AuthCommandLineOptions(this)
+
     private val argumentValues by lazy {
         mapOf(
             ServerCommandLineArguments.SERVE_SOURCE_MAPS to serveSourceMaps,
@@ -123,7 +124,10 @@ internal class ServeCommand :
             ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS to requestReadTimeoutSeconds,
             ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS to responseWriteTimeoutSeconds,
             ServerCommandLineArguments.MAX_FETCH_ITEMS to maxFetchItems,
-        ) + defenseOptions.toArgumentValues() + vectorStoreOptions.toArgumentValues()
+        ) +
+            defenseOptions.toArgumentValues() +
+            vectorStoreOptions.toArgumentValues() +
+            authOptions.toArgumentValues()
     }
 
     override fun execute() {
@@ -198,12 +202,6 @@ internal fun startMosaServer(argumentStore: CommandLineArgumentStore) {
                     configureMosaAppModule(argumentStore)
                     configureDefenseRuntimeModule(argumentStore)
                     single { TlsConfig(requireTlsForPod = requireTlsForPod) }
-                    single {
-                        AuthConfig(
-                            tokenUtil = get(),
-                            clientIpResolver = get<ClientIpResolver>(),
-                        )
-                    }
                 },
             )
         }

@@ -26,7 +26,6 @@ import straightway.mosa.SignatureVerifierProvider
 import straightway.mosa.TokenUtil
 import straightway.mosa.VectorStore
 import straightway.mosa.auth.Auth0TokenUtil
-import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.auth.JwtBuilder
 import straightway.mosa.auth.PodCertificateService
 import straightway.mosa.auth.ThreadLocalEd25519VerifierProvider
@@ -38,6 +37,7 @@ import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.ratelimit.createMosaAuthenticatedRateLimitPlugin
 import straightway.mosa.jackson.InstantJacksonSerializers
+import straightway.mosa.network.ClientIpResolver
 import straightway.mosa.testutils.installTestNetworkServerPlugins
 import straightway.mosa.vectorstore.LuceneIndexAccess
 import straightway.mosa.vectorstore.LuceneLocalVectorStore

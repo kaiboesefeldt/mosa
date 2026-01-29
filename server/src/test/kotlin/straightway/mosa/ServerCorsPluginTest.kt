@@ -20,7 +20,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import straightway.mosa.auth.ClientIpResolver
+import straightway.mosa.network.ClientIpResolver
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

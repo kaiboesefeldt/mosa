@@ -4,7 +4,6 @@ import kotlinx.cli.ArgType
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.default
-import kotlin.time.Duration.Companion.days
 
 @OptIn(ExperimentalCli::class)
 class DefenseCommandLineOptions(
@@ -129,13 +128,6 @@ class DefenseCommandLineOptions(
                 fullName = REQUEST_DURATION_SAMPLE_INTERVAL_MS,
                 description = "Sampling interval in milliseconds for request duration shedding",
             ).default(250)
-    val podCertificateValiditySeconds by
-        command
-            .option(
-                ArgType.Int,
-                fullName = POD_CERT_VALIDITY_SECONDS,
-                description = "Validity duration for pod certificates in seconds",
-            ).default(7.days.inWholeSeconds.toInt())
     val approveGidRateLimitPerMinute by
         command
             .option(
@@ -232,7 +224,6 @@ class DefenseCommandLineOptions(
             REQUEST_DURATION_SAMPLE_ALPHA to requestDurationSampleAlpha,
             REQUEST_DURATION_DECAY_ALPHA to requestDurationDecayAlpha,
             REQUEST_DURATION_SAMPLE_INTERVAL_MS to requestDurationSampleIntervalMs,
-            POD_CERT_VALIDITY_SECONDS to podCertificateValiditySeconds,
             APPROVE_GID_RATE_LIMIT_PER_MINUTE to approveGidRateLimitPerMinute,
             APPROVE_GID_RATE_LIMIT_BURST to approveGidRateLimitBurst,
             APPROVE_GID_RATE_LIMIT_PENALTY_SECONDS to approveGidRateLimitPenaltySeconds,

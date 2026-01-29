@@ -15,7 +15,6 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.mockk.every
 import io.mockk.mockk
-import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.auth.PodPrincipal
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.IdentityBlockList
@@ -23,6 +22,7 @@ import straightway.mosa.defense.blocklist.createMosaAuthenticatedIdentityBlockLi
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.ratelimit.createMosaAuthenticatedRateLimitPlugin
+import straightway.mosa.network.ClientIpResolver
 import straightway.mosa.testutils.installTestNetworkServerPlugins
 import java.time.Clock
 import kotlin.io.path.createTempFile

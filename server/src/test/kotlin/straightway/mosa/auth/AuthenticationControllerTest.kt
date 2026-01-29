@@ -20,6 +20,7 @@ import straightway.mosa.config.IdentityBlockList
 import straightway.mosa.content.ControllerHttpTestEnvironment
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
+import straightway.mosa.network.ClientIpResolver
 import straightway.mosa.testutils.setJsonBody
 import java.time.Clock
 import java.time.Instant

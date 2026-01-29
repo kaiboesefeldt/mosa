@@ -12,6 +12,7 @@ import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.IdentityBlockList
 import straightway.mosa.config.contains
 import straightway.mosa.defense.ratelimit.RateLimiter
+import straightway.mosa.network.ClientIpResolver
 import java.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days

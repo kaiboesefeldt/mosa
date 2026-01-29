@@ -9,6 +9,7 @@ import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.defense.configureDefenseAppModule
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
+import straightway.mosa.network.ClientIpResolver
 import straightway.mosa.vectorstore.configureVectorStoreAppModule
 import straightway.mosa.webclient.WebClientController
 import java.time.Clock
@@ -25,7 +26,17 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
         val maxFetchItems = cliArguments.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS) ?: 100
         ContentService(get(), get(), get(), maxFetchItems)
     }
-
+    single {
+        val cliArguments: CommandLineArgumentStore = get()
+        val raw = cliArguments.getString(ServerCommandLineArguments.TRUSTED_PROXY_IPS).orEmpty()
+        val trustedProxyIps =
+            raw
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .toSet()
+        ClientIpResolver(trustedProxyIps)
+    }
     single { arguments }
     single { ContentController(get(), get()) } bind BaseController::class
     single {

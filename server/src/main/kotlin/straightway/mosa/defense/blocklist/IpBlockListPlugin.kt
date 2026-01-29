@@ -7,11 +7,11 @@ import io.ktor.server.application.Plugin
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.util.AttributeKey
-import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
 import straightway.mosa.config.contains
 import straightway.mosa.defense.core.clientIpAddress
+import straightway.mosa.network.ClientIpResolver
 import java.net.InetAddress
 
 fun createMosaIpBlockListPlugin(

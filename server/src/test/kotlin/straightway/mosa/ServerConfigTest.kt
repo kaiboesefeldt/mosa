@@ -13,11 +13,11 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.mockk
-import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
+import straightway.mosa.network.ClientIpResolver
 import straightway.mosa.testutils.installTestNetworkServerPlugins
 import java.net.InetAddress
 import kotlin.test.Test

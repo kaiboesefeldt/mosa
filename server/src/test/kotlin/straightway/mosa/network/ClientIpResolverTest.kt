@@ -1,4 +1,4 @@
-package straightway.mosa.auth
+package straightway.mosa.network
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

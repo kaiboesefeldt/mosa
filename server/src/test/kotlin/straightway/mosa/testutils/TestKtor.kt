@@ -8,11 +8,9 @@ import io.mockk.mockk
 import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.ktor.plugin.koin
-import straightway.mosa.AuthConfig
 import straightway.mosa.NanoClock
 import straightway.mosa.TlsConfig
 import straightway.mosa.TokenUtil
-import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
 import straightway.mosa.defense.core.LoadSheddingConfig
@@ -25,6 +23,7 @@ import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegi
 import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
 import straightway.mosa.defense.requestguard.defaultMaxRequestBodyBytes
 import straightway.mosa.installNetworkServerPlugins
+import straightway.mosa.network.ClientIpResolver
 import java.nio.file.Path
 import java.time.Clock
 import kotlin.random.Random
@@ -99,12 +98,8 @@ fun Application.installTestNetworkServerPlugins(
                 }
                 single { TlsConfig(requireTlsForPod = requireTlsForPod) }
                 single { loadSheddingConfig }
-                single {
-                    AuthConfig(
-                        tokenUtil = tokenUtil,
-                        clientIpResolver = clientIpResolver,
-                    )
-                }
+                single { tokenUtil }
+                single { clientIpResolver }
                 single {
                     requestBodyLimitConfig
                 }

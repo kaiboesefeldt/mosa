@@ -2,7 +2,6 @@ package straightway.mosa
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -10,11 +9,8 @@ import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationPlugin
-import io.ktor.server.application.call
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
-import io.ktor.server.auth.Authentication
-import io.ktor.server.auth.bearer
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.PayloadTooLargeException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
@@ -23,25 +19,25 @@ import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import org.koin.ktor.plugin.koin
-import straightway.mosa.auth.ClientIpResolver
 import straightway.mosa.auth.InvalidPodCertificateRequest
-import straightway.mosa.auth.PodPrincipal
-import straightway.mosa.auth.toPodCertificate
+import straightway.mosa.auth.installAuthServerPlugins
 import straightway.mosa.base.findPayloadTooLarge
 import straightway.mosa.defense.installDefenseServerPlugins
 import straightway.mosa.jackson.InstantJacksonSerializers
+import straightway.mosa.network.ClientIpResolver
 import java.util.TimeZone
 
 fun Application.installNetworkServerPlugins() {
     val koin = koin()
     val tlsConfig = koin.get<TlsConfig>()
-    val authConfig = koin.get<AuthConfig>()
+    val clientIpResolver = koin.get<ClientIpResolver>()
 
     installDefenseServerPlugins()
+    installAuthServerPlugins()
     if (tlsConfig.requireTlsForPod) {
-        install(createMosaRequireTlsPlugin(authConfig.clientIpResolver))
+        install(createMosaRequireTlsPlugin(clientIpResolver))
     }
-    install(createMosaApiCorsPlugin(tlsConfig.requireTlsForPod, authConfig.clientIpResolver))
+    install(createMosaApiCorsPlugin(tlsConfig.requireTlsForPod, clientIpResolver))
     install(StatusPages) {
         exception<InvalidPodCertificateRequest> { call, cause ->
             call.respond(HttpStatusCode.BadRequest, mapOf("message" to cause.message))
@@ -56,21 +52,6 @@ fun Application.installNetworkServerPlugins() {
         }
         exception<PayloadTooLargeException> { call, _ ->
             call.respond(HttpStatusCode.PayloadTooLarge)
-        }
-    }
-    install(Authentication) {
-        bearer {
-            authenticate { credentials ->
-                runCatching {
-                    val jwt = authConfig.tokenUtil.decode(credentials.token)
-                    if (!authConfig.tokenUtil.isValidMisJwt(jwt)) return@runCatching null
-                    val cert = jwt.claims["cert"]?.asMap()?.toPodCertificate() ?: return@runCatching null
-                    PodPrincipal(cert)
-                }.onFailure {
-                    val reason = it::class.simpleName ?: "AuthenticationError"
-                    logger.debug { "Authentication failed: $reason" }
-                }.getOrNull()
-            }
         }
     }
     install(ContentNegotiation) {
@@ -124,8 +105,6 @@ private fun createMosaRequireTlsPlugin(clientIpResolver: ClientIpResolver): Appl
             }
         }
     }
-
-private val logger = KotlinLogging.logger {}
 
 private const val API_ROUTE_PREFIX = "/v1/"
 private const val APPROVE_GID_ROUTE = "/v1/approvegid"

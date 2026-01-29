@@ -5,13 +5,11 @@ import org.koin.dsl.bind
 import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.Crypto
 import straightway.mosa.HasherFactory
-import straightway.mosa.ServerCommandLineArguments
 import straightway.mosa.SignatureFactory
 import straightway.mosa.SignatureVerifierProvider
 import straightway.mosa.TokenUtil
 import straightway.mosa.base.BaseController
 import straightway.mosa.crypto.CryptoEd25519
-import straightway.mosa.defense.DefenseCommandLineOptions
 import straightway.mosa.defense.approvegidRateLimit
 import straightway.mosa.defense.identityBlockList
 import java.nio.file.Paths
@@ -28,19 +26,8 @@ fun Module.configureAuthAppModule() {
     single { PodCertificateService(get()) }
     single {
         val cliArguments: CommandLineArgumentStore = get()
-        val raw = cliArguments.getString(ServerCommandLineArguments.TRUSTED_PROXY_IPS).orEmpty()
-        val trustedProxyIps =
-            raw
-                .split(",")
-                .map { it.trim() }
-                .filter { it.isNotBlank() }
-                .toSet()
-        ClientIpResolver(trustedProxyIps)
-    }
-    single {
-        val cliArguments: CommandLineArgumentStore = get()
         val certificateLifetimeSeconds =
-            cliArguments.getInt(DefenseCommandLineOptions.POD_CERT_VALIDITY_SECONDS)
+            cliArguments.getInt(AuthCommandLineOptions.POD_CERT_VALIDITY_SECONDS)
                 ?: 7.days.inWholeSeconds.toInt()
         AuthenticationController(
             get(),
