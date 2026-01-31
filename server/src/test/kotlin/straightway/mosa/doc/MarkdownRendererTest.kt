@@ -129,7 +129,7 @@ class MarkdownRendererTest {
         val printStream = PrintStream(output, true, Charsets.UTF_8)
         System.setOut(printStream)
         try {
-            MarkdownRenderer().render(markdown)
+            MarkdownRenderer.render(markdown)
         } finally {
             System.setOut(originalOut)
         }

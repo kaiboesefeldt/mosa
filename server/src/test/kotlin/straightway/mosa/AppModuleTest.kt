@@ -134,7 +134,7 @@ class AppModuleTest {
         koinApplication!!.close()
         val arguments =
             CommandLineArgumentStore.from { name ->
-                if (name == ServerCommandLineArguments.SERVE_SOURCE_MAPS) true else null
+                if (name == ServerCommandLineOptions.SERVE_SOURCE_MAPS) true else null
             }
         koinApplication = koinApplication { modules(module { configureMosaAppModule(arguments) }) }
         assertSame(arguments, koin.get<CommandLineArgumentStore>())
@@ -170,7 +170,7 @@ class AppModuleTest {
                     module {
                         configureMosaAppModule(
                             CommandLineArgumentStore.from {
-                                if (it == ServerCommandLineArguments.SERVE_SOURCE_MAPS) true else null
+                                if (it == ServerCommandLineOptions.SERVE_SOURCE_MAPS) true else null
                             },
                         )
                     },

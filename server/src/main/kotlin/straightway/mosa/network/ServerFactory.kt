@@ -12,7 +12,7 @@ import io.ktor.server.netty.Netty
 import io.ktor.server.netty.NettyApplicationEngine
 import kotlinx.coroutines.Dispatchers
 import straightway.mosa.CommandLineArgumentStore
-import straightway.mosa.ServerCommandLineArguments
+import straightway.mosa.ServerCommandLineOptions
 import straightway.mosa.tls.DevSelfSignedCertificateFactory
 import straightway.mosa.tls.InMemoryKeyStore
 
@@ -20,7 +20,7 @@ fun createServer(
     argumentStore: CommandLineArgumentStore,
     module: Application.() -> Unit,
 ): EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration> {
-    val enableSelfSignedTls = argumentStore.getBoolean(ServerCommandLineArguments.DEV_SELF_SIGNED_TLS) ?: false
+    val enableSelfSignedTls = argumentStore.getBoolean(ServerCommandLineOptions.DEV_SELF_SIGNED_TLS) ?: false
     return if (enableSelfSignedTls) {
         createServerWithSelfSignedTls(argumentStore, module)
     } else {
@@ -35,7 +35,7 @@ private fun createServerWithSelfSignedTls(
     val allowHttp = argumentStore.getBoolean(NetworkCommandLineOptions.ALLOW_HTTP) ?: false
     val serverPort = argumentStore.getInt(NetworkCommandLineOptions.SERVER_PORT) ?: 8080
     val httpsPort = argumentStore.getInt(NetworkCommandLineOptions.HTTPS_PORT) ?: 80443
-    val devCertHost = argumentStore.getString(ServerCommandLineArguments.DEV_CERT_HOST) ?: "localhost"
+    val devCertHost = argumentStore.getString(ServerCommandLineOptions.DEV_CERT_HOST) ?: "localhost"
     val keyStore = DevSelfSignedCertificateFactory().create(devCertHost)
     val connectors = devConnectors(allowHttp, serverPort, httpsPort, keyStore)
     val rootConfig =

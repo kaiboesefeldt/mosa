@@ -1,11 +1,11 @@
 package straightway.mosa
 
 import io.mockk.every
-import io.mockk.mockkStatic
+import io.mockk.spyk
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ExperimentalCli
 import straightway.mosa.commandline.ServeCommand
-import straightway.mosa.commandline.startMosaServer
+import straightway.mosa.content.ContentCommandLineOptions
 import straightway.mosa.defense.DefenseCommandLineOptions
 import straightway.mosa.network.NetworkCommandLineOptions
 import kotlin.test.Test
@@ -17,14 +17,14 @@ class MainArgumentsTest {
     fun `store returns null when serve-source-maps argument omitted`() {
         val store = parseStore("serve")
 
-        assertEquals(false, store?.getBoolean(ServerCommandLineArguments.SERVE_SOURCE_MAPS))
+        assertEquals(false, store?.getBoolean(ServerCommandLineOptions.SERVE_SOURCE_MAPS))
     }
 
     @Test
     fun `store returns true when serve-source-maps argument provided`() {
         val store = parseStore("serve", "--serve-source-maps")
 
-        assertEquals(true, store?.getBoolean(ServerCommandLineArguments.SERVE_SOURCE_MAPS))
+        assertEquals(true, store?.getBoolean(ServerCommandLineOptions.SERVE_SOURCE_MAPS))
     }
 
     @Test
@@ -176,7 +176,7 @@ class MainArgumentsTest {
         assertEquals(null, store?.getInt(DefenseCommandLineOptions.MAX_REQUEST_BODY_BYTES))
         assertEquals(20, store?.getInt(NetworkCommandLineOptions.REQUEST_READ_TIMEOUT_SECONDS))
         assertEquals(30, store?.getInt(NetworkCommandLineOptions.RESPONSE_WRITE_TIMEOUT_SECONDS))
-        assertEquals(100, store?.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS))
+        assertEquals(100, store?.getInt(ContentCommandLineOptions.MAX_FETCH_ITEMS))
     }
 
     @Test
@@ -197,21 +197,19 @@ class MainArgumentsTest {
         assertEquals(1024, store?.getInt(DefenseCommandLineOptions.MAX_REQUEST_BODY_BYTES))
         assertEquals(5, store?.getInt(NetworkCommandLineOptions.REQUEST_READ_TIMEOUT_SECONDS))
         assertEquals(12, store?.getInt(NetworkCommandLineOptions.RESPONSE_WRITE_TIMEOUT_SECONDS))
-        assertEquals(250, store?.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS))
+        assertEquals(250, store?.getInt(ContentCommandLineOptions.MAX_FETCH_ITEMS))
     }
 
     private fun parseStore(vararg args: String): CommandLineArgumentStore? {
         var capturedStore: CommandLineArgumentStore? = null
-        mockkStatic("straightway.mosa.commandline.ServeCommandKt") {
-            every { startMosaServer(any()) } answers {
-                capturedStore = firstArg()
-            }
-            val parser = ArgParser("mosa")
-            val serveCommand = ServeCommand()
-
-            parser.subcommands(serveCommand)
-            parser.parse(args)
+        val parser = ArgParser("mosa")
+        val serveCommand = spyk(ServeCommand())
+        every { serveCommand.startMosaServer(any()) } answers {
+            capturedStore = firstArg()
         }
+
+        parser.subcommands(serveCommand)
+        parser.parse(args)
 
         return capturedStore
     }

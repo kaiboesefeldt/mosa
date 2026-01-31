@@ -12,10 +12,11 @@ import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.ktor.plugin.koin
 import straightway.mosa.CommandLineArgumentStore
-import straightway.mosa.ServerCommandLineArguments
+import straightway.mosa.ServerCommandLineOptions
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
 import straightway.mosa.configureMosaAppModule
+import straightway.mosa.content.ContentCommandLineOptions
 import straightway.mosa.defense.DefenseCommandLineOptions
 import straightway.mosa.defense.configureDefenseAppModule
 import straightway.mosa.defense.installDefenseRoutingPlugins
@@ -36,7 +37,7 @@ internal class ServeCommand :
     private val serveSourceMaps by
         option(
             ArgType.Boolean,
-            fullName = ServerCommandLineArguments.SERVE_SOURCE_MAPS,
+            fullName = ServerCommandLineOptions.SERVE_SOURCE_MAPS,
             description = "Serve source maps for the client bundle",
         ).default(false)
     private val doc by
@@ -49,35 +50,30 @@ internal class ServeCommand :
     private val devSelfSignedTls by
         option(
             ArgType.Boolean,
-            fullName = ServerCommandLineArguments.DEV_SELF_SIGNED_TLS,
+            fullName = ServerCommandLineOptions.DEV_SELF_SIGNED_TLS,
             description = "Generate an in-memory self-signed certificate for HTTPS",
         ).default(false)
     private val devCertHost by
         option(
             ArgType.String,
-            fullName = ServerCommandLineArguments.DEV_CERT_HOST,
+            fullName = ServerCommandLineOptions.DEV_CERT_HOST,
             description = "Primary host or IP to include in the self-signed certificate SAN",
         ).default("localhost")
-    private val maxFetchItems by
-        option(
-            ArgType.Int,
-            fullName = ServerCommandLineArguments.MAX_FETCH_ITEMS,
-            description = "Maximum number of items allowed per fetch request",
-        ).default(100)
     private val defenseOptions = DefenseCommandLineOptions(this)
     private val vectorStoreOptions = VectorStoreCommandLineOptions(this)
     private val networkOptions = NetworkCommandLineOptions(this)
+    private val contentOptions = ContentCommandLineOptions(this)
 
     private val argumentValues by lazy {
         mapOf(
-            ServerCommandLineArguments.SERVE_SOURCE_MAPS to serveSourceMaps,
-            ServerCommandLineArguments.DEV_SELF_SIGNED_TLS to devSelfSignedTls,
-            ServerCommandLineArguments.DEV_CERT_HOST to devCertHost,
-            ServerCommandLineArguments.MAX_FETCH_ITEMS to maxFetchItems,
+            ServerCommandLineOptions.SERVE_SOURCE_MAPS to serveSourceMaps,
+            ServerCommandLineOptions.DEV_SELF_SIGNED_TLS to devSelfSignedTls,
+            ServerCommandLineOptions.DEV_CERT_HOST to devCertHost,
         ) +
             defenseOptions.toArgumentValues() +
             vectorStoreOptions.toArgumentValues() +
-            networkOptions.toArgumentValues()
+            networkOptions.toArgumentValues() +
+            contentOptions.toArgumentValues()
     }
 
     override fun execute() {
@@ -87,7 +83,7 @@ internal class ServeCommand :
         }
     }
 
-    private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
+    internal fun startMosaServer(argumentStore: CommandLineArgumentStore) {
         val mosaModule: Application.() -> Unit = {
             install(Koin) {
                 modules(
