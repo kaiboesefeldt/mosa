@@ -2,12 +2,11 @@ package straightway.mosa
 
 import org.koin.core.module.Module
 import org.koin.dsl.bind
-import org.koin.dsl.onClose
 import straightway.mosa.auth.configureAuthAppModule
 import straightway.mosa.base.BaseController
 import straightway.mosa.content.configureContentAppModule
 import straightway.mosa.defense.configureDefenseAppModule
-import straightway.mosa.embedding.OnnxLocalEmbeddingService
+import straightway.mosa.embedding.configureEmbeddingAppModule
 import straightway.mosa.network.NetworkCommandLineOptions
 import straightway.mosa.network.configureNetworkAppModule
 import straightway.mosa.vectorstore.configureVectorStoreAppModule
@@ -16,7 +15,6 @@ import java.time.Clock
 import kotlin.random.Random
 
 fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY) {
-    single<EmbeddingService> { OnnxLocalEmbeddingService.create() } onClose { (it as? AutoCloseable)?.close() }
     single { Clock.systemUTC() }
     single { NanoClock(System::nanoTime) }
     single { Random(get<NanoClock>().nanoTime()) }
@@ -34,4 +32,5 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     configureDefenseAppModule()
     configureAuthAppModule()
     configureContentAppModule()
+    configureEmbeddingAppModule()
 }
