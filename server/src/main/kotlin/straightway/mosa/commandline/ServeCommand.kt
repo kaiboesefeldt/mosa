@@ -19,7 +19,8 @@ import straightway.mosa.configureMosaAppModule
 import straightway.mosa.defense.DefenseCommandLineOptions
 import straightway.mosa.defense.configureDefenseAppModule
 import straightway.mosa.defense.installDefenseRoutingPlugins
-import straightway.mosa.doc.ServeDocRenderer
+import straightway.mosa.doc.MarkdownRenderer.render
+import straightway.mosa.doc.MarkdownResourceReader.readMarkdownResource
 import straightway.mosa.installKtorPlugins
 import straightway.mosa.network.NetworkCommandLineOptions
 import straightway.mosa.network.configureNetworkAppModule
@@ -80,12 +81,37 @@ internal class ServeCommand :
     }
 
     override fun execute() {
-        if (doc) {
-            ServeDocRenderer().render(readServeDocumentation())
-            return
+        when {
+            doc -> render(readMarkdownResource("/doc/serve/index.md"))
+            else -> startMosaServer(CommandLineArgumentStore.from { name -> argumentValues[name] })
         }
-        logCommandLineArguments()
-        startMosaServer(CommandLineArgumentStore.from { name -> argumentValues[name] })
+    }
+
+    private fun startMosaServer(argumentStore: CommandLineArgumentStore) {
+        val mosaModule: Application.() -> Unit = {
+            install(Koin) {
+                modules(
+                    module {
+                        configureMosaAppModule(argumentStore)
+                        configureDefenseAppModule()
+                        configureNetworkAppModule()
+                    },
+                )
+            }
+            with(koin()) {
+                logCommandLineArguments()
+
+                installKtorPlugins()
+                routing {
+                    installDefenseRoutingPlugins()
+                    getAll<BaseController>().forEach { register(it) }
+                }
+            }
+        }
+
+        val server = createServer(argumentStore, mosaModule)
+
+        server.start(wait = true)
     }
 
     private fun logCommandLineArguments() {
@@ -104,57 +130,6 @@ internal class ServeCommand :
             }
         log.info { formattedArguments }
     }
-}
-
-private fun readServeDocumentation(): String = readMarkdownResource("/doc/serve/index.md")
-
-private fun readMarkdownResource(path: String): String {
-    val content =
-        ServeCommand::class.java
-            .getResourceAsStream(path)
-            ?.bufferedReader()
-            ?.use { it.readText() }
-            ?: return "Missing serve documentation resource: ${path.removePrefix("/")}"
-    return expandMarkdownIncludes(content)
-}
-
-private fun expandMarkdownIncludes(markdown: String): String {
-    val includePattern = Regex("\\{\\{include:([^}]+)}}")
-    return buildString {
-        markdown.lineSequence().forEach { line ->
-            val match = includePattern.matchEntire(line.trim())
-            if (match == null) {
-                appendLine(line)
-            } else {
-                val includePath = match.groupValues[1].trim()
-                appendLine(readMarkdownResource(includePath))
-            }
-        }
-    }.trimEnd()
-}
-
-internal fun startMosaServer(argumentStore: CommandLineArgumentStore) {
-    val mosaModule: Application.() -> Unit = {
-        install(Koin) {
-            modules(
-                module {
-                    configureMosaAppModule(argumentStore)
-                    configureDefenseAppModule()
-                    configureNetworkAppModule()
-                },
-            )
-        }
-        with(koin()) {
-            installKtorPlugins()
-            routing {
-                installDefenseRoutingPlugins()
-                getAll<BaseController>().forEach { register(it) }
-            }
-        }
-    }
-    val server = createServer(argumentStore, mosaModule)
-
-    server.start(wait = true)
 }
 
 private val log = KotlinLogging.logger {}

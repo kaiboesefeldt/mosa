@@ -9,7 +9,7 @@ import com.github.ajalt.mordant.rendering.Theme
 import com.github.ajalt.mordant.terminal.Terminal
 import com.github.ajalt.mordant.widgets.Text
 
-class ServeDocRenderer {
+object MarkdownRenderer {
     private val docTheme =
         Theme(Theme.Default) {
             val styles = styles

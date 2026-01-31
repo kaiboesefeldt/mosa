@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class ServeDocRendererTest {
+class MarkdownRendererTest {
     @Test
     fun `render outputs h1 heading with rule`() {
         val lines = renderLines("# title").dropLastWhile { it.isEmpty() }
@@ -129,7 +129,7 @@ class ServeDocRendererTest {
         val printStream = PrintStream(output, true, Charsets.UTF_8)
         System.setOut(printStream)
         try {
-            ServeDocRenderer().render(markdown)
+            MarkdownRenderer().render(markdown)
         } finally {
             System.setOut(originalOut)
         }
