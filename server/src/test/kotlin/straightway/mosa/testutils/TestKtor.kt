@@ -22,7 +22,7 @@ import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegistry
 import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
 import straightway.mosa.defense.requestguard.defaultMaxRequestBodyBytes
-import straightway.mosa.installNetworkServerPlugins
+import straightway.mosa.installKtorPlugins
 import straightway.mosa.network.ClientIpResolver
 import java.nio.file.Path
 import java.time.Clock
@@ -113,7 +113,7 @@ fun Application.installTestNetworkServerPlugins(
         ),
         createEagerInstances = false,
     )
-    installNetworkServerPlugins()
+    installKtorPlugins()
 }
 
 private fun defaultIpBlockList(): AutoRefreshingFileBackedContent<ClientBlockList> =

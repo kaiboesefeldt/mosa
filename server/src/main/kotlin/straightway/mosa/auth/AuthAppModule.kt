@@ -12,6 +12,7 @@ import straightway.mosa.base.BaseController
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.defense.approvegidRateLimit
 import straightway.mosa.defense.identityBlockList
+import straightway.mosa.network.NetworkCommandLineOptions
 import java.nio.file.Paths
 import java.security.MessageDigest
 import kotlin.time.Duration.Companion.days
@@ -27,7 +28,7 @@ fun Module.configureAuthAppModule() {
     single {
         val cliArguments: CommandLineArgumentStore = get()
         val certificateLifetimeSeconds =
-            cliArguments.getInt(AuthCommandLineOptions.POD_CERT_VALIDITY_SECONDS)
+            cliArguments.getInt(NetworkCommandLineOptions.POD_CERT_VALIDITY_SECONDS)
                 ?: 7.days.inWholeSeconds.toInt()
         AuthenticationController(
             get(),

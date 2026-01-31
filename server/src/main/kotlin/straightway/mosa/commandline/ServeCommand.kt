@@ -3,36 +3,27 @@ package straightway.mosa.commandline
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
-import io.ktor.server.application.serverConfig
-import io.ktor.server.engine.EngineConnectorBuilder
-import io.ktor.server.engine.EngineConnectorConfig
-import io.ktor.server.engine.EngineSSLConnectorBuilder
-import io.ktor.server.engine.applicationEnvironment
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
 import io.ktor.server.routing.routing
 import kotlinx.cli.ArgType
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.default
-import kotlinx.coroutines.Dispatchers
 import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.ktor.plugin.koin
 import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.ServerCommandLineArguments
-import straightway.mosa.TlsConfig
-import straightway.mosa.auth.AuthCommandLineOptions
 import straightway.mosa.base.BaseController
 import straightway.mosa.base.register
 import straightway.mosa.configureMosaAppModule
 import straightway.mosa.defense.DefenseCommandLineOptions
-import straightway.mosa.defense.configureDefenseRuntimeModule
+import straightway.mosa.defense.configureDefenseAppModule
 import straightway.mosa.defense.installDefenseRoutingPlugins
 import straightway.mosa.doc.ServeDocRenderer
-import straightway.mosa.installNetworkServerPlugins
-import straightway.mosa.tls.DevSelfSignedCertificateFactory
-import straightway.mosa.tls.InMemoryKeyStore
+import straightway.mosa.installKtorPlugins
+import straightway.mosa.network.NetworkCommandLineOptions
+import straightway.mosa.network.configureNetworkAppModule
+import straightway.mosa.network.createServer
 import straightway.mosa.vectorstore.VectorStoreCommandLineOptions
 
 @OptIn(ExperimentalCli::class)
@@ -54,54 +45,18 @@ internal class ServeCommand :
             fullName = "doc",
             description = "Print detailed serve documentation and exit",
         ).default(false)
-    private val serverPort by
-        option(
-            ArgType.Int,
-            fullName = ServerCommandLineArguments.SERVER_PORT,
-            description = "Port for the MOSA server",
-        ).default(8080)
-    private val allowHttp by
-        option(
-            ArgType.Boolean,
-            fullName = ServerCommandLineArguments.ALLOW_HTTP,
-            description = "Allow plain HTTP connections to the pod",
-        ).default(false)
     private val devSelfSignedTls by
         option(
             ArgType.Boolean,
             fullName = ServerCommandLineArguments.DEV_SELF_SIGNED_TLS,
             description = "Generate an in-memory self-signed certificate for HTTPS",
         ).default(false)
-    private val httpsPort by
-        option(
-            ArgType.Int,
-            fullName = ServerCommandLineArguments.HTTPS_PORT,
-            description = "Port for HTTPS when dev self-signed TLS is enabled",
-        ).default(8443)
     private val devCertHost by
         option(
             ArgType.String,
             fullName = ServerCommandLineArguments.DEV_CERT_HOST,
             description = "Primary host or IP to include in the self-signed certificate SAN",
         ).default("localhost")
-    private val trustedProxyIps by
-        option(
-            ArgType.String,
-            fullName = ServerCommandLineArguments.TRUSTED_PROXY_IPS,
-            description = "Comma-separated IPs of trusted proxies for forwarded headers",
-        ).default("")
-    private val requestReadTimeoutSeconds by
-        option(
-            ArgType.Int,
-            fullName = ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS,
-            description = "Request read timeout in seconds",
-        ).default(20)
-    private val responseWriteTimeoutSeconds by
-        option(
-            ArgType.Int,
-            fullName = ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS,
-            description = "Response write timeout in seconds",
-        ).default(30)
     private val maxFetchItems by
         option(
             ArgType.Int,
@@ -110,24 +65,18 @@ internal class ServeCommand :
         ).default(100)
     private val defenseOptions = DefenseCommandLineOptions(this)
     private val vectorStoreOptions = VectorStoreCommandLineOptions(this)
-    private val authOptions = AuthCommandLineOptions(this)
+    private val networkOptions = NetworkCommandLineOptions(this)
 
     private val argumentValues by lazy {
         mapOf(
             ServerCommandLineArguments.SERVE_SOURCE_MAPS to serveSourceMaps,
-            ServerCommandLineArguments.SERVER_PORT to serverPort,
-            ServerCommandLineArguments.ALLOW_HTTP to allowHttp,
             ServerCommandLineArguments.DEV_SELF_SIGNED_TLS to devSelfSignedTls,
-            ServerCommandLineArguments.HTTPS_PORT to httpsPort,
             ServerCommandLineArguments.DEV_CERT_HOST to devCertHost,
-            ServerCommandLineArguments.TRUSTED_PROXY_IPS to trustedProxyIps,
-            ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS to requestReadTimeoutSeconds,
-            ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS to responseWriteTimeoutSeconds,
             ServerCommandLineArguments.MAX_FETCH_ITEMS to maxFetchItems,
         ) +
             defenseOptions.toArgumentValues() +
             vectorStoreOptions.toArgumentValues() +
-            authOptions.toArgumentValues()
+            networkOptions.toArgumentValues()
     }
 
     override fun execute() {
@@ -185,85 +134,27 @@ private fun expandMarkdownIncludes(markdown: String): String {
 }
 
 internal fun startMosaServer(argumentStore: CommandLineArgumentStore) {
-    val serverPort = argumentStore.getInt(ServerCommandLineArguments.SERVER_PORT) ?: 8080
-    val allowHttp = argumentStore.getBoolean(ServerCommandLineArguments.ALLOW_HTTP) ?: false
-    val requireTlsForPod = !allowHttp
-    val enableSelfSignedTls = argumentStore.getBoolean(ServerCommandLineArguments.DEV_SELF_SIGNED_TLS) ?: false
-    val httpsPort = argumentStore.getInt(ServerCommandLineArguments.HTTPS_PORT) ?: 8443
-    val devCertHost = argumentStore.getString(ServerCommandLineArguments.DEV_CERT_HOST) ?: "localhost"
-    val requestReadTimeoutSeconds =
-        argumentStore.getInt(ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS) ?: 20
-    val responseWriteTimeoutSeconds =
-        argumentStore.getInt(ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS) ?: 30
     val mosaModule: Application.() -> Unit = {
         install(Koin) {
             modules(
                 module {
                     configureMosaAppModule(argumentStore)
-                    configureDefenseRuntimeModule(argumentStore)
-                    single { TlsConfig(requireTlsForPod = requireTlsForPod) }
+                    configureDefenseAppModule()
+                    configureNetworkAppModule()
                 },
             )
         }
         with(koin()) {
-            installNetworkServerPlugins()
+            installKtorPlugins()
             routing {
                 installDefenseRoutingPlugins()
                 getAll<BaseController>().forEach { register(it) }
             }
         }
     }
-    val server =
-        if (enableSelfSignedTls) {
-            val keyStore = DevSelfSignedCertificateFactory().create(devCertHost)
-            val connectors = devConnectors(allowHttp, serverPort, httpsPort, keyStore)
-            val rootConfig =
-                serverConfig(applicationEnvironment()) {
-                    parentCoroutineContext = Dispatchers.IO
-                    watchPaths = emptyList()
-                    module(mosaModule)
-                }
-            embeddedServer(Netty, rootConfig) {
-                this.connectors.addAll(connectors)
-                this.requestReadTimeoutSeconds = requestReadTimeoutSeconds
-                this.responseWriteTimeoutSeconds = responseWriteTimeoutSeconds
-            }
-        } else {
-            val rootConfig =
-                serverConfig(applicationEnvironment()) {
-                    module(mosaModule)
-                }
-            embeddedServer(Netty, rootConfig) {
-                this.connectors.add(
-                    EngineConnectorBuilder().apply { port = serverPort },
-                )
-                this.requestReadTimeoutSeconds = requestReadTimeoutSeconds
-                this.responseWriteTimeoutSeconds = responseWriteTimeoutSeconds
-            }
-        }
+    val server = createServer(argumentStore, mosaModule)
 
     server.start(wait = true)
-}
-
-private fun devConnectors(
-    allowHttp: Boolean,
-    httpPort: Int,
-    httpsPort: Int,
-    keyStore: InMemoryKeyStore,
-): List<EngineConnectorConfig> {
-    val connectors = mutableListOf<EngineConnectorConfig>()
-    if (allowHttp) {
-        connectors.add(EngineConnectorBuilder().apply { port = httpPort })
-    }
-    connectors.add(
-        EngineSSLConnectorBuilder(
-            keyStore.keyStore,
-            keyStore.alias,
-            { keyStore.password },
-            { keyStore.password },
-        ).apply { port = httpsPort },
-    )
-    return connectors
 }
 
 private val log = KotlinLogging.logger {}

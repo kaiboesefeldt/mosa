@@ -32,6 +32,12 @@ val identityBlockList: Qualifier = named("identityBlockList")
 fun Module.configureDefenseAppModule() {
     single<MeterRegistry> { SimpleMeterRegistry() } onClose { it?.close() }
     single {
+        buildLoadSheddingConfig(get())
+    }
+    single {
+        buildRequestBodyLimitConfig(get())
+    }
+    single {
         val cliArguments: CommandLineArgumentStore = get()
         val minSamplesForBaseline =
             cliArguments.getInt(DefenseCommandLineOptions.REQUEST_DURATION_MIN_SAMPLES)?.toLong()

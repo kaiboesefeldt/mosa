@@ -7,6 +7,7 @@ import kotlinx.cli.ExperimentalCli
 import straightway.mosa.commandline.ServeCommand
 import straightway.mosa.commandline.startMosaServer
 import straightway.mosa.defense.DefenseCommandLineOptions
+import straightway.mosa.network.NetworkCommandLineOptions
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -30,28 +31,28 @@ class MainArgumentsTest {
     fun `store returns default port when port argument omitted`() {
         val store = parseStore("serve")
 
-        assertEquals(8080, store?.getInt(ServerCommandLineArguments.SERVER_PORT))
+        assertEquals(8080, store?.getInt(NetworkCommandLineOptions.SERVER_PORT))
     }
 
     @Test
     fun `store returns provided port when port argument specified`() {
         val store = parseStore("serve", "--port", "9090")
 
-        assertEquals(9090, store?.getInt(ServerCommandLineArguments.SERVER_PORT))
+        assertEquals(9090, store?.getInt(NetworkCommandLineOptions.SERVER_PORT))
     }
 
     @Test
     fun `store requires tls by default`() {
         val store = parseStore("serve")
 
-        assertEquals(false, store?.getBoolean(ServerCommandLineArguments.ALLOW_HTTP))
+        assertEquals(false, store?.getBoolean(NetworkCommandLineOptions.ALLOW_HTTP))
     }
 
     @Test
     fun `store disables tls requirement when flag set to false`() {
         val store = parseStore("serve", "--allow-http")
 
-        assertEquals(true, store?.getBoolean(ServerCommandLineArguments.ALLOW_HTTP))
+        assertEquals(true, store?.getBoolean(NetworkCommandLineOptions.ALLOW_HTTP))
     }
 
     @Test
@@ -173,8 +174,8 @@ class MainArgumentsTest {
         val store = parseStore("serve")
 
         assertEquals(null, store?.getInt(DefenseCommandLineOptions.MAX_REQUEST_BODY_BYTES))
-        assertEquals(20, store?.getInt(ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS))
-        assertEquals(30, store?.getInt(ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS))
+        assertEquals(20, store?.getInt(NetworkCommandLineOptions.REQUEST_READ_TIMEOUT_SECONDS))
+        assertEquals(30, store?.getInt(NetworkCommandLineOptions.RESPONSE_WRITE_TIMEOUT_SECONDS))
         assertEquals(100, store?.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS))
     }
 
@@ -194,8 +195,8 @@ class MainArgumentsTest {
             )
 
         assertEquals(1024, store?.getInt(DefenseCommandLineOptions.MAX_REQUEST_BODY_BYTES))
-        assertEquals(5, store?.getInt(ServerCommandLineArguments.REQUEST_READ_TIMEOUT_SECONDS))
-        assertEquals(12, store?.getInt(ServerCommandLineArguments.RESPONSE_WRITE_TIMEOUT_SECONDS))
+        assertEquals(5, store?.getInt(NetworkCommandLineOptions.REQUEST_READ_TIMEOUT_SECONDS))
+        assertEquals(12, store?.getInt(NetworkCommandLineOptions.RESPONSE_WRITE_TIMEOUT_SECONDS))
         assertEquals(250, store?.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS))
     }
 

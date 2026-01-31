@@ -21,6 +21,7 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import straightway.mosa.network.ClientIpResolver
+import straightway.mosa.network.createMosaApiCorsPlugin
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

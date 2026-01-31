@@ -1,6 +1,8 @@
 package straightway.mosa.defense
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import straightway.mosa.CommandLineArgumentStore
+import straightway.mosa.ServerCommandLineArguments
 import straightway.mosa.defense.core.LoadSheddingConfig
 import straightway.mosa.defense.cpu.CpuSheddingConfig
 import straightway.mosa.defense.memory.MemorySheddingConfig
@@ -51,12 +53,15 @@ fun buildLoadSheddingConfig(argumentStore: CommandLineArgumentStore): LoadSheddi
     )
 }
 
-fun buildRequestBodyLimitConfig(
-    argumentStore: CommandLineArgumentStore,
-    maxFetchItems: Int,
-): RequestBodyLimitConfig {
+fun buildRequestBodyLimitConfig(argumentStore: CommandLineArgumentStore): RequestBodyLimitConfig {
+    val maxFetchItems = argumentStore.getInt(ServerCommandLineArguments.MAX_FETCH_ITEMS) ?: 100
     val maxRequestBodyBytes =
         argumentStore.getInt(DefenseCommandLineOptions.MAX_REQUEST_BODY_BYTES)?.toLong()
             ?: defaultMaxRequestBodyBytes(maxFetchItems)
+    if (argumentStore.getInt(DefenseCommandLineOptions.MAX_REQUEST_BODY_BYTES) == null) {
+        klogger.info { "Actual Max Request Body Bytes: $maxRequestBodyBytes" }
+    }
     return RequestBodyLimitConfig(maxBodyBytes = maxRequestBodyBytes)
 }
+
+private val klogger = KotlinLogging.logger {}
