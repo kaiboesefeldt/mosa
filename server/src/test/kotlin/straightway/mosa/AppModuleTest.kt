@@ -25,6 +25,7 @@ import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.crypto.CryptoEd25519
+import straightway.mosa.dev.DevCommandLineOptions.Companion.SERVE_SOURCE_MAPS
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import straightway.mosa.webclient.WebClientController
@@ -134,7 +135,7 @@ class AppModuleTest {
         koinApplication!!.close()
         val arguments =
             CommandLineArgumentStore.from { name ->
-                if (name == ServerCommandLineOptions.SERVE_SOURCE_MAPS) true else null
+                if (name == SERVE_SOURCE_MAPS) true else null
             }
         koinApplication = koinApplication { modules(module { configureMosaAppModule(arguments) }) }
         assertSame(arguments, koin.get<CommandLineArgumentStore>())
@@ -170,7 +171,7 @@ class AppModuleTest {
                     module {
                         configureMosaAppModule(
                             CommandLineArgumentStore.from {
-                                if (it == ServerCommandLineOptions.SERVE_SOURCE_MAPS) true else null
+                                if (it == SERVE_SOURCE_MAPS) true else null
                             },
                         )
                     },

@@ -4,12 +4,13 @@ import kotlinx.cli.ArgType
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.default
+import straightway.mosa.CommandLineOptions
 import kotlin.time.Duration.Companion.days
 
 @OptIn(ExperimentalCli::class)
 class NetworkCommandLineOptions(
     command: Subcommand,
-) {
+) : CommandLineOptions {
     val podCertificateValiditySeconds by
         command
             .option(
@@ -60,7 +61,7 @@ class NetworkCommandLineOptions(
                 description = "Response write timeout in seconds",
             ).default(30)
 
-    fun toArgumentValues(): Map<String, Any?> =
+    override fun toArgumentValues(): Map<String, Any?> =
         mapOf(
             POD_CERT_VALIDITY_SECONDS to podCertificateValiditySeconds,
             SERVER_PORT to serverPort,

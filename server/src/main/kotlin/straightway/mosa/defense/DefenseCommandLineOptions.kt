@@ -4,11 +4,12 @@ import kotlinx.cli.ArgType
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.default
+import straightway.mosa.CommandLineOptions
 
 @OptIn(ExperimentalCli::class)
 class DefenseCommandLineOptions(
     command: Subcommand,
-) {
+) : CommandLineOptions {
     val loadSheddingStart by
         command
             .option(
@@ -205,7 +206,7 @@ class DefenseCommandLineOptions(
             description = "Maximum size for request bodies in bytes",
         )
 
-    fun toArgumentValues(): Map<String, Any?> =
+    override fun toArgumentValues(): Map<String, Any?> =
         mapOf(
             CPU_LOAD_SHEDDING_START to loadSheddingStart,
             CPU_LOAD_SHEDDING_FULL to loadSheddingFull,

@@ -7,6 +7,7 @@ import kotlinx.cli.ExperimentalCli
 import straightway.mosa.commandline.ServeCommand
 import straightway.mosa.content.ContentCommandLineOptions
 import straightway.mosa.defense.DefenseCommandLineOptions
+import straightway.mosa.dev.DevCommandLineOptions
 import straightway.mosa.network.NetworkCommandLineOptions
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,14 +18,14 @@ class MainArgumentsTest {
     fun `store returns null when serve-source-maps argument omitted`() {
         val store = parseStore("serve")
 
-        assertEquals(false, store?.getBoolean(ServerCommandLineOptions.SERVE_SOURCE_MAPS))
+        assertEquals(false, store?.getBoolean(DevCommandLineOptions.SERVE_SOURCE_MAPS))
     }
 
     @Test
     fun `store returns true when serve-source-maps argument provided`() {
         val store = parseStore("serve", "--serve-source-maps")
 
-        assertEquals(true, store?.getBoolean(ServerCommandLineOptions.SERVE_SOURCE_MAPS))
+        assertEquals(true, store?.getBoolean(DevCommandLineOptions.SERVE_SOURCE_MAPS))
     }
 
     @Test

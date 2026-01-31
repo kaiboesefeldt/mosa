@@ -4,11 +4,12 @@ import kotlinx.cli.ArgType
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.default
+import straightway.mosa.CommandLineOptions
 
 @OptIn(ExperimentalCli::class)
 class ContentCommandLineOptions(
     command: Subcommand,
-) {
+) : CommandLineOptions {
     private val maxFetchItems by
         command
             .option(
@@ -17,7 +18,7 @@ class ContentCommandLineOptions(
                 description = "Maximum number of items allowed per fetch request",
             ).default(100)
 
-    fun toArgumentValues(): Map<String, Any?> =
+    override fun toArgumentValues(): Map<String, Any?> =
         mapOf(
             MAX_FETCH_ITEMS to maxFetchItems,
         )

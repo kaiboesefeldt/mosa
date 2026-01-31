@@ -4,11 +4,12 @@ import kotlinx.cli.ArgType
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.default
+import straightway.mosa.CommandLineOptions
 
 @OptIn(ExperimentalCli::class)
 class VectorStoreCommandLineOptions(
     command: Subcommand,
-) {
+) : CommandLineOptions {
     val indexPath by
         command
             .option(
@@ -38,7 +39,7 @@ class VectorStoreCommandLineOptions(
                 description = "Maximum number of vector store results per query",
             ).default(DEFAULT_MAX_RESULTS)
 
-    fun toArgumentValues(): Map<String, Any?> =
+    override fun toArgumentValues(): Map<String, Any?> =
         mapOf(
             INDEX_PATH to indexPath,
             PAGE_SIZE to pageSize,

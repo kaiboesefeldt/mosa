@@ -6,6 +6,7 @@ import straightway.mosa.auth.configureAuthAppModule
 import straightway.mosa.base.BaseController
 import straightway.mosa.content.configureContentAppModule
 import straightway.mosa.defense.configureDefenseAppModule
+import straightway.mosa.dev.DevCommandLineOptions.Companion.SERVE_SOURCE_MAPS
 import straightway.mosa.embedding.configureEmbeddingAppModule
 import straightway.mosa.network.NetworkCommandLineOptions
 import straightway.mosa.network.configureNetworkAppModule
@@ -23,7 +24,7 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     single {
         val cliArguments: CommandLineArgumentStore = get()
         WebClientController(
-            serveSourceMaps = cliArguments.getBoolean(ServerCommandLineOptions.SERVE_SOURCE_MAPS) == true,
+            serveSourceMaps = cliArguments.getBoolean(SERVE_SOURCE_MAPS) == true,
             allowPlainHttp = cliArguments.getBoolean(NetworkCommandLineOptions.ALLOW_HTTP) == true,
         )
     } bind BaseController::class
