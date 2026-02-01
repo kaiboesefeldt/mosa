@@ -28,6 +28,7 @@ import straightway.mosa.network.NetworkCommandLineOptions
 import straightway.mosa.network.configureNetworkAppModule
 import straightway.mosa.network.createServer
 import straightway.mosa.vectorstore.VectorStoreCommandLineOptions
+import straightway.mosa.webclient.WebClientCommandLineOptions
 
 @OptIn(ExperimentalCli::class)
 internal class ServeCommand :
@@ -50,6 +51,7 @@ internal class ServeCommand :
             NetworkCommandLineOptions(this),
             ContentCommandLineOptions(this),
             DevCommandLineOptions(this),
+            WebClientCommandLineOptions(this),
         )
 
     private val argumentValues by lazy {

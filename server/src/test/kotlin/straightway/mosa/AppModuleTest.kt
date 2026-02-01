@@ -25,9 +25,9 @@ import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.crypto.CryptoEd25519
-import straightway.mosa.dev.DevCommandLineOptions.Companion.SERVE_SOURCE_MAPS
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
+import straightway.mosa.webclient.WebClientCommandLineOptions.Companion.SERVE_SOURCE_MAPS
 import straightway.mosa.webclient.WebClientController
 import java.nio.file.Files
 import java.nio.file.Path

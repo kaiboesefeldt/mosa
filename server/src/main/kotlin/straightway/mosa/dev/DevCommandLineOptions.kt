@@ -10,13 +10,6 @@ import straightway.mosa.CommandLineOptions
 class DevCommandLineOptions(
     command: Subcommand,
 ) : CommandLineOptions {
-    private val serveSourceMaps by
-        command
-            .option(
-                ArgType.Boolean,
-                fullName = SERVE_SOURCE_MAPS,
-                description = "Serve source maps for the client bundle",
-            ).default(false)
     private val devSelfSignedTls by
         command
             .option(
@@ -34,13 +27,11 @@ class DevCommandLineOptions(
 
     override fun toArgumentValues(): Map<String, Any?> =
         mapOf(
-            SERVE_SOURCE_MAPS to serveSourceMaps,
             DEV_SELF_SIGNED_TLS to devSelfSignedTls,
             DEV_CERT_HOST to devCertHost,
         )
 
     companion object {
-        const val SERVE_SOURCE_MAPS = "serve-source-maps"
         const val DEV_SELF_SIGNED_TLS = "dev-self-signed-tls"
         const val DEV_CERT_HOST = "dev-cert-host"
     }
