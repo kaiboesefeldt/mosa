@@ -13,10 +13,8 @@ import kotlin.random.Random
 
 fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY) {
     single { arguments }
-    single { Clock.systemUTC() }
-    single { NanoClock(System::nanoTime) }
-    single { Random(get<NanoClock>().nanoTime()) }
-
+    
+    configureGenericComponents()
     configureVectorStoreAppModule()
     configureNetworkAppModule()
     configureDefenseAppModule()
@@ -24,4 +22,10 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     configureContentAppModule()
     configureEmbeddingAppModule()
     configureWebClientAppModule()
+}
+
+private fun Module.configureGenericComponents() {
+    single { Clock.systemUTC() }
+    single { NanoClock(System::nanoTime) }
+    single { Random(get<NanoClock>().nanoTime()) }
 }

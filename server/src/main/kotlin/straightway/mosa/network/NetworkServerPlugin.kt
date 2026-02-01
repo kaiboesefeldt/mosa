@@ -25,7 +25,7 @@ import straightway.mosa.base.findPayloadTooLarge
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.util.TimeZone
 
-fun Application.installNetworkServerPlugin() {
+fun Application.installNetworkServerPlugins() {
     val koin = koin()
     val tlsConfig = koin.get<TlsConfig>()
     val clientIpResolver = koin.get<ClientIpResolver>()
