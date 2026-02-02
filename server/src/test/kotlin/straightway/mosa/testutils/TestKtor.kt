@@ -1,5 +1,6 @@
 package straightway.mosa.testutils
 
+import com.sun.management.OperatingSystemMXBean
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.application.pluginOrNull
@@ -24,6 +25,7 @@ import straightway.mosa.defense.requestguard.RequestBodyLimitConfig
 import straightway.mosa.defense.requestguard.defaultMaxRequestBodyBytes
 import straightway.mosa.installKtorPlugins
 import straightway.mosa.network.ClientIpResolver
+import java.lang.management.ManagementFactory
 import java.nio.file.Path
 import java.time.Clock
 import kotlin.random.Random
@@ -87,6 +89,10 @@ fun Application.installTestNetworkServerPlugins(
                 if (needsMeterRegistry) {
                     single<MeterRegistry> { meterRegistry }
                 }
+                ManagementFactory
+                    .getOperatingSystemMXBean()
+                    ?.let { it as? OperatingSystemMXBean }
+                    ?.let { osBean -> single<OperatingSystemMXBean> { osBean } }
                 if (needsNanoClock) {
                     single<NanoClock> { nanoClock }
                 }

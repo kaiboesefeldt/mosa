@@ -15,7 +15,7 @@ import io.ktor.util.AttributeKey
 import org.koin.core.Koin
 import org.koin.ktor.plugin.koin
 import straightway.mosa.defense.cpu.CpuSheddingDecider
-import straightway.mosa.defense.cpu.ProcessCpuLoadSampler
+import straightway.mosa.defense.cpu.ProcessCpuTimeSampler
 import straightway.mosa.defense.cpu.SmoothedCpuLoadSampler
 import straightway.mosa.defense.memory.GenericMemoryUsageSampler
 import straightway.mosa.defense.memory.MemorySheddingDecider
@@ -71,22 +71,22 @@ private fun Duration?.toRetryAfterInfo() =
     } ?: RetryAfterInfo(seconds = null, messageSuffix = "")
 
 private fun resolveOrCacheRouteTag(call: ApplicationCall): String =
-    call.attributes.getOrNull(RequestMetricsPlugin.Companion.RouteTagKey)
+    call.attributes.getOrNull(RequestMetricsPlugin.RouteTagKey)
         ?: RouteTagResolver
             .resolveRouteTag(call)
             .also { resolved ->
-                runCatching { call.attributes.put(RequestMetricsPlugin.Companion.RouteTagKey, resolved) }
+                runCatching { call.attributes.put(RequestMetricsPlugin.RouteTagKey, resolved) }
             }
 
 private fun toSheddingRequest(call: ApplicationCall): SheddingRequest =
-    _root_ide_package_.straightway.mosa.defense.core.SheddingRequest(
+    SheddingRequest(
         method = call.request.httpMethod.value,
         route = resolveOrCacheRouteTag(call),
     )
 
 @OptIn(ExperimentalAtomicApi::class)
 private fun stopSheddingIfActive(startShedding: AtomicBoolean) {
-    if (startShedding.compareAndSet(true, false)) {
+    if (startShedding.compareAndSet(expectedValue = true, newValue = false)) {
         localLogger.warn { "Stop shedding incoming requests" }
     }
 }
@@ -97,7 +97,7 @@ private fun logStartSheddingIfNeeded(
     result: SheddingDecider.Result,
     retryAfterInfo: RetryAfterInfo,
 ) {
-    if (startShedding.compareAndSet(false, true)) {
+    if (startShedding.compareAndSet(expectedValue = false, newValue = true)) {
         localLogger.warn {
             "Start shedding ${result.sheddingFactor} of incoming request: ${result.reason}${retryAfterInfo.messageSuffix}"
         }
@@ -137,8 +137,8 @@ private suspend fun handleLoadSheddingCall(
 }
 
 fun Koin.sheddingDeciderChain(): SheddingDecider =
-    _root_ide_package_.straightway.mosa.defense.core.CombinedSheddingDecider(
-        listOf(
+    CombinedSheddingDecider(
+        listOfNotNull(
             cpuSheddingDecider(),
             heapMemorySheddingDecider(),
             nonHeapMemorySheddingDecider(),
@@ -177,7 +177,7 @@ private fun Koin.heapMemorySheddingDecider() =
 
 private fun Koin.systemMemorySheddingDecider() =
     with(get<LoadSheddingConfig>()) {
-        (ManagementFactory.getOperatingSystemMXBean() as? OperatingSystemMXBean)?.let { osBean ->
+        getOrNull<OperatingSystemMXBean>()?.let { osBean ->
             MemorySheddingDecider(
                 systemMemorySheddingConfig,
                 GenericMemoryUsageSampler("SystemHeapMemory") {
@@ -197,18 +197,25 @@ private fun Koin.systemMemorySheddingDecider() =
 
 private fun Koin.cpuSheddingDecider() =
     with(get<LoadSheddingConfig>()) {
-        CpuSheddingDecider(
-            cpuSheddingConfig,
-            SmoothedCpuLoadSampler(
-                ProcessCpuLoadSampler().also {
-                    if (!it.isAvailable) {
-                        localLogger.warn { "No CPU load shedding: ProcessCpuLoadSampler not available" }
-                    }
-                },
-                cpuLoadSmoothingHalfLifeNs,
-                get(),
-            ),
-        )
+        getOrNull<OperatingSystemMXBean>()?.let { osBean ->
+            CpuSheddingDecider(
+                cpuSheddingConfig,
+                SmoothedCpuLoadSampler(
+                    ProcessCpuTimeSampler(
+                        nanoClock = get(),
+                        minSampleIntervalNs = 1_000_000_000L,
+                        numberOfProcessors = Runtime.getRuntime().availableProcessors(),
+                        osBean = osBean,
+                    ).also {
+                        if (!it.isAvailable) {
+                            localLogger.warn { "No CPU load shedding: ProcessCpuLoadSampler not available" }
+                        }
+                    },
+                    cpuLoadSmoothingHalfLifeNs,
+                    get(),
+                ),
+            )
+        }
     }
 
 private fun SheddingDecider.Result.shouldShedThisRequest(rng: Random) = fullShedding || rng.nextDouble(0.0, 1.0) < sheddingFactor

@@ -5,7 +5,7 @@ import straightway.mosa.defense.core.SheddingRequest
 
 class CpuSheddingDecider(
     private val config: CpuSheddingConfig,
-    private val loadSampler: CpuLoadSampler = SmoothedCpuLoadSampler(ProcessCpuLoadSampler()),
+    private val loadSampler: CpuLoadSampler,
 ) : SheddingDecider {
     override suspend fun decideShedding(request: SheddingRequest): SheddingDecider.Result =
         with(loadSampler) {

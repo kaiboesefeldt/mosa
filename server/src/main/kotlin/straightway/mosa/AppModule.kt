@@ -13,7 +13,7 @@ import kotlin.random.Random
 
 fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY) {
     single { arguments }
-    
+
     configureGenericComponents()
     configureVectorStoreAppModule()
     configureNetworkAppModule()

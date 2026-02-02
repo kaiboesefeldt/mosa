@@ -162,6 +162,107 @@ class LoadSheddingPluginTest {
             }
         }
 
+    @Test
+    fun `keeps shedding without repeating start log`() =
+        testApplication {
+            val decider =
+                CpuSheddingDecider(
+                    CpuSheddingConfig(
+                        loadSheddingStart = 0.9,
+                        loadSheddingFull = 0.9,
+                    ),
+                    ConstCpuLoadSampler(1.0),
+                )
+            var unmock: (() -> Unit)? = null
+            try {
+                application {
+                    val koin = installLoadSheddingTestKoin(loadSheddingConfig())
+                    unmock = mockDecider(koin, decider)
+                    install(createMosaLoadSheddingPlugin())
+                    routing {
+                        get("/health") { call.respondText("ok") }
+                    }
+                }
+
+                val firstResponse = client.get("/health")
+                val secondResponse = client.get("/health")
+
+                assertEquals(HttpStatusCode.ServiceUnavailable, firstResponse.status)
+                assertEquals(HttpStatusCode.ServiceUnavailable, secondResponse.status)
+            } finally {
+                unmock?.invoke()
+            }
+        }
+
+    @Test
+    fun `skips shedding when random selection misses`() =
+        testApplication {
+            val decider =
+                SheddingDecider {
+                    SheddingDecider.Result(0.5, "half")
+                }
+            var unmock: (() -> Unit)? = null
+            try {
+                application {
+                    val koin =
+                        installLoadSheddingTestKoin(
+                            loadSheddingConfig(),
+                            FixedRandom(0.75),
+                        )
+                    unmock = mockDecider(koin, decider)
+                    install(createMosaLoadSheddingPlugin())
+                    routing {
+                        get("/health") { call.respondText("ok") }
+                    }
+                }
+
+                val response = client.get("/health")
+
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals("ok", response.bodyAsText())
+            } finally {
+                unmock?.invoke()
+            }
+        }
+
+    @Test
+    fun `stops shedding when load recovers`() =
+        testApplication {
+            val calls = AtomicBoolean(false)
+            val decider =
+                SheddingDecider {
+                    if (calls.compareAndSet(false, true)) {
+                        SheddingDecider.Result(1.0, "overloaded")
+                    } else {
+                        SheddingDecider.Result.NO_SHEDDING
+                    }
+                }
+            val routeReached = AtomicBoolean(false)
+            var unmock: (() -> Unit)? = null
+            try {
+                application {
+                    val koin = installLoadSheddingTestKoin(loadSheddingConfig())
+                    unmock = mockDecider(koin, decider)
+                    install(createMosaLoadSheddingPlugin())
+                    routing {
+                        get("/health") {
+                            routeReached.set(true)
+                            call.respondText("ok")
+                        }
+                    }
+                }
+
+                val firstResponse = client.get("/health")
+                val secondResponse = client.get("/health")
+
+                assertEquals(HttpStatusCode.ServiceUnavailable, firstResponse.status)
+                assertEquals(HttpStatusCode.OK, secondResponse.status)
+                assertEquals(true, routeReached.get())
+            } finally {
+                unmock?.invoke()
+            }
+        }
+
     private fun mockDecider(
         koin: Koin,
         decider: SheddingDecider,
@@ -177,6 +278,22 @@ class LoadSheddingPluginTest {
             modules(
                 module {
                     single { Random(12345L) }
+                    single { loadSheddingConfig }
+                },
+            )
+        }
+        return koin()
+    }
+
+    private fun Application.installLoadSheddingTestKoin(
+        loadSheddingConfig: LoadSheddingConfig,
+        random: Random,
+    ): Koin {
+        install(Koin) {
+            allowOverride(true)
+            modules(
+                module {
+                    single { random }
                     single { loadSheddingConfig }
                 },
             )
@@ -209,4 +326,12 @@ class LoadSheddingPluginTest {
             cpuLoadSmoothingHalfLifeNs = 250_000_000L,
             loadSheddingRetryAfter = retryAfter,
         )
+
+    private class FixedRandom(
+        private val value: Double,
+    ) : Random() {
+        override fun nextBits(bitCount: Int): Int = 0
+
+        override fun nextDouble(): Double = value
+    }
 }

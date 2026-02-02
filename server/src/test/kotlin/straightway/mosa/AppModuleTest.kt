@@ -32,6 +32,7 @@ import straightway.mosa.webclient.WebClientController
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Clock
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -79,6 +80,11 @@ class AppModuleTest {
     @Test
     fun `provides clock singleton`() {
         assertIs<Clock>(koin.get<Clock>())
+    }
+
+    @Test
+    fun `provides random singleton`() {
+        assertSame(koin.get<Random>(), koin.get<Random>())
     }
 
     @Test

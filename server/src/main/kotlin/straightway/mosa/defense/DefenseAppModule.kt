@@ -1,5 +1,6 @@
 package straightway.mosa.defense
 
+import com.sun.management.OperatingSystemMXBean
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
@@ -19,6 +20,7 @@ import straightway.mosa.defense.requestduration.RequestDurationForRouteStateRegi
 import straightway.mosa.defense.requestduration.RequestDurationSheddingConfig
 import straightway.mosa.defense.requestduration.RequestDurationSheddingRatioMapper
 import straightway.mosa.identity.IdentityLogEntryFormatter
+import java.lang.management.ManagementFactory
 import java.nio.file.Path
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
@@ -31,6 +33,11 @@ val identityBlockList: Qualifier = named("identityBlockList")
 
 fun Module.configureDefenseAppModule() {
     single<MeterRegistry> { SimpleMeterRegistry() } onClose { it?.close() }
+    ManagementFactory
+        .getOperatingSystemMXBean()
+        ?.let { it as? OperatingSystemMXBean }
+        ?.let { osBean -> single<OperatingSystemMXBean> { osBean } }
+
     single {
         buildLoadSheddingConfig(get())
     }
