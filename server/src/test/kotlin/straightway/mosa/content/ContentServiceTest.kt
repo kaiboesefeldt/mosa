@@ -1111,6 +1111,77 @@ class ContentServiceTest {
     }
 
     @Nested
+    inner class DeleteAll {
+        @Test
+        fun `does nothing when no entries exist`() =
+            runTest {
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(AUTHOR_GID_KEY to testUserGID)),
+                    )
+                } returns VectorStore.QueryResults(resultsPage = emptyList(), queryOnId = null)
+
+                sut.deleteAllForUser(testUserGID)
+
+                coVerify(exactly = 0) { vectorStore.writeAccess(any()) }
+            }
+
+        @Test
+        fun `removes all entries across repeated queries`() =
+            runTest {
+                val firstPage =
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = "post-1",
+                                    text = "text-1",
+                                    similarity = 1.0f,
+                                    fields = mapOf(AUTHOR_GID_KEY to testUserGID),
+                                ),
+                                VectorStore.QueryResult(
+                                    id = "post-2",
+                                    text = "text-2",
+                                    similarity = 1.0f,
+                                    fields = mapOf(AUTHOR_GID_KEY to testUserGID),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                val secondPage =
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = "reply-1",
+                                    text = "text-3",
+                                    similarity = 1.0f,
+                                    fields = mapOf(AUTHOR_GID_KEY to testUserGID),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                val emptyPage =
+                    VectorStore.QueryResults(
+                        resultsPage = emptyList(),
+                        queryOnId = null,
+                    )
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(AUTHOR_GID_KEY to testUserGID)),
+                    )
+                } returnsMany listOf(firstPage, secondPage, emptyPage)
+                setupWriteAccess()
+
+                sut.deleteAllForUser(testUserGID)
+
+                coVerify { transaction.remove("post-1") }
+                coVerify { transaction.remove("post-2") }
+                coVerify { transaction.remove("reply-1") }
+            }
+    }
+
+    @Nested
     inner class Publish {
         @Test
         fun `throws BadRequest when text exceeds max length`() =

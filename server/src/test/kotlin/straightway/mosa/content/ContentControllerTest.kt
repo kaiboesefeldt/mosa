@@ -274,6 +274,36 @@ class ContentControllerTest {
     }
 
     @Nested
+    inner class DeleteAllEndpoint {
+        @Test
+        fun `should return 204 No Content on success`() =
+            with(test) {
+                env {
+                    coEvery { contentService.deleteAllForUser(env.gid) } returns Unit
+
+                    val response =
+                        client.delete("/v1/posts") {
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.NoContent, response.status)
+                    coVerify(exactly = 1) { contentService.deleteAllForUser(env.gid) }
+                }
+            }
+
+        @Test
+        fun `should return 401 Unauthorized when no bearer token is specified`() =
+            with(test) {
+                env {
+                    val response = client.delete("/v1/posts")
+
+                    assertEquals(HttpStatusCode.Unauthorized, response.status)
+                    coVerify(exactly = 0) { contentService.deleteAllForUser(any()) }
+                }
+            }
+    }
+
+    @Nested
     inner class QueryEndpoint : TestEndpoint("/v1/query") {
         override fun setup() {
             test.also {

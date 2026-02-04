@@ -68,6 +68,19 @@ class ContentService(
         }
     }
 
+    suspend fun deleteAllForUser(userGID: String) {
+        while (true) {
+            val queryResult =
+                vectorStore.query(
+                    VectorStore.Query(fields = mapOf(AUTHOR_GID_KEY to userGID)),
+                )
+            if (queryResult.resultsPage.isEmpty()) return
+            vectorStore.writeAccess {
+                queryResult.resultsPage.forEach { remove(it.id) }
+            }
+        }
+    }
+
     suspend fun query(request: QueryRequest): QueryResult {
         if (request == nilQueryRequest) throw BadRequestException("no search criteria")
         val topicEmbedding = request.topic?.let { embeddingService.embed(it) }

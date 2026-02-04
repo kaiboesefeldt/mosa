@@ -34,6 +34,11 @@ class ContentController(
                 )
                 call.respond(HttpStatusCode.Created, null)
             }
+            deleteRoute("/posts") {
+                val gid = userGidOrRespondUnauthorized() ?: return@deleteRoute
+                contentService.deleteAllForUser(gid)
+                call.respond(HttpStatusCode.NoContent, null)
+            }
             deleteRoute("/posts/{id}") {
                 val gid = userGidOrRespondUnauthorized() ?: return@deleteRoute
                 val id = call.parameters["id"] ?: throw BadRequestException("id is required")
