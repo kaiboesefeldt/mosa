@@ -213,6 +213,17 @@ types:
           storedAt: 1700000000
           rootId: 'R0oTId42'
 
+  DeletePostsResult:
+    type: object
+    properties:
+      ids:
+        type: string[]
+        description: IDs of deleted posts and replies
+    example:
+      ids:
+        - 'AxY0b1p3...'
+        - 'R0oTId42'
+
 traits:
   rateLimited:
     responses:
@@ -431,8 +442,11 @@ securitySchemes:
       description: |
         Delete all posts and replies owned by the authenticated user.
       responses:
-        204:
+        200:
           description: Deleted
+          body:
+            application/json:
+              type: DeletePostsResult
         401:
           description: Missing or invalid bearer token
         5xx:

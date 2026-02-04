@@ -36,8 +36,8 @@ class ContentController(
             }
             deleteRoute("/posts") {
                 val gid = userGidOrRespondUnauthorized() ?: return@deleteRoute
-                contentService.deleteAllForUser(gid)
-                call.respond(HttpStatusCode.NoContent, null)
+                val deletedIds = contentService.deleteAllForUser(gid)
+                call.respond(HttpStatusCode.OK, DeletePostsResult(deletedIds), typeInfo<DeletePostsResult>())
             }
             deleteRoute("/posts/{id}") {
                 val gid = userGidOrRespondUnauthorized() ?: return@deleteRoute

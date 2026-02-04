@@ -1121,9 +1121,10 @@ class ContentServiceTest {
                     )
                 } returns VectorStore.QueryResults(resultsPage = emptyList(), queryOnId = null)
 
-                sut.deleteAllForUser(testUserGID)
+                val deletedIds = sut.deleteAllForUser(testUserGID)
 
                 coVerify(exactly = 0) { vectorStore.writeAccess(any()) }
+                assertEquals(emptyList(), deletedIds)
             }
 
         @Test
@@ -1173,11 +1174,12 @@ class ContentServiceTest {
                 } returnsMany listOf(firstPage, secondPage, emptyPage)
                 setupWriteAccess()
 
-                sut.deleteAllForUser(testUserGID)
+                val deletedIds = sut.deleteAllForUser(testUserGID)
 
                 coVerify { transaction.remove("post-1") }
                 coVerify { transaction.remove("post-2") }
                 coVerify { transaction.remove("reply-1") }
+                assertEquals(listOf("post-1", "post-2", "reply-1"), deletedIds)
             }
     }
 

@@ -68,15 +68,19 @@ class ContentService(
         }
     }
 
-    suspend fun deleteAllForUser(userGID: String) {
+    suspend fun deleteAllForUser(userGID: String): List<String> {
+        val deletedIds = linkedSetOf<String>()
         while (true) {
             val queryResult =
                 vectorStore.query(
                     VectorStore.Query(fields = mapOf(AUTHOR_GID_KEY to userGID)),
                 )
-            if (queryResult.resultsPage.isEmpty()) return
+            if (queryResult.resultsPage.isEmpty()) return deletedIds.toList()
             vectorStore.writeAccess {
-                queryResult.resultsPage.forEach { remove(it.id) }
+                queryResult.resultsPage.forEach {
+                    remove(it.id)
+                    deletedIds.add(it.id)
+                }
             }
         }
     }

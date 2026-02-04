@@ -276,17 +276,19 @@ class ContentControllerTest {
     @Nested
     inner class DeleteAllEndpoint {
         @Test
-        fun `should return 204 No Content on success`() =
+        fun `should return 200 OK on success`() =
             with(test) {
                 env {
-                    coEvery { contentService.deleteAllForUser(env.gid) } returns Unit
+                    val deletedIds = listOf("post-1", "post-2")
+                    coEvery { contentService.deleteAllForUser(env.gid) } returns deletedIds
 
                     val response =
                         client.delete("/v1/posts") {
                             bearerAuth(env.bearerToken)
                         }
 
-                    assertEquals(HttpStatusCode.NoContent, response.status)
+                    assertEquals(HttpStatusCode.OK, response.status)
+                    assertEquals(DeletePostsResult(deletedIds), response.body())
                     coVerify(exactly = 1) { contentService.deleteAllForUser(env.gid) }
                 }
             }
