@@ -423,6 +423,21 @@ securitySchemes:
         5xx:
           description: Server error
 
+  /posts:
+    delete:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Delete All Content
+      description: |
+        Delete all posts and replies owned by the authenticated user.
+      responses:
+        204:
+          description: Deleted
+        401:
+          description: Missing or invalid bearer token
+        5xx:
+          description: Server error
+
   /query:
     post:
       is: [ rateLimited ]
