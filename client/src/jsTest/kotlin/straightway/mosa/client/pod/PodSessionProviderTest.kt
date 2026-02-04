@@ -204,6 +204,10 @@ private class FakeSessionPodAccess(
         error("not expected")
     }
 
+    override suspend fun deletePost(postId: String, jwt: String) {
+        error("not expected")
+    }
+
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult {
         error("not expected")
     }

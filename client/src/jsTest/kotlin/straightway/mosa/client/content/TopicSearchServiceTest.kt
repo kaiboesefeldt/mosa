@@ -341,6 +341,10 @@ private class FakePodAccess(
         error("Not implemented")
     }
 
+    override suspend fun deletePost(postId: String, jwt: String) {
+        error("Not implemented")
+    }
+
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult {
         searchInvocations += request
         val topic = request.topic ?: error("topic missing")

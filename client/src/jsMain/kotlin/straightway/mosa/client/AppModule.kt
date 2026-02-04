@@ -47,6 +47,7 @@ import straightway.mosa.client.content.JwtBuilder
 import straightway.mosa.client.content.PodAccessFactory
 import straightway.mosa.client.content.PostCache
 import straightway.mosa.client.content.PostPublisher
+import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.ReplyCache
 import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.TopicEntryStore
@@ -143,6 +144,7 @@ object AppModule : KoinComponent {
                         single<ReplyCache> { IndexedDbReplyCache(get(), get(), get()) }
                         single { TopicRepository(get(), get()) }
                         single { PostPublisher(get()) }
+                        single { PostDeletionService(get()) }
                         single { ReplyPublisher(get()) }
                         single { TopicSearchService(get(), get(), get()) }
                         single { ReplySearchService(get(), get(), get()) }

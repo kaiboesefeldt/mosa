@@ -42,6 +42,7 @@ import straightway.mosa.client.content.TopicRepository
 import straightway.mosa.client.content.TopicPosts
 import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.PostPublisher
+import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.TopicFilters
 import straightway.mosa.client.content.ReplySearchService
@@ -95,6 +96,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val nameGenerator = ConnectedViewInjector.get<FictionalNameGenerator>()
     val avatarGenerator = ConnectedViewInjector.get<DiceBearAvatarGenerator>()
     val postPublisher = ConnectedViewInjector.get<PostPublisher>()
+    val postDeletionService = ConnectedViewInjector.get<PostDeletionService>()
     val replyPublisher = ConnectedViewInjector.get<ReplyPublisher>()
     val visualsFactory =
         useMemo(nameGenerator, avatarGenerator) {
@@ -127,6 +129,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (composerText, setComposerText) = useState("")
     val (isPublishing, setPublishing) = useState(false)
     val (publishError, setPublishError) = useState<String?>(null)
+    val (deleteCandidate, setDeleteCandidate) = useState<QueryResult.Entry?>(null)
+    val (isDeletingPost, setDeletingPost) = useState(false)
+    val (deleteError, setDeleteError) = useState<String?>(null)
     val (isReplyComposerOpen, setReplyComposerOpen) = useState(false)
     val (replyComposerText, setReplyComposerText) = useState("")
     val (isReplyPublishing, setReplyPublishing) = useState(false)
@@ -140,11 +145,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val swipeActiveRef = useRef(false)
     val swipeTargetsRef = useRef(SwipeTargets(null, null))
     val (swipeOffsetPercent, setSwipeOffsetPercent) = useState(0.0)
+    val (connectedGid, setConnectedGid) = useState<String?>(null)
 
     useEffect(sessionStore) {
         scope.launch {
             val snapshot = runCatching { sessionStore.load() }.getOrNull()
             setProfileVisible(snapshot?.isProfileVisible ?: false)
+            setConnectedGid(snapshot?.connectedIdentityGid)
         }
     }
 
@@ -195,6 +202,34 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 topicPosts.entries.firstOrNull { it.id == postId }
             }
         }
+
+    fun clearDeleteCandidate() {
+        if (isDeletingPost) return
+        setDeleteCandidate(null)
+        setDeleteError(null)
+    }
+
+    fun removePostFromState(postId: String) {
+        val nextPosts =
+            posts.mapNotNull { topicPosts ->
+                val filtered = topicPosts.entries.filterNot { it.id == postId }
+                if (filtered.isEmpty()) {
+                    null
+                } else if (filtered.size == topicPosts.entries.size) {
+                    topicPosts
+                } else {
+                    topicPosts.copy(entries = filtered)
+                }
+            }
+        setPosts(nextPosts)
+        if (selectedPost?.id == postId) {
+            setSelectedPost(null)
+            setReplies(null)
+        }
+        if (deleteCandidate?.id == postId) {
+            setDeleteCandidate(null)
+        }
+    }
 
     fun closestAttribute(element: Element?, attribute: String): String? {
         var current = element
@@ -477,6 +512,27 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 }
             } finally {
                 setPublishing(false)
+            }
+        }
+    }
+
+    fun requestDelete(entry: QueryResult.Entry) {
+        if (isDeletingPost) return
+        setDeleteCandidate(entry)
+        setDeleteError(null)
+    }
+
+    fun confirmDelete(entry: QueryResult.Entry) {
+        if (isDeletingPost) return
+        setDeletingPost(true)
+        setDeleteError(null)
+        scope.launch {
+            val success = postDeletionService.delete(entry.id)
+            setDeletingPost(false)
+            if (success) {
+                removePostFromState(entry.id)
+            } else {
+                setDeleteError(translator.translate("connected.posts.delete.error"))
             }
         }
     }
@@ -937,6 +993,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onToggleFilter = ::toggleTopicFilter,
                     onClearFilter = ::clearTopicFilter,
                     onSelectPost = ::selectPost,
+                    connectedGid = connectedGid,
+                    deleteCandidateId = deleteCandidate?.id,
+                    isDeleting = isDeletingPost,
+                    deleteError = deleteError,
+                    onRequestDelete = ::requestDelete,
+                    onCancelDelete = ::clearDeleteCandidate,
+                    onConfirmDelete = ::confirmDelete,
                     showBackToTopics = showBackButtons && mobilePane != MobilePane.Topics,
                     onBackToTopics = { setMobilePane(MobilePane.Topics) },
                     containerRef = postsContainerRef,
@@ -1076,6 +1139,13 @@ private fun ChildrenBuilder.postsColumn(
     onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
     onClearFilter: (Topic) -> Unit,
     onSelectPost: (QueryResult.Entry) -> Unit,
+    connectedGid: String?,
+    deleteCandidateId: String?,
+    isDeleting: Boolean,
+    deleteError: String?,
+    onRequestDelete: (QueryResult.Entry) -> Unit,
+    onCancelDelete: () -> Unit,
+    onConfirmDelete: (QueryResult.Entry) -> Unit,
     showBackToTopics: Boolean,
     onBackToTopics: () -> Unit,
     containerRef: Ref<HTMLDivElement>,
@@ -1169,7 +1239,17 @@ private fun ChildrenBuilder.postsColumn(
                         isFilterEntry = isFilterEntry,
                         onToggleFilter = onToggleFilter,
                         isSelected = selectedPost?.id == entry.id,
-                        onSelect = { onSelectPost(entry) },
+                        onSelect = {
+                            onCancelDelete()
+                            onSelectPost(entry)
+                        },
+                        connectedGid = connectedGid,
+                        deleteCandidateId = deleteCandidateId,
+                        isDeleting = isDeleting,
+                        deleteError = deleteError,
+                        onRequestDelete = { onRequestDelete(entry) },
+                        onCancelDelete = { onCancelDelete() },
+                        onConfirmDelete = { onConfirmDelete(entry) },
                     )
                 }
             }
@@ -1454,11 +1534,20 @@ private fun ChildrenBuilder.postCard(
     onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
     isSelected: Boolean,
     onSelect: () -> Unit,
+    connectedGid: String?,
+    deleteCandidateId: String?,
+    isDeleting: Boolean,
+    deleteError: String?,
+    onRequestDelete: () -> Unit,
+    onCancelDelete: () -> Unit,
+    onConfirmDelete: () -> Unit,
 ) {
     val authorVisuals = visualsFactory.createFromGid(entry.authorGID)
     val authorName = authorVisuals.name.toString().trim()
     val timestamp = formatTimestamp(entry.storedAt)
     val similarity = formatSimilarity(entry.similarity)
+    val isOwnPost = connectedGid != null && entry.authorGID == connectedGid
+    val showDeletePopover = isOwnPost && deleteCandidateId == entry.id
     val cardClass =
         buildString {
             append("post-card")
@@ -1516,12 +1605,64 @@ private fun ChildrenBuilder.postCard(
                             className = ClassName("fa fa-solid fa-arrows-up-to-line")
                         }
                     }
+                    if (isOwnPost) {
+                        val deleteLabel = translator.translate("connected.posts.delete.action")
+                        button {
+                            className = ClassName("post-card__delete")
+                            ariaLabel = deleteLabel
+                            title = deleteLabel
+                            onClick = { event: MouseEvent<*, *> ->
+                                event.stopPropagation()
+                                onRequestDelete()
+                            }
+                            i {
+                                className = ClassName("fa fa-solid fa-trash")
+                            }
+                        }
+                    }
                 }
             }
         }
         div {
             className = ClassName("post-card__content")
             +entry.content
+        }
+        if (showDeletePopover) {
+            val cancelLabel = translator.translate("connected.posts.delete.cancel")
+            val confirmLabel = translator.translate("connected.posts.delete.confirm")
+            div {
+                className = ClassName("post-card__delete-popover")
+                onClick = { event: MouseEvent<*, *> -> event.stopPropagation() }
+                span {
+                    className = ClassName("post-card__delete-title")
+                    +translator.translate("connected.posts.delete.title")
+                }
+                div {
+                    className = ClassName("post-card__delete-content")
+                    +entry.content
+                }
+                if (deleteError != null) {
+                    div {
+                        className = ClassName("post-card__delete-error")
+                        +deleteError
+                    }
+                }
+                div {
+                    className = ClassName("post-card__delete-actions")
+                    button {
+                        className = ClassName("button button--secondary post-card__delete-cancel")
+                        disabled = isDeleting
+                        onClick = { onCancelDelete() }
+                        +cancelLabel
+                    }
+                    button {
+                        className = ClassName("button button--danger post-card__delete-confirm")
+                        disabled = isDeleting
+                        onClick = { onConfirmDelete() }
+                        +confirmLabel
+                    }
+                }
+            }
         }
     }
 }

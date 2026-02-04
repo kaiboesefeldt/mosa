@@ -3,6 +3,7 @@ package straightway.mosa.client.pod
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.header
+import io.ktor.client.request.delete
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -24,6 +25,7 @@ interface PodAccess {
     suspend fun refreshGid(jwt: String): PodCertificateResponse
     suspend fun publish(request: PublishRequest, jwt: String)
     suspend fun reply(request: ReplyRequest, jwt: String)
+    suspend fun deletePost(postId: String, jwt: String)
     suspend fun search(request: QueryRequest, jwt: String): SearchResult
     suspend fun searchOn(request: QueryOnRequest, jwt: String): SearchResult
     suspend fun fetch(request: FetchRequest, jwt: String): FetchResult
@@ -57,6 +59,11 @@ class PodAccessImpl(
         post(path, request, jwt).ensureSuccess(path, request)
     }
 
+    override suspend fun deletePost(postId: String, jwt: String) {
+        val path = "/v1/posts/$postId"
+        delete(path, jwt).ensureSuccess(path, postId)
+    }
+
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult =
         post("/v1/search", request, jwt)
             .ensureSuccess("/v1/search", request)
@@ -82,6 +89,12 @@ class PodAccessImpl(
 
     private suspend fun post(path: String, jwt: String): HttpResponse =
         httpClient.post("$podBase$path") {
+            contentType(ContentType.Application.Json)
+            header(HttpHeaders.Authorization, "Bearer $jwt")
+        }
+
+    private suspend fun delete(path: String, jwt: String): HttpResponse =
+        httpClient.delete("$podBase$path") {
             contentType(ContentType.Application.Json)
             header(HttpHeaders.Authorization, "Bearer $jwt")
         }

@@ -51,6 +51,7 @@ import straightway.mosa.client.content.TopicRepository
 import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.TopicStore
 import straightway.mosa.client.content.PostPublisher
+import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.ReplyCache
 import straightway.mosa.client.content.ReplyCacheSnapshot
@@ -621,6 +622,7 @@ private fun scrollPostsToEnd(container: Element) {
                     )
                 }
                 single { PostPublisher(get()) }
+                single { PostDeletionService(get()) }
                 single { ReplyPublisher(get()) }
                 single { TopicSearchService(get(), get(), get()) }
                 single { ReplySearchService(get(), get(), get()) }
@@ -757,6 +759,10 @@ private class RecordingPodAccess(
 
     override suspend fun reply(request: straightway.mosa.content.ReplyRequest, jwt: String) {
         replyRequests += request
+    }
+
+    override suspend fun deletePost(postId: String, jwt: String) {
+        error("Not implemented")
     }
 
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult {
