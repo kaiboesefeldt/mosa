@@ -1,6 +1,5 @@
 package straightway.mosa
 
-import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -14,7 +13,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.install
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
-import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
@@ -61,7 +59,7 @@ class ServerCorsPluginTest {
             application {
                 install(createMosaApiCorsPlugin(requireTlsForPod = true, clientIpResolver = trustedProxyResolver))
                 routing {
-                    delete("/v1/items") {
+                    put("/v1/items") {
                         handlerInvoked = true
                         call.respond(HttpStatusCode.OK)
                     }
@@ -69,7 +67,8 @@ class ServerCorsPluginTest {
             }
 
             val response =
-                client.delete("/v1/items") {
+                client.request("/v1/items") {
+                    method = HttpMethod.Patch
                     header(HttpHeaders.XForwardedProto, "https")
                     header(HttpHeaders.Authorization, "Bearer token")
                 }
@@ -165,7 +164,7 @@ class ServerCorsPluginTest {
             assertFalse(handlerInvoked)
             assertEquals("*", response.headers[HttpHeaders.AccessControlAllowOrigin])
             assertEquals("Retry-After", response.headers[HttpHeaders.AccessControlExposeHeaders])
-            assertEquals("POST, GET, OPTIONS", response.headers[HttpHeaders.AccessControlAllowMethods])
+            assertEquals("POST, GET, DELETE, OPTIONS", response.headers[HttpHeaders.AccessControlAllowMethods])
             assertEquals("Authorization, Content-Type", response.headers[HttpHeaders.AccessControlAllowHeaders])
             assertEquals("7200", response.headers[HttpHeaders.AccessControlMaxAge])
         }

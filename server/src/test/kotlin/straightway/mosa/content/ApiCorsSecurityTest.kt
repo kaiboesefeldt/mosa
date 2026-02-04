@@ -45,7 +45,7 @@ class ApiCorsSecurityTest {
 
             assertEquals(HttpStatusCode.NoContent, response.status)
             assertEquals("*", response.headers[HttpHeaders.AccessControlAllowOrigin])
-            assertEquals("POST, GET, OPTIONS", response.headers[HttpHeaders.AccessControlAllowMethods])
+            assertEquals("POST, GET, DELETE, OPTIONS", response.headers[HttpHeaders.AccessControlAllowMethods])
             assertEquals("Authorization, Content-Type", response.headers[HttpHeaders.AccessControlAllowHeaders])
             assertEquals("7200", response.headers[HttpHeaders.AccessControlMaxAge])
             assertEquals("Retry-After", response.headers[HttpHeaders.AccessControlExposeHeaders])
@@ -100,7 +100,7 @@ class ApiCorsSecurityTest {
         environment {
             val response =
                 client.request("/v1/publish") {
-                    method = HttpMethod.Delete
+                    method = HttpMethod.Put
                     header("X-Forwarded-Proto", "https")
                     bearerAuth(this@ApiCorsSecurityTest.environment.bearerToken)
                 }

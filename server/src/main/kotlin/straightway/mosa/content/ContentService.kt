@@ -29,6 +29,10 @@ class ContentService(
 
     class MissingRootIdInReplyException : BadRequestException("Replies must target root posts")
 
+    class ContentNotFoundException : RuntimeException("post not found")
+
+    class ContentForbiddenException : RuntimeException("not allowed to delete this post")
+
     suspend fun reply(
         userGID: String,
         request: ReplyRequest,
@@ -49,6 +53,19 @@ class ContentService(
             ),
             receiveTimestamp,
         )
+    }
+
+    suspend fun delete(
+        userGID: String,
+        id: String,
+    ) {
+        if (id.isBlank()) throw BadRequestException("id must not be blank")
+        val post = vectorStore.fetch(listOf(id)).singleOrNull() ?: throw ContentNotFoundException()
+        val author = post.fields.requireMetadata(post.id, AUTHOR_GID_KEY)
+        if (author != userGID) throw ContentForbiddenException()
+        vectorStore.writeAccess {
+            remove(post.id)
+        }
     }
 
     suspend fun query(request: QueryRequest): QueryResult {

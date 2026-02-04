@@ -8,6 +8,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.RoutingContext
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
@@ -39,6 +40,17 @@ abstract class BaseController(
         build: suspend RoutingContext.() -> Unit,
     ) = route("$pathPrefix$path") {
         get {
+            translateExceptions {
+                build()
+            }
+        }
+    }
+
+    fun Route.deleteRoute(
+        path: String,
+        build: suspend RoutingContext.() -> Unit,
+    ) = route("$pathPrefix$path") {
+        delete {
             translateExceptions {
                 build()
             }

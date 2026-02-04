@@ -22,6 +22,8 @@ import org.koin.ktor.plugin.koin
 import straightway.mosa.TlsConfig
 import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.base.findPayloadTooLarge
+import straightway.mosa.content.ContentService.ContentForbiddenException
+import straightway.mosa.content.ContentService.ContentNotFoundException
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.util.TimeZone
 
@@ -37,6 +39,12 @@ fun Application.installNetworkServerPlugins() {
     install(StatusPages) {
         exception<InvalidPodCertificateRequest> { call, cause ->
             call.respond(HttpStatusCode.BadRequest, mapOf("message" to cause.message))
+        }
+        exception<ContentNotFoundException> { call, cause ->
+            call.respond(HttpStatusCode.NotFound, mapOf("message" to cause.message))
+        }
+        exception<ContentForbiddenException> { call, cause ->
+            call.respond(HttpStatusCode.Forbidden, mapOf("message" to cause.message))
         }
         exception<BadRequestException> { call, cause ->
             val findPayloadTooLargeException = cause.findPayloadTooLarge()
@@ -75,7 +83,7 @@ fun createMosaApiCorsPlugin(
             when (call.request.httpMethod) {
                 HttpMethod.Options -> handlePreflightRequest(call)
 
-                HttpMethod.Post -> {
+                HttpMethod.Post, HttpMethod.Delete -> {
                     if (path.equals(APPROVE_GID_ROUTE, ignoreCase = true)) return@onCall
                     call
                         .secureEndpointViolation(requireTlsForPod, clientIpResolver)
@@ -104,7 +112,7 @@ private fun createMosaRequireTlsPlugin(clientIpResolver: ClientIpResolver): Appl
 
 private const val API_ROUTE_PREFIX = "/v1/"
 private const val APPROVE_GID_ROUTE = "/v1/approvegid"
-private const val ALLOWED_CORS_METHODS = "POST, GET, OPTIONS"
+private const val ALLOWED_CORS_METHODS = "POST, GET, DELETE, OPTIONS"
 private const val ALLOWED_CORS_HEADERS = "Authorization, Content-Type"
 private const val CORS_MAX_AGE_SECONDS = "7200"
 

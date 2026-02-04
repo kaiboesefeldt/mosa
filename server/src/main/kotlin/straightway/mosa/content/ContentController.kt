@@ -2,6 +2,7 @@ package straightway.mosa.content
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
+import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -32,6 +33,12 @@ class ContentController(
                     clock.instant().epochSecond,
                 )
                 call.respond(HttpStatusCode.Created, null)
+            }
+            deleteRoute("/posts/{id}") {
+                val gid = userGidOrRespondUnauthorized() ?: return@deleteRoute
+                val id = call.parameters["id"] ?: throw BadRequestException("id is required")
+                contentService.delete(gid, id)
+                call.respond(HttpStatusCode.NoContent, null)
             }
             postRoute("/query") {
                 userGidOrRespondUnauthorized() ?: return@postRoute

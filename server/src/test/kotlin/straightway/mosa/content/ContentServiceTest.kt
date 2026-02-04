@@ -1045,6 +1045,72 @@ class ContentServiceTest {
     }
 
     @Nested
+    inner class Delete {
+        private val postId = "post-123"
+
+        @Test
+        fun `returns not found when item does not exist`() =
+            runTest {
+                coEvery { vectorStore.fetch(listOf(postId)) } returns emptyList()
+
+                assertThrows<ContentService.ContentNotFoundException> {
+                    sut.delete(testUserGID, postId)
+                }
+                coVerify(exactly = 0) { vectorStore.writeAccess(any()) }
+            }
+
+        @Test
+        fun `returns forbidden when item belongs to another user`() =
+            runTest {
+                coEvery { vectorStore.fetch(listOf(postId)) } returns
+                    listOf(
+                        VectorStore.PostDump(
+                            postId,
+                            "content",
+                            mapOf(
+                                AUTHOR_GID_KEY to "other-user",
+                            ),
+                        ),
+                    )
+
+                assertThrows<ContentService.ContentForbiddenException> {
+                    sut.delete(testUserGID, postId)
+                }
+                coVerify(exactly = 0) { vectorStore.writeAccess(any()) }
+            }
+
+        @Test
+        fun `removes item when user is author`() =
+            runTest {
+                coEvery { vectorStore.fetch(listOf(postId)) } returns
+                    listOf(
+                        VectorStore.PostDump(
+                            postId,
+                            "content",
+                            mapOf(
+                                AUTHOR_GID_KEY to testUserGID,
+                            ),
+                        ),
+                    )
+                setupWriteAccess()
+
+                sut.delete(testUserGID, postId)
+                coVerify { transaction.remove(postId) }
+            }
+
+        @Test
+        fun `throws BadRequestException when id is blank`() =
+            runTest {
+                val exception =
+                    assertThrows<BadRequestException> {
+                        sut.delete(testUserGID, "   ")
+                    }
+
+                assertEquals("id must not be blank", exception.message)
+            }
+    }
+
+    @Nested
     inner class Publish {
         @Test
         fun `throws BadRequest when text exceeds max length`() =

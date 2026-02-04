@@ -2,6 +2,7 @@ package straightway.mosa.content
 
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.delete
 import io.ktor.client.request.post
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.jackson
@@ -206,6 +207,68 @@ class ContentControllerTest {
 
                     assertEquals(HttpStatusCode.Created, response.status)
                     coVerify(exactly = 1) { contentService.reply(env.gid, request, any()) }
+                }
+            }
+    }
+
+    @Nested
+    inner class DeleteEndpoint {
+        @Test
+        fun `should return 204 No Content on success`() =
+            with(test) {
+                env {
+                    coEvery { contentService.delete(env.gid, "post-1") } returns Unit
+
+                    val response =
+                        client.delete("/v1/posts/post-1") {
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.NoContent, response.status)
+                    coVerify(exactly = 1) { contentService.delete(env.gid, "post-1") }
+                }
+            }
+
+        @Test
+        fun `should return 404 Not Found when post is missing`() =
+            with(test) {
+                env {
+                    coEvery { contentService.delete(env.gid, "post-1") } throws
+                        ContentService.ContentNotFoundException()
+
+                    val response =
+                        client.delete("/v1/posts/post-1") {
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.NotFound, response.status)
+                }
+            }
+
+        @Test
+        fun `should return 403 Forbidden when post belongs to another user`() =
+            with(test) {
+                env {
+                    coEvery { contentService.delete(env.gid, "post-1") } throws
+                        ContentService.ContentForbiddenException()
+
+                    val response =
+                        client.delete("/v1/posts/post-1") {
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.Forbidden, response.status)
+                }
+            }
+
+        @Test
+        fun `should return 401 Unauthorized when no bearer token is specified`() =
+            with(test) {
+                env {
+                    val response = client.delete("/v1/posts/post-1")
+
+                    assertEquals(HttpStatusCode.Unauthorized, response.status)
+                    coVerify(exactly = 0) { contentService.delete(any(), any()) }
                 }
             }
     }

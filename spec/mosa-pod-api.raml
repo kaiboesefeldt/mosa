@@ -402,6 +402,27 @@ securitySchemes:
         5xx:
           description: Server error
 
+  /posts/{id}:
+    delete:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Delete Content
+      description: |
+        Delete a post owned by the authenticated user.
+      responses:
+        204:
+          description: Deleted
+        400:
+          description: Invalid or missing id
+        401:
+          description: Missing or invalid bearer token
+        403:
+          description: Not allowed to delete this post
+        404:
+          description: Post not found
+        5xx:
+          description: Server error
+
   /query:
     post:
       is: [ rateLimited ]
