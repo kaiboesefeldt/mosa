@@ -41,6 +41,7 @@ import straightway.mosa.client.content.Topic
 import straightway.mosa.client.content.TopicRepository
 import straightway.mosa.client.content.TopicPosts
 import straightway.mosa.client.content.TopicSearchService
+import straightway.mosa.client.content.PostCache
 import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.ReplyPublisher
@@ -92,6 +93,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val repository = ConnectedViewInjector.get<TopicRepository>()
     val sessionStore = ConnectedViewInjector.get<IdentitySessionStore>()
     val searchService = ConnectedViewInjector.get<TopicSearchService>()
+    val postCache = ConnectedViewInjector.get<PostCache>()
     val replySearchService = ConnectedViewInjector.get<ReplySearchService>()
     val nameGenerator = ConnectedViewInjector.get<FictionalNameGenerator>()
     val avatarGenerator = ConnectedViewInjector.get<DiceBearAvatarGenerator>()
@@ -129,6 +131,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (composerText, setComposerText) = useState("")
     val (isPublishing, setPublishing) = useState(false)
     val (publishError, setPublishError) = useState<String?>(null)
+    val (toastMessage, setToastMessage) = useState<String?>(null)
+    val toastTimerRef = useRef<Int>()
     val (deleteCandidate, setDeleteCandidate) = useState<QueryResult.Entry?>(null)
     val (isDeletingPost, setDeletingPost) = useState(false)
     val (deleteError, setDeleteError) = useState<String?>(null)
@@ -160,6 +164,23 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     ) {
         val currentSnapshot = runCatching { sessionStore.load() }.getOrNull()
         sessionStore.save(builder(currentSnapshot))
+    }
+
+    fun clearToastTimer() {
+        toastTimerRef.current?.let { timerId ->
+            window.clearTimeout(timerId)
+            toastTimerRef.current = null
+        }
+    }
+
+    fun showToast(message: String) {
+        clearToastTimer()
+        setToastMessage(message)
+        val timerId =
+            window.setTimeout({
+                setToastMessage(null)
+            }, 3200)
+        toastTimerRef.current = timerId
     }
 
     fun updateTopicFilterState(filters: Map<String, Float>) {
@@ -298,7 +319,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    suspend fun refreshPosts(currentTopic: Topic?) {
+    suspend fun refreshPosts(currentTopic: Topic?): Boolean {
         val nextVersion = (postsRequestVersion.current ?: 0) + 1
         postsRequestVersion.current = nextVersion
         val version = nextVersion
@@ -306,7 +327,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         if (currentTopic == null) {
             setPosts(emptyList())
             setLoadingPosts(false)
-            return
+            return true
         }
         setAppendingState(false)
         setLoadingPosts(true)
@@ -316,11 +337,12 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     if (postsRequestVersion.current == version) {
                         setLoadingPosts(false)
                     }
-                    return
+                    return false
                 }
-        if (postsRequestVersion.current != version) return
+        if (postsRequestVersion.current != version) return false
         setPosts(results)
         setLoadingPosts(false)
+        return true
     }
 
     fun persistFilters(updated: Map<String, Float>) {
@@ -401,6 +423,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         } finally {
             clearProfileExitTimer()
             clearProfileEntryTimer()
+            clearToastTimer()
             scope.cancel()
         }
     }
@@ -512,7 +535,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 if (success) {
                     setComposerText("")
                     setComposerOpen(false)
-                    refreshPosts(topicForRefresh)
+                    topicForRefresh?.let { topic ->
+                        runCatching { postCache.clear(topic.title) }
+                    }
+                    val refreshed = refreshPosts(topicForRefresh)
+                    if (!refreshed && selectedTopic?.title == topicForRefresh?.title) {
+                        showToast(translator.translate("connected.composer.refresh.error"))
+                    }
                 } else {
                     setPublishError(translator.translate("connected.composer.error"))
                 }
@@ -1081,6 +1110,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             isPublishing = isPublishing,
             errorText = publishError,
         )
+    }
+
+    toastMessage?.let { message ->
+        div {
+            className = ClassName("connected-toast")
+            +message
+        }
     }
 }
 

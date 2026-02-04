@@ -47,6 +47,7 @@
   "connected.composer.send": "Send",
   "connected.composer.close": "Close composer",
   "connected.composer.error": "The post could not be published. Please try again.",
+  "connected.composer.refresh.error": "The post was published, but refreshing the topic failed. Please reload.",
   "connected.replies.title": "Replies",
   "connected.replies.empty": "Select a post to view replies.",
   "connected.replies.loading": "Loading replies...",
