@@ -37,7 +37,9 @@ internal fun ChildrenBuilder.identityToolsMenu(
                         translator = translator,
                         isBusy = isBusy,
                     ) {
-                        onCloseTools()
+                        if (action.closeOnTrigger) {
+                            onCloseTools()
+                        }
                         action.onTrigger()
                     }
                 }

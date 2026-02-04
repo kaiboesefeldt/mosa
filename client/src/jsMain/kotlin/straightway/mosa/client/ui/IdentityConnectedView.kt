@@ -44,6 +44,7 @@ import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.PostCache
 import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.PostDeletionService
+import straightway.mosa.client.content.AllPostsDeletionService
 import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.TopicFilters
 import straightway.mosa.client.content.ReplySearchService
@@ -99,6 +100,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val avatarGenerator = ConnectedViewInjector.get<DiceBearAvatarGenerator>()
     val postPublisher = ConnectedViewInjector.get<PostPublisher>()
     val postDeletionService = ConnectedViewInjector.get<PostDeletionService>()
+    val allPostsDeletionService = ConnectedViewInjector.get<AllPostsDeletionService>()
     val replyPublisher = ConnectedViewInjector.get<ReplyPublisher>()
     val visualsFactory =
         useMemo(nameGenerator, avatarGenerator) {
@@ -135,6 +137,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val toastTimerRef = useRef<Int>()
     val (deleteCandidate, setDeleteCandidate) = useState<QueryResult.Entry?>(null)
     val (isDeletingPost, setDeletingPost) = useState(false)
+    val (isDeletingAllPosts, setDeletingAllPosts) = useState(false)
     val (deleteError, setDeleteError) = useState<String?>(null)
     val (isReplyComposerOpen, setReplyComposerOpen) = useState(false)
     val (replyComposerText, setReplyComposerText) = useState("")
@@ -254,6 +257,36 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             }
         }
         if (deleteCandidate?.id == postId) {
+            setDeleteCandidate(null)
+        }
+    }
+
+    fun removePostsFromState(postIds: Collection<String>) {
+        if (postIds.isEmpty()) return
+        val idSet = postIds.toSet()
+        val nextPosts =
+            posts.mapNotNull { topicPosts ->
+                val filtered = topicPosts.entries.filterNot { it.id in idSet }
+                if (filtered.isEmpty()) {
+                    null
+                } else if (filtered.size == topicPosts.entries.size) {
+                    topicPosts
+                } else {
+                    topicPosts.copy(entries = filtered)
+                }
+            }
+        setPosts(nextPosts)
+        if (selectedPost?.id in idSet) {
+            setSelectedPost(null)
+            setReplies(null)
+        }
+        replies?.let { currentReplies ->
+            if (currentReplies.entries.any { it.id in idSet }) {
+                val filtered = currentReplies.entries.filterNot { it.id in idSet }
+                setReplies(currentReplies.copy(entries = filtered))
+            }
+        }
+        if (deleteCandidate?.id in idSet) {
             setDeleteCandidate(null)
         }
     }
@@ -568,6 +601,21 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 removePostFromState(entry.id)
             } else {
                 setDeleteError(translator.translate("connected.posts.delete.error"))
+            }
+        }
+    }
+
+    fun deleteAllPosts() {
+        if (isDeletingAllPosts) return
+        setDeletingAllPosts(true)
+        scope.launch {
+            val deletedIds = allPostsDeletionService.deleteAll()
+            setDeletingAllPosts(false)
+            if (deletedIds == null) {
+                showToast(translator.translate("identity.posts.delete.error"))
+            } else {
+                removePostsFromState(deletedIds)
+                showToast(translator.translate("identity.posts.delete.success"))
             }
         }
     }
@@ -1095,6 +1143,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 connectProfile()
                 hideProfileWithSuction()
             }
+            canDeletePosts = props.profile.canDeletePosts && !isDeletingAllPosts
+            onDeletePosts = ::deleteAllPosts
             exitAnimation = profileExitAnimation
             entryAnimation = profileEntryAnimation
         }

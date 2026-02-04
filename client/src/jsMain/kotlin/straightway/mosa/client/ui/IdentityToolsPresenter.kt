@@ -2,11 +2,13 @@ package straightway.mosa.client.ui
 
 internal data class IdentityToolsCapabilities(
     val canDelete: Boolean,
+    val canDeletePosts: Boolean,
     val canDownload: Boolean,
     val canCopy: Boolean,
     val canUpload: Boolean,
     val canPaste: Boolean,
     val onDelete: () -> Unit,
+    val onDeletePosts: () -> Unit,
     val onDownload: () -> Unit,
     val onCopy: () -> Unit,
     val onUpload: () -> Unit,
@@ -22,6 +24,14 @@ internal object IdentityToolsPresenter {
                 titleKey = "button.identity.delete.aria",
                 iconClass = "fa fa-solid fa-trash-can",
                 onTrigger = capabilities.onDelete,
+            ),
+            IdentityToolAction(
+                isEnabled = capabilities.canDeletePosts,
+                ariaKey = "button.identity.delete-posts.aria",
+                titleKey = "button.identity.delete-posts.title",
+                iconClass = "fa fa-solid fa-broom",
+                onTrigger = capabilities.onDeletePosts,
+                closeOnTrigger = false,
             ),
             IdentityToolAction(
                 isEnabled = capabilities.canCopy,
@@ -60,4 +70,5 @@ internal data class IdentityToolAction(
     val titleKey: String,
     val iconClass: String,
     val onTrigger: () -> Unit,
+    val closeOnTrigger: Boolean = true,
 )

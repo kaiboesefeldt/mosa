@@ -208,6 +208,7 @@ class IdentitySessionStateMachine(
             isBusy = isBusy,
             errorText = errorText,
             canDelete = currentSelection != null,
+            canDeletePosts = isConnected,
             canNavigatePrevious = currentSelection?.hasPrevious ?: false,
             canNavigateNext = currentSelection != null,
             isShowingLastIdentity = currentSelection?.let { !it.hasNext } ?: false,

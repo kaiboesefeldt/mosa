@@ -27,11 +27,13 @@ internal fun renderIdentityProfileView(
             isShowingLastIdentity = false
             identityIndex = 0
             identityTotal = 1
+            canDeletePosts = false
             onConnect = {}
             canDownload = true
             onPrevious = {}
             onNext = {}
             onDelete = {}
+            onDeletePosts = {}
             onDownload = {}
             canUpload = true
             onUpload = {}

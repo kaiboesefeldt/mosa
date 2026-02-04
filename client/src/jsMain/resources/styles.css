@@ -189,6 +189,50 @@ button:disabled {
     align-self: flex-end;
 }
 
+.profile-dialog__sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 1.25rem;
+    z-index: 30;
+}
+
+.profile-dialog__sheet {
+    width: min(520px, 100%);
+    border-radius: 20px;
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+    padding: 1.1rem 1.2rem;
+    display: grid;
+    gap: 0.75rem;
+    animation: profile-sheet-rise 220ms ease-out;
+}
+
+.profile-dialog__sheet-title {
+    font-weight: 700;
+    color: var(--color-danger);
+    font-size: 1.05rem;
+}
+
+.profile-dialog__sheet-content {
+    font-size: 0.92rem;
+    color: var(--color-text);
+    background: rgba(226, 232, 240, 0.55);
+    border-radius: 12px;
+    padding: 0.65rem 0.75rem;
+}
+
+.profile-dialog__sheet-actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
 .profile-dialog__identity-tool {
     width: 38px;
     height: 38px;
@@ -489,6 +533,17 @@ button:disabled {
         opacity: 1;
         backdrop-filter: blur(5px) saturate(1);
         background: rgba(15, 23, 42, 0.45);
+    }
+}
+
+@keyframes profile-sheet-rise {
+    from {
+        transform: translateY(12px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
     }
 }
 

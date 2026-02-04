@@ -26,6 +26,7 @@ interface PodAccess {
     suspend fun refreshGid(jwt: String): PodCertificateResponse
     suspend fun publish(request: PublishRequest, jwt: String)
     suspend fun reply(request: ReplyRequest, jwt: String)
+    suspend fun deletePosts(jwt: String): DeletePostsResult
     suspend fun deletePost(postId: String, jwt: String): DeletePostsResult
     suspend fun search(request: QueryRequest, jwt: String): SearchResult
     suspend fun searchOn(request: QueryOnRequest, jwt: String): SearchResult
@@ -58,6 +59,11 @@ class PodAccessImpl(
     override suspend fun reply(request: ReplyRequest, jwt: String) {
         val path = "/v1/reply"
         post(path, request, jwt).ensureSuccess(path, request)
+    }
+
+    override suspend fun deletePosts(jwt: String): DeletePostsResult {
+        val path = "/v1/posts"
+        return delete(path, jwt).ensureSuccess(path, Unit).body()
     }
 
     override suspend fun deletePost(postId: String, jwt: String): DeletePostsResult {

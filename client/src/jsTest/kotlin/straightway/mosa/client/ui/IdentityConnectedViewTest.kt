@@ -52,6 +52,7 @@ import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.TopicStore
 import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.PostDeletionService
+import straightway.mosa.client.content.AllPostsDeletionService
 import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.ReplyCache
 import straightway.mosa.client.content.ReplyCacheSnapshot
@@ -624,6 +625,7 @@ private fun scrollPostsToEnd(container: Element) {
                 }
                 single { PostPublisher(get()) }
                 single { PostDeletionService(get(), get(), get()) }
+                single { AllPostsDeletionService(get(), get(), get()) }
                 single { ReplyPublisher(get()) }
                 single { TopicSearchService(get(), get(), get()) }
                 single { ReplySearchService(get(), get(), get()) }
@@ -663,6 +665,7 @@ private fun placeholderProfile(): IdentityScreen.Profile =
         isBusy = false,
         errorText = null,
         canDelete = false,
+        canDeletePosts = false,
         canNavigatePrevious = false,
         canNavigateNext = false,
         isShowingLastIdentity = false,
@@ -673,6 +676,7 @@ private fun placeholderProfile(): IdentityScreen.Profile =
         onPrevious = {},
         onNext = {},
         onDelete = {},
+        onDeletePosts = {},
         onSelect = {},
         canDownload = false,
         onDownload = {},
@@ -760,6 +764,10 @@ private class RecordingPodAccess(
 
     override suspend fun reply(request: straightway.mosa.content.ReplyRequest, jwt: String) {
         replyRequests += request
+    }
+
+    override suspend fun deletePosts(jwt: String): DeletePostsResult {
+        error("Not implemented")
     }
 
     override suspend fun deletePost(postId: String, jwt: String): DeletePostsResult {

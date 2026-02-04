@@ -3,6 +3,7 @@ package straightway.mosa.client.ui
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.awaitCancellation
+import kotlin.js.unsafeCast
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.w3c.dom.events.Event
@@ -11,6 +12,7 @@ import org.w3c.dom.events.KeyboardEvent
 import react.FC
 import react.Props
 import react.dom.events.MouseEvent
+import react.dom.html.ReactHTML
 import react.dom.html.ReactHTML.div
 import react.useEffect
 import react.useState
@@ -18,6 +20,7 @@ import straightway.mosa.client.i18n.Translator
 import straightway.mosa.identity.FictionalName
 import web.cssom.ClassName
 import web.clipboard.ClipboardEvent
+import web.html.ButtonType
 
 external interface IdentityProfileViewProps : Props {
     var identityNameParts: FictionalName
@@ -26,6 +29,7 @@ external interface IdentityProfileViewProps : Props {
     var errorText: String?
     var isPersisted: Boolean
     var canDelete: Boolean
+    var canDeletePosts: Boolean
     var canNavigatePrevious: Boolean
     var canNavigateNext: Boolean
     var isShowingLastIdentity: Boolean
@@ -40,6 +44,7 @@ external interface IdentityProfileViewProps : Props {
     var onPrevious: () -> Unit
     var onNext: () -> Unit
     var onDelete: () -> Unit
+    var onDeletePosts: () -> Unit
     var onSelect: (Int) -> Unit
     var onDownload: () -> Unit
     var onCopy: () -> Unit
@@ -68,6 +73,7 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
     val activeSegment = if (totalItems <= 1) 0 else boundedIndex
     val (areToolsVisible, setToolsVisible) = useState(false)
     val (isCopyFeedbackVisible, setCopyFeedbackVisible) = useState(false)
+    val (isDeletePostsVisible, setDeletePostsVisible) = useState(false)
     val toolActions = IdentityToolsPresenter.present(props.toIdentityToolsCapabilities())
     val toolActionsWithFeedback =
         toolActions.map { action ->
@@ -75,6 +81,11 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                 action.copy(onTrigger = {
                     action.onTrigger()
                     setCopyFeedbackVisible(true)
+                })
+            } else if (action.ariaKey == "button.identity.delete-posts.aria") {
+                action.copy(onTrigger = {
+                    setToolsVisible(false)
+                    setDeletePostsVisible(true)
                 })
             } else if (action.ariaKey == "button.identity.paste.aria") {
                 action.copy(onTrigger = action.onTrigger)
@@ -199,6 +210,48 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                     +translator.translate("identity.copy.success")
                 }
             }
+            if (isDeletePostsVisible) {
+                val isDeleteDisabled = props.isBusy || !props.canDeletePosts
+                val cancelLabel = translator.translate("identity.posts.delete.cancel")
+                val confirmLabel = translator.translate("identity.posts.delete.confirm")
+                div {
+                    className = ClassName("profile-dialog__sheet-backdrop")
+                    onClick = { setDeletePostsVisible(false) }
+                    div {
+                        className = ClassName("profile-dialog__sheet")
+                        onClick = { event: MouseEvent<*, *> -> event.stopPropagation() }
+                        div {
+                            className = ClassName("profile-dialog__sheet-title")
+                            +translator.translate("identity.posts.delete.title")
+                        }
+                        div {
+                            className = ClassName("profile-dialog__sheet-content")
+                            +translator.translate("identity.posts.delete.body")
+                        }
+                        div {
+                            className = ClassName("profile-dialog__sheet-actions")
+                            ReactHTML.button {
+                                className = ClassName("button button--secondary")
+                                type = "button".unsafeCast<ButtonType>()
+                                onClick = { setDeletePostsVisible(false) }
+                                +cancelLabel
+                            }
+                            ReactHTML.button {
+                                className = ClassName("button button--danger")
+                                type = "button".unsafeCast<ButtonType>()
+                                disabled = isDeleteDisabled
+                                onClick = {
+                                    if (!isDeleteDisabled) {
+                                        setDeletePostsVisible(false)
+                                        props.onDeletePosts()
+                                    }
+                                }
+                                +confirmLabel
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -208,11 +261,13 @@ private object ProfileViewInjector : KoinComponent
 private fun IdentityProfileViewProps.toIdentityToolsCapabilities(): IdentityToolsCapabilities =
     IdentityToolsCapabilities(
         canDelete = canDelete,
+        canDeletePosts = canDeletePosts,
         canDownload = canDownload,
         canCopy = canCopy,
         canUpload = canUpload,
         canPaste = canPaste,
         onDelete = onDelete,
+        onDeletePosts = onDeletePosts,
         onDownload = onDownload,
         onCopy = onCopy,
         onUpload = onUpload,
@@ -226,6 +281,7 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
     errorText = screen.errorText
     isPersisted = screen.isPersisted
     canDelete = screen.canDelete
+    canDeletePosts = screen.canDeletePosts
     canNavigatePrevious = screen.canNavigatePrevious
     canNavigateNext = screen.canNavigateNext
     isShowingLastIdentity = screen.isShowingLastIdentity
@@ -240,6 +296,7 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
     onPrevious = screen.onPrevious
     onNext = screen.onNext
     onDelete = screen.onDelete
+    onDeletePosts = screen.onDeletePosts
     onSelect = screen.onSelect
     onDownload = screen.onDownload
     onCopy = screen.onCopy

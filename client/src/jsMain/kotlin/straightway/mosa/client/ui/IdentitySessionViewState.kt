@@ -11,6 +11,7 @@ sealed interface IdentitySessionViewState {
         val isBusy: Boolean,
         val errorText: String?,
         val canDelete: Boolean,
+        val canDeletePosts: Boolean,
         val canNavigatePrevious: Boolean,
         val canNavigateNext: Boolean,
         val isShowingLastIdentity: Boolean,

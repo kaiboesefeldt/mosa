@@ -20,6 +20,7 @@ import straightway.mosa.auth.PodCertificate
 import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
+import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryOnRequest
@@ -140,6 +141,52 @@ class PodAccessTest {
         assertRestError("/v1/reply", HttpStatusCode.BadRequest) {
             podAccess.reply(ReplyRequest(PublishRequest("message"), "root-id"), "jwt-token")
         }
+    }
+
+    @Test
+    fun `deletePosts sends delete and returns result`() = runTest {
+        val expectedResult = DeletePostsResult(listOf("id-1", "id-2"))
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
+
+        val result = podAccess.deletePosts("jwt-token")
+
+        assertEquals(expectedResult, result)
+        assertDeleteRequest(
+            capturedRequests.single(),
+            route = "v1/posts",
+            bearerToken = "jwt-token",
+        )
+    }
+
+    @Test
+    fun `deletePosts throws when backend returns error`() = runTest {
+        val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
+
+        assertRestError("/v1/posts", HttpStatusCode.BadRequest) { podAccess.deletePosts("jwt-token") }
+    }
+
+    @Test
+    fun `deletePost sends delete and returns result`() = runTest {
+        val expectedResult = DeletePostsResult(listOf("id-1"))
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
+
+        val result = podAccess.deletePost("id-1", "jwt-token")
+
+        assertEquals(expectedResult, result)
+        assertDeleteRequest(
+            capturedRequests.single(),
+            route = "v1/posts/id-1",
+            bearerToken = "jwt-token",
+        )
+    }
+
+    @Test
+    fun `deletePost throws when backend returns error`() = runTest {
+        val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
+
+        assertRestError("/v1/posts/id-1", HttpStatusCode.BadRequest) { podAccess.deletePost("id-1", "jwt-token") }
     }
 
     @Test
@@ -300,6 +347,16 @@ class PodAccessTest {
         bearerToken: String,
     ) {
         assertEquals(HttpMethod.Post, request.method)
+        assertEquals("https://pod.example/$route", request.url.toString())
+        assertEquals("Bearer $bearerToken", request.headers[HttpHeaders.Authorization])
+    }
+
+    private fun assertDeleteRequest(
+        request: HttpRequestData,
+        route: String,
+        bearerToken: String,
+    ) {
+        assertEquals(HttpMethod.Delete, request.method)
         assertEquals("https://pod.example/$route", request.url.toString())
         assertEquals("Bearer $bearerToken", request.headers[HttpHeaders.Authorization])
     }

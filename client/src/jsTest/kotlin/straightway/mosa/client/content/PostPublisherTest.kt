@@ -126,6 +126,10 @@ private class RecordingPublishPodAccess : PodAccess {
         error("not used")
     }
 
+    override suspend fun deletePosts(jwt: String): DeletePostsResult {
+        error("not used")
+    }
+
     override suspend fun deletePost(postId: String, jwt: String): DeletePostsResult {
         error("not used")
     }

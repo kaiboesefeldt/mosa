@@ -274,6 +274,10 @@ private class RecordingPodAccess(
         error("Not implemented")
     }
 
+    override suspend fun deletePosts(jwt: String): DeletePostsResult {
+        error("Not implemented")
+    }
+
     override suspend fun deletePost(postId: String, jwt: String): DeletePostsResult {
         error("Not implemented")
     }
