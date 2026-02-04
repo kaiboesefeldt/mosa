@@ -18,6 +18,7 @@ import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
+import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.SearchResult
 
 interface PodAccess {
@@ -25,7 +26,7 @@ interface PodAccess {
     suspend fun refreshGid(jwt: String): PodCertificateResponse
     suspend fun publish(request: PublishRequest, jwt: String)
     suspend fun reply(request: ReplyRequest, jwt: String)
-    suspend fun deletePost(postId: String, jwt: String)
+    suspend fun deletePost(postId: String, jwt: String): DeletePostsResult
     suspend fun search(request: QueryRequest, jwt: String): SearchResult
     suspend fun searchOn(request: QueryOnRequest, jwt: String): SearchResult
     suspend fun fetch(request: FetchRequest, jwt: String): FetchResult
@@ -59,9 +60,9 @@ class PodAccessImpl(
         post(path, request, jwt).ensureSuccess(path, request)
     }
 
-    override suspend fun deletePost(postId: String, jwt: String) {
+    override suspend fun deletePost(postId: String, jwt: String): DeletePostsResult {
         val path = "/v1/posts/$postId"
-        delete(path, jwt).ensureSuccess(path, postId)
+        return delete(path, jwt).ensureSuccess(path, postId).body()
     }
 
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult =

@@ -419,10 +419,13 @@ securitySchemes:
       securedBy: [ bearerAuth ]
       displayName: Delete Content
       description: |
-        Delete a post owned by the authenticated user.
+        Delete a post owned by the authenticated user. When deleting a root post, all replies to that post are deleted too.
       responses:
-        204:
+        200:
           description: Deleted
+          body:
+            application/json:
+              type: DeletePostsResult
         400:
           description: Invalid or missing id
         401:

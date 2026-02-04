@@ -11,6 +11,7 @@ import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
+import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
@@ -204,7 +205,7 @@ private class FakeSessionPodAccess(
         error("not expected")
     }
 
-    override suspend fun deletePost(postId: String, jwt: String) {
+    override suspend fun deletePost(postId: String, jwt: String): DeletePostsResult {
         error("not expected")
     }
 

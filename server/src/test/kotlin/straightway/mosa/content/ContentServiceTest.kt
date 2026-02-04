@@ -41,7 +41,7 @@ class ContentServiceTest {
         coEvery { embeddingService.embed(text) } returns testEmbedding
     }
 
-    private fun setupVectorStore(result: VectorStore.QueryResults = createDefaultQueryResults()) {
+    private fun setupVectorStore(result: VectorStore.QueryResults = createVectorStoreResults()) {
         coEvery { vectorStore.query(any()) } returns result
     }
 
@@ -60,8 +60,6 @@ class ContentServiceTest {
         coVerify { vectorStore.query(expectedQuery) }
     }
 
-    private fun createDefaultQueryResults() = createVectorStoreResults()
-
     private fun createParentQueryResult(
         parentId: String,
         rootId: String? = null,
@@ -72,7 +70,7 @@ class ContentServiceTest {
                     id = parentId,
                     text = "any",
                     similarity = 1.0f,
-                    fields = rootId?.let { mapOf("rootId" to it) } ?: emptyMap(),
+                    fields = rootId?.let { mapOf(ROOT_ID_KEY to it) } ?: emptyMap(),
                 ),
             ),
         queryOnId = null,
@@ -100,7 +98,7 @@ class ContentServiceTest {
                     Query(
                         vector = testEmbedding,
                         fromTime = null,
-                        fields = mapOf("rootId" to null),
+                        fields = mapOf(ROOT_ID_KEY to null),
                     ),
                 )
             }
@@ -110,7 +108,7 @@ class ContentServiceTest {
             runTest {
                 testQuery(
                     request = QueryRequest(topic = "test topic"),
-                    expectedQuery = Query(vector = testEmbedding, fromTime = null, fields = mapOf("rootId" to null)),
+                    expectedQuery = Query(vector = testEmbedding, fromTime = null, fields = mapOf(ROOT_ID_KEY to null)),
                     needsEmbedding = true,
                 )
             }
@@ -124,7 +122,7 @@ class ContentServiceTest {
                         Query(
                             vector = null,
                             fromTime = Instant.ofEpochSecond(testLaterThan),
-                            fields = mapOf("rootId" to null),
+                            fields = mapOf(ROOT_ID_KEY to null),
                         ),
                 )
             }
@@ -138,7 +136,7 @@ class ContentServiceTest {
                         Query(
                             vector = null,
                             toTime = Instant.ofEpochSecond(testEarlierThan),
-                            fields = mapOf("rootId" to null),
+                            fields = mapOf(ROOT_ID_KEY to null),
                         ),
                 )
             }
@@ -148,7 +146,7 @@ class ContentServiceTest {
             runTest {
                 testQuery(
                     request = QueryRequest(threadRootId = "root-123"),
-                    expectedQuery = Query(vector = null, fromTime = null, fields = mapOf("rootId" to "root-123")),
+                    expectedQuery = Query(vector = null, fromTime = null, fields = mapOf(ROOT_ID_KEY to "root-123")),
                 )
             }
 
@@ -161,7 +159,7 @@ class ContentServiceTest {
                         Query(
                             vector = testEmbedding,
                             fromTime = Instant.ofEpochSecond(testLaterThan),
-                            fields = mapOf("rootId" to null),
+                            fields = mapOf(ROOT_ID_KEY to null),
                         ),
                     needsEmbedding = true,
                 )
@@ -172,7 +170,7 @@ class ContentServiceTest {
             runTest {
                 testQuery(
                     request = QueryRequest(topic = "test topic", threadRootId = "root-123"),
-                    expectedQuery = Query(vector = testEmbedding, fromTime = null, fields = mapOf("rootId" to "root-123")),
+                    expectedQuery = Query(vector = testEmbedding, fromTime = null, fields = mapOf(ROOT_ID_KEY to "root-123")),
                     needsEmbedding = true,
                 )
             }
@@ -187,7 +185,7 @@ class ContentServiceTest {
                             vector = null,
                             fromTime = Instant.ofEpochSecond(testLaterThan),
                             fields =
-                                mapOf("rootId" to "root-123"),
+                                mapOf(ROOT_ID_KEY to "root-123"),
                         ),
                 )
             }
@@ -208,7 +206,7 @@ class ContentServiceTest {
                             vector = testEmbedding,
                             fromTime = Instant.ofEpochSecond(testLaterThan),
                             toTime = Instant.ofEpochSecond(testEarlierThan),
-                            fields = mapOf("rootId" to "root-123"),
+                            fields = mapOf(ROOT_ID_KEY to "root-123"),
                         ),
                     needsEmbedding = true,
                 )
@@ -217,49 +215,23 @@ class ContentServiceTest {
         @Test
         fun `queries with scoreMustBeAbove`() =
             runTest {
-                setupEmbedding("above topic")
-                var capturedQuery: VectorStore.Query? = null
-                setupVectorStoreWithCapture(capture = { capturedQuery = it })
-
-                sut.query(
-                    QueryRequest(
-                        topic = "above topic",
-                        scoreMustBeAbove = 0.42f,
-                    ),
+                assertScoreQuery(
+                    request = QueryRequest(topic = "above topic", scoreMustBeAbove = 0.42f),
+                    expectedScoreAbove = 0.42f,
+                    expectedScoreBelow = null,
+                    perform = sut::query,
                 )
-
-                coVerify { vectorStore.query(any()) }
-                with(capturedQuery!!) {
-                    assertEquals(true, vector?.contentEquals(testEmbedding))
-                    assertEquals(0.42f, scoreMustBeAbove)
-                    assertNull(scoreMustBeBelow)
-                    assertNull(fromTime)
-                    assertEquals(mapOf("rootId" to null), fields)
-                }
             }
 
         @Test
         fun `queries with scoreMustBeBelow`() =
             runTest {
-                setupEmbedding("below topic")
-                var capturedQuery: VectorStore.Query? = null
-                setupVectorStoreWithCapture(capture = { capturedQuery = it })
-
-                sut.query(
-                    QueryRequest(
-                        topic = "below topic",
-                        scoreMustBeBelow = 0.13f,
-                    ),
+                assertScoreQuery(
+                    request = QueryRequest(topic = "below topic", scoreMustBeBelow = 0.13f),
+                    expectedScoreAbove = null,
+                    expectedScoreBelow = 0.13f,
+                    perform = sut::query,
                 )
-
-                coVerify { vectorStore.query(any()) }
-                with(capturedQuery!!) {
-                    assertEquals(true, vector?.contentEquals(testEmbedding))
-                    assertEquals(null, scoreMustBeAbove)
-                    assertEquals(0.13f, scoreMustBeBelow)
-                    assertEquals(null, fromTime)
-                    assertEquals(mapOf("rootId" to null), fields)
-                }
             }
 
         private suspend fun testQuery(
@@ -267,93 +239,54 @@ class ContentServiceTest {
             expectedQuery: VectorStore.Query,
             needsEmbedding: Boolean = false,
         ) {
-            // Given
-            if (needsEmbedding) setupEmbedding("test topic")
+            if (needsEmbedding) setupEmbedding(request.topic ?: "")
             setupVectorStore()
 
-            // When
             val result = sut.query(request)
 
-            // Then
             verifyQueryCall(expectedQuery)
-            val expectedResult =
-                QueryResult(
-                    entries =
-                        listOf(
-                            QueryResult.Entry(
-                                id = "test-id",
-                                content = "test content",
-                                similarity = 0.9f,
-                                authorGID = "test-author",
-                                storedAt = 1609459200L,
-                                rootId = null,
-                            ),
-                        ),
-                    queryOnId = testQueryOnId.toString(),
-                )
-            assertEquals(expectedResult, result)
+            assertEquals(expectedQueryResult(), result)
         }
 
         @Test
         fun `returns empty queryOnId when VectorStore returns null queryOnId`() =
             runTest {
-                // Given
                 setupEmbedding("test topic")
                 setupVectorStore(createVectorStoreResults(queryOnId = null))
 
-                // When
                 val result = sut.query(QueryRequest(topic = "test topic"))
 
-                // Then
-                val expectedResult =
-                    QueryResult(
-                        entries =
-                            listOf(
-                                QueryResult.Entry(
-                                    id = "test-id",
-                                    content = "test content",
-                                    similarity = 0.9f,
-                                    authorGID = "test-author",
-                                    storedAt = 1609459200L,
-                                    rootId = null,
-                                ),
-                            ),
-                        queryOnId = "",
-                    )
-                assertEquals(expectedResult, result)
+                assertEquals(expectedQueryResult(queryOnId = ""), result)
             }
 
         @Test
         fun `maps VectorStore entries to QueryResult entries`() =
             runTest {
-                // Given
                 val vectorStoreEntries =
                     listOf(
                         VectorStore.QueryResult(
                             id = "entry-1",
                             text = "First entry",
                             similarity = 0.95f,
-                            fields = mapOf("authorGID" to "author-1", "receivedAt" to "1609459200", "rootId" to "root-1"),
+                            fields = mapOf(AUTHOR_GID_KEY to "author-1", RECEIVED_AT_KEY to "1609459200", ROOT_ID_KEY to "root-1"),
                         ),
                         VectorStore.QueryResult(
                             id = "entry-2",
                             text = "Second entry",
                             similarity = 0.80f,
-                            fields = mapOf("authorGID" to "author-2", "receivedAt" to "1609459300"),
+                            fields = mapOf(AUTHOR_GID_KEY to "author-2", RECEIVED_AT_KEY to "1609459300"),
                         ),
                     )
                 setupEmbedding("test topic")
                 setupVectorStore(createVectorStoreResults(entries = vectorStoreEntries))
 
-                // When
                 val result = sut.query(QueryRequest(topic = "test topic"))
 
-                // Then
-                val expectedResult =
-                    QueryResult(
+                assertEquals(
+                    expectedQueryResult(
                         entries =
                             listOf(
-                                QueryResult.Entry(
+                                defaultQueryResultEntry(
                                     id = "entry-1",
                                     content = "First entry",
                                     similarity = 0.95f,
@@ -361,18 +294,17 @@ class ContentServiceTest {
                                     storedAt = 1609459200L,
                                     rootId = "root-1",
                                 ),
-                                QueryResult.Entry(
+                                defaultQueryResultEntry(
                                     id = "entry-2",
                                     content = "Second entry",
                                     similarity = 0.80f,
                                     authorGID = "author-2",
                                     storedAt = 1609459300L,
-                                    rootId = null,
                                 ),
                             ),
-                        queryOnId = testQueryOnId.toString(),
-                    )
-                assertEquals(expectedResult, result)
+                    ),
+                    result,
+                )
             }
 
         @Test
@@ -384,7 +316,7 @@ class ContentServiceTest {
                         id = "missing-author-id",
                         text = "entry without author",
                         similarity = 0.5f,
-                        fields = mapOf("receivedAt" to "1609459200"),
+                        fields = mapOf(RECEIVED_AT_KEY to "1609459200"),
                     )
                 setupVectorStore(createVectorStoreResults(entries = listOf(entryMissingAuthor)))
 
@@ -393,7 +325,7 @@ class ContentServiceTest {
                         sut.query(QueryRequest(topic = "missing author topic"))
                     }
                 assertEquals("missing-author-id", exception.entryId)
-                assertEquals("authorGID", exception.fieldName)
+                assertEquals(AUTHOR_GID_KEY, exception.fieldName)
             }
 
         @Test
@@ -405,7 +337,7 @@ class ContentServiceTest {
                         id = "missing-received-at-id",
                         text = "entry without receivedAt",
                         similarity = 0.6f,
-                        fields = mapOf("authorGID" to "author-without-received-at"),
+                        fields = mapOf(AUTHOR_GID_KEY to "author-without-received-at"),
                     )
                 setupVectorStore(createVectorStoreResults(entries = listOf(entryMissingReceivedAt)))
 
@@ -414,7 +346,7 @@ class ContentServiceTest {
                         sut.query(QueryRequest(topic = "missing received at topic"))
                     }
                 assertEquals("missing-received-at-id", exception.entryId)
-                assertEquals("receivedAt", exception.fieldName)
+                assertEquals(RECEIVED_AT_KEY, exception.fieldName)
             }
     }
 
@@ -425,32 +357,16 @@ class ContentServiceTest {
             expectedUUID: UUID?,
             expectedQueryOnId: String = testQueryOnId.toString(),
         ) = runTest {
-            // Given
-            coEvery { vectorStore.queryOn(expectedUUID) } returns createDefaultQueryResults()
+            coEvery { vectorStore.queryOn(expectedUUID) } returns createVectorStoreResults()
 
-            // When
             val result = sut.queryOn(QueryOnRequest(queryId))
 
-            // Then
             coVerify { vectorStore.queryOn(expectedUUID) }
             val expectedResult =
                 if (expectedQueryOnId.isNotEmpty()) {
-                    QueryResult(
-                        entries =
-                            listOf(
-                                QueryResult.Entry(
-                                    id = "test-id",
-                                    content = "test content",
-                                    similarity = 0.9f,
-                                    authorGID = "test-author",
-                                    storedAt = 1609459200L,
-                                    rootId = null,
-                                ),
-                            ),
-                        queryOnId = expectedQueryOnId,
-                    )
+                    expectedQueryResult(queryOnId = expectedQueryOnId)
                 } else {
-                    QueryResult(entries = emptyList(), queryOnId = "")
+                    expectedQueryResult(entries = emptyList(), queryOnId = "")
                 }
             assertEquals(expectedResult, result)
         }
@@ -468,55 +384,39 @@ class ContentServiceTest {
         @Test
         fun `returns empty queryOnId when VectorStore returns null`() =
             runTest {
-                // Given
                 val uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
                 coEvery { vectorStore.queryOn(uuid) } returns createVectorStoreResults(queryOnId = null)
 
-                // When
                 val result = sut.queryOn(QueryOnRequest(uuid.toString()))
 
-                // Then
-                val expectedResult =
-                    QueryResult(
-                        entries =
-                            listOf(
-                                QueryResult.Entry(
-                                    id = "test-id",
-                                    content = "test content",
-                                    similarity = 0.9f,
-                                    authorGID = "test-author",
-                                    storedAt = 1609459200L,
-                                    rootId = null,
-                                ),
-                            ),
-                        queryOnId = "",
-                    )
-                assertEquals(expectedResult, result)
+                assertEquals(expectedQueryResult(queryOnId = ""), result)
             }
 
         @Test
         fun `maps VectorStore entries to QueryResult entries correctly`() =
             runTest {
-                // Given
                 val uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
                 val vectorStoreEntry =
                     VectorStore.QueryResult(
                         id = "query-on-entry",
                         text = "QueryOn content",
                         similarity = 0.85f,
-                        fields = mapOf("authorGID" to "query-on-author", "receivedAt" to "1609459400", "rootId" to "query-on-root"),
+                        fields =
+                            mapOf(
+                                AUTHOR_GID_KEY to "query-on-author",
+                                RECEIVED_AT_KEY to "1609459400",
+                                ROOT_ID_KEY to "query-on-root",
+                            ),
                     )
                 coEvery { vectorStore.queryOn(uuid) } returns createVectorStoreResults(entries = listOf(vectorStoreEntry))
 
-                // When
                 val result = sut.queryOn(QueryOnRequest(uuid.toString()))
 
-                // Then
-                val expectedResult =
-                    QueryResult(
+                assertEquals(
+                    expectedQueryResult(
                         entries =
                             listOf(
-                                QueryResult.Entry(
+                                defaultQueryResultEntry(
                                     id = "query-on-entry",
                                     content = "QueryOn content",
                                     similarity = 0.85f,
@@ -525,9 +425,9 @@ class ContentServiceTest {
                                     rootId = "query-on-root",
                                 ),
                             ),
-                        queryOnId = testQueryOnId.toString(),
-                    )
-                assertEquals(expectedResult, result)
+                    ),
+                    result,
+                )
             }
     }
 
@@ -538,27 +438,13 @@ class ContentServiceTest {
             expectedQuery: VectorStore.Query,
             needsEmbedding: Boolean = false,
         ) {
-            // Given
-            if (needsEmbedding) setupEmbedding("test topic")
+            if (needsEmbedding) setupEmbedding(request.topic ?: "")
             setupVectorStore()
 
-            // When
             val result = sut.search(request)
 
-            // Then
             verifyQueryCall(expectedQuery)
-            val expectedResult =
-                SearchResult(
-                    entries =
-                        listOf(
-                            SearchResult.Entry(
-                                id = "test-id",
-                                similarity = 0.9f,
-                            ),
-                        ),
-                    queryOnId = testQueryOnId.toString(),
-                )
-            assertEquals(expectedResult, result)
+            assertEquals(expectedSearchResult(), result)
         }
 
         @Test
@@ -581,7 +467,7 @@ class ContentServiceTest {
                     Query(
                         vector = testEmbedding,
                         fromTime = null,
-                        fields = mapOf("rootId" to null),
+                        fields = mapOf(ROOT_ID_KEY to null),
                     ),
                 )
             }
@@ -591,7 +477,7 @@ class ContentServiceTest {
             runTest {
                 testSearch(
                     request = QueryRequest(topic = "test topic"),
-                    expectedQuery = Query(vector = testEmbedding, fromTime = null, fields = mapOf("rootId" to null)),
+                    expectedQuery = Query(vector = testEmbedding, fromTime = null, fields = mapOf(ROOT_ID_KEY to null)),
                     needsEmbedding = true,
                 )
             }
@@ -605,7 +491,7 @@ class ContentServiceTest {
                         Query(
                             vector = null,
                             fromTime = Instant.ofEpochSecond(testLaterThan),
-                            fields = mapOf("rootId" to null),
+                            fields = mapOf(ROOT_ID_KEY to null),
                         ),
                 )
             }
@@ -615,7 +501,7 @@ class ContentServiceTest {
             runTest {
                 testSearch(
                     request = QueryRequest(threadRootId = "root-123"),
-                    expectedQuery = Query(vector = null, fromTime = null, fields = mapOf("rootId" to "root-123")),
+                    expectedQuery = Query(vector = null, fromTime = null, fields = mapOf(ROOT_ID_KEY to "root-123")),
                 )
             }
 
@@ -628,7 +514,7 @@ class ContentServiceTest {
                         Query(
                             vector = null,
                             toTime = Instant.ofEpochSecond(testEarlierThan),
-                            fields = mapOf("rootId" to null),
+                            fields = mapOf(ROOT_ID_KEY to null),
                         ),
                 )
             }
@@ -642,7 +528,7 @@ class ContentServiceTest {
                         Query(
                             vector = testEmbedding,
                             fromTime = Instant.ofEpochSecond(testLaterThan),
-                            fields = mapOf("rootId" to null),
+                            fields = mapOf(ROOT_ID_KEY to null),
                         ),
                     needsEmbedding = true,
                 )
@@ -653,7 +539,7 @@ class ContentServiceTest {
             runTest {
                 testSearch(
                     request = QueryRequest(topic = "test topic", threadRootId = "root-123"),
-                    expectedQuery = Query(vector = testEmbedding, fromTime = null, fields = mapOf("rootId" to "root-123")),
+                    expectedQuery = Query(vector = testEmbedding, fromTime = null, fields = mapOf(ROOT_ID_KEY to "root-123")),
                     needsEmbedding = true,
                 )
             }
@@ -668,7 +554,7 @@ class ContentServiceTest {
                             vector = null,
                             fromTime = Instant.ofEpochSecond(testLaterThan),
                             fields =
-                                mapOf("rootId" to "root-123"),
+                                mapOf(ROOT_ID_KEY to "root-123"),
                         ),
                 )
             }
@@ -689,7 +575,7 @@ class ContentServiceTest {
                             vector = testEmbedding,
                             fromTime = Instant.ofEpochSecond(testLaterThan),
                             toTime = Instant.ofEpochSecond(testEarlierThan),
-                            fields = mapOf("rootId" to "root-123"),
+                            fields = mapOf(ROOT_ID_KEY to "root-123"),
                         ),
                     needsEmbedding = true,
                 )
@@ -698,118 +584,69 @@ class ContentServiceTest {
         @Test
         fun `searches with scoreMustBeAbove`() =
             runTest {
-                setupEmbedding("above topic")
-                var capturedQuery: VectorStore.Query? = null
-                setupVectorStoreWithCapture(capture = { capturedQuery = it })
-
-                sut.search(
-                    QueryRequest(
-                        topic = "above topic",
-                        scoreMustBeAbove = 0.42f,
-                    ),
+                assertScoreQuery(
+                    request = QueryRequest(topic = "above topic", scoreMustBeAbove = 0.42f),
+                    expectedScoreAbove = 0.42f,
+                    expectedScoreBelow = null,
+                    perform = sut::search,
                 )
-
-                coVerify { vectorStore.query(any()) }
-                with(capturedQuery!!) {
-                    assertEquals(true, vector?.contentEquals(testEmbedding))
-                    assertEquals(0.42f, scoreMustBeAbove)
-                    assertNull(scoreMustBeBelow)
-                    assertNull(fromTime)
-                    assertEquals(mapOf("rootId" to null), fields)
-                }
             }
 
         @Test
         fun `searches with scoreMustBeBelow`() =
             runTest {
-                setupEmbedding("below topic")
-                var capturedQuery: VectorStore.Query? = null
-                setupVectorStoreWithCapture(capture = { capturedQuery = it })
-
-                sut.search(
-                    QueryRequest(
-                        topic = "below topic",
-                        scoreMustBeBelow = 0.13f,
-                    ),
+                assertScoreQuery(
+                    request = QueryRequest(topic = "below topic", scoreMustBeBelow = 0.13f),
+                    expectedScoreAbove = null,
+                    expectedScoreBelow = 0.13f,
+                    perform = sut::search,
                 )
-
-                coVerify { vectorStore.query(any()) }
-                with(capturedQuery!!) {
-                    assertEquals(true, vector?.contentEquals(testEmbedding))
-                    assertEquals(null, scoreMustBeAbove)
-                    assertEquals(0.13f, scoreMustBeBelow)
-                    assertEquals(null, fromTime)
-                    assertEquals(mapOf("rootId" to null), fields)
-                }
             }
 
         @Test
         fun `returns empty queryOnId when VectorStore returns null queryOnId`() =
             runTest {
-                // Given
                 setupEmbedding("test topic")
                 setupVectorStore(createVectorStoreResults(queryOnId = null))
 
-                // When
                 val result = sut.search(QueryRequest(topic = "test topic"))
 
-                // Then
-                val expectedResult =
-                    SearchResult(
-                        entries =
-                            listOf(
-                                SearchResult.Entry(
-                                    id = "test-id",
-                                    similarity = 0.9f,
-                                ),
-                            ),
-                        queryOnId = "",
-                    )
-                assertEquals(expectedResult, result)
+                assertEquals(expectedSearchResult(queryOnId = ""), result)
             }
 
         @Test
         fun `maps VectorStore entries to SearchResult entries`() =
             runTest {
-                // Given
                 val vectorStoreEntries =
                     listOf(
                         VectorStore.QueryResult(
                             id = "entry-1",
                             text = "First entry",
                             similarity = 0.95f,
-                            fields = mapOf("authorGID" to "author-1", "receivedAt" to "1609459200", "rootId" to "root-1"),
+                            fields = mapOf(AUTHOR_GID_KEY to "author-1", RECEIVED_AT_KEY to "1609459200", ROOT_ID_KEY to "root-1"),
                         ),
                         VectorStore.QueryResult(
                             id = "entry-2",
                             text = "Second entry",
                             similarity = 0.80f,
-                            fields = mapOf("authorGID" to "author-2", "receivedAt" to "1609459300"),
+                            fields = mapOf(AUTHOR_GID_KEY to "author-2", RECEIVED_AT_KEY to "1609459300"),
                         ),
                     )
                 setupEmbedding("test topic")
                 setupVectorStore(createVectorStoreResults(entries = vectorStoreEntries))
 
-                // When
                 val result = sut.search(QueryRequest(topic = "test topic"))
 
-                // Then
-                val expectedResult =
-                    SearchResult(
+                assertEquals(
+                    expectedSearchResult(
                         entries =
                             listOf(
-                                SearchResult.Entry(
-                                    id = "entry-1",
-                                    similarity = 0.95f,
-                                ),
-                                SearchResult.Entry(
-                                    id = "entry-2",
-                                    similarity = 0.80f,
-                                ),
+                                defaultSearchResultEntry(id = "entry-1", similarity = 0.95f),
+                                defaultSearchResultEntry(id = "entry-2", similarity = 0.80f),
                             ),
-                        queryOnId = testQueryOnId.toString(),
-                    )
-                assertEquals(expectedResult, result)
+                    ),
+                    result,
+                )
             }
 
         @Test
@@ -821,7 +658,7 @@ class ContentServiceTest {
                         id = "missing-author-id",
                         text = "entry without author",
                         similarity = 0.5f,
-                        fields = mapOf("receivedAt" to "1609459200"),
+                        fields = mapOf(RECEIVED_AT_KEY to "1609459200"),
                     )
                 setupVectorStore(createVectorStoreResults(entries = listOf(entryMissingAuthor)))
 
@@ -830,7 +667,7 @@ class ContentServiceTest {
                         sut.search(QueryRequest(topic = "missing author topic"))
                     }
                 assertEquals("missing-author-id", exception.entryId)
-                assertEquals("authorGID", exception.fieldName)
+                assertEquals(AUTHOR_GID_KEY, exception.fieldName)
             }
 
         @Test
@@ -842,7 +679,7 @@ class ContentServiceTest {
                         id = "missing-received-at-id",
                         text = "entry without receivedAt",
                         similarity = 0.6f,
-                        fields = mapOf("authorGID" to "author-without-received-at"),
+                        fields = mapOf(AUTHOR_GID_KEY to "author-without-received-at"),
                     )
                 setupVectorStore(createVectorStoreResults(entries = listOf(entryMissingReceivedAt)))
 
@@ -851,7 +688,7 @@ class ContentServiceTest {
                         sut.search(QueryRequest(topic = "missing received at topic"))
                     }
                 assertEquals("missing-received-at-id", exception.entryId)
-                assertEquals("receivedAt", exception.fieldName)
+                assertEquals(RECEIVED_AT_KEY, exception.fieldName)
             }
     }
 
@@ -862,28 +699,16 @@ class ContentServiceTest {
             expectedUUID: UUID?,
             expectedQueryOnId: String = testQueryOnId.toString(),
         ) = runTest {
-            // Given
-            coEvery { vectorStore.queryOn(expectedUUID) } returns createDefaultQueryResults()
+            coEvery { vectorStore.queryOn(expectedUUID) } returns createVectorStoreResults()
 
-            // When
             val result = sut.searchOn(QueryOnRequest(queryId))
 
-            // Then
             coVerify { vectorStore.queryOn(expectedUUID) }
             val expectedResult =
                 if (expectedQueryOnId.isNotEmpty()) {
-                    SearchResult(
-                        entries =
-                            listOf(
-                                SearchResult.Entry(
-                                    id = "test-id",
-                                    similarity = 0.9f,
-                                ),
-                            ),
-                        queryOnId = expectedQueryOnId,
-                    )
+                    expectedSearchResult(queryOnId = expectedQueryOnId)
                 } else {
-                    SearchResult(entries = emptyList(), queryOnId = "")
+                    expectedSearchResult(entries = emptyList(), queryOnId = "")
                 }
             assertEquals(expectedResult, result)
         }
@@ -901,58 +726,40 @@ class ContentServiceTest {
         @Test
         fun `returns empty queryOnId when VectorStore returns null`() =
             runTest {
-                // Given
                 val uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
                 coEvery { vectorStore.queryOn(uuid) } returns createVectorStoreResults(queryOnId = null)
 
-                // When
                 val result = sut.searchOn(QueryOnRequest(uuid.toString()))
 
-                // Then
-                val expectedResult =
-                    SearchResult(
-                        entries =
-                            listOf(
-                                SearchResult.Entry(
-                                    id = "test-id",
-                                    similarity = 0.9f,
-                                ),
-                            ),
-                        queryOnId = "",
-                    )
-                assertEquals(expectedResult, result)
+                assertEquals(expectedSearchResult(queryOnId = ""), result)
             }
 
         @Test
         fun `maps VectorStore entries to QueryResult entries correctly`() =
             runTest {
-                // Given
                 val uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
                 val vectorStoreEntry =
                     VectorStore.QueryResult(
                         id = "query-on-entry",
                         text = "QueryOn content",
                         similarity = 0.85f,
-                        fields = mapOf("authorGID" to "query-on-author", "receivedAt" to "1609459400", "rootId" to "query-on-root"),
+                        fields =
+                            mapOf(
+                                AUTHOR_GID_KEY to "query-on-author",
+                                RECEIVED_AT_KEY to "1609459400",
+                                ROOT_ID_KEY to "query-on-root",
+                            ),
                     )
                 coEvery { vectorStore.queryOn(uuid) } returns createVectorStoreResults(entries = listOf(vectorStoreEntry))
 
-                // When
                 val result = sut.searchOn(QueryOnRequest(uuid.toString()))
 
-                // Then
-                val expectedResult =
-                    SearchResult(
-                        entries =
-                            listOf(
-                                SearchResult.Entry(
-                                    id = "query-on-entry",
-                                    similarity = 0.85f,
-                                ),
-                            ),
-                        queryOnId = testQueryOnId.toString(),
-                    )
-                assertEquals(expectedResult, result)
+                assertEquals(
+                    expectedSearchResult(
+                        entries = listOf(defaultSearchResultEntry(id = "query-on-entry", similarity = 0.85f)),
+                    ),
+                    result,
+                )
             }
     }
 
@@ -1089,13 +896,16 @@ class ContentServiceTest {
                             "content",
                             mapOf(
                                 AUTHOR_GID_KEY to testUserGID,
+                                ROOT_ID_KEY to "root-1",
                             ),
                         ),
                     )
                 setupWriteAccess()
 
-                sut.delete(testUserGID, postId)
+                val deletedIds = sut.delete(testUserGID, postId)
+
                 coVerify { transaction.remove(postId) }
+                assertEquals(listOf(postId), deletedIds)
             }
 
         @Test
@@ -1107,6 +917,55 @@ class ContentServiceTest {
                     }
 
                 assertEquals("id must not be blank", exception.message)
+            }
+
+        @Test
+        fun `removes replies when deleting root post`() =
+            runTest {
+                val rootId = "post-1"
+                coEvery { vectorStore.fetch(listOf(rootId)) } returns
+                    listOf(
+                        VectorStore.PostDump(
+                            rootId,
+                            "content",
+                            mapOf(
+                                AUTHOR_GID_KEY to testUserGID,
+                            ),
+                        ),
+                    )
+                val repliesPage =
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = "reply-1",
+                                    text = "text-1",
+                                    similarity = 1.0f,
+                                    fields = mapOf(ROOT_ID_KEY to rootId),
+                                ),
+                                VectorStore.QueryResult(
+                                    id = "reply-2",
+                                    text = "text-2",
+                                    similarity = 1.0f,
+                                    fields = mapOf(ROOT_ID_KEY to rootId),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                val emptyPage = VectorStore.QueryResults(resultsPage = emptyList(), queryOnId = null)
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to rootId)),
+                    )
+                } returnsMany listOf(repliesPage, emptyPage)
+                setupWriteAccess()
+
+                val deletedIds = sut.delete(testUserGID, rootId)
+
+                coVerify { transaction.remove(rootId) }
+                coVerify { transaction.remove("reply-1") }
+                coVerify { transaction.remove("reply-2") }
+                assertEquals(listOf(rootId, "reply-1", "reply-2"), deletedIds)
             }
     }
 
@@ -1144,7 +1003,7 @@ class ContentServiceTest {
                                     id = "post-2",
                                     text = "text-2",
                                     similarity = 1.0f,
-                                    fields = mapOf(AUTHOR_GID_KEY to testUserGID),
+                                    fields = mapOf(AUTHOR_GID_KEY to testUserGID, ROOT_ID_KEY to "post-1"),
                                 ),
                             ),
                         queryOnId = null,
@@ -1172,6 +1031,29 @@ class ContentServiceTest {
                         Query(fields = mapOf(AUTHOR_GID_KEY to testUserGID)),
                     )
                 } returnsMany listOf(firstPage, secondPage, emptyPage)
+                val repliesPage =
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = "reply-2",
+                                    text = "text-4",
+                                    similarity = 1.0f,
+                                    fields = mapOf(ROOT_ID_KEY to "post-1"),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to "post-1")),
+                    )
+                } returnsMany listOf(repliesPage, emptyPage)
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to "reply-1")),
+                    )
+                } returns emptyPage
                 setupWriteAccess()
 
                 val deletedIds = sut.deleteAllForUser(testUserGID)
@@ -1179,7 +1061,8 @@ class ContentServiceTest {
                 coVerify { transaction.remove("post-1") }
                 coVerify { transaction.remove("post-2") }
                 coVerify { transaction.remove("reply-1") }
-                assertEquals(listOf("post-1", "post-2", "reply-1"), deletedIds)
+                coVerify { transaction.remove("reply-2") }
+                assertEquals(listOf("post-1", "post-2", "reply-2", "reply-1"), deletedIds)
             }
     }
 
@@ -1200,30 +1083,27 @@ class ContentServiceTest {
         @Test
         fun `publishes content with correct parameters`() =
             runTest {
-                // Given
                 val content = "Hello world"
                 val testHash = byteArrayOf(1, 2, 3, 4)
                 setupEmbedding(content)
                 setupHasher(testHash)
                 setupWriteAccess()
 
-                // When
                 val contentId = sut.publish(testUserGID, PublishRequest(content), TEST_TIME)
 
-                // Then
                 assertEquals("AQIDBA", contentId)
                 coVerify { embeddingService.embed(content) }
                 coVerify { hasherFactory() }
                 coVerify { messageDigest.digest(content.toByteArray(Charsets.UTF_8)) }
                 coVerify {
                     transaction.add(
-                        id = "AQIDBA", // Base64 of testHash
+                        id = "AQIDBA",
                         text = content,
                         fields =
                             match { fields ->
-                                fields["authorGID"] == testUserGID &&
-                                    fields.containsKey("receivedAt") &&
-                                    fields["receivedAt"]?.toLongOrNull() != null
+                                fields[AUTHOR_GID_KEY] == testUserGID &&
+                                    fields.containsKey(RECEIVED_AT_KEY) &&
+                                    fields[RECEIVED_AT_KEY]?.toLongOrNull() != null
                             },
                         vector = testEmbedding,
                     )
@@ -1248,7 +1128,6 @@ class ContentServiceTest {
         @Test
         fun `replies with rootId field set for top level root`() =
             runTest {
-                // Given
                 val content = "Reply text"
                 val testHash = byteArrayOf(5, 6, 7, 8)
                 setupEmbedding(content)
@@ -1257,22 +1136,20 @@ class ContentServiceTest {
                 coEvery { vectorStore.query(Query(id = "root-123")) } returns
                     createParentQueryResult("root-123", null)
 
-                // When
                 val contentId =
                     sut.reply(testUserGID, ReplyRequest(PublishRequest(content), "root-123"), TEST_TIME)
 
-                // Then
                 assertEquals("BQYHCA", contentId)
                 coVerify { embeddingService.embed(content) }
                 coVerify {
                     transaction.add(
-                        id = "BQYHCA", // Base64 of testHash
+                        id = "BQYHCA",
                         text = content,
                         fields =
                             mapOf(
-                                "authorGID" to testUserGID,
-                                "receivedAt" to "170000000",
-                                "rootId" to "root-123",
+                                AUTHOR_GID_KEY to testUserGID,
+                                RECEIVED_AT_KEY to "170000000",
+                                ROOT_ID_KEY to "root-123",
                             ),
                         vector = testEmbedding,
                     )
@@ -1294,7 +1171,6 @@ class ContentServiceTest {
         @Test
         fun `throws BadRequest when replying to non-root`() =
             runTest {
-                // Given: parent is itself a reply (has rootId)
                 val content = "Reply text"
                 val testHash = byteArrayOf(5, 6, 7, 8)
                 setupEmbedding(content)
@@ -1302,10 +1178,66 @@ class ContentServiceTest {
                 coEvery { vectorStore.query(Query(id = "child-123")) } returns
                     createParentQueryResult("child-123", "root-123")
 
-                // Then
                 assertThrows<BadRequestException> { sut.reply(testUserGID, ReplyRequest(PublishRequest(content), "child-123"), TEST_TIME) }
             }
     }
+
+    private suspend fun assertScoreQuery(
+        request: QueryRequest,
+        expectedScoreAbove: Float?,
+        expectedScoreBelow: Float?,
+        perform: suspend (QueryRequest) -> Unit,
+    ) {
+        setupEmbedding(request.topic ?: "")
+        var capturedQuery: VectorStore.Query? = null
+        setupVectorStoreWithCapture(capture = { capturedQuery = it })
+
+        perform(request)
+
+        coVerify { vectorStore.query(any()) }
+        with(requireNotNull(capturedQuery)) {
+            assertEquals(true, vector?.contentEquals(testEmbedding))
+            assertEquals(expectedScoreAbove, scoreMustBeAbove)
+            assertEquals(expectedScoreBelow, scoreMustBeBelow)
+            assertNull(fromTime)
+            assertNull(toTime)
+            assertEquals(mapOf(ROOT_ID_KEY to request.threadRootId), fields)
+        }
+    }
+
+    private fun expectedQueryResult(
+        entries: List<QueryResult.Entry> = listOf(defaultQueryResultEntry()),
+        queryOnId: String = testQueryOnId.toString(),
+    ) = QueryResult(entries = entries, queryOnId = queryOnId)
+
+    private fun expectedSearchResult(
+        entries: List<SearchResult.Entry> = listOf(defaultSearchResultEntry()),
+        queryOnId: String = testQueryOnId.toString(),
+    ) = SearchResult(entries = entries, queryOnId = queryOnId)
+
+    private fun defaultQueryResultEntry(
+        id: String = "test-id",
+        content: String = "test content",
+        similarity: Float = 0.9f,
+        authorGID: String = "test-author",
+        storedAt: Long = 1609459200L,
+        rootId: String? = null,
+    ) = QueryResult.Entry(
+        id = id,
+        content = content,
+        similarity = similarity,
+        authorGID = authorGID,
+        storedAt = storedAt,
+        rootId = rootId,
+    )
+
+    private fun defaultSearchResultEntry(
+        id: String = "test-id",
+        similarity: Float = 0.9f,
+    ) = SearchResult.Entry(
+        id = id,
+        similarity = similarity,
+    )
 
     private fun createVectorStoreResults(
         queryOnId: UUID? = testQueryOnId,
@@ -1317,8 +1249,8 @@ class ContentServiceTest {
                     similarity = 0.9f,
                     fields =
                         mapOf(
-                            "authorGID" to "test-author",
-                            "receivedAt" to "1609459200",
+                            AUTHOR_GID_KEY to "test-author",
+                            RECEIVED_AT_KEY to "1609459200",
                         ),
                 ),
             ),
@@ -1329,7 +1261,7 @@ class ContentServiceTest {
 
     private fun setupVectorStoreWithCapture(
         capture: (VectorStore.Query) -> Unit,
-        result: VectorStore.QueryResults = createDefaultQueryResults(),
+        result: VectorStore.QueryResults = createVectorStoreResults(),
     ) {
         coEvery { vectorStore.query(any()) } coAnswers {
             capture(firstArg())

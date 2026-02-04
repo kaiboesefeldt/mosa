@@ -62,6 +62,7 @@ import straightway.mosa.content.QueryResult
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.SearchResult
 import straightway.mosa.content.FetchResult
+import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
 
@@ -761,7 +762,7 @@ private class RecordingPodAccess(
         replyRequests += request
     }
 
-    override suspend fun deletePost(postId: String, jwt: String) {
+    override suspend fun deletePost(postId: String, jwt: String): DeletePostsResult {
         error("Not implemented")
     }
 

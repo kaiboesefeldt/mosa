@@ -58,14 +58,20 @@ class ContentService(
     suspend fun delete(
         userGID: String,
         id: String,
-    ) {
+    ): List<String> {
         if (id.isBlank()) throw BadRequestException("id must not be blank")
         val post = vectorStore.fetch(listOf(id)).singleOrNull() ?: throw ContentNotFoundException()
         val author = post.fields.requireMetadata(post.id, AUTHOR_GID_KEY)
         if (author != userGID) throw ContentForbiddenException()
+        val deletedIds = linkedSetOf<String>()
         vectorStore.writeAccess {
             remove(post.id)
         }
+        deletedIds.add(post.id)
+        if (post.fields[ROOT_ID_KEY] == null) {
+            deleteRepliesForRoot(post.id, deletedIds)
+        }
+        return deletedIds.toList()
     }
 
     suspend fun deleteAllForUser(userGID: String): List<String> {
@@ -76,12 +82,9 @@ class ContentService(
                     VectorStore.Query(fields = mapOf(AUTHOR_GID_KEY to userGID)),
                 )
             if (queryResult.resultsPage.isEmpty()) return deletedIds.toList()
-            vectorStore.writeAccess {
-                queryResult.resultsPage.forEach {
-                    remove(it.id)
-                    deletedIds.add(it.id)
-                }
-            }
+            val rootIds = queryResult.resultsPage.filter { it.fields[ROOT_ID_KEY] == null }.map { it.id }
+            removeQueryResults(queryResult, deletedIds)
+            rootIds.forEach { deleteRepliesForRoot(it, deletedIds) }
         }
     }
 
@@ -100,10 +103,7 @@ class ContentService(
                 ),
             )
 
-        return QueryResult(
-            queryOnId = queryResults.queryOnId?.toString() ?: "",
-            entries = queryResults.resultsPage.map { it.toQueryResultEntry() },
-        )
+        return queryResults.toQueryResult()
     }
 
     suspend fun queryOn(request: QueryOnRequest): QueryResult {
@@ -113,32 +113,20 @@ class ContentService(
             }.getOrNull()
         val queryResults = vectorStore.queryOn(queryOnId)
 
-        return QueryResult(
-            queryOnId = queryResults.queryOnId?.toString() ?: "",
-            entries = queryResults.resultsPage.map { it.toQueryResultEntry() },
-        )
+        return queryResults.toQueryResult()
     }
 
     suspend fun search(request: QueryRequest): SearchResult = query(request).toSearchResult()
 
     suspend fun searchOn(request: QueryOnRequest): SearchResult = queryOn(request).toSearchResult()
 
-    suspend fun fetch(request: FetchRequest): FetchResult =
+    suspend fun fetch(request: FetchRequest): FetchResult {
         if (maxFetchItems < request.itemIds.size) {
             throw BadRequestException("too many itemIds")
-        } else {
-            FetchResult(
-                vectorStore.fetch(request.itemIds).map {
-                    FetchResult.Entry(
-                        it.id,
-                        it.text,
-                        authorGID = it.fields.requireMetadata(it.id, AUTHOR_GID_KEY),
-                        storedAt = it.fields.requireMetadata(it.id, RECEIVED_AT_KEY).toLong(),
-                        rootId = it.fields[ROOT_ID_KEY],
-                    )
-                },
-            )
         }
+        val entries = vectorStore.fetch(request.itemIds).map { it.toFetchEntry() }
+        return FetchResult(entries)
+    }
 
     private fun QueryResult.toSearchResult(): SearchResult =
         SearchResult(
@@ -182,6 +170,21 @@ class ContentService(
                 fields.requireMetadata(id, RECEIVED_AT_KEY).toLong(),
         )
 
+    private fun VectorStore.PostDump.toFetchEntry(): FetchResult.Entry =
+        FetchResult.Entry(
+            id,
+            text,
+            authorGID = fields.requireMetadata(id, AUTHOR_GID_KEY),
+            storedAt = fields.requireMetadata(id, RECEIVED_AT_KEY).toLong(),
+            rootId = fields[ROOT_ID_KEY],
+        )
+
+    private fun VectorStore.QueryResults.toQueryResult(): QueryResult =
+        QueryResult(
+            queryOnId = queryOnId?.toString() ?: "",
+            entries = resultsPage.map { it.toQueryResultEntry() },
+        )
+
     private fun String.hashId(): String =
         Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(
             hasherFactory().digest(toByteArray(Charsets.UTF_8)),
@@ -208,6 +211,32 @@ class ContentService(
         private fun validateLength(text: String) {
             if (text.length > MAX_POST_LENGTH) {
                 throw BadRequestException("text must be at most $MAX_POST_LENGTH characters")
+            }
+        }
+    }
+
+    private suspend fun deleteRepliesForRoot(
+        rootId: String,
+        deletedIds: MutableSet<String>,
+    ) {
+        while (true) {
+            val replies =
+                vectorStore.query(
+                    VectorStore.Query(fields = mapOf(ROOT_ID_KEY to rootId)),
+                )
+            if (replies.resultsPage.isEmpty()) return
+            removeQueryResults(replies, deletedIds)
+        }
+    }
+
+    private suspend fun removeQueryResults(
+        results: VectorStore.QueryResults,
+        deletedIds: MutableSet<String>,
+    ) {
+        vectorStore.writeAccess {
+            results.resultsPage.forEach {
+                remove(it.id)
+                deletedIds.add(it.id)
             }
         }
     }

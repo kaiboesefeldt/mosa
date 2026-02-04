@@ -42,8 +42,8 @@ class ContentController(
             deleteRoute("/posts/{id}") {
                 val gid = userGidOrRespondUnauthorized() ?: return@deleteRoute
                 val id = call.parameters["id"] ?: throw BadRequestException("id is required")
-                contentService.delete(gid, id)
-                call.respond(HttpStatusCode.NoContent, null)
+                val deletedIds = contentService.delete(gid, id)
+                call.respond(HttpStatusCode.OK, DeletePostsResult(deletedIds), typeInfo<DeletePostsResult>())
             }
             postRoute("/query") {
                 userGidOrRespondUnauthorized() ?: return@postRoute

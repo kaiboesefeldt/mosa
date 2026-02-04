@@ -12,11 +12,12 @@ class PostDeletionService(
         val result =
             podSessionProvider.execute("delete post") { session ->
                 session.podAccess.deletePost(postId, session.jwt)
-                true
             }
-        if (result == true) {
-            postCache.evict(postId)
-            replyCache.evict(postId)
+        if (result != null) {
+            result.ids.forEach {
+                postCache.evict(it)
+                replyCache.evict(it)
+            }
             return true
         }
         return false

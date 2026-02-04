@@ -19,6 +19,7 @@ import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
+import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.SearchResult
@@ -125,7 +126,7 @@ private class RecordingPublishPodAccess : PodAccess {
         error("not used")
     }
 
-    override suspend fun deletePost(postId: String, jwt: String) {
+    override suspend fun deletePost(postId: String, jwt: String): DeletePostsResult {
         error("not used")
     }
 

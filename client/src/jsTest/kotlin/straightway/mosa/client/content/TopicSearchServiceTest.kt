@@ -17,6 +17,7 @@ import straightway.mosa.client.pod.InMemoryPodCertificateStore
 import straightway.mosa.client.pod.PodSessionProvider
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
+import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
@@ -341,7 +342,7 @@ private class FakePodAccess(
         error("Not implemented")
     }
 
-    override suspend fun deletePost(postId: String, jwt: String) {
+    override suspend fun deletePost(postId: String, jwt: String): DeletePostsResult {
         error("Not implemented")
     }
 
