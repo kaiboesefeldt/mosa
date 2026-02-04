@@ -226,6 +226,12 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             setSelectedPost(null)
             setReplies(null)
         }
+        replies?.let { currentReplies ->
+            if (currentReplies.entries.any { it.id == postId }) {
+                val filtered = currentReplies.entries.filterNot { it.id == postId }
+                setReplies(currentReplies.copy(entries = filtered))
+            }
+        }
         if (deleteCandidate?.id == postId) {
             setDeleteCandidate(null)
         }
@@ -1011,6 +1017,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     selectedPost = selectedPost,
                     replies = replies,
                     isLoading = isLoadingReplies,
+                    connectedGid = connectedGid,
+                    deleteCandidateId = deleteCandidate?.id,
+                    isDeleting = isDeletingPost,
+                    deleteError = deleteError,
+                    onRequestDelete = ::requestDelete,
+                    onCancelDelete = ::clearDeleteCandidate,
+                    onConfirmDelete = ::confirmDelete,
                     isMobile = isMobile,
                     showBackToPosts = showBackButtons,
                     onBackToPosts = {
@@ -1268,6 +1281,13 @@ private fun ChildrenBuilder.repliesColumn(
     selectedPost: QueryResult.Entry?,
     replies: ThreadReplies?,
     isLoading: Boolean,
+    connectedGid: String?,
+    deleteCandidateId: String?,
+    isDeleting: Boolean,
+    deleteError: String?,
+    onRequestDelete: (QueryResult.Entry) -> Unit,
+    onCancelDelete: () -> Unit,
+    onConfirmDelete: (QueryResult.Entry) -> Unit,
     isComposerOpen: Boolean,
     replyText: String,
     canActivateComposer: Boolean,
@@ -1330,7 +1350,18 @@ private fun ChildrenBuilder.repliesColumn(
                 }
             }
             replyEntries.forEach { reply ->
-                replyCard(visualsFactory, reply)
+                replyCard(
+                    translator = translator,
+                    visualsFactory = visualsFactory,
+                    reply = reply,
+                    connectedGid = connectedGid,
+                    deleteCandidateId = deleteCandidateId,
+                    isDeleting = isDeleting,
+                    deleteError = deleteError,
+                    onRequestDelete = { onRequestDelete(reply) },
+                    onCancelDelete = onCancelDelete,
+                    onConfirmDelete = { onConfirmDelete(reply) },
+                )
             }
         }
     }
@@ -1433,11 +1464,21 @@ private fun ChildrenBuilder.replyComposerPopover(
 }
 
 private fun ChildrenBuilder.replyCard(
+    translator: Translator,
     visualsFactory: IdentityVisualsFactory,
     reply: QueryResult.Entry,
+    connectedGid: String?,
+    deleteCandidateId: String?,
+    isDeleting: Boolean,
+    deleteError: String?,
+    onRequestDelete: () -> Unit,
+    onCancelDelete: () -> Unit,
+    onConfirmDelete: () -> Unit,
 ) {
     val authorVisuals = visualsFactory.createFromGid(reply.authorGID)
     val authorName = authorVisuals.name.toString().trim()
+    val isOwnReply = connectedGid != null && reply.authorGID == connectedGid
+    val showDeletePopover = isOwnReply && deleteCandidateId == reply.id
     div {
         key = reply.id
         className = ClassName("reply-card")
@@ -1454,15 +1495,66 @@ private fun ChildrenBuilder.replyCard(
                     className = ClassName("reply-card__author-name")
                     +authorName
                 }
-                span {
-                    className = ClassName("reply-card__timestamp")
-                    +formatTimestamp(reply.storedAt)
+                div {
+                    className = ClassName("reply-card__meta")
+                    span {
+                        className = ClassName("reply-card__timestamp")
+                        +formatTimestamp(reply.storedAt)
+                    }
+                    if (isOwnReply) {
+                        val deleteLabel = translator.translate("connected.posts.delete.action")
+                        button {
+                            className = ClassName("post-card__delete reply-card__delete")
+                            ariaLabel = deleteLabel
+                            title = deleteLabel
+                            onClick = { onRequestDelete() }
+                            i {
+                                className = ClassName("fa fa-solid fa-trash")
+                            }
+                        }
+                    }
                 }
             }
         }
         div {
             className = ClassName("reply-card__content")
             +reply.content
+        }
+        if (showDeletePopover) {
+            val cancelLabel = translator.translate("connected.posts.delete.cancel")
+            val confirmLabel = translator.translate("connected.posts.delete.confirm")
+            div {
+                className = ClassName("post-card__delete-popover")
+                span {
+                    className = ClassName("post-card__delete-title")
+                    +translator.translate("connected.posts.delete.title")
+                }
+                div {
+                    className = ClassName("post-card__delete-content")
+                    +reply.content
+                }
+                if (deleteError != null) {
+                    div {
+                        className = ClassName("post-card__delete-error")
+                        +deleteError
+                    }
+                }
+                div {
+                    className = ClassName("post-card__delete-actions")
+                    button {
+                        className = ClassName("button button--secondary post-card__delete-cancel")
+                        disabled = isDeleting
+                        onClick = { onCancelDelete() }
+                        +cancelLabel
+                    }
+                    button {
+                        className = ClassName("button button--danger post-card__delete-confirm")
+                        disabled = isDeleting
+                        onClick = { onConfirmDelete() }
+                        +confirmLabel
+                    }
+                }
+            }
         }
     }
 }

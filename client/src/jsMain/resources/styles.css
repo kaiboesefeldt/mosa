@@ -1509,6 +1509,12 @@ button:disabled {
     gap: 0.15rem;
 }
 
+.reply-card__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .reply-card__author-name {
     font-weight: 700;
     color: var(--color-text);
@@ -1518,6 +1524,10 @@ button:disabled {
     font-size: 0.82rem;
     color: var(--color-muted);
     line-height: 1;
+}
+
+.reply-card__delete {
+    margin-left: auto;
 }
 
 .reply-card__content {
