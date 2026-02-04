@@ -340,6 +340,17 @@ private class FakeReplyCache : ReplyCache {
             missingIds = ids.filter { !storedPosts.containsKey(it) },
         )
 
+    override suspend fun evict(postId: String) {
+        if (postId.isBlank()) return
+        storedPosts.remove(postId)
+        snapshots.entries.forEach { (rootId, snapshot) ->
+            val filtered = snapshot.entries.filterNot { it.post.id == postId }
+            if (filtered.size != snapshot.entries.size) {
+                snapshots[rootId] = snapshot.copy(entries = filtered)
+            }
+        }
+    }
+
     override suspend fun clear(rootId: String) {
         snapshots.remove(rootId)
     }

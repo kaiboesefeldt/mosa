@@ -32,6 +32,16 @@ class TopicReferenceStore {
         topics[topic] = TopicRecord(filtered, current.lastFetchedAt)
     }
 
+    fun removePost(postId: String) {
+        if (postId.isBlank()) return
+        topics.entries.forEach { (topic, record) ->
+            val filtered = record.entries.filterNot { it.id == postId }
+            if (filtered.size != record.entries.size) {
+                topics[topic] = TopicRecord(filtered, record.lastFetchedAt)
+            }
+        }
+    }
+
     fun clear(topic: String) {
         topics.remove(topic)
     }

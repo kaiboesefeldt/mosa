@@ -432,6 +432,17 @@ private class FakePostCache : PostCache {
             missingIds = ids.filter { !storedPosts.containsKey(it) },
         )
 
+    override suspend fun evict(postId: String) {
+        if (postId.isBlank()) return
+        storedPosts.remove(postId)
+        snapshots.entries.forEach { (topic, snapshot) ->
+            val filtered = snapshot.entries.filterNot { it.post.id == postId }
+            if (filtered.size != snapshot.entries.size) {
+                snapshots[topic] = snapshot.copy(entries = filtered)
+            }
+        }
+    }
+
     override suspend fun clear(topic: String) {
         snapshots.remove(topic)
     }

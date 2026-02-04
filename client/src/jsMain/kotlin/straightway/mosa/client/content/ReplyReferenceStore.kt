@@ -36,6 +36,16 @@ class ReplyReferenceStore {
         replies[rootId] = ReplyRecord(filtered, current.lastFetchedAt)
     }
 
+    fun removePost(postId: String) {
+        if (postId.isBlank()) return
+        replies.entries.forEach { (rootId, record) ->
+            val filtered = record.entries.filterNot { it.id == postId }
+            if (filtered.size != record.entries.size) {
+                replies[rootId] = ReplyRecord(filtered, record.lastFetchedAt)
+            }
+        }
+    }
+
     fun clear(rootId: String) {
         replies.remove(rootId)
     }

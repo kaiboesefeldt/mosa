@@ -144,7 +144,7 @@ object AppModule : KoinComponent {
                         single<ReplyCache> { IndexedDbReplyCache(get(), get(), get()) }
                         single { TopicRepository(get(), get()) }
                         single { PostPublisher(get()) }
-                        single { PostDeletionService(get()) }
+                        single { PostDeletionService(get(), get(), get()) }
                         single { ReplyPublisher(get()) }
                         single { TopicSearchService(get(), get(), get()) }
                         single { ReplySearchService(get(), get(), get()) }

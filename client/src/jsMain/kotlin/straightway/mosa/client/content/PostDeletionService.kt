@@ -4,6 +4,8 @@ import straightway.mosa.client.pod.PodSessionProvider
 
 class PostDeletionService(
     private val podSessionProvider: PodSessionProvider,
+    private val postCache: PostCache,
+    private val replyCache: ReplyCache,
 ) {
     suspend fun delete(postId: String): Boolean {
         if (postId.isBlank()) return false
@@ -12,6 +14,11 @@ class PostDeletionService(
                 session.podAccess.deletePost(postId, session.jwt)
                 true
             }
-        return result ?: false
+        if (result == true) {
+            postCache.evict(postId)
+            replyCache.evict(postId)
+            return true
+        }
+        return false
     }
 }

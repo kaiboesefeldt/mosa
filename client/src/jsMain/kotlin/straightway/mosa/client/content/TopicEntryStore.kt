@@ -59,6 +59,22 @@ class TopicEntryStore(
         return EntryResolution(resolved, missing)
     }
 
+    suspend fun delete(ids: Collection<String>) {
+        if (ids.isEmpty()) return
+        val database = openDatabase() ?: return
+        try {
+            val transaction =
+                database.transaction(POST_CACHE_ENTRIES_STORE_NAME, IDBTransactionMode.readwrite)
+            val store = transaction.objectStore(POST_CACHE_ENTRIES_STORE_NAME)
+            ids.forEach { id ->
+                asyncBridge.awaitRequest<Any?>(store.delete(entryKey(id)))
+            }
+            asyncBridge.awaitTransaction(transaction)
+        } finally {
+            database.close()
+        }
+    }
+
     private suspend fun storeEntry(
         database: IDBDatabase,
         entry: CachedPost,
@@ -176,4 +192,3 @@ class TopicEntryStore(
 
     }
 }
-

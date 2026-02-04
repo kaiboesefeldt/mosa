@@ -93,6 +93,19 @@ class IndexedDbPostCacheTest {
         }
 
     @Test
+    fun `evict removes post from all topics and entry store`() =
+        runCacheTest { cache, _, _ ->
+            cache.append("alpha", listOf(entry("gone", similarity = 0.4f, storedAt = 10)))
+            cache.append("beta", listOf(entry("gone", similarity = 0.9f, storedAt = 12), entry("stay", 0.2f, 15)))
+
+            cache.evict("gone")
+
+            assertTrue(cache.snapshot("alpha").entries.isEmpty())
+            assertEquals(listOf("stay"), cache.snapshot("beta").entries.map { it.post.id })
+            assertEquals(listOf("stay"), storedEntryIds().sorted())
+        }
+
+    @Test
     fun `evicts oldest entries when exceeding limit`() =
         runCacheTest(maxEntries = 5) { cache, _, _ ->
             val entries = (1..7).map { index ->

@@ -39,6 +39,17 @@ class IndexedDbReplyCache(
                 CachedPostResolution(emptyMap(), ids.toList())
             }
 
+    override suspend fun evict(postId: String) {
+        if (postId.isBlank()) return
+        runCatching {
+            referenceStore.removePost(postId)
+            entryStore.delete(listOf(postId))
+        }.onFailureLogOrThrowCancellation(
+            logger,
+            "IndexedDB reply eviction failed for $postId",
+        )
+    }
+
     override suspend fun clear(rootId: String) {
         runCatching { referenceStore.clear(rootId) }
             .onFailureLogOrThrowCancellation(

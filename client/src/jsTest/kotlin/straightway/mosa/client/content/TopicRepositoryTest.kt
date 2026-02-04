@@ -179,6 +179,8 @@ private class RecordingPostCache : PostCache {
     override suspend fun resolve(ids: Collection<String>): CachedPostResolution =
         CachedPostResolution(emptyMap(), ids.toList())
 
+    override suspend fun evict(postId: String) = Unit
+
     override suspend fun clear(topic: String) {
         clearInvocations += topic
     }
