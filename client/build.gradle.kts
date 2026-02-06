@@ -53,6 +53,7 @@ kotlin {
         val kotlinWrappersVersion = "2025.11.1-19.2.0"
         val diceBearVersion = "9.2.4"
         val fontAwesomeVersion = "7.1.0"
+        val yamlVersion = "2.8.1"
 
         jsMain {
             dependencies {
@@ -70,6 +71,7 @@ kotlin {
                 implementation(npm("@dicebear/core", diceBearVersion))
                 implementation(npm("@dicebear/adventurer-neutral", diceBearVersion))
                 implementation(npm("@fortawesome/fontawesome-free", fontAwesomeVersion))
+                implementation(npm("yaml", yamlVersion))
             }
         }
 
