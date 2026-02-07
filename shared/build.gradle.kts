@@ -21,6 +21,7 @@ val prepareFirefoxEnvironment = rootProject.tasks.named("prepareFirefoxEnvironme
 
 kotlin {
     val kotlinxSerializationVersion = "1.9.0"
+    val kotlinxCoroutinesVersion = "1.10.2"
     jvm() 
     js(IR) {
         browser {
@@ -42,6 +43,7 @@ kotlin {
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinxCoroutinesVersion")
             }
         }
     }
