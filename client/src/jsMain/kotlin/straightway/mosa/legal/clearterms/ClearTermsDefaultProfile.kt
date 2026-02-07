@@ -4,5 +4,5 @@ data class ClearTermsDefaultProfile(
     val id: String,
     val version: String,
     val baseline: ClearTermsReference,
-    val values: Map<String, ClearTermsYamlNode.ScalarNode>,
+    val values: Map<String, ClearTermsJsonNode.ScalarNode>,
 )

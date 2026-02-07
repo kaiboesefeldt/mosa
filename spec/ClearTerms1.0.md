@@ -261,101 +261,112 @@ Invalid ClearTerms configurations MUST be treated as configuration errors.
 
 ---
 
-## 9. YAML Artifact Format (Normative)
+## 9. JSON Artifact Format (Normative)
 
-YAML is the canonical interchange format.
+JSON is the canonical interchange format.
 
-All YAML artifacts:
+All JSON artifacts:
 
 * MUST be UTF-8 encoded
-* MUST use YAML 1.2
-* MUST NOT rely on YAML anchors, aliases, or merge keys
-* MUST be a single mapping at the root
+* MUST use JSON as defined in RFC 8259
+* MUST be a single object at the root
 * MUST reject unknown keys at any nesting level
 * MUST reject duplicate keys at any level
 
 ### 9.0 Canonicalization and Hashing (Normative)
 
-Hashing MUST be performed over a canonical UTF-8 representation of the YAML artifact to avoid hash instability caused by formatting differences.
+Hashing MUST be performed over a canonical UTF-8 representation of the JSON artifact to avoid hash instability caused by formatting differences.
 
 Canonicalization rules:
 
-* The YAML document MUST be serialized as a single mapping with keys sorted lexicographically at every level.
+* The JSON document MUST be serialized as a single object with keys sorted lexicographically at every level.
 * Arrays MUST preserve order.
-* Scalars MUST be rendered in their explicit YAML type:
+* Scalars MUST be rendered in their explicit JSON type:
   * strings MUST use double-quoted style with escaped characters as needed
   * numbers MUST be rendered in decimal form without underscores
   * `null` MUST be rendered as `null`
-* Line endings MUST be `\n`.
-* No extra trailing whitespace on any line.
+* No extra whitespace is allowed in the canonical form.
 
 The hash MUST be computed over the exact UTF-8 bytes of this canonical representation.
 
-### 9.1 Baseline YAML
+### 9.1 Baseline JSON
 
-A Baseline YAML document MUST contain exactly:
+A Baseline JSON document MUST contain exactly:
 
-```yaml
-kind: baseline
-id: <string>
-version: <string>
-texts:
-  <language-tag>:
-    - id: <block-id>
-      text: <text block>
-    - id: <block-id>
-      text: <text block>
+```json
+{
+  "kind": "baseline",
+  "id": "<string>",
+  "version": "<string>",
+  "texts": {
+    "<language-tag>": [
+      { "id": "<block-id>", "text": "<text block>" },
+      { "id": "<block-id>", "text": "<text block>" }
+    ]
+  }
+}
 ```
 
 Rules:
 
-* Each block MUST be a mapping with keys `id` and `text`.
+* Each block MUST be an object with keys `id` and `text`.
 * `id` MUST be a string and MUST be stable within the Baseline family.
 * For multi-language Baselines, corresponding blocks across languages MUST use the same block id.
 * For multi-language Baselines, the set and order of block ids MUST be identical across languages.
 
-### 9.2 Default Profile YAML
+### 9.2 Default Profile JSON
 
-A Default Profile YAML document MUST contain exactly:
+A Default Profile JSON document MUST contain exactly:
 
-```yaml
-kind: default
-id: <string>
-version: <string>
-baseline:
-  id: <string>
-  version: <string>
-  hash: <hash>
-values:
-  <key>: <typed value>
+```json
+{
+  "kind": "default",
+  "id": "<string>",
+  "version": "<string>",
+  "baseline": {
+    "id": "<string>",
+    "version": "<string>",
+    "hash": "<hash>"
+  },
+  "values": {
+    "<key>": "<typed value>"
+  }
+}
 ```
 
 The Baseline reference MUST satisfy §4.2.
 
-### 9.3 Deviation Profile YAML
+### 9.3 Deviation Profile JSON
 
-A Deviation Profile YAML document MUST contain exactly:
+A Deviation Profile JSON document MUST contain exactly:
 
-```yaml
-kind: deviation
-id: <string>
-version: <string>
-default:
-  id: <string>
-  version: <string>
-  hash: <hash>
-overrides:
-  values:
-    <key>: <typed value>
-  texts:
-    <language-tag>:
-      replace:
-        <block-id>: <text block>
-      append:
-        - id: <block-id>
-          text: <text block>
-        - id: <block-id>
-          text: <text block>
+```json
+{
+  "kind": "deviation",
+  "id": "<string>",
+  "version": "<string>",
+  "default": {
+    "id": "<string>",
+    "version": "<string>",
+    "hash": "<hash>"
+  },
+  "overrides": {
+    "values": {
+      "<key>": "<typed value>"
+    },
+    "texts": {
+      "<language-tag>": {
+        "replace": {
+          "<block-id>": "<text block>"
+        },
+        "append": [
+          { "id": "<block-id>", "text": "<text block>" },
+          { "id": "<block-id>", "text": "<text block>" }
+        ]
+      }
+    }
+  }
+}
 ```
 
 Rules:
@@ -380,13 +391,13 @@ Additional constraints for multi-language Baselines:
 * `append` operations MUST append the same number of blocks in every language (one appended block position corresponds across languages), preserving order.
 * Implementations MUST reject deviations that modify texts for only a subset of the Baseline’s languages.
 
-### 9.4 Typed Values in YAML
+### 9.4 Typed Values in JSON
 
-* `string`: YAML string, MUST NOT be null
-* `number`: YAML integer or floating-point number, or null
-* `duration`: YAML string (`<number><unit>` or `infinite`) or null
-* `time`: YAML string (per §6.5) or null
-* `weekday`: YAML string (per §6.6) or null
+* `string`: JSON string, MUST NOT be null
+* `number`: JSON number, or null
+* `duration`: JSON string (`<number><unit>` or `infinite`) or null
+* `time`: JSON string (per §6.5) or null
+* `weekday`: JSON string (per §6.6) or null
 
 ---
 
@@ -414,96 +425,125 @@ This example uses all placeholder types and demonstrates `null` triggering Basel
 
 ### 12.1 Baseline
 
-```yaml
-kind: baseline
-id: example-policy
-version: "1.0"
-texts:
-  en:
-    - id: retention
-      text: |
-        We retain personal data for {{duration:retention_period??as long as necessary}}.
-    - id: start
-      text: |
-        Data processing starts at {{time:start_time??a reasonable time}}.
-    - id: support
-      text: |
-        Our support is available on {{weekday:support_day??business days}}.
-    - id: limit
-      text: |
-        The maximum number of stored records is {{number:max_records??a limited number}}.
-    - id: operator
-      text: |
-        The responsible organization is {{string:operator_name}}.
-  de:
-    - id: retention
-      text: |
-        Wir speichern personenbezogene Daten für {{duration:retention_period??eine angemessene Zeit}}.
-    - id: start
-      text: |
-        Die Datenverarbeitung beginnt um {{time:start_time??einen angemessenen Zeitpunkt}}.
-    - id: support
-      text: |
-        Unser Support ist erreichbar an {{weekday:support_day??Werktagen}}.
-    - id: limit
-      text: |
-        Die maximale Anzahl gespeicherter Einträge beträgt {{number:max_records??eine begrenzte Anzahl}}.
-    - id: operator
-      text: |
-        Verantwortliche Organisation ist {{string:operator_name}}.
+```json
+{
+  "kind": "baseline",
+  "id": "example-policy",
+  "version": "1.0",
+  "texts": {
+    "en": [
+      {
+        "id": "retention",
+        "text": "We retain personal data for {{duration:retention_period??as long as necessary}}."
+      },
+      {
+        "id": "start",
+        "text": "Data processing starts at {{time:start_time??a reasonable time}}."
+      },
+      {
+        "id": "support",
+        "text": "Our support is available on {{weekday:support_day??business days}}."
+      },
+      {
+        "id": "limit",
+        "text": "The maximum number of stored records is {{number:max_records??a limited number}}."
+      },
+      {
+        "id": "operator",
+        "text": "The responsible organization is {{string:operator_name}}."
+      }
+    ],
+    "de": [
+      {
+        "id": "retention",
+        "text": "Wir speichern personenbezogene Daten für {{duration:retention_period??eine angemessene Zeit}}."
+      },
+      {
+        "id": "start",
+        "text": "Die Datenverarbeitung beginnt um {{time:start_time??einen angemessenen Zeitpunkt}}."
+      },
+      {
+        "id": "support",
+        "text": "Unser Support ist erreichbar an {{weekday:support_day??Werktagen}}."
+      },
+      {
+        "id": "limit",
+        "text": "Die maximale Anzahl gespeicherter Einträge beträgt {{number:max_records??eine begrenzte Anzahl}}."
+      },
+      {
+        "id": "operator",
+        "text": "Verantwortliche Organisation ist {{string:operator_name}}."
+      }
+    ]
+  }
+}
 ```
 
 ### 12.2 Default Profile
 
-```yaml
-kind: default
-id: example-policy-default
-version: "1.0"
-baseline:
-  id: example-policy
-  version: "1.0"
-  hash: "sha256:BASELINE_HASH"
-values:
-  retention_period: "30d"
-  start_time: "2025-03-23T13:33:43Z"
-  support_day: mon
-  max_records: 1000
-  operator_name: "Example Organization"
+```json
+{
+  "kind": "default",
+  "id": "example-policy-default",
+  "version": "1.0",
+  "baseline": {
+    "id": "example-policy",
+    "version": "1.0",
+    "hash": "sha256:BASELINE_HASH"
+  },
+  "values": {
+    "retention_period": "30d",
+    "start_time": "2025-03-23T13:33:43Z",
+    "support_day": "mon",
+    "max_records": 1000,
+    "operator_name": "Example Organization"
+  }
+}
 ```
 
 ### 12.3 Deviation Profile
 
-```yaml
-kind: deviation
-id: example-policy-operator
-version: "1.0"
-default:
-  id: example-policy-default
-  version: "1.0"
-  hash: "sha256:DEFAULT_HASH"
-overrides:
-  values:
-    retention_period: infinite
-    max_records: null
-  texts:
-    en:
-      replace:
-        support: |
-          Our support is available on {{weekday:support_day??business days}}.
-          (Operator note: support response times may vary.)
-      append:
-        - id: extra
-          text: |
-            Additional terms: This operator applies stricter rate limits under high load.
-    de:
-      replace:
-        support: |
-          Unser Support ist erreichbar an {{weekday:support_day??Werktagen}}.
-          (Hinweis des Betreibers: Reaktionszeiten können variieren.)
-      append:
-        - id: extra
-          text: |
-            Zusätzliche Bestimmungen: Dieser Betreiber wendet unter hoher Last strengere Ratenbegrenzungen an.
+```json
+{
+  "kind": "deviation",
+  "id": "example-policy-operator",
+  "version": "1.0",
+  "default": {
+    "id": "example-policy-default",
+    "version": "1.0",
+    "hash": "sha256:DEFAULT_HASH"
+  },
+  "overrides": {
+    "values": {
+      "retention_period": "infinite",
+      "max_records": null
+    },
+    "texts": {
+      "en": {
+        "replace": {
+          "support": "Our support is available on {{weekday:support_day??business days}}.\n(Operator note: support response times may vary.)"
+        },
+        "append": [
+          {
+            "id": "extra",
+            "text": "Additional terms: This operator applies stricter rate limits under high load."
+          }
+        ]
+      },
+      "de": {
+        "replace": {
+          "support": "Unser Support ist erreichbar an {{weekday:support_day??Werktagen}}.\n(Hinweis des Betreibers: Reaktionszeiten können variieren.)"
+        },
+        "append": [
+          {
+            "id": "extra",
+            "text": "Zusätzliche Bestimmungen: Dieser Betreiber wendet unter hoher Last strengere Ratenbegrenzungen an."
+          }
+        ]
+      }
+    }
+  }
+}
 ```
 
 Notes:

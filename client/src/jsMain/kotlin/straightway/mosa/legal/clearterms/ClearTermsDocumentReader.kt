@@ -1,7 +1,7 @@
 package straightway.mosa.legal.clearterms
 
 class ClearTermsDocumentReader {
-    fun readBaseline(root: ClearTermsYamlNode.MapNode): ClearTermsBaseline {
+    fun readBaseline(root: ClearTermsJsonNode.ObjectNode): ClearTermsBaseline {
         requireNoExtraKeys(root, setOf("kind", "id", "version", "texts"))
         requireKeys(root, setOf("kind", "id", "version", "texts"))
         val kind = requireString(root, "kind")
@@ -15,10 +15,10 @@ class ClearTermsDocumentReader {
             throw ClearTermsValidationException("Baseline must define at least one language")
         }
         val textsByLanguage = textsNode.entries.mapValues { (language, node) ->
-            val blocksNode = node as? ClearTermsYamlNode.SequenceNode
+            val blocksNode = node as? ClearTermsJsonNode.ArrayNode
                 ?: throw ClearTermsValidationException("Texts for '$language' must be a list")
             blocksNode.items.map { item ->
-                val blockMap = item as? ClearTermsYamlNode.MapNode
+                val blockMap = item as? ClearTermsJsonNode.ObjectNode
                     ?: throw ClearTermsValidationException("Text block must be a mapping")
                 requireNoExtraKeys(blockMap, setOf("id", "text"))
                 requireKeys(blockMap, setOf("id", "text"))
@@ -30,7 +30,7 @@ class ClearTermsDocumentReader {
         return ClearTermsBaseline(id, version, textsByLanguage)
     }
 
-    fun readDefault(root: ClearTermsYamlNode.MapNode): ClearTermsDefaultProfile {
+    fun readDefault(root: ClearTermsJsonNode.ObjectNode): ClearTermsDefaultProfile {
         requireNoExtraKeys(root, setOf("kind", "id", "version", "baseline", "values"))
         requireKeys(root, setOf("kind", "id", "version", "baseline", "values"))
         val kind = requireString(root, "kind")
@@ -49,13 +49,13 @@ class ClearTermsDocumentReader {
         )
         val valuesMap = requireMap(root, "values")
         val values = valuesMap.entries.mapValues { (_, node) ->
-            node as? ClearTermsYamlNode.ScalarNode
+            node as? ClearTermsJsonNode.ScalarNode
                 ?: throw ClearTermsValidationException("Values must be scalar")
         }
         return ClearTermsDefaultProfile(id, version, baselineReference, values)
     }
 
-    fun readDeviation(root: ClearTermsYamlNode.MapNode): ClearTermsDeviationProfile {
+    fun readDeviation(root: ClearTermsJsonNode.ObjectNode): ClearTermsDeviationProfile {
         requireNoExtraKeys(root, setOf("kind", "id", "version", "default", "overrides"))
         requireKeys(root, setOf("kind", "id", "version", "default", "overrides"))
         val kind = requireString(root, "kind")
@@ -77,7 +77,7 @@ class ClearTermsDocumentReader {
         requireKeys(overridesMap, setOf("values"))
         val valuesMap = requireMap(overridesMap, "values")
         val values = valuesMap.entries.mapValues { (_, node) ->
-            node as? ClearTermsYamlNode.ScalarNode
+            node as? ClearTermsJsonNode.ScalarNode
                 ?: throw ClearTermsValidationException("Override values must be scalar")
         }
         val textsNode = overridesMap.entries["texts"]
@@ -86,23 +86,23 @@ class ClearTermsDocumentReader {
         return ClearTermsDeviationProfile(id, version, defaultReference, overrides)
     }
 
-    private fun parseTextOverrides(node: ClearTermsYamlNode): Map<String, ClearTermsDeviationProfile.TextOverrides> {
-        val map = node as? ClearTermsYamlNode.MapNode
+    private fun parseTextOverrides(node: ClearTermsJsonNode): Map<String, ClearTermsDeviationProfile.TextOverrides> {
+        val map = node as? ClearTermsJsonNode.ObjectNode
             ?: throw ClearTermsValidationException("Overrides texts must be a mapping")
         return map.entries.mapValues { (language, entryNode) ->
-            val languageMap = entryNode as? ClearTermsYamlNode.MapNode
+            val languageMap = entryNode as? ClearTermsJsonNode.ObjectNode
                 ?: throw ClearTermsValidationException("Overrides for '$language' must be a mapping")
             requireNoExtraKeys(languageMap, setOf("replace", "append"))
             requireKeys(languageMap, setOf("replace", "append"))
             val replaceNode = requireMap(languageMap, "replace")
             val replace = replaceNode.entries.mapValues { (_, replaceValue) ->
-                val textNode = replaceValue as? ClearTermsYamlNode.ScalarNode.StringNode
+                val textNode = replaceValue as? ClearTermsJsonNode.ScalarNode.StringNode
                     ?: throw ClearTermsValidationException("Replace text must be string")
                 textNode.value
             }
             val appendNode = requireSequence(languageMap, "append")
             val append = appendNode.items.map { item ->
-                val blockMap = item as? ClearTermsYamlNode.MapNode
+                val blockMap = item as? ClearTermsJsonNode.ObjectNode
                     ?: throw ClearTermsValidationException("Append text must be a mapping")
                 requireNoExtraKeys(blockMap, setOf("id", "text"))
                 requireKeys(blockMap, setOf("id", "text"))
@@ -114,36 +114,36 @@ class ClearTermsDocumentReader {
         }
     }
 
-    private fun requireNoExtraKeys(map: ClearTermsYamlNode.MapNode, allowed: Set<String>) {
+    private fun requireNoExtraKeys(map: ClearTermsJsonNode.ObjectNode, allowed: Set<String>) {
         val extra = map.entries.keys.firstOrNull { it !in allowed }
         if (extra != null) {
             throw ClearTermsValidationException("Unknown key '$extra'")
         }
     }
 
-    private fun requireKeys(map: ClearTermsYamlNode.MapNode, required: Set<String>) {
+    private fun requireKeys(map: ClearTermsJsonNode.ObjectNode, required: Set<String>) {
         val missing = required.firstOrNull { it !in map.entries.keys }
         if (missing != null) {
             throw ClearTermsValidationException("Missing key '$missing'")
         }
     }
 
-    private fun requireString(map: ClearTermsYamlNode.MapNode, key: String): String {
+    private fun requireString(map: ClearTermsJsonNode.ObjectNode, key: String): String {
         val node = map.entries[key] ?: throw ClearTermsValidationException("Missing key '$key'")
-        val stringNode = node as? ClearTermsYamlNode.ScalarNode.StringNode
+        val stringNode = node as? ClearTermsJsonNode.ScalarNode.StringNode
             ?: throw ClearTermsValidationException("Key '$key' must be a string")
         return stringNode.value
     }
 
-    private fun requireMap(map: ClearTermsYamlNode.MapNode, key: String): ClearTermsYamlNode.MapNode {
+    private fun requireMap(map: ClearTermsJsonNode.ObjectNode, key: String): ClearTermsJsonNode.ObjectNode {
         val node = map.entries[key] ?: throw ClearTermsValidationException("Missing key '$key'")
-        return node as? ClearTermsYamlNode.MapNode
+        return node as? ClearTermsJsonNode.ObjectNode
             ?: throw ClearTermsValidationException("Key '$key' must be a mapping")
     }
 
-    private fun requireSequence(map: ClearTermsYamlNode.MapNode, key: String): ClearTermsYamlNode.SequenceNode {
+    private fun requireSequence(map: ClearTermsJsonNode.ObjectNode, key: String): ClearTermsJsonNode.ArrayNode {
         val node = map.entries[key] ?: throw ClearTermsValidationException("Missing key '$key'")
-        return node as? ClearTermsYamlNode.SequenceNode
+        return node as? ClearTermsJsonNode.ArrayNode
             ?: throw ClearTermsValidationException("Key '$key' must be a list")
     }
 }

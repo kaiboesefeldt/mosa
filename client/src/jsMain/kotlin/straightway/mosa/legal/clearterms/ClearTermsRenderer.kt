@@ -3,20 +3,20 @@ package straightway.mosa.legal.clearterms
 import straightway.mosa.client.util.textEncode
 
 class ClearTermsRenderer(
-    private val parser: ClearTermsYamlParser,
+    private val parser: ClearTermsJsonParser,
     private val hashProvider: ClearTermsHashProvider,
-    private val canonicalizer: ClearTermsCanonicalYaml = ClearTermsCanonicalYaml(),
+    private val canonicalizer: ClearTermsCanonicalJson = ClearTermsCanonicalJson(),
     private val placeholderParser: ClearTermsPlaceholderParser = ClearTermsPlaceholderParser(),
     private val reader: ClearTermsDocumentReader = ClearTermsDocumentReader(),
 ) {
     suspend fun renderAll(
-        baselineYaml: String,
-        defaultYaml: String,
-        deviationYaml: String,
+        baselineJson: String,
+        defaultJson: String,
+        deviationJson: String,
     ): ClearTermsRenderResult {
-        val baselineNode = parser.parse(baselineYaml)
-        val defaultNode = parser.parse(defaultYaml)
-        val deviationNode = parser.parse(deviationYaml)
+        val baselineNode = parser.parse(baselineJson)
+        val defaultNode = parser.parse(defaultJson)
+        val deviationNode = parser.parse(deviationJson)
 
         val baselineHash = hashFor(baselineNode)
         val defaultHash = hashFor(defaultNode)
@@ -52,17 +52,17 @@ class ClearTermsRenderer(
     }
 
     suspend fun renderLanguage(
-        baselineYaml: String,
-        defaultYaml: String,
-        deviationYaml: String,
+        baselineJson: String,
+        defaultJson: String,
+        deviationJson: String,
         languageTag: String,
     ): String {
-        val result = renderAll(baselineYaml, defaultYaml, deviationYaml)
+        val result = renderAll(baselineJson, defaultJson, deviationJson)
         return result.textsByLanguage[languageTag]
             ?: throw ClearTermsValidationException("Language '$languageTag' not available")
     }
 
-    private suspend fun hashFor(node: ClearTermsYamlNode.MapNode): String {
+    private suspend fun hashFor(node: ClearTermsJsonNode.ObjectNode): String {
         val canonical = canonicalizer.canonicalize(node)
         val digest = hashProvider.sha256(textEncode(canonical))
         return "sha256:${digest.toHexLower()}"
@@ -181,7 +181,7 @@ class ClearTermsRenderer(
     }
 
     private fun validateAndCoerceValues(
-        rawValues: Map<String, ClearTermsYamlNode.ScalarNode>,
+        rawValues: Map<String, ClearTermsJsonNode.ScalarNode>,
         types: Map<String, ClearTermsPlaceholderType>,
         requireAll: Boolean,
     ): Map<String, ClearTermsValue> {
@@ -193,9 +193,9 @@ class ClearTermsRenderer(
             val type = types[key]
                 ?: throw ClearTermsValidationException("Unknown placeholder '$key'")
             val value = when (raw) {
-                is ClearTermsYamlNode.ScalarNode.StringNode -> raw.value
-                is ClearTermsYamlNode.ScalarNode.NumberNode -> raw.value
-                ClearTermsYamlNode.ScalarNode.NullNode -> null
+                is ClearTermsJsonNode.ScalarNode.StringNode -> raw.value
+                is ClearTermsJsonNode.ScalarNode.NumberNode -> raw.value
+                ClearTermsJsonNode.ScalarNode.NullNode -> null
             }
             validateValue(type, value)
             ClearTermsValue(type, value)

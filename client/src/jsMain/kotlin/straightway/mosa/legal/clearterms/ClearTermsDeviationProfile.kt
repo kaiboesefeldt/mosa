@@ -7,7 +7,7 @@ data class ClearTermsDeviationProfile(
     val overrides: Overrides,
 ) {
     data class Overrides(
-        val values: Map<String, ClearTermsYamlNode.ScalarNode>,
+        val values: Map<String, ClearTermsJsonNode.ScalarNode>,
         val texts: Map<String, TextOverrides>?,
     )
 
