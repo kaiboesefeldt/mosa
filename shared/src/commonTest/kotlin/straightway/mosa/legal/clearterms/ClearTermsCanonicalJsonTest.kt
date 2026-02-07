@@ -126,6 +126,20 @@ class ClearTermsCanonicalJsonTest {
     }
 
     @Test
+    fun `escapes backspace and formfeed`() {
+        val root =
+            ClearTermsJsonNode.ObjectNode(
+                mapOf(
+                    "text" to ClearTermsJsonNode.ScalarNode.StringNode("a\b\u000c b"),
+                ),
+            )
+
+        val result = canonicalizer.canonicalize(root)
+
+        assertEquals("{\"text\":\"a\\b\\f b\"}", result)
+    }
+
+    @Test
     fun `rejects non finite numbers`() {
         val root =
             ClearTermsJsonNode.ObjectNode(

@@ -5,7 +5,7 @@ class ClearTermsJsonParser {
         val input = JsonInput(json)
         val value = input.parseValue()
         input.skipWhitespace()
-        if (!input.isAtEnd()) {
+        if (input.hasRemaining()) {
             throw ClearTermsValidationException("Trailing content after JSON value")
         }
         return value as? ClearTermsJsonNode.ObjectNode
@@ -19,7 +19,7 @@ class ClearTermsJsonParser {
 
         fun parseValue(): ClearTermsJsonNode {
             skipWhitespace()
-            if (isAtEnd()) {
+            if (!hasRemaining()) {
                 throw ClearTermsValidationException("Unexpected end of JSON input")
             }
             return when (val ch = peek()) {
@@ -38,18 +38,18 @@ class ClearTermsJsonParser {
         }
 
         fun skipWhitespace() {
-            while (!isAtEnd() && peek().isWhitespace()) {
+            while (hasRemaining() && peek().isWhitespace()) {
                 index += 1
             }
         }
 
-        fun isAtEnd(): Boolean = index >= text.length
+        fun hasRemaining(): Boolean = index < text.length
 
         private fun parseObject(): ClearTermsJsonNode.ObjectNode {
             expect('{')
             skipWhitespace()
             val entries = linkedMapOf<String, ClearTermsJsonNode>()
-            if (peekOrNull() == '}') {
+            if (hasRemaining() && peek() == '}') {
                 index += 1
                 return ClearTermsJsonNode.ObjectNode(entries)
             }
@@ -64,7 +64,10 @@ class ClearTermsJsonParser {
                 val value = parseValue()
                 entries[key] = value
                 skipWhitespace()
-                when (peekOrNull()) {
+                if (!hasRemaining()) {
+                    throw ClearTermsValidationException("Unterminated object")
+                }
+                when (peek()) {
                     ',' -> {
                         index += 1
                         continue
@@ -73,7 +76,6 @@ class ClearTermsJsonParser {
                         index += 1
                         break
                     }
-                    null -> throw ClearTermsValidationException("Unterminated object")
                     else -> throw ClearTermsValidationException("Expected ',' or '}'")
                 }
             }
@@ -84,7 +86,7 @@ class ClearTermsJsonParser {
             expect('[')
             skipWhitespace()
             val items = mutableListOf<ClearTermsJsonNode>()
-            if (peekOrNull() == ']') {
+            if (hasRemaining() && peek() == ']') {
                 index += 1
                 return ClearTermsJsonNode.ArrayNode(items)
             }
@@ -92,7 +94,10 @@ class ClearTermsJsonParser {
                 val value = parseValue()
                 items += value
                 skipWhitespace()
-                when (peekOrNull()) {
+                if (!hasRemaining()) {
+                    throw ClearTermsValidationException("Unterminated array")
+                }
+                when (peek()) {
                     ',' -> {
                         index += 1
                         continue
@@ -101,7 +106,6 @@ class ClearTermsJsonParser {
                         index += 1
                         break
                     }
-                    null -> throw ClearTermsValidationException("Unterminated array")
                     else -> throw ClearTermsValidationException("Expected ',' or ']' ")
                 }
             }
@@ -116,7 +120,7 @@ class ClearTermsJsonParser {
         private fun parseString(): String {
             expect('"')
             val result = StringBuilder()
-            while (!isAtEnd()) {
+            while (hasRemaining()) {
                 val ch = next()
                 when (ch) {
                     '"' -> return result.toString()
@@ -133,10 +137,10 @@ class ClearTermsJsonParser {
         }
 
         private fun parseEscape(): Char {
-            if (isAtEnd()) {
+            if (!hasRemaining()) {
                 throw ClearTermsValidationException("Unterminated escape")
             }
-            return when (val ch = next()) {
+            return when (next()) {
                 '"' -> '"'
                 '\\' -> '\\'
                 '/' -> '/'
@@ -164,21 +168,21 @@ class ClearTermsJsonParser {
 
         private fun parseNumber(): Double {
             val start = index
-            if (peekOrNull() == '-') {
+            if (peek() == '-') {
                 index += 1
             }
-            if (peekOrNull() == '0') {
+            if (hasRemaining() && peek() == '0') {
                 index += 1
             } else {
                 readDigits()
             }
-            if (peekOrNull() == '.') {
+            if (hasRemaining() && peek() == '.') {
                 index += 1
                 readDigits()
             }
-            if (peekOrNull() == 'e' || peekOrNull() == 'E') {
+            if (hasRemaining() && peek().lowercaseChar() == 'e') {
                 index += 1
-                if (peekOrNull() == '+' || peekOrNull() == '-') {
+                if (hasRemaining() && (peek() == '+' || peek() == '-')) {
                     index += 1
                 }
                 readDigits()
@@ -190,7 +194,7 @@ class ClearTermsJsonParser {
 
         private fun readDigits() {
             val start = index
-            while (!isAtEnd() && peek().isDigit()) {
+            while (hasRemaining() && peek().isDigit()) {
                 index += 1
             }
             if (start == index) {
@@ -199,7 +203,7 @@ class ClearTermsJsonParser {
         }
 
         private fun expect(expected: Char) {
-            if (isAtEnd() || peek() != expected) {
+            if (!hasRemaining() || peek() != expected) {
                 throw ClearTermsValidationException("Expected '$expected'")
             }
             index += 1
@@ -213,8 +217,6 @@ class ClearTermsJsonParser {
         }
 
         private fun peek(): Char = text[index]
-
-        private fun peekOrNull(): Char? = if (isAtEnd()) null else text[index]
 
         private fun next(): Char = text[index++]
     }

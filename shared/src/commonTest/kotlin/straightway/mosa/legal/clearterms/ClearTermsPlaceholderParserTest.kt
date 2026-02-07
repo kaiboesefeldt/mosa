@@ -117,4 +117,13 @@ class ClearTermsPlaceholderParserTest {
         assertEquals(" B ", (segments[2] as ClearTermsPlaceholderParser.Segment.Literal).text)
         assertEquals(" C", (segments[4] as ClearTermsPlaceholderParser.Segment.Literal).text)
     }
+
+    @Test
+    fun `skips escaped placeholder ends`() {
+        val segments = parser.parse("Value {{number:limit??\\}}}} end")
+
+        val placeholder = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder
+        assertEquals("limit", placeholder.key)
+        assertEquals("\\}}", placeholder.fallback)
+    }
 }

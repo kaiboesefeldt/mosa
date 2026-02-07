@@ -12,21 +12,21 @@ class ClearTermsDocumentReaderTest {
     fun `reads baseline with multiple languages`() {
         val json =
             """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [
-      { "id": "one", "text": "One" },
-      { "id": "two", "text": "Two" }
-    ],
-    "de": [
-      { "id": "one", "text": "Eins" },
-      { "id": "two", "text": "Zwei" }
-    ]
-  }
-}
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [
+                  { "id": "one", "text": "One" },
+                  { "id": "two", "text": "Two" }
+                ],
+                "de": [
+                  { "id": "one", "text": "Eins" },
+                  { "id": "two", "text": "Zwei" }
+                ]
+              }
+            }
             """.trimIndent()
 
         val baseline = reader.readBaseline(parser.parse(json))
@@ -41,12 +41,12 @@ class ClearTermsDocumentReaderTest {
     fun `rejects baseline without texts`() {
         val json =
             """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {}
-}
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {}
+            }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -58,13 +58,13 @@ class ClearTermsDocumentReaderTest {
     fun `rejects baseline with unknown key`() {
         val json =
             """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": { "en": [ { "id": "one", "text": "One" } ] },
-  "extra": true
-}
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": { "en": [ { "id": "one", "text": "One" } ] },
+              "extra": true
+            }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -76,12 +76,97 @@ class ClearTermsDocumentReaderTest {
     fun `rejects baseline block missing id`() {
         val json =
             """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": { "en": [ { "text": "One" } ] }
-}
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": { "en": [ { "text": "One" } ] }
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readBaseline(parser.parse(json))
+        }
+    }
+
+    @Test
+    fun `rejects baseline with invalid kind`() {
+        val json =
+            """
+            {
+              "kind": "default",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": { "en": [ { "id": "one", "text": "One" } ] }
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readBaseline(parser.parse(json))
+        }
+    }
+
+    @Test
+    fun `rejects baseline texts that are not arrays`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": { "en": { "id": "one", "text": "One" } }
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readBaseline(parser.parse(json))
+        }
+    }
+
+    @Test
+    fun `rejects baseline block that is not a mapping`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": { "en": [ "text" ] }
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readBaseline(parser.parse(json))
+        }
+    }
+
+    @Test
+    fun `rejects baseline block with unknown key`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": { "en": [ { "id": "one", "text": "One", "extra": true } ] }
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readBaseline(parser.parse(json))
+        }
+    }
+
+    @Test
+    fun `rejects baseline block with non string id`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": { "en": [ { "id": 3, "text": "One" } ] }
+            }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -93,17 +178,17 @@ class ClearTermsDocumentReaderTest {
     fun `reads default profile`() {
         val json =
             """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
-  "values": {
-    "operator_name": "Example",
-    "max_records": 10,
-    "retention_period": null
-  }
-}
+            {
+              "kind": "default",
+              "id": "example-policy-default",
+              "version": "1.0",
+              "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "values": {
+                "operator_name": "Example",
+                "max_records": 10,
+                "retention_period": null
+              }
+            }
             """.trimIndent()
 
         val profile = reader.readDefault(parser.parse(json))
@@ -115,16 +200,70 @@ class ClearTermsDocumentReaderTest {
     }
 
     @Test
+    fun `rejects default with invalid kind`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy-default",
+              "version": "1.0",
+              "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "values": {}
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readDefault(parser.parse(json))
+        }
+    }
+
+    @Test
+    fun `rejects default with non string baseline hash`() {
+        val json =
+            """
+            {
+              "kind": "default",
+              "id": "example-policy-default",
+              "version": "1.0",
+              "baseline": { "id": "example-policy", "version": "1.0", "hash": 10 },
+              "values": {}
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readDefault(parser.parse(json))
+        }
+    }
+
+    @Test
+    fun `rejects default with baseline not a mapping`() {
+        val json =
+            """
+            {
+              "kind": "default",
+              "id": "example-policy-default",
+              "version": "1.0",
+              "baseline": "nope",
+              "values": {}
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readDefault(parser.parse(json))
+        }
+    }
+
+    @Test
     fun `rejects default with missing baseline hash`() {
         val json =
             """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0" },
-  "values": {}
-}
+            {
+              "kind": "default",
+              "id": "example-policy-default",
+              "version": "1.0",
+              "baseline": { "id": "example-policy", "version": "1.0" },
+              "values": {}
+            }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -136,15 +275,15 @@ class ClearTermsDocumentReaderTest {
     fun `rejects default with non scalar values`() {
         val json =
             """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
-  "values": {
-    "operator_name": { "nested": "nope" }
-  }
-}
+            {
+              "kind": "default",
+              "id": "example-policy-default",
+              "version": "1.0",
+              "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "values": {
+                "operator_name": { "nested": "nope" }
+              }
+            }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -156,25 +295,25 @@ class ClearTermsDocumentReaderTest {
     fun `reads deviation with text overrides`() {
         val json =
             """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
-  "overrides": {
-    "values": { "max_records": null },
-    "texts": {
-      "en": {
-        "replace": { "support": "Support text" },
-        "append": [ { "id": "extra", "text": "Extra" } ]
-      },
-      "de": {
-        "replace": { "support": "Support DE" },
-        "append": [ { "id": "extra", "text": "Extra DE" } ]
-      }
-    }
-  }
-}
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": {
+                "values": { "max_records": null },
+                "texts": {
+                  "en": {
+                    "replace": { "support": "Support text" },
+                    "append": [ { "id": "extra", "text": "Extra" } ]
+                  },
+                  "de": {
+                    "replace": { "support": "Support DE" },
+                    "append": [ { "id": "extra", "text": "Extra DE" } ]
+                  }
+                }
+              }
+            }
             """.trimIndent()
 
         val deviation = reader.readDeviation(parser.parse(json))
@@ -188,16 +327,34 @@ class ClearTermsDocumentReaderTest {
     }
 
     @Test
+    fun `rejects deviation with invalid kind`() {
+        val json =
+            """
+            {
+              "kind": "default",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": { "values": {} }
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readDeviation(parser.parse(json))
+        }
+    }
+
+    @Test
     fun `reads deviation without texts`() {
         val json =
             """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
-  "overrides": { "values": {} }
-}
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": { "values": {} }
+            }
             """.trimIndent()
 
         val deviation = reader.readDeviation(parser.parse(json))
@@ -210,15 +367,15 @@ class ClearTermsDocumentReaderTest {
     fun `rejects deviation missing overrides values`() {
         val json =
             """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
-  "overrides": {
-    "texts": { "en": { "replace": {}, "append": [] } }
-  }
-}
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": {
+                "texts": { "en": { "replace": {}, "append": [] } }
+              }
+            }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -227,16 +384,78 @@ class ClearTermsDocumentReaderTest {
     }
 
     @Test
+    fun `rejects deviation overrides with non scalar values`() {
+        val json =
+            """
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": {
+                "values": { "max_records": { "nested": 1 } }
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readDeviation(parser.parse(json))
+            }
+
+        assertEquals("Override values must be scalar", exception.message)
+    }
+
+    @Test
     fun `rejects deviation overrides with unknown key`() {
         val json =
             """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
-  "overrides": { "values": {}, "extra": true }
-}
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": { "values": {}, "extra": true }
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readDeviation(parser.parse(json))
+        }
+    }
+
+    @Test
+    fun `rejects deviation texts that are not a mapping`() {
+        val json =
+            """
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": { "values": {}, "texts": [] }
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readDeviation(parser.parse(json))
+        }
+    }
+
+    @Test
+    fun `rejects deviation language override that is not a mapping`() {
+        val json =
+            """
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": {
+                "values": {},
+                "texts": { "en": "invalid" }
+              }
+            }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -248,42 +467,87 @@ class ClearTermsDocumentReaderTest {
     fun `rejects deviation text override with missing replace`() {
         val json =
             """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
-  "overrides": {
-    "values": {},
-    "texts": { "en": { "append": [] } }
-  }
-}
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": {
+                "values": {},
+                "texts": { "en": { "append": [] } }
+              }
+            }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
             reader.readDeviation(parser.parse(json))
         }
+    }
+
+    @Test
+    fun `rejects deviation text override with missing append`() {
+        val json =
+            """
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": {
+                "values": {},
+                "texts": { "en": { "replace": { "support": "Support" } } }
+              }
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readDeviation(parser.parse(json))
+        }
+    }
+
+    @Test
+    fun `rejects deviation text override with non list append`() {
+        val json =
+            """
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": {
+                "values": {},
+                "texts": { "en": { "replace": {}, "append": "invalid" } }
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readDeviation(parser.parse(json))
+            }
+
+        assertEquals("Key 'append' must be a list", exception.message)
     }
 
     @Test
     fun `rejects deviation text override with non string replace`() {
         val json =
             """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
-  "overrides": {
-    "values": {},
-    "texts": {
-      "en": {
-        "replace": { "support": { "nested": true } },
-        "append": []
-      }
-    }
-  }
-}
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": {
+                "values": {},
+                "texts": {
+                  "en": {
+                    "replace": { "support": { "nested": true } },
+                    "append": []
+                  }
+                }
+              }
+            }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -292,24 +556,109 @@ class ClearTermsDocumentReaderTest {
     }
 
     @Test
+    fun `rejects deviation text override with numeric replace text`() {
+        val json =
+            """
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": {
+                "values": {},
+                "texts": {
+                  "en": {
+                    "replace": { "support": 12 },
+                    "append": []
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readDeviation(parser.parse(json))
+            }
+
+        assertEquals("Replace text must be string", exception.message)
+    }
+
+    @Test
+    fun `rejects deviation text override with unknown key`() {
+        val json =
+            """
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": {
+                "values": {},
+                "texts": {
+                  "en": {
+                    "replace": {},
+                    "append": [],
+                    "extra": "invalid"
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readDeviation(parser.parse(json))
+            }
+
+        assertEquals("Unknown key 'extra'", exception.message)
+    }
+
+    @Test
     fun `rejects deviation append block missing text`() {
         val json =
             """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
-  "overrides": {
-    "values": {},
-    "texts": {
-      "en": {
-        "replace": {},
-        "append": [ { "id": "extra" } ]
-      }
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": {
+                "values": {},
+                "texts": {
+                  "en": {
+                    "replace": {},
+                    "append": [ { "id": "extra" } ]
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readDeviation(parser.parse(json))
+        }
     }
-  }
-}
+
+    @Test
+    fun `rejects deviation append block that is not a mapping`() {
+        val json =
+            """
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:def" },
+              "overrides": {
+                "values": {},
+                "texts": {
+                  "en": {
+                    "replace": {},
+                    "append": [ "invalid" ]
+                  }
+                }
+              }
+            }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {

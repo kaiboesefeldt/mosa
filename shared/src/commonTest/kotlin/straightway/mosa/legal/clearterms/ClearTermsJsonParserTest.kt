@@ -87,6 +87,18 @@ class ClearTermsJsonParserTest {
     }
 
     @Test
+    fun `rejects unterminated array right after opening bracket`() {
+        val json =
+            """
+{ "root": [
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
     fun `parses empty object`() {
         val json =
             """
@@ -113,11 +125,271 @@ class ClearTermsJsonParserTest {
     }
 
     @Test
+    fun `parses unicode escapes with hex letters`() {
+        val json =
+            """
+{ "root": "\u00af" }
+            """.trimIndent()
+
+        val root = parser.parse(json)
+        val value = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.StringNode
+
+        assertEquals("\u00af", value.value)
+    }
+
+    @Test
     fun `rejects invalid escape`() {
         val json =
             """
 { "root": "\x" }
             """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects trailing content after value`() {
+        val json =
+            """
+{ "root": {} } trailing
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects empty input`() {
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse("")
+        }
+    }
+
+    @Test
+    fun `parses negative numbers`() {
+        val json =
+            """
+{ "root": -12 }
+            """.trimIndent()
+
+        val root = parser.parse(json)
+        val value = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.NumberNode
+
+        assertEquals(-12.0, value.value)
+    }
+
+    @Test
+    fun `rejects negative sign without digits`() {
+        val json =
+            """
+{ "root": - }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects root negative sign without digits`() {
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse("-")
+        }
+    }
+
+    @Test
+    fun `parses zero`() {
+        val json =
+            """
+{ "root": 0 }
+            """.trimIndent()
+
+        val root = parser.parse(json)
+        val value = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.NumberNode
+
+        assertEquals(0.0, value.value)
+    }
+
+    @Test
+    fun `rejects unterminated object`() {
+        val json =
+            """
+{ "root": { "a": 1
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects object missing comma`() {
+        val json =
+            """
+{ "root": { "a": 1 "b": 2 } }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects object missing colon`() {
+        val json =
+            """
+{ "root" 1 }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects unterminated array`() {
+        val json =
+            """
+{ "root": [ 1
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects array missing comma`() {
+        val json =
+            """
+{ "root": [1 2] }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects control characters in strings`() {
+        val control = 0x01.toChar()
+        val json = "{ \"root\": \"$control\" }"
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects unterminated string`() {
+        val json =
+            """
+{ "root": "value }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects unterminated escape`() {
+        val json = "{ \"root\": \"value\\"
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `parses standard escape sequences`() {
+        val json = "{ \"root\": \"\\\" \\\\ \\/ \\b \\f \\n \\r \\t\" }"
+
+        val root = parser.parse(json)
+        val value = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.StringNode
+
+        assertEquals("\" \\ / \b \u000c \n \r \t", value.value)
+    }
+
+    @Test
+    fun `rejects invalid unicode escape length`() {
+        val json = "{\"root\":\"\\u\"}"
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects invalid unicode escape characters`() {
+        val json = "{ \"root\": \"\\uZZZZ\" }"
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects numbers without digits after exponent`() {
+        val json =
+            """
+{ "root": 1e }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects root exponent without digits`() {
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse("1e")
+        }
+    }
+
+    @Test
+    fun `parses exponent with plus and minus`() {
+        val plusJson = """{ "root": 1e+2 }"""
+        val minusJson = """{ "root": 1e-2 }"""
+
+        val plusValue = parser.parse(plusJson).entries.getValue("root") as ClearTermsJsonNode.ScalarNode.NumberNode
+        val minusValue = parser.parse(minusJson).entries.getValue("root") as ClearTermsJsonNode.ScalarNode.NumberNode
+
+        assertEquals(100.0, plusValue.value)
+        assertEquals(0.01, minusValue.value)
+    }
+
+    @Test
+    fun `rejects incomplete object key`() {
+        val json =
+            """
+{
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects invalid null literal`() {
+        val json =
+            """
+{ "root": nul }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            parser.parse(json)
+        }
+    }
+
+    @Test
+    fun `rejects numbers with non ascii digits`() {
+        val json = "{ \"root\": \u0661 }"
 
         assertFailsWith<ClearTermsValidationException> {
             parser.parse(json)

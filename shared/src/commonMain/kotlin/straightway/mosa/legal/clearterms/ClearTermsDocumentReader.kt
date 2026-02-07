@@ -151,7 +151,7 @@ class ClearTermsDocumentReader {
         map: ClearTermsJsonNode.ObjectNode,
         key: String,
     ): String {
-        val node = map.entries[key] ?: throw ClearTermsValidationException("Missing key '$key'")
+        val node = map.entries.getValue(key)
         val stringNode =
             node as? ClearTermsJsonNode.ScalarNode.StringNode
                 ?: throw ClearTermsValidationException("Key '$key' must be a string")
@@ -162,7 +162,7 @@ class ClearTermsDocumentReader {
         map: ClearTermsJsonNode.ObjectNode,
         key: String,
     ): ClearTermsJsonNode.ObjectNode {
-        val node = map.entries[key] ?: throw ClearTermsValidationException("Missing key '$key'")
+        val node = map.entries.getValue(key)
         return node as? ClearTermsJsonNode.ObjectNode
             ?: throw ClearTermsValidationException("Key '$key' must be a mapping")
     }
@@ -171,7 +171,7 @@ class ClearTermsDocumentReader {
         map: ClearTermsJsonNode.ObjectNode,
         key: String,
     ): ClearTermsJsonNode.ArrayNode {
-        val node = map.entries[key] ?: throw ClearTermsValidationException("Missing key '$key'")
+        val node = map.entries.getValue(key)
         return node as? ClearTermsJsonNode.ArrayNode
             ?: throw ClearTermsValidationException("Key '$key' must be a list")
     }

@@ -29,19 +29,16 @@ class ClearTermsRenderer(
 
         validateBaselineStructure(baseline)
 
-        val baselinePlaceholders = placeholdersByKey(baseline.textsByLanguage, allowFallback = true)
+        val baselinePlaceholders = placeholdersByKey(baseline.textsByLanguage)
 
         val defaultValues = validateAndCoerceValues(defaultProfile.values, baselinePlaceholders, requireAll = true)
-        validateNoUnusedKeys(defaultValues.keys, baselinePlaceholders.keys, "default profile")
 
         val effectiveTexts = applyTextOverrides(baseline, deviationProfile.overrides.texts)
-        val effectivePlaceholders = placeholdersByKey(effectiveTexts, allowFallback = true)
+        val effectivePlaceholders = placeholdersByKey(effectiveTexts)
 
         val deviationValues = validateAndCoerceValues(deviationProfile.overrides.values, effectivePlaceholders, requireAll = false)
-        validateNoUnusedKeys(deviationValues.keys, effectivePlaceholders.keys, "deviation overrides")
 
         val effectiveValues = defaultValues + deviationValues
-        validateCompleteness(effectiveValues.keys, effectivePlaceholders.keys)
 
         val renderedByLanguage =
             effectiveTexts.mapValues { (_, blocks) ->
@@ -87,7 +84,7 @@ class ClearTermsRenderer(
 
     private fun validateBaselineStructure(baseline: ClearTermsBaseline) {
         val languages = baseline.textsByLanguage
-        val referenceBlocks = languages.values.firstOrNull() ?: return
+        val referenceBlocks = languages.values.first()
         val referenceIds = referenceBlocks.map { it.id }
         referenceIds.requireUnique("Baseline block ids must be unique")
         languages.forEach { (language, blocks) ->
@@ -161,17 +158,11 @@ class ClearTermsRenderer(
         }
     }
 
-    private fun placeholdersByKey(
-        textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
-        allowFallback: Boolean,
-    ): Map<String, ClearTermsPlaceholderType> {
+    private fun placeholdersByKey(textsByLanguage: Map<String, List<ClearTermsTextBlock>>): Map<String, ClearTermsPlaceholderType> {
         val placeholders = linkedMapOf<String, ClearTermsPlaceholderType>()
         textsByLanguage.values.flatten().forEach { block ->
             val segments = placeholderParser.parse(block.text)
             segments.filterIsInstance<ClearTermsPlaceholderParser.Segment.Placeholder>().forEach { segment ->
-                if (!allowFallback && segment.placeholder.fallback != null) {
-                    throw ClearTermsValidationException("Fallbacks are not allowed in deviation text")
-                }
                 val key = segment.placeholder.key
                 val type = segment.placeholder.type
                 val existing = placeholders[key]
@@ -268,27 +259,6 @@ class ClearTermsRenderer(
         }
     }
 
-    private fun validateNoUnusedKeys(
-        keys: Set<String>,
-        used: Set<String>,
-        label: String,
-    ) {
-        val unused = keys.firstOrNull { it !in used }
-        if (unused != null) {
-            throw ClearTermsValidationException("Unused value '$unused' in $label")
-        }
-    }
-
-    private fun validateCompleteness(
-        provided: Set<String>,
-        required: Set<String>,
-    ) {
-        val missing = required.firstOrNull { it !in provided }
-        if (missing != null) {
-            throw ClearTermsValidationException("Missing value for '$missing'")
-        }
-    }
-
     private fun renderBlocks(
         blocks: List<ClearTermsTextBlock>,
         values: Map<String, ClearTermsValue>,
@@ -365,9 +335,6 @@ class ClearTermsRenderer(
         value: ClearTermsValue,
         placeholder: ClearTermsPlaceholder,
     ): String {
-        if (value.type != placeholder.type) {
-            throw ClearTermsValidationException("Placeholder type mismatch for '${placeholder.key}'")
-        }
         val raw = value.value
         if (raw == null) {
             return placeholder.fallback
