@@ -1,10 +1,9 @@
 package straightway.mosa.legal.clearterms
 
-import straightway.mosa.client.util.textEncode
-
 class ClearTermsRenderer(
     private val parser: ClearTermsJsonParser,
     private val hashProvider: ClearTermsHashProvider,
+    private val textEncoder: ClearTermsTextEncoder,
     private val canonicalizer: ClearTermsCanonicalJson = ClearTermsCanonicalJson(),
     private val placeholderParser: ClearTermsPlaceholderParser = ClearTermsPlaceholderParser(),
     private val reader: ClearTermsDocumentReader = ClearTermsDocumentReader(),
@@ -44,9 +43,10 @@ class ClearTermsRenderer(
         val effectiveValues = defaultValues + deviationValues
         validateCompleteness(effectiveValues.keys, effectivePlaceholders.keys)
 
-        val renderedByLanguage = effectiveTexts.mapValues { (_, blocks) ->
-            renderBlocks(blocks, effectiveValues)
-        }
+        val renderedByLanguage =
+            effectiveTexts.mapValues { (_, blocks) ->
+                renderBlocks(blocks, effectiveValues)
+            }
 
         return ClearTermsRenderResult(renderedByLanguage)
     }
@@ -64,11 +64,16 @@ class ClearTermsRenderer(
 
     private suspend fun hashFor(node: ClearTermsJsonNode.ObjectNode): String {
         val canonical = canonicalizer.canonicalize(node)
-        val digest = hashProvider.sha256(textEncode(canonical))
+        val digest = hashProvider.sha256(textEncoder.encode(canonical))
         return "sha256:${digest.toHexLower()}"
     }
 
-    private fun validateReference(reference: ClearTermsReference, id: String, version: String, hash: String) {
+    private fun validateReference(
+        reference: ClearTermsReference,
+        id: String,
+        version: String,
+        hash: String,
+    ) {
         if (reference.id != id) {
             throw ClearTermsValidationException("Reference id mismatch")
         }
@@ -104,8 +109,15 @@ class ClearTermsRenderer(
         if (overrides.keys != baseline.textsByLanguage.keys) {
             throw ClearTermsValidationException("Deviation texts must cover all baseline languages")
         }
-        val baselineIds = baseline.textsByLanguage.values.first().map { it.id }.toSet()
-        val replaceKeys = overrides.values.first().replace.keys
+        val baselineIds =
+            baseline.textsByLanguage.values
+                .first()
+                .map { it.id }
+                .toSet()
+        val replaceKeys =
+            overrides.values
+                .first()
+                .replace.keys
         overrides.values.forEach { languageOverrides ->
             if (languageOverrides.replace.keys != replaceKeys) {
                 throw ClearTermsValidationException("Replace block ids must match across languages")
@@ -136,14 +148,15 @@ class ClearTermsRenderer(
         }
         return baseline.textsByLanguage.mapValues { (language, blocks) ->
             val languageOverrides = overrides.getValue(language)
-            val replaced = blocks.map { block ->
-                val replacement = languageOverrides.replace[block.id]
-                if (replacement == null) {
-                    block
-                } else {
-                    ClearTermsTextBlock(block.id, replacement)
+            val replaced =
+                blocks.map { block ->
+                    val replacement = languageOverrides.replace[block.id]
+                    if (replacement == null) {
+                        block
+                    } else {
+                        ClearTermsTextBlock(block.id, replacement)
+                    }
                 }
-            }
             replaced + languageOverrides.append
         }
     }
@@ -190,19 +203,24 @@ class ClearTermsRenderer(
             throw ClearTermsValidationException("Missing value for '$missing'")
         }
         return rawValues.mapValues { (key, raw) ->
-            val type = types[key]
-                ?: throw ClearTermsValidationException("Unknown placeholder '$key'")
-            val value = when (raw) {
-                is ClearTermsJsonNode.ScalarNode.StringNode -> raw.value
-                is ClearTermsJsonNode.ScalarNode.NumberNode -> raw.value
-                ClearTermsJsonNode.ScalarNode.NullNode -> null
-            }
+            val type =
+                types[key]
+                    ?: throw ClearTermsValidationException("Unknown placeholder '$key'")
+            val value =
+                when (raw) {
+                    is ClearTermsJsonNode.ScalarNode.StringNode -> raw.value
+                    is ClearTermsJsonNode.ScalarNode.NumberNode -> raw.value
+                    ClearTermsJsonNode.ScalarNode.NullNode -> null
+                }
             validateValue(type, value)
             ClearTermsValue(type, value)
         }
     }
 
-    private fun validateValue(type: ClearTermsPlaceholderType, value: Any?) {
+    private fun validateValue(
+        type: ClearTermsPlaceholderType,
+        value: Any?,
+    ) {
         when (type) {
             ClearTermsPlaceholderType.STRING -> {
                 if (value !is String) {
@@ -216,8 +234,9 @@ class ClearTermsRenderer(
             }
             ClearTermsPlaceholderType.DURATION -> {
                 if (value != null) {
-                    val text = value as? String
-                        ?: throw ClearTermsValidationException("Duration value must be string")
+                    val text =
+                        value as? String
+                            ?: throw ClearTermsValidationException("Duration value must be string")
                     val normalized = normalizeScalarString(text)
                     if (!isValidDuration(normalized)) {
                         throw ClearTermsValidationException("Invalid duration value '$normalized'")
@@ -226,8 +245,9 @@ class ClearTermsRenderer(
             }
             ClearTermsPlaceholderType.TIME -> {
                 if (value != null) {
-                    val text = value as? String
-                        ?: throw ClearTermsValidationException("Time value must be string")
+                    val text =
+                        value as? String
+                            ?: throw ClearTermsValidationException("Time value must be string")
                     val normalized = normalizeScalarString(text)
                     if (!timeRegex.matches(normalized)) {
                         throw ClearTermsValidationException("Invalid time value '$normalized'")
@@ -236,8 +256,9 @@ class ClearTermsRenderer(
             }
             ClearTermsPlaceholderType.WEEKDAY -> {
                 if (value != null) {
-                    val text = value as? String
-                        ?: throw ClearTermsValidationException("Weekday value must be string")
+                    val text =
+                        value as? String
+                            ?: throw ClearTermsValidationException("Weekday value must be string")
                     val normalized = normalizeScalarString(text)
                     if (!weekdayRegex.matches(normalized)) {
                         throw ClearTermsValidationException("Invalid weekday value '$normalized'")
@@ -247,21 +268,31 @@ class ClearTermsRenderer(
         }
     }
 
-    private fun validateNoUnusedKeys(keys: Set<String>, used: Set<String>, label: String) {
+    private fun validateNoUnusedKeys(
+        keys: Set<String>,
+        used: Set<String>,
+        label: String,
+    ) {
         val unused = keys.firstOrNull { it !in used }
         if (unused != null) {
             throw ClearTermsValidationException("Unused value '$unused' in $label")
         }
     }
 
-    private fun validateCompleteness(provided: Set<String>, required: Set<String>) {
+    private fun validateCompleteness(
+        provided: Set<String>,
+        required: Set<String>,
+    ) {
         val missing = required.firstOrNull { it !in provided }
         if (missing != null) {
             throw ClearTermsValidationException("Missing value for '$missing'")
         }
     }
 
-    private fun renderBlocks(blocks: List<ClearTermsTextBlock>, values: Map<String, ClearTermsValue>): String {
+    private fun renderBlocks(
+        blocks: List<ClearTermsTextBlock>,
+        values: Map<String, ClearTermsValue>,
+    ): String {
         val rendered = blocks.joinToString("") { block -> renderText(block.text, values) }
         if (containsUnresolvedPlaceholder(rendered)) {
             throw ClearTermsValidationException("Rendered text contains unresolved placeholders")
@@ -269,7 +300,10 @@ class ClearTermsRenderer(
         return rendered
     }
 
-    private fun renderText(text: String, values: Map<String, ClearTermsValue>): String {
+    private fun renderText(
+        text: String,
+        values: Map<String, ClearTermsValue>,
+    ): String {
         val segments = placeholderParser.parse(text)
         val result = StringBuilder()
         segments.forEach { segment ->
@@ -277,8 +311,9 @@ class ClearTermsRenderer(
                 is ClearTermsPlaceholderParser.Segment.Literal -> result.append(segment.text)
                 is ClearTermsPlaceholderParser.Segment.Placeholder -> {
                     val placeholder = segment.placeholder
-                    val value = values[placeholder.key]
-                        ?: throw ClearTermsValidationException("Missing value for '${placeholder.key}'")
+                    val value =
+                        values[placeholder.key]
+                            ?: throw ClearTermsValidationException("Missing value for '${placeholder.key}'")
                     val rendered = renderValue(value, placeholder)
                     result.append(rendered)
                 }
@@ -314,10 +349,11 @@ class ClearTermsRenderer(
         if (typeAndKey.size != 2) {
             return false
         }
-        val type = when (typeAndKey[0]) {
-            "string", "number", "duration", "time", "weekday" -> true
-            else -> false
-        }
+        val type =
+            when (typeAndKey[0]) {
+                "string", "number", "duration", "time", "weekday" -> true
+                else -> false
+            }
         if (!type) {
             return false
         }
@@ -325,7 +361,10 @@ class ClearTermsRenderer(
         return key.isNotBlank() && key.none { it.isWhitespace() }
     }
 
-    private fun renderValue(value: ClearTermsValue, placeholder: ClearTermsPlaceholder): String {
+    private fun renderValue(
+        value: ClearTermsValue,
+        placeholder: ClearTermsPlaceholder,
+    ): String {
         if (value.type != placeholder.type) {
             throw ClearTermsValidationException("Placeholder type mismatch for '${placeholder.key}'")
         }
@@ -376,10 +415,11 @@ class ClearTermsRenderer(
         return number.toDoubleOrNull() != null
     }
 
-    private fun ByteArray.toHexLower(): String = joinToString("") { byte ->
-        val value = byte.toInt() and 0xff
-        value.toString(16).padStart(2, '0')
-    }
+    private fun ByteArray.toHexLower(): String =
+        joinToString("") { byte ->
+            val value = byte.toInt() and 0xff
+            value.toString(16).padStart(2, '0')
+        }
 
     private fun List<String>.requireUnique(message: String) {
         val duplicates = groupBy { it }.filterValues { it.size > 1 }

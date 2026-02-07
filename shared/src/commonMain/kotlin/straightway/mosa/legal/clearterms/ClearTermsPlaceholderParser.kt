@@ -40,7 +40,10 @@ class ClearTermsPlaceholderParser {
         return segments
     }
 
-    private fun findPlaceholderEnd(text: String, startIndex: Int): Int {
+    private fun findPlaceholderEnd(
+        text: String,
+        startIndex: Int,
+    ): Int {
         var index = startIndex
         while (index < text.length - 1) {
             if (text.startsWith("\\}}", index)) {
@@ -82,18 +85,23 @@ class ClearTermsPlaceholderParser {
         return main to fallback
     }
 
-    private fun parseType(value: String): ClearTermsPlaceholderType = when (value) {
-        "string" -> ClearTermsPlaceholderType.STRING
-        "number" -> ClearTermsPlaceholderType.NUMBER
-        "duration" -> ClearTermsPlaceholderType.DURATION
-        "time" -> ClearTermsPlaceholderType.TIME
-        "weekday" -> ClearTermsPlaceholderType.WEEKDAY
-        else -> throw ClearTermsValidationException("Unsupported placeholder type")
-    }
+    private fun parseType(value: String): ClearTermsPlaceholderType =
+        when (value) {
+            "string" -> ClearTermsPlaceholderType.STRING
+            "number" -> ClearTermsPlaceholderType.NUMBER
+            "duration" -> ClearTermsPlaceholderType.DURATION
+            "time" -> ClearTermsPlaceholderType.TIME
+            "weekday" -> ClearTermsPlaceholderType.WEEKDAY
+            else -> throw ClearTermsValidationException("Unsupported placeholder type")
+        }
 
     sealed class Segment {
-        data class Literal(val text: String) : Segment()
+        data class Literal(
+            val text: String,
+        ) : Segment()
 
-        data class Placeholder(val placeholder: ClearTermsPlaceholder) : Segment()
+        data class Placeholder(
+            val placeholder: ClearTermsPlaceholder,
+        ) : Segment()
     }
 }

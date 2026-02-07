@@ -12,7 +12,9 @@ class ClearTermsJsonParser {
             ?: throw ClearTermsValidationException("Root JSON value must be an object")
     }
 
-    private class JsonInput(private val text: String) {
+    private class JsonInput(
+        private val text: String,
+    ) {
         private var index: Int = 0
 
         fun parseValue(): ClearTermsJsonNode {
@@ -26,11 +28,12 @@ class ClearTermsJsonParser {
                 '"' -> ClearTermsJsonNode.ScalarNode.StringNode(parseString())
                 'n' -> parseNull()
                 't', 'f' -> throw ClearTermsValidationException("Boolean values are not supported")
-                else -> if (ch == '-' || ch.isDigit()) {
-                    ClearTermsJsonNode.ScalarNode.NumberNode(parseNumber())
-                } else {
-                    throw ClearTermsValidationException("Unexpected character '$ch'")
-                }
+                else ->
+                    if (ch == '-' || ch.isDigit()) {
+                        ClearTermsJsonNode.ScalarNode.NumberNode(parseNumber())
+                    } else {
+                        throw ClearTermsValidationException("Unexpected character '$ch'")
+                    }
             }
         }
 
