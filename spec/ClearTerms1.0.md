@@ -148,9 +148,19 @@ Clients:
 Placeholders in text blocks MUST use one of the following forms:
 
 * `{{type:key}}`
+* `{{type:key?options}}`
 * `{{type:key??fallback}}`
+* `{{type:key?options??fallback}}`
 
-`fallback` is a language-specific literal string fragment that is rendered verbatim if (and only if) the resolved value of `key` is `null`.
+`options` is a restricted key-value list (`key=value&key=value`). Options are type-specific and MUST be rejected if unknown or invalid.
+
+`fallback` is a language-specific literal string fragment that is rendered verbatim if (and only if) the resolved value of `key` is `null`. `fallback` is never formatted by `options`.
+
+`options` parsing rules:
+
+* The `?options` section ends at the first occurrence of `??`.
+* `options` values MUST match the restricted option grammar defined by the placeholder type.
+* `fallback` MUST NOT contain the sequence `??`.
 
 #### Escaping
 
@@ -183,10 +193,32 @@ No additional types are defined in this version.
 * `??fallback` MUST NOT be used for `string` placeholders.
 * All other types (`number`, `duration`, `time`, `weekday`) MAY be `null`, meaning “not specified”.
 * If a value is `null`, rendering MUST use the Baseline’s inline fallback (`??fallback`).
+* `fallback` is rendered verbatim and MUST NOT be processed by any formatting option.
 * Default and Deviation profiles MUST NOT define fallbacks.
 * If a placeholder evaluates to `null` and no fallback exists in the Baseline text for the relevant language, rendering MUST fail.
 
-### 6.4 `duration`
+### 6.4 `number` Formatting
+
+`number` placeholders MAY define rendering options via `?options`.
+
+Supported options:
+
+* `format`
+  * `integer`: round to nearest integer, no fractional digits
+  * `decimal(n)`: render with exactly `n` fractional digits, rounded to nearest with ties away from zero
+  * `auto`: if the value is an integer, render without fractional digits; otherwise render without trailing zeros
+* `grouping`
+  * `on`: use locale-specific thousands separators
+  * `off`: no grouping
+
+Defaults:
+
+* `format=auto`
+* `grouping=on`
+
+Formatting uses the Baseline language for locale selection.
+
+### 6.5 `duration`
 
 Allowed values:
 
@@ -201,7 +233,7 @@ Semantics:
 * `infinite` means explicitly unbounded
 * `null` means unspecified (and MUST NOT be treated as `infinite`)
 
-### 6.5 `time`
+### 6.6 `time`
 
 Time values are ISO-like strings with wildcards.
 
@@ -209,13 +241,44 @@ Accepted forms:
 
 * `YYYY-MM-DD`
 * `YYYY-MM-DDThh:mm[:ss](Z|[+-]hh:mm)`
-* Wildcards: `*` MAY replace any of `YYYY`, `MM`, `DD`, `hh`, `mm`, `ss` in the forms above.
+* Wildcards: `*` MAY replace any of `YYYY`, `MM`, `DD` in the forms above.
+
+Wildcards MUST NOT be used in the time-of-day components (`hh`, `mm`, `ss`).
 
 Rules:
 
 * If a time-of-day component (`T…`) is present, a timezone MUST be present.
 * The timezone MUST be expressed either as `Z` or as an explicit offset from UTC (e.g. `+02:00`, `-05:00`).
 * Named time zones (e.g. `Europe/Berlin`) MUST NOT be used.
+* Numeric components MUST use zero-padded fixed width: `YYYY` (4 digits), `MM` (2 digits), `DD` (2 digits), `hh` (2 digits), `mm` (2 digits), `ss` (2 digits).
+* If `DD` is a number larger than the maximum day of the resolved month, it MUST be interpreted as the last day of that month.
+* The overflow rule only applies to `DD`. Values outside the allowed range for `YYYY` or `MM` are invalid.
+* `YYYY-*-DD`, `*-MM-DD`, and `*-*-*` are valid forms.
+
+English rendering for wildcard combinations:
+
+| Pattern                             | Rendering (English) | Example |
+|-------------------------------------| --- | --- |
+| `YYYY-MM-DD`                        | `on <Month> <DD>, <YYYY>` | `2026-02-08 -> on February 8, 2026` |
+| `YYYY-MM-*`                         | `in <Month> <YYYY>` | `2026-02-* -> in February 2026` |
+| `YYYY-*-DD`                         | `on day <DD> of every month in <YYYY>` | `2026-*-15 -> on day 15 of every month in 2026` |
+| `YYYY-*-*`                          | `in <YYYY>` | `2026-*-* -> in 2026` |
+| `*-MM-DD`                           | `on <Month> <DD> every year` | `*-02-15 -> on February 15 every year` |
+| `*-MM-*`                            | `every day in <Month>` | `*-02-* -> every day in February` |
+| `*-*-DD`                            | `on day <DD> of every month` | `*-*-15 -> on day 15 of every month` |
+| `*-*-*`                             | `every day` | `*-*-* -> every day` |
+| `YYYY-MM-DD` (overflow)             | `on the last day of <Month> <YYYY>` | `2026-02-30 -> on the last day of February 2026` |
+| `*-MM-DD` (overflow)                | `on the last day of <Month> every year` | `*-02-30 -> on the last day of February every year` |
+| `YYYY-*-DD` (overflow)              | `on the last day of every month in <YYYY>` | `2026-*-31 -> on the last day of every month in 2026` |
+| `*-*-DD` (overflow)                 | `on the last day of every month` | `*-*-31 -> on the last day of every month` |
+| `YYYY-MM-DDThh:mm[:ss](Z\|[+-]hh:mm)` | `on <Month> <DD>, <YYYY> at <time zone time>` | `2026-02-08T09:00Z -> on February 8, 2026 at 09:00Z` |
+| `YYYY-MM-*Thh:mm[:ss](Z\|[+-]hh:mm)` | `in <Month> <YYYY> at <time zone time>` | `2026-02-*T09:00+01:00 -> in February 2026 at 09:00+01:00` |
+| `YYYY-*-DDThh:mm[:ss](Z\|[+-]hh:mm)` | `on day <DD> of every month in <YYYY> at <time zone time>` | `2026-*-15T09:00Z -> on day 15 of every month in 2026 at 09:00Z` |
+| `YYYY-*-*Thh:mm[:ss](Z\|[+-]hh:mm)` | `in <YYYY> at <time zone time>` | `2026-*-*T09:00Z -> in 2026 at 09:00Z` |
+| `*-MM-DDThh:mm[:ss](Z\|[+-]hh:mm)` | `on <Month> <DD> every year at <time zone time>` | `*-02-15T09:00Z -> on February 15 every year at 09:00Z` |
+| `*-MM-*Thh:mm[:ss](Z\|[+-]hh:mm)` | `every day in <Month> at <time zone time>` | `*-02-*T09:00Z -> every day in February at 09:00Z` |
+| `*-*-DDThh:mm[:ss](Z\|[+-]hh:mm)` | `on day <DD> of every month at <time zone time>` | `*-*-15T12:00:00+01:00 -> on day 15 of every month at 12:00:00+01:00` |
+| `*-*-*Thh:mm[:ss](Z\|[+-]hh:mm)` | `every day at <time zone time>` | `*-*-*T09:00Z -> every day at 09:00Z` |
 
 Semantics:
 
@@ -223,7 +286,7 @@ Semantics:
 * Wildcard components represent recurring or relative calendar events.
 * `null` is allowed and triggers Baseline fallback.
 
-### 6.6 `weekday`
+### 6.7 `weekday`
 
 Allowed values (lowercase, abbreviated):
 
@@ -239,8 +302,10 @@ The abbreviations are fixed and locale-independent.
 
 * Baselines MUST contain text blocks for at least one language.
 * Text blocks MUST exist per language.
-* Placeholder values are language-independent.
+* Placeholder values are language-independent, but their rendering is language-specific.
 * Fallbacks are language-specific because they appear inline in Baseline texts.
+* Formatting options use the Baseline language for locale selection.
+* Language tags follow BCP 47. Locale selection uses the primary language subtag (e.g. `de-CH` -> `de`). Unsupported languages MUST fall back to `en`.
 
 ---
 
@@ -396,8 +461,8 @@ Additional constraints for multi-language Baselines:
 * `string`: JSON string, MUST NOT be null
 * `number`: JSON number, or null
 * `duration`: JSON string (`<number><unit>` or `infinite`) or null
-* `time`: JSON string (per §6.5) or null
-* `weekday`: JSON string (per §6.6) or null
+* `time`: JSON string (per §6.6) or null
+* `weekday`: JSON string (per §6.7) or null
 
 ---
 
@@ -549,4 +614,4 @@ This example uses all placeholder types and demonstrates `null` triggering Basel
 Notes:
 
 * `max_records: null` triggers the Baseline fallback `??a limited number`.
-* No text blocks are overridden; only values deviate.
+* Text blocks are overridden for `support` and an additional `extra` block is appended.
