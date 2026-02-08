@@ -213,49 +213,62 @@ class ClearTermsRenderer(
         value: Any?,
     ) {
         when (type) {
-            ClearTermsPlaceholderType.STRING -> {
-                if (value !is String) {
-                    throw ClearTermsValidationException("String value must be provided")
-                }
-            }
-            ClearTermsPlaceholderType.NUMBER -> {
-                if (value != null && value !is Double) {
-                    throw ClearTermsValidationException("Number value must be numeric")
-                }
-            }
-            ClearTermsPlaceholderType.DURATION -> {
-                if (value != null) {
-                    val text =
-                        value as? String
-                            ?: throw ClearTermsValidationException("Duration value must be string")
-                    val normalized = normalizeScalarString(text)
-                    if (!isValidDuration(normalized)) {
-                        throw ClearTermsValidationException("Invalid duration value '$normalized'")
-                    }
-                }
-            }
-            ClearTermsPlaceholderType.TIME -> {
-                if (value != null) {
-                    val text =
-                        value as? String
-                            ?: throw ClearTermsValidationException("Time value must be string")
-                    val normalized = normalizeScalarString(text)
-                    if (!timeRegex.matches(normalized)) {
-                        throw ClearTermsValidationException("Invalid time value '$normalized'")
-                    }
-                }
-            }
-            ClearTermsPlaceholderType.WEEKDAY -> {
-                if (value != null) {
-                    val text =
-                        value as? String
-                            ?: throw ClearTermsValidationException("Weekday value must be string")
-                    val normalized = normalizeScalarString(text)
-                    if (!weekdayRegex.matches(normalized)) {
-                        throw ClearTermsValidationException("Invalid weekday value '$normalized'")
-                    }
-                }
-            }
+            ClearTermsPlaceholderType.STRING -> validateStringValue(value)
+            ClearTermsPlaceholderType.NUMBER -> validateNumberValue(value)
+            ClearTermsPlaceholderType.DURATION -> validateDurationValue(value)
+            ClearTermsPlaceholderType.TIME -> validateTimeValue(value)
+            ClearTermsPlaceholderType.WEEKDAY -> validateWeekdayValue(value)
+        }
+    }
+
+    private fun validateStringValue(value: Any?) {
+        if (value !is String) {
+            throw ClearTermsValidationException("String value must be provided")
+        }
+    }
+
+    private fun validateNumberValue(value: Any?) {
+        if (value != null && value !is Double) {
+            throw ClearTermsValidationException("Number value must be numeric")
+        }
+    }
+
+    private fun validateDurationValue(value: Any?) {
+        if (value == null) {
+            return
+        }
+        val text =
+            value as? String
+                ?: throw ClearTermsValidationException("Duration value must be string")
+        val normalized = normalizeScalarString(text)
+        if (!isValidDuration(normalized)) {
+            throw ClearTermsValidationException("Invalid duration value '$normalized'")
+        }
+    }
+
+    private fun validateTimeValue(value: Any?) {
+        if (value == null) {
+            return
+        }
+        val text =
+            value as? String
+                ?: throw ClearTermsValidationException("Time value must be string")
+        val normalized = normalizeScalarString(text)
+        if (!timeRegex.matches(normalized)) {
+            throw ClearTermsValidationException("Invalid time value '$normalized'")
+        }
+    }
+
+    private fun validateWeekdayValue(value: Any?) {
+        if (value == null) {
+            return
+        }
+        val text =
+            value as? String
+                ?: throw ClearTermsValidationException("Weekday value must be string")
+        val normalized = normalizeScalarString(text)
+        if (!weekdayRegex.matches(normalized)) {
+            throw ClearTermsValidationException("Invalid weekday value '$normalized'")
         }
     }
 
