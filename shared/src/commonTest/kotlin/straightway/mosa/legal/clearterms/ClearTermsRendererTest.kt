@@ -171,7 +171,7 @@ Retention: infinite.
 
             val expected =
                 """
-Support: mon.
+Support: Monday.
 Note: responses vary.
 Additional terms.
                 """.trimIndent()
@@ -396,6 +396,50 @@ Additional terms.
         }
 
     @Test
+    fun `rejects duplicate baseline block ids per language`() =
+        runTest {
+            val baseline =
+                """
+{
+  "kind": "baseline",
+  "id": "example-policy",
+  "version": "1.0",
+  "texts": {
+    "en": [ { "id": "one", "text": "One" }, { "id": "two", "text": "Two" } ],
+    "de": [ { "id": "dup", "text": "Eins" }, { "id": "dup", "text": "Zwei" } ]
+  }
+}
+                """.trimIndent()
+            val defaultProfile =
+                """
+{
+  "kind": "default",
+  "id": "example-policy-default",
+  "version": "1.0",
+  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+  "values": {}
+}
+                """.trimIndent()
+            val deviation =
+                """
+{
+  "kind": "deviation",
+  "id": "example-policy-operator",
+  "version": "1.0",
+  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+  "overrides": { "values": {} }
+}
+                """.trimIndent()
+
+            val result =
+                assertFailsWith<ClearTermsValidationException> {
+                    renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                }
+
+            assertEquals("Baseline block ids must be unique for 'de'", result.message)
+        }
+
+    @Test
     fun `rejects deviation texts missing language`() =
         runTest {
             val baseline =
@@ -530,6 +574,108 @@ Additional terms.
             assertFailsWith<ClearTermsValidationException> {
                 renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
             }
+        }
+
+    @Test
+    fun `rejects append text with fallback placeholders`() =
+        runTest {
+            val baseline =
+                """
+{
+  "kind": "baseline",
+  "id": "example-policy",
+  "version": "1.0",
+  "texts": {
+    "en": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
+  }
+}
+                """.trimIndent()
+            val defaultProfile =
+                """
+{
+  "kind": "default",
+  "id": "example-policy-default",
+  "version": "1.0",
+  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+  "values": { "support_day": "mon" }
+}
+                """.trimIndent()
+            val deviation =
+                """
+{
+  "kind": "deviation",
+  "id": "example-policy-operator",
+  "version": "1.0",
+  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+  "overrides": {
+    "values": {},
+    "texts": {
+      "en": {
+        "replace": { "support": "Support: {{weekday:support_day}}." },
+        "append": [ { "id": "extra", "text": "Extra: {{string:note??fallback}}." } ]
+      }
+    }
+  }
+}
+                """.trimIndent()
+
+            assertFailsWith<ClearTermsValidationException> {
+                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            }
+        }
+
+    @Test
+    fun `rejects duplicate append block ids`() =
+        runTest {
+            val baseline =
+                """
+{
+  "kind": "baseline",
+  "id": "example-policy",
+  "version": "1.0",
+  "texts": {
+    "en": [ { "id": "support", "text": "Support: {{weekday:support_day??business days}}." } ]
+  }
+}
+                """.trimIndent()
+            val defaultProfile =
+                """
+{
+  "kind": "default",
+  "id": "example-policy-default",
+  "version": "1.0",
+  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+  "values": { "support_day": "mon" }
+}
+                """.trimIndent()
+            val deviation =
+                """
+{
+  "kind": "deviation",
+  "id": "example-policy-operator",
+  "version": "1.0",
+  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+  "overrides": {
+    "values": {},
+    "texts": {
+      "en": {
+        "replace": { "support": "Support: {{weekday:support_day}}." },
+        "append": [
+          { "id": "extra", "text": "Extra one." },
+          { "id": "extra", "text": "Extra two." }
+        ]
+      }
+    }
+  }
+}
+                """.trimIndent()
+
+            val result =
+                assertFailsWith<ClearTermsValidationException> {
+                    renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                }
+
+            assertEquals("Append block ids must be unique", result.message)
         }
 
     @Test
@@ -696,6 +842,166 @@ Additional terms.
         }
 
     @Test
+    fun `rejects time values with invalid month`() =
+        runTest {
+            val baseline =
+                """
+{
+  "kind": "baseline",
+  "id": "example-policy",
+  "version": "1.0",
+  "texts": {
+    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
+  }
+}
+                """.trimIndent()
+            val defaultProfile =
+                """
+{
+  "kind": "default",
+  "id": "example-policy-default",
+  "version": "1.0",
+  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+  "values": { "start_time": "2025-13-02T10:00:00Z" }
+}
+                """.trimIndent()
+            val deviation =
+                """
+{
+  "kind": "deviation",
+  "id": "example-policy-operator",
+  "version": "1.0",
+  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+  "overrides": { "values": {} }
+}
+                """.trimIndent()
+
+            assertFailsWith<ClearTermsValidationException> {
+                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            }
+        }
+
+    @Test
+    fun `rejects time values with invalid day`() =
+        runTest {
+            val baseline =
+                """
+{
+  "kind": "baseline",
+  "id": "example-policy",
+  "version": "1.0",
+  "texts": {
+    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
+  }
+}
+                """.trimIndent()
+            val defaultProfile =
+                """
+{
+  "kind": "default",
+  "id": "example-policy-default",
+  "version": "1.0",
+  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+  "values": { "start_time": "2025-01-00T10:00:00Z" }
+}
+                """.trimIndent()
+            val deviation =
+                """
+{
+  "kind": "deviation",
+  "id": "example-policy-operator",
+  "version": "1.0",
+  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+  "overrides": { "values": {} }
+}
+                """.trimIndent()
+
+            assertFailsWith<ClearTermsValidationException> {
+                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            }
+        }
+
+    @Test
+    fun `rejects time values with invalid hour`() =
+        runTest {
+            val baseline =
+                """
+{
+  "kind": "baseline",
+  "id": "example-policy",
+  "version": "1.0",
+  "texts": {
+    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
+  }
+}
+                """.trimIndent()
+            val defaultProfile =
+                """
+{
+  "kind": "default",
+  "id": "example-policy-default",
+  "version": "1.0",
+  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+  "values": { "start_time": "2025-01-02T25:00:00Z" }
+}
+                """.trimIndent()
+            val deviation =
+                """
+{
+  "kind": "deviation",
+  "id": "example-policy-operator",
+  "version": "1.0",
+  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+  "overrides": { "values": {} }
+}
+                """.trimIndent()
+
+            assertFailsWith<ClearTermsValidationException> {
+                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            }
+        }
+
+    @Test
+    fun `rejects time values with invalid second`() =
+        runTest {
+            val baseline =
+                """
+{
+  "kind": "baseline",
+  "id": "example-policy",
+  "version": "1.0",
+  "texts": {
+    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
+  }
+}
+                """.trimIndent()
+            val defaultProfile =
+                """
+{
+  "kind": "default",
+  "id": "example-policy-default",
+  "version": "1.0",
+  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+  "values": { "start_time": "2025-01-02T10:00:60Z" }
+}
+                """.trimIndent()
+            val deviation =
+                """
+{
+  "kind": "deviation",
+  "id": "example-policy-operator",
+  "version": "1.0",
+  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+  "overrides": { "values": {} }
+}
+                """.trimIndent()
+
+            assertFailsWith<ClearTermsValidationException> {
+                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            }
+        }
+
+    @Test
     fun `rejects unavailable language`() =
         runTest {
             val baseline = baselineJson("""{ "en": [ { "id": "one", "text": "One" } ] }""")
@@ -741,6 +1047,65 @@ Additional terms.
             assertFailsWith<ClearTermsValidationException> {
                 renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
             }
+        }
+
+    @Test
+    fun `rejects default reference hash mismatch`() =
+        runTest {
+            val baseline = baselineJson("""{ "en": [ { "id": "one", "text": "One" } ] }""")
+            val defaultProfile = defaultJson(valuesJson = """{ }""")
+            val deviation =
+                """
+{
+  "kind": "deviation",
+  "id": "example-policy-operator",
+  "version": "1.0",
+  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:FFFF" },
+  "overrides": { "values": { } }
+}
+                """.trimIndent()
+
+            assertFailsWith<ClearTermsValidationException> {
+                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            }
+        }
+
+    @Test
+    fun `rejects default reference id mismatch`() =
+        runTest {
+            val baseline = baselineJson("""{ "en": [ { "id": "one", "text": "One" } ] }""")
+            val defaultProfile = defaultJson(valuesJson = """{ }""", id = "default-a")
+            val deviation =
+                deviationJson(
+                    valuesJson = """{ }""",
+                    defaultId = "default-b",
+                )
+
+            val result =
+                assertFailsWith<ClearTermsValidationException> {
+                    renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                }
+
+            assertEquals("Reference id mismatch", result.message)
+        }
+
+    @Test
+    fun `rejects default reference version mismatch`() =
+        runTest {
+            val baseline = baselineJson("""{ "en": [ { "id": "one", "text": "One" } ] }""")
+            val defaultProfile = defaultJson(valuesJson = """{ }""", version = "1.0")
+            val deviation =
+                deviationJson(
+                    valuesJson = """{ }""",
+                    defaultVersion = "2.0",
+                )
+
+            val result =
+                assertFailsWith<ClearTermsValidationException> {
+                    renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                }
+
+            assertEquals("Reference version mismatch", result.message)
         }
 
     @Test
@@ -1099,7 +1464,45 @@ Additional terms.
 
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
 
-            assertEquals("Start: 2025-01-02T10:00:00Z.", result)
+            assertEquals("Start: on January 2, 2025 at 10:00:00Z.", result)
+        }
+
+    @Test
+    fun `renders time value without seconds`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-01-02T10:30Z" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on January 2, 2025 at 10:30Z.", result)
+        }
+
+    @Test
+    fun `renders time value with negative offset`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-01-02T10:00-05:00" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on January 2, 2025 at 10:00-05:00.", result)
         }
 
     @Test
@@ -1156,7 +1559,368 @@ Additional terms.
 
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
 
-            assertEquals("Support: mon.", result)
+            assertEquals("Support: Monday.", result)
+        }
+
+    @Test
+    fun `renders wildcard time with timezone`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-*-15T12:00:00+01:00" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on day 15 of every month at 12:00:00+01:00.", result)
+        }
+
+    @Test
+    fun `renders month and year time pattern`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-02-*" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: in February 2025.", result)
+        }
+
+    @Test
+    fun `renders day of every month in year pattern`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-*-05" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on day 5 of every month in 2025.", result)
+        }
+
+    @Test
+    fun `renders year only time pattern`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-*-*" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: in 2025.", result)
+        }
+
+    @Test
+    fun `renders month day every year pattern`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-02-05" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on February 5 every year.", result)
+        }
+
+    @Test
+    fun `renders every day in month pattern`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-02-*" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: every day in February.", result)
+        }
+
+    @Test
+    fun `renders day of every month pattern`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-*-15" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on day 15 of every month.", result)
+        }
+
+    @Test
+    fun `renders every day pattern`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-*-*" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: every day.", result)
+        }
+
+    @Test
+    fun `renders overflow day as last day`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-02-31" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on the last day of February every year.", result)
+        }
+
+    @Test
+    fun `renders overflow day with year and month`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-02-31" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on the last day of February 2025.", result)
+        }
+
+    @Test
+    fun `renders leap day as full date`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2024-02-29" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on February 29, 2024.", result)
+        }
+
+    @Test
+    fun `renders overflow day in non leap year`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2023-02-29" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on the last day of February 2023.", result)
+        }
+
+    @Test
+    fun `renders overflow day for every month in year`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-*-31" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on the last day of every month in 2025.", result)
+        }
+
+    @Test
+    fun `renders overflow day for every month`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-*-31" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on the last day of every month.", result)
+        }
+
+    @Test
+    fun `renders number with decimal formatting and grouping`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "price", "text": "Price: {{number:amount?format=decimal(2)&grouping=on}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "amount": 1234.5 }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Price: 1,234.50.", result)
+        }
+
+    @Test
+    fun `renders number with integer formatting without grouping`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "count", "text": "Count: {{number:count?format=integer&grouping=off}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "count": 1234.6 }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Count: 1235.", result)
+        }
+
+    @Test
+    fun `renders negative integer rounding away from zero`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "count", "text": "Count: {{number:count?format=integer&grouping=off}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "count": -1.5 }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Count: -2.", result)
+        }
+
+    @Test
+    fun `renders decimal format with zero scale`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "count", "text": "Count: {{number:count?format=decimal(0)&grouping=on}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "count": 1200.4 }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Count: 1,200.", result)
+        }
+
+    @Test
+    fun `renders number with default formatting`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "ratio", "text": "Ratio: {{number:ratio}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "ratio": 1.25 }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Ratio: 1.25.", result)
         }
 
     @Test
@@ -1176,6 +1940,46 @@ Additional terms.
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
 
             assertEquals("Support: weekdays.", result)
+        }
+
+    @Test
+    fun `renders values using english fallback locale`() =
+        runTest {
+            val baseline =
+                """
+{
+  "kind": "baseline",
+  "id": "example-policy",
+  "version": "1.0",
+  "texts": {
+    "fr": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
+  }
+}
+                """.trimIndent()
+            val defaultProfile =
+                """
+{
+  "kind": "default",
+  "id": "example-policy-default",
+  "version": "1.0",
+  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+  "values": { "support_day": "mon" }
+}
+                """.trimIndent()
+            val deviation =
+                """
+{
+  "kind": "deviation",
+  "id": "example-policy-operator",
+  "version": "1.0",
+  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+  "overrides": { "values": {} }
+}
+                """.trimIndent()
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "fr")
+
+            assertEquals("Support: Monday.", result)
         }
 
     @Test
@@ -1261,6 +2065,25 @@ Additional terms.
             assertFailsWith<ClearTermsValidationException> {
                 renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
             }
+        }
+
+    @Test
+    fun `allows rendered text with blank placeholder options`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{number:inner?}}" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Value: {{number:inner?}}.", result)
         }
 
     @Test

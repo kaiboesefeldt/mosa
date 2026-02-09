@@ -4,4 +4,5 @@ data class ClearTermsPlaceholder(
     val type: ClearTermsPlaceholderType,
     val key: String,
     val fallback: String?,
+    val numberOptions: ClearTermsNumberOptions?,
 )
