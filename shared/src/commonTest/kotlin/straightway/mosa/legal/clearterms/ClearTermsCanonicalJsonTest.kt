@@ -167,4 +167,41 @@ class ClearTermsCanonicalJsonTest {
 
         assertEquals("{\"emptyArray\":[],\"emptyObject\":{}}", result)
     }
+
+    @Test
+    fun `renders empty root object`() {
+        val root = ClearTermsJsonNode.ObjectNode(emptyMap())
+
+        val result = canonicalizer.canonicalize(root)
+
+        assertEquals("{}", result)
+    }
+
+    @Test
+    fun `escapes low control characters using unicode`() {
+        val root =
+            ClearTermsJsonNode.ObjectNode(
+                mapOf(
+                    "text" to ClearTermsJsonNode.ScalarNode.StringNode("a\u0001\u001f b"),
+                ),
+            )
+
+        val result = canonicalizer.canonicalize(root)
+
+        assertEquals("{\"text\":\"a\\u0001\\u001f b\"}", result)
+    }
+
+    @Test
+    fun `rejects NaN numbers`() {
+        val root =
+            ClearTermsJsonNode.ObjectNode(
+                mapOf(
+                    "value" to ClearTermsJsonNode.ScalarNode.NumberNode(Double.NaN),
+                ),
+            )
+
+        assertFailsWith<ClearTermsValidationException> {
+            canonicalizer.canonicalize(root)
+        }
+    }
 }

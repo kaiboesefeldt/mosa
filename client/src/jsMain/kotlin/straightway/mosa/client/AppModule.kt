@@ -62,6 +62,10 @@ import straightway.mosa.client.content.ReplySearchService
 import straightway.mosa.client.ui.BrowserIdentitySessionStore
 import straightway.mosa.client.ui.IdentitySessionStore
 import straightway.mosa.identity.FictionalNameGenerator
+import straightway.mosa.legal.clearterms.ClearTermsLocaleProvider
+import straightway.mosa.legal.clearterms.ClearTermsLocaleRepository
+import straightway.mosa.legal.clearterms.ClearTermsResourceReader
+import straightway.mosa.legal.clearterms.JsClearTermsResourceReader
 import web.idb.IDBFactory
 import web.idb.indexedDB
 
@@ -154,6 +158,8 @@ object AppModule : KoinComponent {
                         single { Translator(get<BrowserPrefs>().languages) }
                         single { DiceBearAvatarGenerator() }
                         single<Logger> { BrowserLogger() }
+                        single<ClearTermsResourceReader> { JsClearTermsResourceReader() }
+                        single<ClearTermsLocaleProvider> { ClearTermsLocaleRepository(get()) }
                     },
                 )
             }

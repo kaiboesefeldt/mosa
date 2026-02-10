@@ -1,0 +1,43 @@
+{
+  "language": "en",
+  "months": [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ],
+  "weekdays": {
+    "mon": "Monday",
+    "tue": "Tuesday",
+    "wed": "Wednesday",
+    "thu": "Thursday",
+    "fri": "Friday",
+    "sat": "Saturday",
+    "sun": "Sunday"
+  },
+  "decimalSeparator": ".",
+  "groupingSeparator": ",",
+  "atWord": "at",
+  "patterns": {
+    "onFullDate": "on {month} {day}, {year}",
+    "inMonthYear": "in {month} {year}",
+    "onDayOfEveryMonthInYear": "on day {day} of every month in {year}",
+    "inYear": "in {year}",
+    "onMonthDayEveryYear": "on {month} {day} every year",
+    "everyDayInMonth": "every day in {month}",
+    "onDayOfEveryMonth": "on day {day} of every month",
+    "everyDay": "every day",
+    "onLastDayOfMonth": "on the last day of {month} {year}",
+    "onLastDayOfMonthEveryYear": "on the last day of {month} every year",
+    "onLastDayOfEveryMonthInYear": "on the last day of every month in {year}",
+    "onLastDayOfEveryMonth": "on the last day of every month"
+  }
+}

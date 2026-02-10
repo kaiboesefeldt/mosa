@@ -9,6 +9,7 @@ class ClearTermsRenderer(
     private val canonicalizer: ClearTermsCanonicalJson = ClearTermsCanonicalJson(),
     private val placeholderParser: ClearTermsPlaceholderParser = ClearTermsPlaceholderParser(),
     private val reader: ClearTermsDocumentReader = ClearTermsDocumentReader(),
+    private val localeProvider: ClearTermsLocaleProvider,
 ) {
     suspend fun renderAll(
         baselineJson: String,
@@ -381,8 +382,9 @@ class ClearTermsRenderer(
         options: ClearTermsNumberOptions?,
         locale: ClearTermsLocale,
     ): String {
-        val format = options?.format ?: ClearTermsNumberFormat.Auto
-        val grouping = options?.grouping ?: ClearTermsNumberGrouping.ON
+        val (format, grouping) =
+            options?.run { format to grouping }
+                ?: (ClearTermsNumberFormat.Auto to ClearTermsNumberGrouping.ON)
         return when (format) {
             is ClearTermsNumberFormat.Auto -> formatNumberAuto(value, grouping, locale)
             is ClearTermsNumberFormat.Integer -> formatNumberInteger(value, grouping, locale)
@@ -468,7 +470,7 @@ class ClearTermsRenderer(
                 integerPart
             }
         val withFraction =
-            if (fractionPart == null || fractionPart.isEmpty()) {
+            if (fractionPart.isNullOrEmpty()) {
                 groupedInteger
             } else {
                 groupedInteger + locale.decimalSeparator + fractionPart
@@ -577,10 +579,7 @@ class ClearTermsRenderer(
         }
     }
 
-    private fun resolveLocale(languageTag: String): ClearTermsLocale {
-        val primary = languageTag.substringBefore('-').substringBefore('_').lowercase()
-        return locales[primary] ?: locales.getValue("en")
-    }
+    private fun resolveLocale(languageTag: String): ClearTermsLocale = localeProvider.resolve(languageTag)
 
     private fun parseTimeValue(value: String): ClearTermsTimeParts {
         if (!timeRegex.matches(value)) {
@@ -589,10 +588,7 @@ class ClearTermsRenderer(
         val datePart = value.substringBefore("T")
         val timePart = value.substringAfter("T", "")
         val dateSegments = datePart.split("-", limit = 3)
-        if (dateSegments.size != 3) {
-            throw ClearTermsValidationException("Invalid time value '$value'")
-        }
-        val year = parseYear(dateSegments[0], value)
+        val year = parseYear(dateSegments[0])
         val month = parseMonth(dateSegments[1], value)
         val day = parseDay(dateSegments[2], value)
         val time = if (timePart.isEmpty()) null else parseTimeOfDay(timePart, value)
@@ -600,15 +596,11 @@ class ClearTermsRenderer(
         return ClearTermsTimeParts(year, month, day, time, overflow)
     }
 
-    private fun parseYear(
-        value: String,
-        raw: String,
-    ): Int? {
+    private fun parseYear(value: String): Int? {
         if (value == "*") {
             return null
         }
-        return value.toIntOrNull()
-            ?: throw ClearTermsValidationException("Invalid time value '$raw'")
+        return value.toInt()
     }
 
     private fun parseMonth(
@@ -618,9 +610,7 @@ class ClearTermsRenderer(
         if (value == "*") {
             return null
         }
-        val month =
-            value.toIntOrNull()
-                ?: throw ClearTermsValidationException("Invalid time value '$raw'")
+        val month = value.toInt()
         if (month < 1 || month > 12) {
             throw ClearTermsValidationException("Invalid time value '$raw'")
         }
@@ -634,10 +624,8 @@ class ClearTermsRenderer(
         if (value == "*") {
             return null
         }
-        val day =
-            value.toIntOrNull()
-                ?: throw ClearTermsValidationException("Invalid time value '$raw'")
-        if (day < 1 || day > 31) {
+        val day = value.toInt()
+        if (day !in 1..31) {
             throw ClearTermsValidationException("Invalid time value '$raw'")
         }
         return day
@@ -648,15 +636,8 @@ class ClearTermsRenderer(
         raw: String,
     ): String {
         val zoneIndex = findZoneIndex(value)
-        if (zoneIndex < 0) {
-            throw ClearTermsValidationException("Invalid time value '$raw'")
-        }
         val timePart = value.substring(0, zoneIndex)
-        val zonePart = value.substring(zoneIndex)
         val segments = timePart.split(":")
-        if (segments.size !in setOf(2, 3)) {
-            throw ClearTermsValidationException("Invalid time value '$raw'")
-        }
         val hour = segments[0].toIntOrNull()
         val minute = segments[1].toIntOrNull()
         val second = segments.getOrNull(2)?.toIntOrNull()
@@ -664,9 +645,6 @@ class ClearTermsRenderer(
             throw ClearTermsValidationException("Invalid time value '$raw'")
         }
         if (second != null && second !in 0..59) {
-            throw ClearTermsValidationException("Invalid time value '$raw'")
-        }
-        if (!zoneRegex.matches(zonePart)) {
             throw ClearTermsValidationException("Invalid time value '$raw'")
         }
         return value
@@ -762,123 +740,8 @@ class ClearTermsRenderer(
         val isOverflow: Boolean,
     )
 
-    private data class ClearTermsLocale(
-        val language: String,
-        val months: List<String>,
-        val weekdays: Map<String, String>,
-        val decimalSeparator: Char,
-        val groupingSeparator: Char,
-        val atWord: String,
-        val onFullDate: (String, Int, Int) -> String,
-        val inMonthYear: (String, Int) -> String,
-        val onDayOfEveryMonthInYear: (Int, Int) -> String,
-        val inYear: (Int) -> String,
-        val onMonthDayEveryYear: (String, Int) -> String,
-        val everyDayInMonth: (String) -> String,
-        val onDayOfEveryMonth: (Int) -> String,
-        val everyDay: () -> String,
-        val onLastDayOfMonth: (String, Int) -> String,
-        val onLastDayOfMonthEveryYear: (String) -> String,
-        val onLastDayOfEveryMonthInYear: (Int) -> String,
-        val onLastDayOfEveryMonth: () -> String,
-    ) {
-        fun monthName(month: Int): String = months[month - 1]
-    }
-
     private companion object {
         val timeRegex = Regex("""^(\*|\d{4})-(\*|\d{2})-(\*|\d{2})(T\d{2}:\d{2}(:\d{2})?(Z|[+-]\d{2}:\d{2}))?$""")
-        val zoneRegex = Regex("""^(Z|[+-]\d{2}:\d{2})$""")
         val weekdayRegex = Regex("""^(mon|tue|wed|thu|fri|sat|sun)$""")
-        val locales =
-            mapOf(
-                "en" to
-                    ClearTermsLocale(
-                        language = "en",
-                        months =
-                            listOf(
-                                "January",
-                                "February",
-                                "March",
-                                "April",
-                                "May",
-                                "June",
-                                "July",
-                                "August",
-                                "September",
-                                "October",
-                                "November",
-                                "December",
-                            ),
-                        weekdays =
-                            mapOf(
-                                "mon" to "Monday",
-                                "tue" to "Tuesday",
-                                "wed" to "Wednesday",
-                                "thu" to "Thursday",
-                                "fri" to "Friday",
-                                "sat" to "Saturday",
-                                "sun" to "Sunday",
-                            ),
-                        decimalSeparator = '.',
-                        groupingSeparator = ',',
-                        atWord = "at",
-                        onFullDate = { month, day, year -> "on $month $day, $year" },
-                        inMonthYear = { month, year -> "in $month $year" },
-                        onDayOfEveryMonthInYear = { day, year -> "on day $day of every month in $year" },
-                        inYear = { year -> "in $year" },
-                        onMonthDayEveryYear = { month, day -> "on $month $day every year" },
-                        everyDayInMonth = { month -> "every day in $month" },
-                        onDayOfEveryMonth = { day -> "on day $day of every month" },
-                        everyDay = { "every day" },
-                        onLastDayOfMonth = { month, year -> "on the last day of $month $year" },
-                        onLastDayOfMonthEveryYear = { month -> "on the last day of $month every year" },
-                        onLastDayOfEveryMonthInYear = { year -> "on the last day of every month in $year" },
-                        onLastDayOfEveryMonth = { "on the last day of every month" },
-                    ),
-                "de" to
-                    ClearTermsLocale(
-                        language = "de",
-                        months =
-                            listOf(
-                                "Januar",
-                                "Februar",
-                                "Maerz",
-                                "April",
-                                "Mai",
-                                "Juni",
-                                "Juli",
-                                "August",
-                                "September",
-                                "Oktober",
-                                "November",
-                                "Dezember",
-                            ),
-                        weekdays =
-                            mapOf(
-                                "mon" to "Montag",
-                                "tue" to "Dienstag",
-                                "wed" to "Mittwoch",
-                                "thu" to "Donnerstag",
-                                "fri" to "Freitag",
-                                "sat" to "Samstag",
-                                "sun" to "Sonntag",
-                            ),
-                        decimalSeparator = ',',
-                        groupingSeparator = '.',
-                        atWord = "um",
-                        onFullDate = { month, day, year -> "am $day. $month $year" },
-                        inMonthYear = { month, year -> "im $month $year" },
-                        onDayOfEveryMonthInYear = { day, year -> "am $day. jedes Monats im Jahr $year" },
-                        inYear = { year -> "im Jahr $year" },
-                        onMonthDayEveryYear = { month, day -> "am $day. $month jedes Jahr" },
-                        everyDayInMonth = { month -> "jeden Tag im $month" },
-                        onDayOfEveryMonth = { day -> "am $day. jedes Monats" },
-                        everyDay = { "jeden Tag" },
-                        onLastDayOfMonth = { month, year -> "am letzten Tag des $month $year" },
-                        onLastDayOfMonthEveryYear = { month -> "am letzten Tag des $month jedes Jahr" },
-                        onLastDayOfEveryMonthInYear = { year -> "am letzten Tag jedes Monats im Jahr $year" },
-                        onLastDayOfEveryMonth = { "am letzten Tag jedes Monats" },
-                    ),
-            )
     }
 }

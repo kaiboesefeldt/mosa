@@ -8,7 +8,8 @@ import kotlin.test.assertFailsWith
 class ClearTermsRendererTest {
     private val hasher = FixedHashProvider(byteArrayOf(0x01, 0x02))
     private val encoder = FixedTextEncoder()
-    private val renderer = ClearTermsRenderer(ClearTermsJsonParser(), hasher, encoder)
+    private val localeProvider = TestClearTermsLocaleProvider()
+    private val renderer = ClearTermsRenderer(ClearTermsJsonParser(), hasher, encoder, localeProvider = localeProvider)
 
     @Test
     fun `renders baseline default and deviation`() =
@@ -1316,6 +1317,25 @@ Additional terms.
         }
 
     @Test
+    fun `renders negative decimal numbers`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{ 
+  "en": [ { "id": "limit", "text": "Limit: {{number:max_records}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "max_records": -10.25 }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Limit: -10.25.", result)
+        }
+
+    @Test
     fun `rejects string placeholder with non string value`() =
         runTest {
             val baseline =
@@ -1753,6 +1773,25 @@ Additional terms.
         }
 
     @Test
+    fun `renders overflow day in thirty day month`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-04-31" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on the last day of April 2025.", result)
+        }
+
+    @Test
     fun `renders leap day as full date`() =
         runTest {
             val baseline =
@@ -1788,6 +1827,25 @@ Additional terms.
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
 
             assertEquals("Start: on the last day of February 2023.", result)
+        }
+
+    @Test
+    fun `renders overflow day in century non leap year`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "1900-02-29" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Start: on the last day of February 1900.", result)
         }
 
     @Test
@@ -1905,6 +1963,44 @@ Additional terms.
         }
 
     @Test
+    fun `renders decimal format without grouping`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "count", "text": "Count: {{number:count?format=decimal(2)&grouping=off}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "count": 1234.5 }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Count: 1234.50.", result)
+        }
+
+    @Test
+    fun `renders grouped integer without separator at three digits`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "count", "text": "Count: {{number:count?format=integer&grouping=on}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "count": 999.0 }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Count: 999.", result)
+        }
+
+    @Test
     fun `renders number with default formatting`() =
         runTest {
             val baseline =
@@ -1940,6 +2036,81 @@ Additional terms.
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
 
             assertEquals("Support: weekdays.", result)
+        }
+
+    @Test
+    fun `renders unknown weekday without localization`() =
+        runTest {
+            val locale =
+                ClearTermsLocale(
+                    language = "en",
+                    months =
+                        listOf(
+                            "January",
+                            "February",
+                            "March",
+                            "April",
+                            "May",
+                            "June",
+                            "July",
+                            "August",
+                            "September",
+                            "October",
+                            "November",
+                            "December",
+                        ),
+                    weekdays =
+                        mapOf(
+                            "mon" to "Monday",
+                            "tue" to "Tuesday",
+                            "wed" to "Wednesday",
+                            "thu" to "Thursday",
+                            "fri" to "Friday",
+                            "sat" to "Saturday",
+                        ),
+                    decimalSeparator = '.',
+                    groupingSeparator = ',',
+                    atWord = "at",
+                    patterns =
+                        ClearTermsLocale.Patterns(
+                            onFullDate = "on {month} {day}, {year}",
+                            inMonthYear = "in {month} {year}",
+                            onDayOfEveryMonthInYear = "on day {day} of every month in {year}",
+                            inYear = "in {year}",
+                            onMonthDayEveryYear = "on {month} {day} every year",
+                            everyDayInMonth = "every day in {month}",
+                            onDayOfEveryMonth = "on day {day} of every month",
+                            everyDay = "every day",
+                            onLastDayOfMonth = "on the last day of {month} {year}",
+                            onLastDayOfMonthEveryYear = "on the last day of {month} every year",
+                            onLastDayOfEveryMonthInYear = "on the last day of every month in {year}",
+                            onLastDayOfEveryMonth = "on the last day of every month",
+                        ),
+                )
+            val renderer =
+                ClearTermsRenderer(
+                    ClearTermsJsonParser(),
+                    hasher,
+                    encoder,
+                    localeProvider =
+                        object : ClearTermsLocaleProvider {
+                            override fun resolve(languageTag: String): ClearTermsLocale = locale
+                        },
+                )
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "support_day": "sun" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Support: sun.", result)
         }
 
     @Test
@@ -2084,6 +2255,25 @@ Additional terms.
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
 
             assertEquals("Value: {{number:inner?}}.", result)
+        }
+
+    @Test
+    fun `rejects rendered text with non blank placeholder options`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{number:inner?format}}" }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            assertFailsWith<ClearTermsValidationException> {
+                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            }
         }
 
     @Test
@@ -2347,5 +2537,110 @@ Additional terms.
 
     private class FixedTextEncoder : ClearTermsTextEncoder {
         override fun encode(value: String): ByteArray = value.encodeToByteArray()
+    }
+
+    private class TestClearTermsLocaleProvider : ClearTermsLocaleProvider {
+        private val locales =
+            mapOf(
+                "en" to
+                    ClearTermsLocale(
+                        language = "en",
+                        months =
+                            listOf(
+                                "January",
+                                "February",
+                                "March",
+                                "April",
+                                "May",
+                                "June",
+                                "July",
+                                "August",
+                                "September",
+                                "October",
+                                "November",
+                                "December",
+                            ),
+                        weekdays =
+                            mapOf(
+                                "mon" to "Monday",
+                                "tue" to "Tuesday",
+                                "wed" to "Wednesday",
+                                "thu" to "Thursday",
+                                "fri" to "Friday",
+                                "sat" to "Saturday",
+                                "sun" to "Sunday",
+                            ),
+                        decimalSeparator = '.',
+                        groupingSeparator = ',',
+                        atWord = "at",
+                        patterns =
+                            ClearTermsLocale.Patterns(
+                                onFullDate = "on {month} {day}, {year}",
+                                inMonthYear = "in {month} {year}",
+                                onDayOfEveryMonthInYear = "on day {day} of every month in {year}",
+                                inYear = "in {year}",
+                                onMonthDayEveryYear = "on {month} {day} every year",
+                                everyDayInMonth = "every day in {month}",
+                                onDayOfEveryMonth = "on day {day} of every month",
+                                everyDay = "every day",
+                                onLastDayOfMonth = "on the last day of {month} {year}",
+                                onLastDayOfMonthEveryYear = "on the last day of {month} every year",
+                                onLastDayOfEveryMonthInYear = "on the last day of every month in {year}",
+                                onLastDayOfEveryMonth = "on the last day of every month",
+                            ),
+                    ),
+                "de" to
+                    ClearTermsLocale(
+                        language = "de",
+                        months =
+                            listOf(
+                                "Januar",
+                                "Februar",
+                                "Maerz",
+                                "April",
+                                "Mai",
+                                "Juni",
+                                "Juli",
+                                "August",
+                                "September",
+                                "Oktober",
+                                "November",
+                                "Dezember",
+                            ),
+                        weekdays =
+                            mapOf(
+                                "mon" to "Montag",
+                                "tue" to "Dienstag",
+                                "wed" to "Mittwoch",
+                                "thu" to "Donnerstag",
+                                "fri" to "Freitag",
+                                "sat" to "Samstag",
+                                "sun" to "Sonntag",
+                            ),
+                        decimalSeparator = ',',
+                        groupingSeparator = '.',
+                        atWord = "um",
+                        patterns =
+                            ClearTermsLocale.Patterns(
+                                onFullDate = "am {day}. {month} {year}",
+                                inMonthYear = "im {month} {year}",
+                                onDayOfEveryMonthInYear = "am {day}. jedes Monats im Jahr {year}",
+                                inYear = "im Jahr {year}",
+                                onMonthDayEveryYear = "am {day}. {month} jedes Jahr",
+                                everyDayInMonth = "jeden Tag im {month}",
+                                onDayOfEveryMonth = "am {day}. jedes Monats",
+                                everyDay = "jeden Tag",
+                                onLastDayOfMonth = "am letzten Tag des {month} {year}",
+                                onLastDayOfMonthEveryYear = "am letzten Tag des {month} jedes Jahr",
+                                onLastDayOfEveryMonthInYear = "am letzten Tag jedes Monats im Jahr {year}",
+                                onLastDayOfEveryMonth = "am letzten Tag jedes Monats",
+                            ),
+                    ),
+            )
+
+        override fun resolve(languageTag: String): ClearTermsLocale {
+            val primary = languageTag.substringBefore('-').substringBefore('_').lowercase()
+            return locales[primary] ?: locales.getValue("en")
+        }
     }
 }

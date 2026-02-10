@@ -55,6 +55,7 @@ kotlin {
         val fontAwesomeVersion = "7.1.0"
 
         jsMain {
+            resources.srcDir(project(":shared").file("src/commonMain/resources"))
             dependencies {
                 implementation(kotlin("stdlib-js"))
                 implementation("io.insert-koin:koin-core:$koinVersion")

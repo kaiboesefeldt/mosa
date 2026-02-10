@@ -1,0 +1,43 @@
+{
+  "language": "de",
+  "months": [
+    "Januar",
+    "Februar",
+    "Maerz",
+    "April",
+    "Mai",
+    "Juni",
+    "Juli",
+    "August",
+    "September",
+    "Oktober",
+    "November",
+    "Dezember"
+  ],
+  "weekdays": {
+    "mon": "Montag",
+    "tue": "Dienstag",
+    "wed": "Mittwoch",
+    "thu": "Donnerstag",
+    "fri": "Freitag",
+    "sat": "Samstag",
+    "sun": "Sonntag"
+  },
+  "decimalSeparator": ",",
+  "groupingSeparator": ".",
+  "atWord": "um",
+  "patterns": {
+    "onFullDate": "am {day}. {month} {year}",
+    "inMonthYear": "im {month} {year}",
+    "onDayOfEveryMonthInYear": "am {day}. jedes Monats im Jahr {year}",
+    "inYear": "im Jahr {year}",
+    "onMonthDayEveryYear": "am {day}. {month} jedes Jahr",
+    "everyDayInMonth": "jeden Tag im {month}",
+    "onDayOfEveryMonth": "am {day}. jedes Monats",
+    "everyDay": "jeden Tag",
+    "onLastDayOfMonth": "am letzten Tag des {month} {year}",
+    "onLastDayOfMonthEveryYear": "am letzten Tag des {month} jedes Jahr",
+    "onLastDayOfEveryMonthInYear": "am letzten Tag jedes Monats im Jahr {year}",
+    "onLastDayOfEveryMonth": "am letzten Tag jedes Monats"
+  }
+}
