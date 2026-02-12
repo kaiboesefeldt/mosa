@@ -1982,6 +1982,25 @@ Additional terms.
         }
 
     @Test
+    fun `renders decimal format for scientific notation values`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "count", "text": "Count: {{number:count?format=decimal(2)&grouping=off}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "count": 1e7 }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Count: 10000000.00.", result)
+        }
+
+    @Test
     fun `renders grouped integer without separator at three digits`() =
         runTest {
             val baseline =
