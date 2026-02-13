@@ -50,20 +50,30 @@ Textblöcke werden als Markdown in den YAMLs geführt.
 Die YAMLs entsprechen semantisch den ClearTerms-JSONs, mit einer Ausnahme:
 - Referenzen in YAML enthalten **keine Hashes**.
 - Hashes werden erst aus den generierten kanonischen JSONs berechnet und dann in die JSON-Referenzen eingetragen.
+- Das `default`-Profil darf Placeholder-Werte auslassen. Pflicht ist nur, dass `default + deviation` zusammen alle nicht-optionalen Placeholder auflösen.
 
 ### 4.3 Empfohlene Ablage
 
 Pod-Ressourcen, z. B.:
 - `server/src/main/resources/clearterms/privacy/baseline.yaml`
 - `server/src/main/resources/clearterms/privacy/default.yaml`
-- `server/src/main/resources/clearterms/privacy/deviation.yaml`
 - analog für `terms` und `imprint`
+
+Deployment-Datei im Pod-Arbeitsverzeichnis:
+- `privacy.deviation.yaml` (verpflichtend)
+
+Regel:
+- `privacy.deviation.yaml` wird nicht aus den Server-Ressourcen geladen, sondern aus dem aktuellen Arbeitsverzeichnis des Pods.
+- Fehlt die Datei oder ist sie ungültig, schlägt der Pod-Start fehl (fail-fast).
 
 ## 5. Generierungspipeline beim Pod-Start
 
 Für jeden Dokumenttyp (`privacy`, `terms`, `imprint`) wird beim Start eine feste Pipeline durchlaufen:
 
-1. YAML laden (Baseline, Default, Deviation).
+1. YAML laden:
+   - `baseline` und `default` aus Ressourcen
+   - `privacy.deviation.yaml` für `privacy` aus dem Pod-Arbeitsverzeichnis
+   - für andere Dokumenttypen zunächst weiter aus Ressourcen (bis separat entschieden)
 2. YAML in interne ClearTerms-Modelle konvertieren.
 3. Baseline und Default zunächst als JSON ohne Hash-in-Referenz serialisieren.
 4. Kanonisierung und Hash-Berechnung:
@@ -75,6 +85,7 @@ Für jeden Dokumenttyp (`privacy`, `terms`, `imprint`) wird beim Start eine fest
 6. Finale JSONs erzeugen.
 7. Strikte serverseitige Validierung der Artefakte:
    - JSON-Struktur und Referenzkonsistenz (inkl. `id`/`version`/`hash`) müssen gültig sein.
+   - Vollständigkeit gilt für die effektiven Werte aus `default + deviation`.
    - Es findet kein Rendering im Pod statt.
 8. Ergebnis im Speicher ablegen und für Endpoints bereitstellen.
 
@@ -149,6 +160,7 @@ Empfohlene Seitenstruktur:
    - Tests für Endpoint-Verhalten und Start-up-Fail-fast
 3. Inhalte:
    - Erste Entwürfe in YAML/Markdown für `privacy`, `terms`, `imprint`
+   - Deployment-Beispiel für `privacy.deviation.yaml` bereitstellen
 4. Client:
    - Fetch-Schicht für drei Endpoints
    - Renderer-Integration + Markdown->HTML
@@ -166,6 +178,7 @@ Server-Tests:
 - YAML-Laden und Mapping
 - Hash-Berechnung und Referenzverkettung
 - Fail-fast bei fehlerhaften YAMLs/Inkonsistenzen
+- Fail-fast, wenn `privacy.deviation.yaml` fehlt oder ungültig ist
 - Endpoint-Tests je `docType` und Artefakt-Typ
 
 Client-Tests:

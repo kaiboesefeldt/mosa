@@ -32,8 +32,8 @@ ClearTerms does not attempt to replace legal interpretation, encode jurisdiction
 A ClearTerms document is produced by composing up to three artifacts:
 
 1. **Baseline**: normative Markdown text blocks with placeholders, but no concrete values.
-2. **Default Profile**: selects a Baseline and supplies canonical values for all placeholders.
-3. **Deviation Profile**: references a Default Profile and overrides values, and, exceptionally, may add or override text blocks.
+2. **Default Profile**: selects a Baseline and supplies canonical values for baseline placeholders (a subset is allowed).
+3. **Deviation Profile**: references a Default Profile and overrides or adds values, and, exceptionally, may add or override text blocks.
 
 **Trust model**: Clients compare an operator’s Deviation Profile against a Default Profile anchored in a Baseline. Smaller deviations indicate stronger alignment with the shared baseline.
 
@@ -63,11 +63,13 @@ A Default Profile provides canonical values for a specific Baseline.
 A Default Profile:
 
 * MUST reference exactly one Baseline
-* MUST provide values for all placeholders used by the referenced Baseline
+* MAY provide values for any placeholders used by the referenced Baseline
 * MUST NOT introduce new placeholder keys
 * MUST be versioned (this is the authoritative document version)
 
-**Baseline + Default Profile** MUST render to a complete policy text with no unresolved placeholders.
+Default values define shared canonical defaults and MAY intentionally omit operator-specific values.
+
+**Baseline + Default Profile + Deviation Profile** MUST render to a complete policy text with no unresolved placeholders.
 
 ### 3.3 Deviation Profile
 
@@ -318,6 +320,7 @@ Implementations MUST validate:
 * Reference chain integrity (hash) and reference consistency (`id`/`version` match; §4.2)
 * Type correctness of all placeholder values
 * Completeness: every discovered placeholder key MUST have a value in the effective profile
+* Completeness is evaluated on the effective profile (Default merged with Deviation), not on Default alone
 * Profiles MUST NOT contain unused placeholder keys
 * No unresolved placeholders after substitution (i.e. no remaining unescaped `{{` sequences that match placeholder syntax)
 * For every `null` value, an applicable Baseline fallback MUST exist
