@@ -7,7 +7,7 @@ texts:
       text: |
         # Datenschutzerklärung
 
-        Diese Datenschutzerklärung beschreibt, wie `{{string:controller_name}}` personenbezogene Daten bei der Nutzung von Mosa verarbeitet.
+        Diese Datenschutzerklärung beschreibt die Verarbeitung personenbezogener Daten bei der Nutzung von Mosa durch `{{string:controller_name}}`.
 
         Stand: `{{time:policy_effective_date}}`
 
@@ -20,103 +20,121 @@ texts:
         - `{{string:controller_name}}`
         - `{{string:controller_address}}`
         - E-Mail: `{{string:controller_email}}`
-        - Web: `{{string:controller_website}}`
+        - Web: `{{string:controller_website??nicht angegeben}}`
 
-        Datenschutzanfragen können gerichtet werden an: `{{string:privacy_contact_email}}`
+        Datenschutzanfragen: `{{string:privacy_contact_email}}`
 
     - id: data-protection-officer
       text: |
         ## Datenschutzbeauftragte Stelle
 
-        Kontakt Datenschutzbeauftragte Stelle (falls gesetzlich zu benennen): `{{string:dpo_contact_or_not_required??nicht benötigt}}`
+        Kontakt Datenschutzbeauftragte Stelle (falls gesetzlich zu benennen): `{{string:dpo_contact_or_not_required??nicht erforderlich}}`
+
+    - id: service-description
+      text: |
+        ## Beschreibung des Dienstes
+
+        Mosa ist ein textbasierter Dienst, mit dem Nutzerinnen und Nutzer Inhalte veröffentlichen, beantworten, suchen, abrufen und eigene Inhalte löschen können.
+
+        Nutzeridentitäten werden in Mosa ausschließlich pseudonym verarbeitet.
+
+        Die Verarbeitung personenbezogener Daten erfolgt ausschließlich, soweit dies für die Bereitstellung dieser Funktionen sowie für den sicheren und stabilen Betrieb des Dienstes erforderlich ist.
 
     - id: categories-and-sources
       text: |
         ## Kategorien personenbezogener Daten und Datenquellen
 
-        Verarbeitete Kategorien personenbezogener Daten:
+        Mosa verarbeitet in der Standardimplementierung folgende Datenkategorien:
 
-        - `{{string:data_categories_primary}}`
-        - `{{string:data_categories_optional}}`
+        - Konten-/Identitätsdaten: eine pseudonyme Kennung für Ihr Konto, Nachweise zur Anmeldung am Dienst und Sitzungsnachweise
+        - Inhaltsdaten: veröffentlichte Beiträge und Antworten (Freitext)
+        - Inhaltsmetadaten: interne Beitragskennungen, Zuordnung von Antworten zu einem Ausgangsbeitrag, Autor-Zuordnung und Speicherzeitpunkt
+        - Such- und Abrufdaten: Suchbegriffe, Zeitfilter und angefragte Beitragskennungen
+        - Sicherheits- und Betriebsdaten: IP-Adresse zur Missbrauchsabwehr und Ratenbegrenzung, technische Request-Metadaten
 
-        Quellen der Daten:
+        Datenquellen:
 
-        - Direkt bei betroffenen Personen erhoben: `{{string:data_source_direct_collection}}`
-        - Nicht direkt erhobene Daten (Art. 14 DSGVO): `{{string:data_source_indirect_collection}}`
-        - Herkunftsangaben bei indirekter Erhebung: `{{string:data_source_indirect_origin_details}}`
+        - Direkt von betroffenen Personen bei der Nutzung des Dienstes
+        - Keine planmäßige indirekte Erhebung im Sinne von Art. 14 DSGVO
+
+        Hinweis: Inhalte sind Freitext. Personenbezogene Daten sollen nur veröffentlicht werden, wenn dafür eine gültige Rechtsgrundlage besteht.
 
     - id: purposes-legal-bases
       text: |
         ## Zwecke und Rechtsgrundlagen
 
-        Zwecke der Verarbeitung:
+        Verarbeitungszwecke und Rechtsgrundlagen in der Mosa-Standardimplementierung:
 
-        - `{{string:processing_purposes_primary}}`
-        - `{{string:processing_purposes_optional}}`
+        - Betrieb des Dienstes (Veröffentlichen, Antworten, Suchen, Abrufen, Löschen): Art. 6 Abs. 1 lit. b DSGVO oder Art. 6 Abs. 1 lit. f DSGVO
+        - IT-Sicherheit, Integrität, Verfügbarkeit, Missbrauchsabwehr und Ratenbegrenzung: Art. 6 Abs. 1 lit. f DSGVO
+        - Erfüllung rechtlicher Pflichten (z. B. gesetzliche Aufbewahrungs- oder Herausgabepflichten): Art. 6 Abs. 1 lit. c DSGVO
 
-        Rechtsgrundlagen:
+        Berechtigte Interessen nach Art. 6 Abs. 1 lit. f DSGVO sind insbesondere:
 
-        - Art. 6 Abs. 1 lit. b DSGVO (Vertrag und vorvertragliche Maßnahmen): `{{string:legal_basis_contract_scope}}`
-        - Art. 6 Abs. 1 lit. c DSGVO (rechtliche Verpflichtung): `{{string:legal_basis_legal_obligation_scope}}`
-        - Art. 6 Abs. 1 lit. f DSGVO (berechtigte Interessen): `{{string:legal_basis_legitimate_interest_scope}}`
-        - Konkrete berechtigte Interessen: `{{string:legitimate_interests_description}}`
-        - Art. 6 Abs. 1 lit. a DSGVO (Einwilligung): `{{string:legal_basis_consent_scope}}`
+        - Sicherer, stabiler und missbrauchsresistenter Betrieb von Mosa
+        - Schutz vor unbefugter Nutzung und vor technischen Angriffen
+        - Effiziente Bereitstellung von Such- und Antwortfunktionen
+
+        Eine Verarbeitung auf Grundlage einer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO) ist in der technischen Mosa-Standardfunktion nicht zwingend vorgesehen.
 
     - id: recipients-and-transfers
       text: |
         ## Empfänger und Drittlandübermittlungen
 
-        Empfänger bzw. Kategorien von Empfängern:
+        Empfänger der Daten können je nach Verarbeitung sein:
 
-        - `{{string:recipients_categories}}`
+        - Der Mosa-Betreiber und von ihm autorisierte Stellen
+        - Auftragsverarbeiter für Hosting, Betrieb und Wartung: `{{string:processors_categories_or_list??nicht gesondert benannt}}`
+        - Andere Nutzerinnen und Nutzer des Dienstes hinsichtlich veröffentlichter Inhalte
 
-        Eingesetzte Auftragsverarbeiter:
+        Zu veröffentlichten Inhalten gilt:
 
-        - `{{string:processors_categories_or_list}}`
+        - Beiträge und Antworten sind für berechtigte Abrufe im Dienst sichtbar.
+        - Veröffentlicht wird der von Ihnen eingegebene Inhalt einschließlich zugehöriger Metadaten (z. B. Autor-Zuordnung, interne Beitragskennungen, Zuordnung von Antworten und Speicherzeitpunkt).
 
-        Übermittlungen in Drittländer oder an internationale Organisationen:
+        Drittlandübermittlungen:
 
-        - Finden statt: `{{string:third_country_transfers_in_use}}`
-        - Betroffene Drittländer/Organisationen: `{{string:third_country_transfer_targets}}`
-        - Garantien nach Art. 44 ff. DSGVO: `{{string:third_country_transfer_safeguards}}`
-        - Wie eine Kopie der Garantien erlangt werden kann: `{{string:third_country_transfer_safeguards_copy_info}}`
+        - Mosa ist technisch international nutzbar. Dabei kann es im Rahmen der Internetkommunikation zu grenzüberschreitenden Datenflüssen kommen.
+        - Eine Drittlandübermittlung im datenschutzrechtlichen Sinne liegt insbesondere vor, wenn personenbezogene Daten an Empfänger in Staaten außerhalb der EU/des EWR offengelegt oder übermittelt werden.
+        - In der Mosa-Standardimplementierung sind solche Übermittlungen nicht als zwingende Funktion vorgegeben, können sich aber aus der konkreten Betriebs- und Empfängersituation ergeben.
+        - Für Abrufe durch Nutzerinnen und Nutzer aus unbekannten Ländern können keine abschließenden Staatenlisten geführt werden.
+        - Soweit Drittlandübermittlungen im Einflussbereich des Betreibers liegen (insbesondere an Dienstleister oder sonstige feststehende Empfänger), werden die betroffenen Drittländer oder internationalen Organisationen, die eingesetzten Garantien nach Art. 44 ff. DSGVO sowie die Möglichkeiten zur Einsicht in diese Garantien hier offengelegt: `{{string:third_country_transfer_details??nicht zutreffend}}`
 
     - id: retention
       text: |
         ## Speicherdauer
 
-        Personenbezogene Daten werden nur so lange gespeichert, wie es für die jeweiligen Zwecke erforderlich ist oder gesetzliche Aufbewahrungspflichten bestehen.
+        Speicherdauern und Kriterien in der Mosa-Standardimplementierung:
 
-        Speicherdauern bzw. Kriterien:
+        - Protokoll- und Sicherheitsdaten: `{{duration:retention_log_data}}`
+        - Veröffentlichte Inhalte: `{{duration:retention_user_content}}`
 
-        - Protokolldaten: `{{duration:retention_log_data}}`
-        - Von Nutzerinnen und Nutzern veröffentlichte Inhalte: `{{duration:retention_user_content}}`
-        - Weitere Kategorien und Kriterien: `{{string:retention_other_categories_and_criteria}}`
+        Für veröffentlichte Inhalte gilt zusätzlich:
+
+        - Eine Berichtigung bestehender Inhalte erfolgt technisch durch Löschen und Neuveröffentlichen.
+        - Nach Löschung werden Inhalte aus dem aktiven Datenbestand entfernt.
+        - Eine vollständige Entfernung aus externen Systemen außerhalb des Einflussbereichs des Betreibers (z. B. Browser-Caches bei anderen Nutzenden) kann technisch nicht garantiert werden.
+        - Der Betreiber ergreift angemessene und zumutbare Maßnahmen, um Löschungen im eigenen Verantwortungsbereich wirksam umzusetzen.
+        - Etwaige längere Verfügbarkeit in Sicherungskopien richtet sich nach dem Backup-Konzept des Betreibers: `{{string:backup_retention_or_none??keine gesonderte Aufbewahrung über aktive Systeme hinaus}}`
 
     - id: provision-obligation
       text: |
         ## Pflicht zur Bereitstellung von Daten
 
-        Ob die Bereitstellung personenbezogener Daten gesetzlich oder vertraglich vorgeschrieben bzw. für einen Vertragsschluss erforderlich ist:
+        Für die Nutzung von Mosa sind technisch erforderlich:
 
-        - `{{string:data_provision_requirement}}`
+        - Eine pseudonyme Kontokennung einschließlich der dafür notwendigen Anmeldedaten
+        - Die jeweils für die genutzte Funktion erforderlichen Eingabedaten
 
-        Mögliche Folgen der Nichtbereitstellung:
-
-        - `{{string:data_provision_consequences}}`
+        Ohne diese Daten ist die Nutzung der geschützten Funktionen (z. B. Veröffentlichen, Antworten, Suchen, Löschen) nicht möglich.
 
     - id: automated-decision-making
       text: |
         ## Automatisierte Entscheidungen einschließlich Profiling
 
-        Ob automatisierte Entscheidungen im Einzelfall einschließlich Profiling gemäß Art. 22 DSGVO stattfinden:
+        In der Mosa-Standardimplementierung findet keine automatisierte Entscheidung im Einzelfall einschließlich Profiling gemäß Art. 22 DSGVO statt.
 
-        - `{{string:automated_decision_making_in_use}}`
-
-        Falls ja:
-
-        - Aussagekräftige Informationen über involvierte Logik: `{{string:automated_decision_logic_details}}`
-        - Tragweite und angestrebte Auswirkungen: `{{string:automated_decision_consequences}}`
+        Die semantische Ähnlichkeitssuche dient ausschließlich der technischen Sortierung von Suchergebnissen und entfaltet keine rechtliche oder ähnlich erhebliche Wirkung im Sinne von Art. 22 DSGVO.
 
     - id: rights-and-self-service
       text: |
@@ -132,23 +150,22 @@ texts:
         - Widerspruch (Art. 21 DSGVO)
         - Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft
 
-        Self-Service-Abdeckung in Mosa:
+        Self-Service in der Mosa-Standardimplementierung:
 
-        - Auskunft: `{{string:self_service_access}}`
-        - Berichtigung: `{{string:self_service_rectification}}`
-        - Löschung: `{{string:self_service_erasure}}`
-        - Einschränkung: `{{string:self_service_restriction}}`
-        - Datenübertragbarkeit: `{{string:self_service_portability}}`
-        - Widerspruch: `{{string:self_service_objection}}`
-        - Widerruf von Einwilligungen: `{{string:self_service_consent_withdrawal}}`
+        - Löschung eigener Inhalte ist direkt im Self-Service möglich.
+        - Berichtigung erfolgt technisch durch Löschen und Neuveröffentlichen, da bestehende Inhalte nicht direkt geändert werden.
 
-        Wenn ein Recht nicht vollständig im Self-Service ausübbar ist, erfolgt die Bearbeitung über: `{{string:privacy_contact_email}}`
+        Derzeit nicht vollständig im Self-Service abgedeckt sind insbesondere Auskunft als Gesamtauszug, Einschränkung, Datenübertragbarkeit als Gesamtexport sowie Widerspruchs- und Widerrufsverwaltung je Zweck.
+
+        Für diese Rechte und für alle weiteren Anfragen: `{{string:privacy_contact_email}}`
 
     - id: complaint
       text: |
         ## Beschwerderecht bei Aufsichtsbehörde
 
-        Es besteht ein Beschwerderecht bei einer Datenschutzaufsichtsbehörde, insbesondere bei:
+        Es besteht ein Beschwerderecht bei einer Datenschutzaufsichtsbehörde.
+
+        Zuständige oder federführende Aufsichtsbehörde des Betreibers:
 
         - `{{string:supervisory_authority_name}}`
         - `{{string:supervisory_authority_address}}`
@@ -159,5 +176,7 @@ texts:
         ## Sicherheit und Änderungen
 
         Es werden angemessene technische und organisatorische Maßnahmen eingesetzt, um personenbezogene Daten zu schützen.
+
+        Dazu gehören in der Mosa-Standardimplementierung insbesondere Prüfungen bei Anmeldung und Zugriff, Maßnahmen gegen missbräuchliche Nutzung sowie Schutzmaßnahmen für einen stabilen und sicheren Betrieb.
 
         Diese Datenschutzerklärung kann angepasst werden, wenn sich rechtliche, technische oder organisatorische Rahmenbedingungen ändern. Maßgeblich ist die jeweils veröffentlichte Fassung.
