@@ -250,6 +250,48 @@ Additional terms.
         }
 
     @Test
+    fun `renders when default omits value and deviation provides it`() =
+        runTest {
+            val baseline =
+                """
+{
+  "kind": "baseline",
+  "id": "example-policy",
+  "version": "1.0",
+  "texts": {
+    "en": [
+      { "id": "operator", "text": "Operator: {{string:operator_name}}." }
+    ]
+  }
+}
+                """.trimIndent()
+            val defaultProfile =
+                """
+{
+  "kind": "default",
+  "id": "example-policy-default",
+  "version": "1.0",
+  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+  "values": {}
+}
+                """.trimIndent()
+            val deviation =
+                """
+{
+  "kind": "deviation",
+  "id": "example-policy-operator",
+  "version": "1.0",
+  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+  "overrides": { "values": { "operator_name": "Example Organization" } }
+}
+                """.trimIndent()
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Operator: Example Organization.", result)
+        }
+
+    @Test
     fun `rejects unused default values`() =
         runTest {
             val baseline =

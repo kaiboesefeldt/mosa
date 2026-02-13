@@ -34,15 +34,18 @@ class ClearTermsRenderer(
 
         val baselinePlaceholders = profileValidator.placeholdersByKey(baseline.textsByLanguage)
 
-        val defaultValues = profileValidator.validateAndCoerceValues(defaultProfile.values, baselinePlaceholders, requireAll = true)
+        profileValidator.validateAndCoerceValues(defaultProfile.values, baselinePlaceholders, requireAll = false)
 
         val effectiveTexts = profileValidator.applyTextOverrides(baseline, deviationProfile.overrides.texts)
         val effectivePlaceholders = profileValidator.placeholdersByKey(effectiveTexts)
 
-        val deviationValues =
-            profileValidator.validateAndCoerceValues(deviationProfile.overrides.values, effectivePlaceholders, requireAll = false)
-
-        val effectiveValues = defaultValues + deviationValues
+        profileValidator.validateAndCoerceValues(deviationProfile.overrides.values, effectivePlaceholders, requireAll = false)
+        val effectiveValues =
+            profileValidator.validateAndCoerceValues(
+                defaultProfile.values + deviationProfile.overrides.values,
+                effectivePlaceholders,
+                requireAll = true,
+            )
 
         val renderedByLanguage =
             effectiveTexts.mapValues { (language, blocks) ->
