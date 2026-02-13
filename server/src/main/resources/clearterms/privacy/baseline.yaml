@@ -1,6 +1,6 @@
 kind: baseline
 id: mosa-privacy-baseline
-version: "1.0.0-draft1"
+version: "1.0.0-draft2"
 texts:
   de:
     - id: title
@@ -9,7 +9,7 @@ texts:
 
         Diese Datenschutzerklärung beschreibt, wie `{{string:controller_name}}` personenbezogene Daten bei der Nutzung von Mosa verarbeitet.
 
-        Stand: `{{time:policy_effective_date??nicht angegeben}}`
+        Stand: `{{time:policy_effective_date}}`
 
     - id: controller
       text: |
@@ -24,44 +24,62 @@ texts:
 
         Datenschutzanfragen können gerichtet werden an: `{{string:privacy_contact_email}}`
 
-    - id: principles
+    - id: data-protection-officer
       text: |
-        ## Grundsaetze der Verarbeitung
+        ## Datenschutzbeauftragte Stelle
 
-        Mosa wird nach den Grundsätzen der Rechtmäßigkeit, Transparenz, Datenminimierung und Zweckbindung betrieben.
+        Kontakt Datenschutzbeauftragte Stelle (falls gesetzlich zu benennen): `{{string:dpo_contact_or_not_required??nicht benötigt}}`
 
-        - Wir erheben nur Daten, die für Betrieb, Sicherheit und Bereitstellung des Dienstes erforderlich sind.
-        - Wir verkaufen keine personenbezogenen Daten.
-        - Wir nutzen personenbezogene Daten nicht für personalisierte Werbung.
-
-    - id: processed-data
+    - id: categories-and-sources
       text: |
-        ## Welche Daten verarbeitet werden
+        ## Kategorien personenbezogener Daten und Datenquellen
 
-        Je nach Nutzung von Mosa können insbesondere folgende Daten verarbeitet werden:
+        Verarbeitete Kategorien personenbezogener Daten:
 
-        - technisch notwendige Verbindungs- und Protokolldaten
-        - von Nutzerinnen und Nutzern eingestellte Inhalte
-        - freiwillig bereitgestellte Kommunikationsdaten
+        - `{{string:data_categories_primary}}`
+        - `{{string:data_categories_optional}}`
 
-        Inhalte in Mosa können für andere Teilnehmende sichtbar sein, soweit sie von Nutzerinnen und Nutzern veröffentlicht wurden.
+        Quellen der Daten:
+
+        - Direkt bei betroffenen Personen erhoben: `{{string:data_source_direct_collection}}`
+        - Nicht direkt erhobene Daten (Art. 14 DSGVO): `{{string:data_source_indirect_collection}}`
+        - Herkunftsangaben bei indirekter Erhebung: `{{string:data_source_indirect_origin_details}}`
 
     - id: purposes-legal-bases
       text: |
         ## Zwecke und Rechtsgrundlagen
 
-        Die Verarbeitung erfolgt insbesondere zu folgenden Zwecken:
+        Zwecke der Verarbeitung:
 
-        - Bereitstellung und Betrieb von Mosa
-        - Gewährleistung von IT-Sicherheit und Missbrauchsprävention
-        - Bearbeitung von Anfragen und Wahrnehmung gesetzlicher Pflichten
+        - `{{string:processing_purposes_primary}}`
+        - `{{string:processing_purposes_optional}}`
 
-        Rechtsgrundlagen sind je nach Verarbeitung insbesondere:
+        Rechtsgrundlagen:
 
-        - Art. 6 Abs. 1 lit. b DSGVO (Vertrag und vorvertragliche Maßnahmen)
-        - Art. 6 Abs. 1 lit. c DSGVO (rechtliche Verpflichtung)
-        - Art. 6 Abs. 1 lit. f DSGVO (berechtigte Interessen)
-        - Art. 6 Abs. 1 lit. a DSGVO (Einwilligung), soweit eine Einwilligung eingeholt wird
+        - Art. 6 Abs. 1 lit. b DSGVO (Vertrag und vorvertragliche Maßnahmen): `{{string:legal_basis_contract_scope}}`
+        - Art. 6 Abs. 1 lit. c DSGVO (rechtliche Verpflichtung): `{{string:legal_basis_legal_obligation_scope}}`
+        - Art. 6 Abs. 1 lit. f DSGVO (berechtigte Interessen): `{{string:legal_basis_legitimate_interest_scope}}`
+        - Konkrete berechtigte Interessen: `{{string:legitimate_interests_description}}`
+        - Art. 6 Abs. 1 lit. a DSGVO (Einwilligung): `{{string:legal_basis_consent_scope}}`
+
+    - id: recipients-and-transfers
+      text: |
+        ## Empfänger und Drittlandübermittlungen
+
+        Empfänger bzw. Kategorien von Empfängern:
+
+        - `{{string:recipients_categories}}`
+
+        Eingesetzte Auftragsverarbeiter:
+
+        - `{{string:processors_categories_or_list}}`
+
+        Übermittlungen in Drittländer oder an internationale Organisationen:
+
+        - Finden statt: `{{string:third_country_transfers_in_use}}`
+        - Betroffene Drittländer/Organisationen: `{{string:third_country_transfer_targets}}`
+        - Garantien nach Art. 44 ff. DSGVO: `{{string:third_country_transfer_safeguards}}`
+        - Wie eine Kopie der Garantien erlangt werden kann: `{{string:third_country_transfer_safeguards_copy_info}}`
 
     - id: retention
       text: |
@@ -69,22 +87,40 @@ texts:
 
         Personenbezogene Daten werden nur so lange gespeichert, wie es für die jeweiligen Zwecke erforderlich ist oder gesetzliche Aufbewahrungspflichten bestehen.
 
-        Typische Richtwerte:
+        Speicherdauern bzw. Kriterien:
 
-        - Protokolldaten: `{{duration:retention_log_data??nicht festgelegt}}`
-        - Von Nutzerinnen und Nutzern veröffentlichte Inhalte: `{{duration:retention_user_content??nicht festgelegt}}`
+        - Protokolldaten: `{{duration:retention_log_data}}`
+        - Von Nutzerinnen und Nutzern veröffentlichte Inhalte: `{{duration:retention_user_content}}`
+        - Weitere Kategorien und Kriterien: `{{string:retention_other_categories_and_criteria}}`
 
-    - id: recipients-transfers
+    - id: provision-obligation
       text: |
-        ## Empfänger und Drittlandübermittlungen
+        ## Pflicht zur Bereitstellung von Daten
 
-        Eine Weitergabe personenbezogener Daten erfolgt nur, wenn dies für den Betrieb erforderlich ist, eine gesetzliche Pflicht besteht oder eine wirksame Einwilligung vorliegt.
+        Ob die Bereitstellung personenbezogener Daten gesetzlich oder vertraglich vorgeschrieben bzw. für einen Vertragsschluss erforderlich ist:
 
-        Falls Daten in Staaten außerhalb der EU bzw. des EWR übermittelt werden, erfolgt dies nur auf Grundlage der gesetzlichen Voraussetzungen der Art. 44 ff. DSGVO.
+        - `{{string:data_provision_requirement}}`
 
-    - id: rights
+        Mögliche Folgen der Nichtbereitstellung:
+
+        - `{{string:data_provision_consequences}}`
+
+    - id: automated-decision-making
       text: |
-        ## Ihre Rechte
+        ## Automatisierte Entscheidungen einschließlich Profiling
+
+        Ob automatisierte Entscheidungen im Einzelfall einschließlich Profiling gemäß Art. 22 DSGVO stattfinden:
+
+        - `{{string:automated_decision_making_in_use}}`
+
+        Falls ja:
+
+        - Aussagekräftige Informationen über involvierte Logik: `{{string:automated_decision_logic_details}}`
+        - Tragweite und angestrebte Auswirkungen: `{{string:automated_decision_consequences}}`
+
+    - id: rights-and-self-service
+      text: |
+        ## Ihre Rechte und Self-Service in Mosa
 
         Betroffene Personen haben nach DSGVO insbesondere folgende Rechte:
 
@@ -96,11 +132,26 @@ texts:
         - Widerspruch (Art. 21 DSGVO)
         - Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft
 
-        Zur Ausübung dieser Rechte kann Mosa direkt genutzt werden. Sollten Sie dabei Probleme haben, kontaktieren Sie bitte `{{string:privacy_contact_email}}`.
+        Self-Service-Abdeckung in Mosa:
 
-        Zudem besteht ein Beschwerderecht bei einer Datenschutzaufsichtsbehörde, insbesondere bei:
+        - Auskunft: `{{string:self_service_access}}`
+        - Berichtigung: `{{string:self_service_rectification}}`
+        - Löschung: `{{string:self_service_erasure}}`
+        - Einschränkung: `{{string:self_service_restriction}}`
+        - Datenübertragbarkeit: `{{string:self_service_portability}}`
+        - Widerspruch: `{{string:self_service_objection}}`
+        - Widerruf von Einwilligungen: `{{string:self_service_consent_withdrawal}}`
+
+        Wenn ein Recht nicht vollständig im Self-Service ausübbar ist, erfolgt die Bearbeitung über: `{{string:privacy_contact_email}}`
+
+    - id: complaint
+      text: |
+        ## Beschwerderecht bei Aufsichtsbehörde
+
+        Es besteht ein Beschwerderecht bei einer Datenschutzaufsichtsbehörde, insbesondere bei:
 
         - `{{string:supervisory_authority_name}}`
+        - `{{string:supervisory_authority_address}}`
         - `{{string:supervisory_authority_website}}`
 
     - id: security-and-changes

@@ -186,7 +186,37 @@ Client-Tests:
 - Fehlerfälle: einzelner Fetch/Renderer-Fehler blockiert Pod-Zugriff
 - Sichtbarkeit der Links/Routes für `privacy`, `terms`, `imprint`
 
-## 11. Offene Punkte (bewusst zurückgestellt)
+## 11. Self-Service-Gaps bei Betroffenenrechten (Stand heute)
+
+Zielbild:
+- Alle gesetzlich relevanten Betroffenenrechte sollen bevorzugt im Self-Service wahrnehmbar sein.
+
+Bereits im Self-Service vorhanden:
+- Löschung eigener Inhalte (Art. 17 DSGVO) über:
+  - `DELETE /v1/posts/{id}` (einzelner eigener Beitrag)
+  - `DELETE /v1/posts` (alle eigenen Beiträge)
+
+Noch nicht im Self-Service abgedeckt:
+- Auskunft (Art. 15 DSGVO):
+  - Kein dedizierter Endpunkt für eine vollständige Datenkopie aller personenbezogenen Daten pro GID.
+  - Kein Exportformat für maschinenlesbare Gesamtauskunft.
+- Berichtigung (Art. 16 DSGVO):
+  - Kein Endpunkt zur Korrektur bereits gespeicherter Inhalte oder Metadaten.
+  - Derzeit nur indirekt über Löschen und Neuveröffentlichen möglich.
+- Einschränkung der Verarbeitung (Art. 18 DSGVO):
+  - Kein Mechanismus, um Verarbeitung pro GID/datensatzbezogen einzuschränken, ohne vollständige Löschung.
+- Datenübertragbarkeit (Art. 20 DSGVO):
+  - Kein Endpunkt für strukturierten Gesamtexport der von einer Person bereitgestellten Daten.
+- Widerspruch (Art. 21 DSGVO):
+  - Kein Self-Service-Opt-out für auf berechtigte Interessen gestützte Verarbeitungsschritte.
+- Widerruf von Einwilligungen:
+  - Kein dediziertes Consent-Management mit Widerruf pro Zweck im Self-Service.
+
+Konsequenz für diese Iteration:
+- Datenschutzerklärung weist transparent aus, welche Rechte bereits im Self-Service möglich sind und welche derzeit über `privacy_contact_email` bearbeitet werden.
+- Für die nicht abgedeckten Rechte bleiben manuelle Prozesse beim Pod-Betreiber erforderlich.
+
+## 12. Offene Punkte (bewusst zurückgestellt)
 
 1. Mehrfachversionierung und historische Auslieferung
 2. Externer Baseline-/Default-Server

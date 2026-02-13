@@ -1,9 +1,9 @@
 kind: default
 id: mosa-privacy-default
-version: "1.0.0-draft1"
+version: "1.0.0-draft2"
 baseline:
   id: mosa-privacy-baseline
-  version: "1.0.0-draft1"
+  version: "1.0.0-draft2"
 values:
   retention_log_data: "14d"
   retention_user_content: "infinite"
