@@ -1,0 +1,112 @@
+kind: baseline
+id: mosa-privacy-baseline
+version: "1.0.0-draft1"
+texts:
+  de:
+    - id: title
+      text: |
+        # Datenschutzerklärung
+
+        Diese Datenschutzerklärung beschreibt, wie `{{string:controller_name}}` personenbezogene Daten bei der Nutzung von Mosa verarbeitet.
+
+        Stand: `{{time:policy_effective_date??nicht angegeben}}`
+
+    - id: controller
+      text: |
+        ## Verantwortlicher
+
+        Verantwortlicher im Sinne von Art. 4 Nr. 7 DSGVO ist:
+
+        - `{{string:controller_name}}`
+        - `{{string:controller_address}}`
+        - E-Mail: `{{string:controller_email}}`
+        - Web: `{{string:controller_website}}`
+
+        Datenschutzanfragen können gerichtet werden an: `{{string:privacy_contact_email}}`
+
+    - id: principles
+      text: |
+        ## Grundsaetze der Verarbeitung
+
+        Mosa wird nach den Grundsätzen der Rechtmäßigkeit, Transparenz, Datenminimierung und Zweckbindung betrieben.
+
+        - Wir erheben nur Daten, die für Betrieb, Sicherheit und Bereitstellung des Dienstes erforderlich sind.
+        - Wir verkaufen keine personenbezogenen Daten.
+        - Wir nutzen personenbezogene Daten nicht für personalisierte Werbung.
+
+    - id: processed-data
+      text: |
+        ## Welche Daten verarbeitet werden
+
+        Je nach Nutzung von Mosa können insbesondere folgende Daten verarbeitet werden:
+
+        - technisch notwendige Verbindungs- und Protokolldaten
+        - von Nutzerinnen und Nutzern eingestellte Inhalte
+        - freiwillig bereitgestellte Kommunikationsdaten
+
+        Inhalte in Mosa können für andere Teilnehmende sichtbar sein, soweit sie von Nutzerinnen und Nutzern veröffentlicht wurden.
+
+    - id: purposes-legal-bases
+      text: |
+        ## Zwecke und Rechtsgrundlagen
+
+        Die Verarbeitung erfolgt insbesondere zu folgenden Zwecken:
+
+        - Bereitstellung und Betrieb von Mosa
+        - Gewährleistung von IT-Sicherheit und Missbrauchsprävention
+        - Bearbeitung von Anfragen und Wahrnehmung gesetzlicher Pflichten
+
+        Rechtsgrundlagen sind je nach Verarbeitung insbesondere:
+
+        - Art. 6 Abs. 1 lit. b DSGVO (Vertrag und vorvertragliche Maßnahmen)
+        - Art. 6 Abs. 1 lit. c DSGVO (rechtliche Verpflichtung)
+        - Art. 6 Abs. 1 lit. f DSGVO (berechtigte Interessen)
+        - Art. 6 Abs. 1 lit. a DSGVO (Einwilligung), soweit eine Einwilligung eingeholt wird
+
+    - id: retention
+      text: |
+        ## Speicherdauer
+
+        Personenbezogene Daten werden nur so lange gespeichert, wie es für die jeweiligen Zwecke erforderlich ist oder gesetzliche Aufbewahrungspflichten bestehen.
+
+        Typische Richtwerte:
+
+        - Protokolldaten: `{{duration:retention_log_data??nicht festgelegt}}`
+        - Von Nutzerinnen und Nutzern veröffentlichte Inhalte: `{{duration:retention_user_content??nicht festgelegt}}`
+
+    - id: recipients-transfers
+      text: |
+        ## Empfänger und Drittlandübermittlungen
+
+        Eine Weitergabe personenbezogener Daten erfolgt nur, wenn dies für den Betrieb erforderlich ist, eine gesetzliche Pflicht besteht oder eine wirksame Einwilligung vorliegt.
+
+        Falls Daten in Staaten außerhalb der EU bzw. des EWR übermittelt werden, erfolgt dies nur auf Grundlage der gesetzlichen Voraussetzungen der Art. 44 ff. DSGVO.
+
+    - id: rights
+      text: |
+        ## Ihre Rechte
+
+        Betroffene Personen haben nach DSGVO insbesondere folgende Rechte:
+
+        - Auskunft (Art. 15 DSGVO)
+        - Berichtigung (Art. 16 DSGVO)
+        - Löschung (Art. 17 DSGVO)
+        - Einschränkung der Verarbeitung (Art. 18 DSGVO)
+        - Datenübertragbarkeit (Art. 20 DSGVO)
+        - Widerspruch (Art. 21 DSGVO)
+        - Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft
+
+        Zur Ausübung dieser Rechte kann Mosa direkt genutzt werden. Sollten Sie dabei Probleme haben, kontaktieren Sie bitte `{{string:privacy_contact_email}}`.
+
+        Zudem besteht ein Beschwerderecht bei einer Datenschutzaufsichtsbehörde, insbesondere bei:
+
+        - `{{string:supervisory_authority_name}}`
+        - `{{string:supervisory_authority_website}}`
+
+    - id: security-and-changes
+      text: |
+        ## Sicherheit und Änderungen
+
+        Es werden angemessene technische und organisatorische Maßnahmen eingesetzt, um personenbezogene Daten zu schützen.
+
+        Diese Datenschutzerklärung kann angepasst werden, wenn sich rechtliche, technische oder organisatorische Rahmenbedingungen ändern. Maßgeblich ist die jeweils veröffentlichte Fassung.
