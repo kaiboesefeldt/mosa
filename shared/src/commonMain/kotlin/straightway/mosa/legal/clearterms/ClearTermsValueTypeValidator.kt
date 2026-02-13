@@ -18,8 +18,8 @@ class ClearTermsValueTypeValidator(
     }
 
     private fun validateStringValue(value: Any?) {
-        if (value !is String) {
-            throw ClearTermsValidationException("String value must be provided")
+        if (value != null && value !is String) {
+            throw ClearTermsValidationException("String value must be string")
         }
     }
 

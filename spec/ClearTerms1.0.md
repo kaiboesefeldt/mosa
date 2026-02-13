@@ -191,9 +191,7 @@ No additional types are defined in this version.
 
 ### 6.3 Null Semantics and Fallbacks
 
-* `string` MUST NOT be `null`.
-* `??fallback` MUST NOT be used for `string` placeholders.
-* All other types (`number`, `duration`, `time`, `weekday`) MAY be `null`, meaning “not specified”.
+* All types (`string`, `number`, `duration`, `time`, `weekday`) MAY be `null`, meaning “not specified”.
 * If a value is `null`, rendering MUST use the Baseline’s inline fallback (`??fallback`).
 * `fallback` is rendered verbatim and MUST NOT be processed by any formatting option.
 * Default and Deviation profiles MUST NOT define fallbacks.
@@ -461,7 +459,7 @@ Additional constraints for multi-language Baselines:
 
 ### 9.4 Typed Values in JSON
 
-* `string`: JSON string, MUST NOT be null
+* `string`: JSON string, or null
 * `number`: JSON number, or null
 * `duration`: JSON string (`<number><unit>` or `infinite`) or null
 * `time`: JSON string (per §6.6) or null

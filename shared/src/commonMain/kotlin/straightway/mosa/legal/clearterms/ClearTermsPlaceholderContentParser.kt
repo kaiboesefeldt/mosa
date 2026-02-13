@@ -7,7 +7,6 @@ class ClearTermsPlaceholderContentParser {
         val type = parseType(typeToken)
         val (key, options) = splitOptions(keyAndOptions)
         validatePlaceholderKey(key)
-        ensureFallbackAllowed(type, fallback)
         val numberOptions = parseNumberOptions(type, options)
         return ClearTermsPlaceholder(type, key, fallback, numberOptions)
     }
@@ -23,15 +22,6 @@ class ClearTermsPlaceholderContentParser {
     private fun validatePlaceholderKey(key: String) {
         if (key.isBlank() || key.any { it.isWhitespace() }) {
             throw ClearTermsValidationException("Invalid placeholder key")
-        }
-    }
-
-    private fun ensureFallbackAllowed(
-        type: ClearTermsPlaceholderType,
-        fallback: String?,
-    ) {
-        if (type == ClearTermsPlaceholderType.STRING && fallback != null) {
-            throw ClearTermsValidationException("String placeholders must not define fallbacks")
         }
     }
 

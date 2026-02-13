@@ -89,10 +89,13 @@ class ClearTermsPlaceholderParserTest {
     }
 
     @Test
-    fun `rejects fallback on string placeholders`() {
-        assertFailsWith<ClearTermsValidationException> {
-            parser.parse("Hello {{string:name??fallback}}")
-        }
+    fun `parses fallback on string placeholders`() {
+        val segments = parser.parse("Hello {{string:name??fallback}}")
+
+        val placeholder = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder
+        assertEquals(ClearTermsPlaceholderType.STRING, placeholder.type)
+        assertEquals("name", placeholder.key)
+        assertEquals("fallback", placeholder.fallback)
     }
 
     @Test

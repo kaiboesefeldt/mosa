@@ -1321,6 +1321,25 @@ Additional terms.
         }
 
     @Test
+    fun `renders string fallback when value is null`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+{
+  "en": [ { "id": "operator", "text": "Operator: {{string:operator_name??unspecified}}." } ]
+}
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ "operator_name": null }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Operator: unspecified.", result)
+        }
+
+    @Test
     fun `renders integer numbers without decimal`() =
         runTest {
             val baseline =
