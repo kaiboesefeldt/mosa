@@ -31,7 +31,7 @@ ClearTerms does not attempt to replace legal interpretation, encode jurisdiction
 
 A ClearTerms document is produced by composing one Baseline with one or more Profiles:
 
-1. **Baseline**: normative Markdown text blocks with placeholders, but no concrete values.
+1. **Baseline**: normative text blocks with placeholders, but no concrete values.
 2. **Profile**: references a parent artifact via `parent` (either a Baseline or another Profile), overrides or adds values, and, exceptionally, may add or override text blocks.
 
 **Trust model**: Clients compare an operator profile against an upstream profile anchored in a Baseline. Smaller deltas indicate stronger alignment with the shared baseline.
@@ -46,7 +46,8 @@ A Baseline defines the normative and ethical reference text.
 
 A Baseline:
 
-* MUST provide one or more Markdown text blocks per language
+* MUST provide one or more text blocks per language
+* MAY set individual text blocks to `null` to mark them as intentionally undefined in the Baseline and required in a Profile
 * MAY contain placeholders (see §6)
 * MUST be versioned
 * SHOULD be published by a trusted third party (e.g., NGO, foundation, community)
@@ -63,7 +64,7 @@ A Profile:
 
 * MUST reference exactly one parent artifact via `parent`
 * MUST be versioned
-* MAY provide values for any placeholders used by the effective texts
+* MAY provide values for any placeholders used by the final text
 * MUST NOT introduce new placeholder keys not referenced in text blocks
 * MAY override placeholder values
 
@@ -89,6 +90,13 @@ Profile chains define how a target Profile is resolved.
 * Chains MUST be acyclic.
 
 In practice, resolving a valid chain always leads to one baseline lineage because each profile has exactly one parent edge and chain resolution terminates at a baseline.
+
+### 3.4 Text Resolution Terms
+
+To avoid ambiguity, ClearTerms distinguishes between text states along a profile chain:
+
+* `intermediate text`: the text state at a specific chain step (Baseline plus all text overrides up to and including a specific Profile)
+* `final text`: the `intermediate text` of the resolved target Profile that is rendered to the user
 
 ---
 
@@ -126,6 +134,7 @@ Clients:
 ### 5.1 Text Format
 
 * Text blocks MAY be written in any text format. ClearTerms does not prescribe a markup language.
+* A text block with `null` content is unresolved and MUST be replaced by a Profile before rendering.
 * Placeholder substitution MUST occur before any client-specific rendering.
 * After placeholder substitution, the resulting text MUST NOT contain any `{{` sequences that match placeholder syntax.
 
@@ -195,10 +204,10 @@ No additional types are defined in this version.
 ### 6.3 Null Semantics and Fallbacks
 
 * All types (`string`, `number`, `duration`, `time`, `weekday`) MAY be `null`, meaning “not specified”.
-* If a value is `null`, rendering MUST use the effective text’s inline fallback (`??fallback`), if present.
+* If a value is `null`, rendering MUST use the final text’s inline fallback (`??fallback`), if present.
 * `fallback` is rendered verbatim and MUST NOT be processed by any formatting option.
 * Fallbacks are defined inline in text blocks and are not part of profile values.
-* If a placeholder evaluates to `null` and no fallback exists in the effective text for the relevant language, rendering MUST fail.
+* If a placeholder evaluates to `null` and no fallback exists in the final text for the relevant language, rendering MUST fail.
 
 ### 6.4 `number` Formatting
 
@@ -306,7 +315,7 @@ The abbreviations are fixed and locale-independent.
 * Baselines MUST contain text blocks for at least one language.
 * Text blocks MUST exist per language.
 * Placeholder values are language-independent, but their rendering is language-specific.
-* Fallbacks are language-specific because they appear inline in text blocks of the effective text.
+* Fallbacks are language-specific because they appear inline in text blocks of intermediate and final text states.
 * Formatting options use the Baseline language for locale selection.
 * Language tags follow BCP 47. Locale selection uses the primary language subtag (e.g. `de-CH` -> `de`). Unsupported languages MUST fall back to `en`.
 
@@ -325,7 +334,8 @@ Implementations MUST validate:
 * Completeness is evaluated on the effective profile (merged across the resolved Profile chain), not on a single Profile alone
 * Profiles MUST NOT contain unused placeholder keys
 * No unresolved placeholders after substitution (i.e. no remaining unescaped `{{` sequences that match placeholder syntax)
-* For every `null` value, an applicable inline fallback in the effective text MUST exist
+* For every `null` value, an applicable inline fallback in the final text MUST exist
+* Final text blocks MUST NOT be `null`; every `null` text block from the Baseline MUST be replaced through Profile `replace` overrides
 
 Invalid ClearTerms configurations MUST be treated as configuration errors.
 
@@ -371,7 +381,7 @@ A Baseline JSON document MUST contain exactly:
   "texts": {
     "<language-tag>": [
       { "id": "<block-id>", "text": "<text block>" },
-      { "id": "<block-id>", "text": "<text block>" }
+      { "id": "<block-id>", "text": null }
     ]
   }
 }
@@ -381,8 +391,10 @@ Rules:
 
 * Each block MUST be an object with keys `id` and `text`.
 * `id` MUST be a string and MUST be stable within the Baseline family.
+* `text` MUST be either a string or `null`.
 * For multi-language Baselines, corresponding blocks across languages MUST use the same block id.
 * For multi-language Baselines, the set and order of block ids MUST be identical across languages.
+* For multi-language Baselines, if a block id has `text: null` in one language, it MUST have `text: null` in all Baseline languages.
 
 ### 9.2 Profile JSON
 
@@ -432,6 +444,7 @@ Rules:
 * `append` MUST be a list of text blocks, each with exactly the keys `id` and `text`.
 * `replace` replaces existing blocks by block id.
 * Implementations MUST reject attempts to replace a non-existent block id.
+* `replace` values MUST be non-null strings.
 * `append` adds additional blocks to the end of the language’s block list, preserving order.
 * Appended blocks MUST specify `id` and `text`, and appended block ids MUST be unique and MUST NOT collide with existing Baseline block ids.
 * For multi-language Baselines:
