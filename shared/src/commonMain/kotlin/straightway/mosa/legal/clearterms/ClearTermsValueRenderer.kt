@@ -11,7 +11,11 @@ class ClearTermsValueRenderer(
         values: Map<String, ClearTermsValue>,
         languageTag: String,
     ): String {
-        val rendered = blocks.joinToString("") { block -> renderText(block.text, values, languageTag) }
+        val rendered =
+            blocks.joinToString("") { block ->
+                val text = block.text ?: throw ClearTermsValidationException("Unresolved text block '${block.id}'")
+                renderText(text, values, languageTag)
+            }
         if (containsUnresolvedPlaceholder(rendered)) {
             throw ClearTermsValidationException("Rendered text contains unresolved placeholders")
         }

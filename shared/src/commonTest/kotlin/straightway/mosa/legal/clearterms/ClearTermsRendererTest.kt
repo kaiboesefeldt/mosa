@@ -180,7 +180,7 @@ Additional terms.
         }
 
     @Test
-    fun `rejects deviation text with fallback placeholders`() =
+    fun `allows fallback placeholders in deviation replacement text`() =
         runTest {
             val baseline =
                 baselineJson(
@@ -202,9 +202,9 @@ Additional terms.
                         """.trimIndent(),
                 )
 
-            assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
-            }
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Limit: 5.", result)
         }
 
     @Test
@@ -1249,7 +1249,7 @@ Additional terms.
         }
 
     @Test
-    fun `rejects fallbacks in deviation text`() =
+    fun `allows fallbacks in deviation text`() =
         runTest {
             val baseline =
                 baselineJson(
@@ -1274,9 +1274,9 @@ Additional terms.
                         """.trimIndent(),
                 )
 
-            assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
-            }
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Support: basic", result)
         }
 
     @Test

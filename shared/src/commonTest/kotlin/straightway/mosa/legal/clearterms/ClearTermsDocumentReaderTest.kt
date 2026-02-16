@@ -175,6 +175,26 @@ class ClearTermsDocumentReaderTest {
     }
 
     @Test
+    fun `rejects baseline block with non string text`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": { "en": [ { "id": "one", "text": 3 } ] }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readBaseline(parser.parse(json))
+            }
+
+        assertEquals("Key 'text' must be a string", exception.message)
+    }
+
+    @Test
     fun `reads default profile`() {
         val json =
             """
@@ -664,5 +684,202 @@ class ClearTermsDocumentReaderTest {
         assertFailsWith<ClearTermsValidationException> {
             reader.readDeviation(parser.parse(json))
         }
+    }
+
+    @Test
+    fun `reads baseline block with null text`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [ { "id": "contact", "text": null } ]
+              }
+            }
+            """.trimIndent()
+
+        val baseline = reader.readBaseline(parser.parse(json))
+
+        assertEquals(
+            null,
+            baseline.textsByLanguage
+                .getValue("en")
+                .single()
+                .text,
+        )
+    }
+
+    @Test
+    fun `reads profile with parent and overrides`() {
+        val json =
+            """
+            {
+              "kind": "profile",
+              "id": "example-policy-a",
+              "version": "1.0",
+              "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "overrides": {
+                "values": { "operator_name": "Example Organization" },
+                "texts": {
+                  "en": {
+                    "replace": { "contact": "Contact: support@example.org." },
+                    "append": [ { "id": "extra", "text": "Extra." } ]
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+
+        val profile = reader.readProfile(parser.parse(json))
+
+        assertEquals("example-policy-a", profile.id)
+        assertEquals("example-policy", profile.parent.id)
+        assertEquals(
+            "Example Organization",
+            (profile.overrides.values.getValue("operator_name") as ClearTermsJsonNode.ScalarNode.StringNode).value,
+        )
+        assertEquals(
+            "Contact: support@example.org.",
+            profile.overrides.texts
+                ?.getValue("en")
+                ?.replace
+                ?.getValue("contact"),
+        )
+    }
+
+    @Test
+    fun `rejects profile append block with null text`() {
+        val json =
+            """
+            {
+              "kind": "profile",
+              "id": "example-policy-a",
+              "version": "1.0",
+              "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "overrides": {
+                "values": {},
+                "texts": {
+                  "en": {
+                    "replace": {},
+                    "append": [ { "id": "extra", "text": null } ]
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+
+        assertFailsWith<ClearTermsValidationException> {
+            reader.readProfile(parser.parse(json))
+        }
+    }
+
+    @Test
+    fun `rejects profile append block missing text`() {
+        val json =
+            """
+            {
+              "kind": "profile",
+              "id": "example-policy-a",
+              "version": "1.0",
+              "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "overrides": {
+                "values": {},
+                "texts": {
+                  "en": {
+                    "replace": {},
+                    "append": [ { "id": "extra" } ]
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readProfile(parser.parse(json))
+            }
+
+        assertEquals("Missing key 'text'", exception.message)
+    }
+
+    @Test
+    fun `rejects profile texts that are not a mapping`() {
+        val json =
+            """
+            {
+              "kind": "profile",
+              "id": "example-policy-a",
+              "version": "1.0",
+              "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "overrides": {
+                "values": {},
+                "texts": []
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readProfile(parser.parse(json))
+            }
+
+        assertEquals("Overrides texts must be a mapping", exception.message)
+    }
+
+    @Test
+    fun `rejects profile language override that is not a mapping`() {
+        val json =
+            """
+            {
+              "kind": "profile",
+              "id": "example-policy-a",
+              "version": "1.0",
+              "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "overrides": {
+                "values": {},
+                "texts": {
+                  "en": "invalid"
+                }
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readProfile(parser.parse(json))
+            }
+
+        assertEquals("Overrides for 'en' must be a mapping", exception.message)
+    }
+
+    @Test
+    fun `rejects profile text override with non string replace`() {
+        val json =
+            """
+            {
+              "kind": "profile",
+              "id": "example-policy-a",
+              "version": "1.0",
+              "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "overrides": {
+                "values": {},
+                "texts": {
+                  "en": {
+                    "replace": { "contact": 12 },
+                    "append": []
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readProfile(parser.parse(json))
+            }
+
+        assertEquals("Replace text must be string", exception.message)
     }
 }

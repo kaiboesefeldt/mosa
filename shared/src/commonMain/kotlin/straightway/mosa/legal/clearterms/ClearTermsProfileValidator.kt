@@ -25,27 +25,31 @@ class ClearTermsProfileValidator(
         val languages = baseline.textsByLanguage
         val referenceIds = referenceBlockIds(languages)
         requireUnique(referenceIds, "Baseline block ids must be unique")
+        val referenceNullFlags = languages.values.first().map { it.text == null }
         languages.forEach { (language, blocks) ->
             val languageIds = blocks.map { it.id }
             requireUnique(languageIds, "Baseline block ids must be unique for '$language'")
             if (languageIds != referenceIds) {
                 throw ClearTermsValidationException("Baseline block alignment mismatch")
             }
+            val languageNullFlags = blocks.map { it.text == null }
+            if (languageNullFlags != referenceNullFlags) {
+                throw ClearTermsValidationException("Baseline null block alignment mismatch")
+            }
         }
     }
 
     fun applyTextOverrides(
-        baseline: ClearTermsBaseline,
-        overrides: Map<String, ClearTermsDeviationProfile.TextOverrides>?,
+        textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
+        overrides: Map<String, ClearTermsProfile.TextOverrides>?,
     ): Map<String, List<ClearTermsTextBlock>> {
         if (overrides == null) {
-            return baseline.textsByLanguage
+            return textsByLanguage
         }
-        validateOverrideLanguages(overrides, baseline)
-        validateReplaceDefinitions(overrides, baseline)
-        validateAppendDefinitions(overrides, baseline)
-        validateOverrideTextsDoNotUseFallbacks(overrides)
-        return baseline.textsByLanguage.mapValues { (language, blocks) ->
+        validateOverrideLanguages(overrides, textsByLanguage)
+        validateReplaceDefinitions(overrides, textsByLanguage)
+        validateAppendDefinitions(overrides, textsByLanguage)
+        return textsByLanguage.mapValues { (language, blocks) ->
             mergeLanguageBlocks(blocks, overrides.getValue(language))
         }
     }
@@ -53,7 +57,8 @@ class ClearTermsProfileValidator(
     fun placeholdersByKey(textsByLanguage: Map<String, List<ClearTermsTextBlock>>): Map<String, ClearTermsPlaceholderType> {
         val placeholders = linkedMapOf<String, ClearTermsPlaceholderType>()
         textsByLanguage.values.flatten().forEach { block ->
-            placeholderSegments(block.text).forEach { placeholder ->
+            val text = block.text ?: return@forEach
+            placeholderSegments(text).forEach { placeholder ->
                 val existing = placeholders[placeholder.key]
                 if (existing != null && existing != placeholder.type) {
                     throw ClearTermsValidationException("Placeholder type mismatch for '${placeholder.key}'")
@@ -78,20 +83,29 @@ class ClearTermsProfileValidator(
         }
     }
 
+    fun validateFinalTextsResolved(textsByLanguage: Map<String, List<ClearTermsTextBlock>>) {
+        textsByLanguage.forEach { (language, blocks) ->
+            val unresolved = blocks.firstOrNull { it.text == null }
+            if (unresolved != null) {
+                throw ClearTermsValidationException("Text block '${unresolved.id}' is unresolved for '$language'")
+            }
+        }
+    }
+
     private fun validateOverrideLanguages(
-        overrides: Map<String, ClearTermsDeviationProfile.TextOverrides>,
-        baseline: ClearTermsBaseline,
+        overrides: Map<String, ClearTermsProfile.TextOverrides>,
+        textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
     ) {
-        if (overrides.keys != baseline.textsByLanguage.keys) {
+        if (overrides.keys != textsByLanguage.keys) {
             throw ClearTermsValidationException("Deviation texts must cover all baseline languages")
         }
     }
 
     private fun validateReplaceDefinitions(
-        overrides: Map<String, ClearTermsDeviationProfile.TextOverrides>,
-        baseline: ClearTermsBaseline,
+        overrides: Map<String, ClearTermsProfile.TextOverrides>,
+        textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
     ) {
-        val baselineIds = baselineBlockIdSet(baseline)
+        val existingIds = blockIdSet(textsByLanguage)
         val replaceKeys =
             overrides.values
                 .first()
@@ -100,7 +114,7 @@ class ClearTermsProfileValidator(
             if (languageOverrides.replace.keys != replaceKeys) {
                 throw ClearTermsValidationException("Replace block ids must match across languages")
             }
-            val missing = languageOverrides.replace.keys.firstOrNull { it !in baselineIds }
+            val missing = languageOverrides.replace.keys.firstOrNull { it !in existingIds }
             if (missing != null) {
                 throw ClearTermsValidationException("Replace block id '$missing' does not exist")
             }
@@ -108,14 +122,14 @@ class ClearTermsProfileValidator(
     }
 
     private fun validateAppendDefinitions(
-        overrides: Map<String, ClearTermsDeviationProfile.TextOverrides>,
-        baseline: ClearTermsBaseline,
+        overrides: Map<String, ClearTermsProfile.TextOverrides>,
+        textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
     ) {
-        val baselineIds = baselineBlockIdSet(baseline)
+        val existingIds = blockIdSet(textsByLanguage)
         val appendReference = overrides.values.first().append
         val appendIds = appendReference.map { it.id }
         requireUnique(appendIds, "Append block ids must be unique")
-        if (appendIds.any { it in baselineIds }) {
+        if (appendIds.any { it in existingIds }) {
             throw ClearTermsValidationException("Append block ids must not collide with baseline")
         }
         overrides.values.forEach { languageOverrides ->
@@ -125,33 +139,15 @@ class ClearTermsProfileValidator(
         }
     }
 
-    private fun validateOverrideTextsDoNotUseFallbacks(overrides: Map<String, ClearTermsDeviationProfile.TextOverrides>) {
-        overrides.values.forEach { languageOverrides ->
-            languageOverrides.replace.values.forEach { text ->
-                ensureNoFallbacks(text)
-            }
-            languageOverrides.append.forEach { block ->
-                ensureNoFallbacks(block.text)
-            }
-        }
-    }
-
-    private fun ensureNoFallbacks(text: String) {
-        placeholderSegments(text).forEach { placeholder ->
-            if (placeholder.fallback != null) {
-                throw ClearTermsValidationException("Fallbacks are not allowed in deviation text")
-            }
-        }
-    }
-
     private fun referenceBlockIds(textsByLanguage: Map<String, List<ClearTermsTextBlock>>): List<String> =
         textsByLanguage.values.first().map { it.id }
 
-    private fun baselineBlockIdSet(baseline: ClearTermsBaseline): Set<String> = referenceBlockIds(baseline.textsByLanguage).toSet()
+    private fun blockIdSet(textsByLanguage: Map<String, List<ClearTermsTextBlock>>): Set<String> =
+        referenceBlockIds(textsByLanguage).toSet()
 
     private fun mergeLanguageBlocks(
         baselineBlocks: List<ClearTermsTextBlock>,
-        overrides: ClearTermsDeviationProfile.TextOverrides,
+        overrides: ClearTermsProfile.TextOverrides,
     ): List<ClearTermsTextBlock> {
         val replaced =
             baselineBlocks.map { block ->

@@ -13,6 +13,27 @@ class ClearTermsRenderer(
 ) {
     suspend fun renderAll(
         baselineJson: String,
+        profileJsons: List<String>,
+    ): ClearTermsRenderResult {
+        if (profileJsons.isEmpty()) {
+            throw ClearTermsValidationException("At least one profile is required")
+        }
+        val baselineNode = parser.parse(baselineJson)
+        val baselineHash = hashFor(baselineNode)
+        val baseline = reader.readBaseline(baselineNode)
+        profileValidator.validateBaselineStructure(baseline)
+
+        val profileNodes = profileJsons.map { parser.parse(it) }
+        val parsedProfiles = mutableListOf<ParsedProfile>()
+        profileNodes.forEach { node ->
+            parsedProfiles += ParsedProfile(profile = reader.readProfile(node), hash = hashFor(node))
+        }
+
+        return renderWithParsedProfiles(baseline, baselineHash, parsedProfiles)
+    }
+
+    suspend fun renderAll(
+        baselineJson: String,
         defaultJson: String,
         deviationJson: String,
     ): ClearTermsRenderResult {
@@ -22,37 +43,55 @@ class ClearTermsRenderer(
 
         val baselineHash = hashFor(baselineNode)
         val defaultHash = hashFor(defaultNode)
+        val deviationHash = hashFor(deviationNode)
 
         val baseline = reader.readBaseline(baselineNode)
         val defaultProfile = reader.readDefault(defaultNode)
         val deviationProfile = reader.readDeviation(deviationNode)
-
-        profileValidator.validateReference(defaultProfile.baseline, baseline.id, baseline.version, baselineHash)
-        profileValidator.validateReference(deviationProfile.default, defaultProfile.id, defaultProfile.version, defaultHash)
-
         profileValidator.validateBaselineStructure(baseline)
 
-        val baselinePlaceholders = profileValidator.placeholdersByKey(baseline.textsByLanguage)
-
-        profileValidator.validateAndCoerceValues(defaultProfile.values, baselinePlaceholders, requireAll = false)
-
-        val effectiveTexts = profileValidator.applyTextOverrides(baseline, deviationProfile.overrides.texts)
-        val effectivePlaceholders = profileValidator.placeholdersByKey(effectiveTexts)
-
-        profileValidator.validateAndCoerceValues(deviationProfile.overrides.values, effectivePlaceholders, requireAll = false)
-        val effectiveValues =
-            profileValidator.validateAndCoerceValues(
-                defaultProfile.values + deviationProfile.overrides.values,
-                effectivePlaceholders,
-                requireAll = true,
+        val parsedProfiles =
+            listOf(
+                ParsedProfile(
+                    profile =
+                        ClearTermsProfile(
+                            id = defaultProfile.id,
+                            version = defaultProfile.version,
+                            parent = defaultProfile.baseline,
+                            overrides = ClearTermsProfile.Overrides(defaultProfile.values, null),
+                        ),
+                    hash = defaultHash,
+                ),
+                ParsedProfile(
+                    profile =
+                        ClearTermsProfile(
+                            id = deviationProfile.id,
+                            version = deviationProfile.version,
+                            parent = deviationProfile.default,
+                            overrides =
+                                ClearTermsProfile.Overrides(
+                                    values = deviationProfile.overrides.values,
+                                    texts =
+                                        deviationProfile.overrides.texts?.mapValues { (_, value) ->
+                                            ClearTermsProfile.TextOverrides(value.replace, value.append)
+                                        },
+                                ),
+                        ),
+                    hash = deviationHash,
+                ),
             )
 
-        val renderedByLanguage =
-            effectiveTexts.mapValues { (language, blocks) ->
-                valueRenderer.renderBlocks(blocks, effectiveValues, language)
-            }
+        return renderWithParsedProfiles(baseline, baselineHash, parsedProfiles)
+    }
 
-        return ClearTermsRenderResult(renderedByLanguage)
+    suspend fun renderLanguage(
+        baselineJson: String,
+        profileJsons: List<String>,
+        languageTag: String,
+    ): String {
+        val result = renderAll(baselineJson, profileJsons)
+        return result.textsByLanguage[languageTag]
+            ?: throw ClearTermsValidationException("Language '$languageTag' not available")
     }
 
     suspend fun renderLanguage(
@@ -66,6 +105,38 @@ class ClearTermsRenderer(
             ?: throw ClearTermsValidationException("Language '$languageTag' not available")
     }
 
+    private fun renderWithParsedProfiles(
+        baseline: ClearTermsBaseline,
+        baselineHash: String,
+        parsedProfiles: List<ParsedProfile>,
+    ): ClearTermsRenderResult {
+        var parentId = baseline.id
+        var parentVersion = baseline.version
+        var parentHash = baselineHash
+
+        val mergedRawValues = linkedMapOf<String, ClearTermsJsonNode.ScalarNode>()
+        var intermediateTexts = baseline.textsByLanguage
+
+        parsedProfiles.forEach { parsed ->
+            profileValidator.validateReference(parsed.profile.parent, parentId, parentVersion, parentHash)
+            mergedRawValues.putAll(parsed.profile.overrides.values)
+            intermediateTexts = profileValidator.applyTextOverrides(intermediateTexts, parsed.profile.overrides.texts)
+            parentId = parsed.profile.id
+            parentVersion = parsed.profile.version
+            parentHash = parsed.hash
+        }
+
+        profileValidator.validateFinalTextsResolved(intermediateTexts)
+        val finalPlaceholders = profileValidator.placeholdersByKey(intermediateTexts)
+        val finalValues = profileValidator.validateAndCoerceValues(mergedRawValues, finalPlaceholders, requireAll = true)
+        val renderedByLanguage =
+            intermediateTexts.mapValues { (language, blocks) ->
+                valueRenderer.renderBlocks(blocks, finalValues, language)
+            }
+
+        return ClearTermsRenderResult(renderedByLanguage)
+    }
+
     private suspend fun hashFor(node: ClearTermsJsonNode.ObjectNode): String {
         val canonical = canonicalizer.canonicalize(node)
         val digest = hashProvider.sha256(textEncoder.encode(canonical))
@@ -77,4 +148,9 @@ class ClearTermsRenderer(
             val value = byte.toInt() and 0xff
             value.toString(16).padStart(2, '0')
         }
+
+    private data class ParsedProfile(
+        val profile: ClearTermsProfile,
+        val hash: String,
+    )
 }

@@ -34,9 +34,23 @@ class ClearTermsDocumentReader {
         val overridesContract = contract.requireMap("overrides").contractWithRequiredKeys(overrideKeys, setOf("values"))
 
         val values = readScalarMap(overridesContract.requireMap("values"), "Override values must be scalar")
-        val texts = overridesContract.optionalNode("texts")?.let { parseTextOverrides(it) }
+        val texts = overridesContract.optionalNode("texts")?.let { parseDeviationTextOverrides(it) }
 
         return ClearTermsDeviationProfile(id, version, defaultReference, ClearTermsDeviationProfile.Overrides(values, texts))
+    }
+
+    fun readProfile(root: ClearTermsJsonNode.ObjectNode): ClearTermsProfile {
+        val contract = root.contractWithRequiredKeys(profileKeys)
+        requireDocumentKind(contract, "profile", "Invalid profile kind")
+        val id = contract.requireString("id")
+        val version = contract.requireString("version")
+        val parentReference = readReference(contract.requireMap("parent"))
+
+        val overridesContract = contract.requireMap("overrides").contractWithRequiredKeys(overrideKeys, setOf("values"))
+        val values = readScalarMap(overridesContract.requireMap("values"), "Override values must be scalar")
+        val texts = overridesContract.optionalNode("texts")?.let { parseProfileTextOverrides(it) }
+
+        return ClearTermsProfile(id, version, parentReference, ClearTermsProfile.Overrides(values, texts))
     }
 
     private fun requireDocumentKind(
@@ -67,7 +81,7 @@ class ClearTermsDocumentReader {
                 ?: throw ClearTermsValidationException(errorMessage)
         }
 
-    private fun parseTextOverrides(node: ClearTermsJsonNode): Map<String, ClearTermsDeviationProfile.TextOverrides> {
+    private fun parseDeviationTextOverrides(node: ClearTermsJsonNode): Map<String, ClearTermsDeviationProfile.TextOverrides> {
         val map =
             node as? ClearTermsJsonNode.ObjectNode
                 ?: throw ClearTermsValidationException("Overrides texts must be a mapping")
@@ -91,23 +105,66 @@ class ClearTermsDocumentReader {
                     .requireSequence(
                         "append",
                     ).items
-                    .map { item -> readTextBlock(item, "Append text must be a mapping") }
+                    .map { item -> readTextBlock(item, "Append text must be a mapping", allowNullText = false) }
 
             ClearTermsDeviationProfile.TextOverrides(replace, append)
+        }
+    }
+
+    private fun parseProfileTextOverrides(node: ClearTermsJsonNode): Map<String, ClearTermsProfile.TextOverrides> {
+        val map =
+            node as? ClearTermsJsonNode.ObjectNode
+                ?: throw ClearTermsValidationException("Overrides texts must be a mapping")
+
+        return map.entries.mapValues { (language, entryNode) ->
+            val languageMap =
+                entryNode as? ClearTermsJsonNode.ObjectNode
+                    ?: throw ClearTermsValidationException("Overrides for '$language' must be a mapping")
+            val languageContract = languageMap.contractWithRequiredKeys(textOverrideKeys)
+
+            val replace =
+                languageContract.requireMap("replace").entries.mapValues { (_, replaceValue) ->
+                    val textNode =
+                        replaceValue as? ClearTermsJsonNode.ScalarNode.StringNode
+                            ?: throw ClearTermsValidationException("Replace text must be string")
+                    textNode.value
+                }
+
+            val append =
+                languageContract
+                    .requireSequence(
+                        "append",
+                    ).items
+                    .map { item -> readTextBlock(item, "Append text must be a mapping", allowNullText = false) }
+
+            ClearTermsProfile.TextOverrides(replace, append)
         }
     }
 
     private fun readTextBlock(
         node: ClearTermsJsonNode,
         errorMessage: String = "Text block must be a mapping",
+        allowNullText: Boolean = true,
     ): ClearTermsTextBlock {
         val blockMap =
             node as? ClearTermsJsonNode.ObjectNode
                 ?: throw ClearTermsValidationException(errorMessage)
         val blockContract = blockMap.contractWithRequiredKeys(textBlockKeys)
+        val textNode = blockMap.entries.getValue("text")
+        val text =
+            when (textNode) {
+                is ClearTermsJsonNode.ScalarNode.StringNode -> textNode.value
+                ClearTermsJsonNode.ScalarNode.NullNode ->
+                    if (allowNullText) {
+                        null
+                    } else {
+                        throw ClearTermsValidationException("Text block text must be string")
+                    }
+                else -> throw ClearTermsValidationException("Key 'text' must be a string")
+            }
         return ClearTermsTextBlock(
             id = blockContract.requireString("id"),
-            text = blockContract.requireString("text"),
+            text = text,
         )
     }
 
@@ -135,6 +192,7 @@ class ClearTermsDocumentReader {
         private val baselineKeys = setOf("kind", "id", "version", "texts")
         private val defaultKeys = setOf("kind", "id", "version", "baseline", "values")
         private val deviationKeys = setOf("kind", "id", "version", "default", "overrides")
+        private val profileKeys = setOf("kind", "id", "version", "parent", "overrides")
         private val overrideKeys = setOf("values", "texts")
         private val referenceKeys = setOf("id", "version", "hash")
         private val textOverrideKeys = setOf("replace", "append")
