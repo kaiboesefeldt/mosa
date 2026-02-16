@@ -1,10 +1,11 @@
-kind: default
+kind: profile
 id: mosa-privacy-default
 version: "1.0.0-draft2"
-baseline:
+parent:
   id: mosa-privacy-baseline
   version: "1.0.0-draft2"
-values:
-  service_name: "Mosa"
-  retention_log_data: "14d"
-  retention_user_content: "infinite"
+overrides:
+  values:
+    service_name: "Mosa"
+    retention_log_data: "14d"
+    retention_user_content: "infinite"
