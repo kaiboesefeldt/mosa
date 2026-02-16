@@ -55,8 +55,9 @@ Die YAMLs entsprechen semantisch den ClearTerms-JSONs, mit einer Ausnahme:
 ### 4.3 Empfohlene Ablage
 
 Pod-Ressourcen, z. B.:
-- `server/src/main/resources/clearterms/privacy/baseline.yaml`
-- `server/src/main/resources/clearterms/privacy/default.yaml`
+- `server/src/main/resources/clearterms/privacy/privacy-gdpr-baseline.yaml`
+- `server/src/main/resources/clearterms/privacy/privacy-gdpr-default.yaml`
+- `server/src/main/resources/clearterms/privacy/mosa-privacy-gdpr-service.yaml`
 - analog für `terms` und `imprint`
 
 Deployment-Datei im Pod-Arbeitsverzeichnis:

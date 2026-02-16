@@ -1,0 +1,228 @@
+kind: baseline
+id: privacy-gdpr-baseline
+version: "1.0.0-draft2"
+texts:
+  de:
+    - id: policy-title
+      text: |
+        # Datenschutzerklärung
+
+        Diese Datenschutzerklärung erklärt, wie {{string:ORG_CONTROLLER_NAME}} bei {{string:SERVICE_DISPLAY_NAME}} mit Ihren persönlichen Daten umgeht.
+
+        Stand: {{time:DOC_EFFECTIVE_DATE}}
+
+    - id: controller-details
+      text: |
+        ## Wer verantwortlich ist
+
+        - {{string:ORG_CONTROLLER_NAME}}
+        - {{string:ORG_CONTROLLER_ADDRESS}}
+        - E-Mail: {{string:CONTACT_CONTROLLER_EMAIL}}
+        - Web: {{string:URL_CONTROLLER_WEBSITE??nicht angegeben}}
+
+        Für Datenschutzanfragen: {{string:CONTACT_PRIVACY_EMAIL}}
+
+    - id: data-protection-contact
+      text: |
+        ## Datenschutzkontakt
+
+        Kontakt der Datenschutzbeauftragten Stelle: {{string:CONTACT_DPO_OR_NOT_REQUIRED??nicht erforderlich}}
+
+    - id: service-description-heading
+      text: |
+        ## Beschreibung des Dienstes
+
+    - id: service-description-slot-service
+      text: null
+
+    - id: data-use-principle
+      text: |
+        Es werden nur die Daten genutzt, die {{string:SERVICE_DISPLAY_NAME}} braucht, damit alles funktioniert und sicher bleibt.
+
+    - id: data-categories-heading
+      text: |
+        ## Welche Daten verarbeitet werden und woher sie kommen
+
+        In {{string:SERVICE_DISPLAY_NAME}} werden vor allem diese Daten genutzt:
+
+    - id: data-categories-slot-service
+      text: null
+
+    - id: data-categories-operational
+      text: |
+        - Daten für Sicherheit und Betrieb: Ihre Internetadresse (IP-Adresse) und nötige Verbindungsdaten (zum Beispiel Zeitpunkt des Zugriffs, aufgerufene Funktion und technische Fehlermeldungen), damit Missbrauch verhindert wird und {{string:SERVICE_DISPLAY_NAME}} zuverlässig läuft
+
+    - id: data-sources-heading
+      text: "Datenquelle:"
+
+    - id: data-sources-list
+      text: |
+        - Direkt von Ihnen, wenn Sie den Dienst nutzen
+        - Daten über Sie werden nicht bei anderen Stellen eingeholt
+
+    - id: data-sources-hint-slot-service
+      text: null
+
+    - id: local-processing-slot-service
+      text: null
+
+    - id: purposes-heading
+      text: |
+        ## Wofür Ihre Daten gebraucht werden
+
+        Ihre Daten werden dafür genutzt:
+
+    - id: purposes-list-slot-service
+      text: null
+
+    - id: legal-basis-heading
+      text: |
+        Warum das erlaubt ist:
+
+    - id: legal-basis-list
+      text: |
+        - weil die Daten nötig sind, damit der Dienst für Sie läuft
+        - weil der Dienst vor Missbrauch geschützt werden muss
+        - weil manche Daten gesetzlich verarbeitet werden müssen
+
+    - id: legal-basis-reference
+      text: |
+        Für die normalen Funktionen von {{string:SERVICE_DISPLAY_NAME}} ist keine zusätzliche Zustimmung nötig.
+        Rechtsgrundlagen: Art. 6 Abs. 1 lit. b, c und f DSGVO.
+
+    - id: recipients-heading
+      text: |
+        ## Wer Ihre Daten bekommt und ob Daten in andere Länder gehen
+
+        Je nach Situation können Daten an diese Stellen gehen:
+
+    - id: recipients-list-default
+      text: |
+        - an den Betreiber von {{string:SERVICE_DISPLAY_NAME}} und an Personen, die den Dienst betreuen
+        - an externe Anbieter, die beim technischen Betrieb helfen: {{string:RECIPIENTS_PROCESSORS_INFO??nicht gesondert benannt}}
+
+    - id: recipients-list-slot-service
+      text: null
+
+    - id: third-country-transfers-heading
+      text: |
+        Daten in andere Länder:
+
+    - id: third-country-transfers-slot-service
+      text: null
+
+    - id: third-country-transfers-conditions
+      text: |
+        - Wenn Daten aktiv an Anbieter außerhalb der EU gesendet werden, geschieht das nur, wenn es nötig und rechtlich erlaubt ist. Dann gelten die EU-Datenschutzregeln für diese Anbieter.
+        - Wenn Sie Details dazu möchten, schreiben Sie an {{string:CONTACT_PRIVACY_EMAIL}}.
+
+    - id: third-country-transfers-detail-slot-service
+      text: null
+
+    - id: retention-heading
+      text: |
+        ## Speicherdauer
+
+        Daten werden nur so lange gespeichert, wie sie für {{string:SERVICE_DISPLAY_NAME}} gebraucht werden oder gesetzlich gespeichert werden müssen.
+
+        Für {{string:SERVICE_DISPLAY_NAME}} gelten diese Zeiten:
+
+    - id: retention-operational-logs
+      text: |
+        - Daten zur Internetverbindung und zur Sicherheit bei {{string:SERVICE_DISPLAY_NAME}} (zum Beispiel Zeitpunkt des Zugriffs, IP-Adresse und technische Fehlermeldung; bei Auffälligkeiten wie ungewöhnlich vielen Anfragen in kurzer Zeit auch die betroffene Nutzeridentität): {{duration:RETENTION_OPERATIONAL_LOG_DATA}}
+
+    - id: retention-slot-service
+      text: null
+
+    - id: retention-deletion-details-slot-service
+      text: null
+
+    - id: retention-backups
+      text: |
+        - Es werden keine extra Langzeit-Backups nur zur Aufbewahrung Ihrer Inhalte angelegt.
+        - Kurzfristige Kopien für den Betrieb können entstehen und werden spätestens nach {{duration:RETENTION_BACKUP_TECHNICAL_COPIES}} automatisch überschrieben oder gelöscht.
+
+    - id: provision-obligation-heading
+      text: |
+        ## Welche Angaben nötig sind
+
+    - id: provision-obligation-slot-service
+      text: null
+
+    - id: automated-decisions
+      text: |
+        ## Keine automatisierten Entscheidungen
+
+        Bei {{string:SERVICE_DISPLAY_NAME}} gibt es keine Entscheidungen nur durch Computer, die für Sie erhebliche Folgen haben.
+
+    - id: rights-heading
+      text: |
+        ## Ihre Rechte
+
+        Sie haben diese Rechte. In {{string:SERVICE_DISPLAY_NAME}} können Sie sie so nutzen:
+
+    - id: rights-access-label
+      text: "- Wissen, welche Daten über Sie vorliegen (Auskunft, Art. 15 DSGVO): "
+
+    - id: rights-access-action-slot-service
+      text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
+
+    - id: rights-portability-label
+      text: "- Eigene Daten mitnehmen (Datenübertragbarkeit, Art. 20 DSGVO): "
+
+    - id: rights-portability-action-slot-service
+      text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
+
+    - id: rights-rectification-label
+      text: "- Fehler korrigieren (Berichtigung, Art. 16 DSGVO): "
+
+    - id: rights-rectification-action-slot-service
+      text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
+
+    - id: rights-erasure-label
+      text: "- Daten löschen lassen (Löschung, Art. 17 DSGVO): "
+
+    - id: rights-erasure-action-slot-service
+      text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
+
+    - id: rights-restriction-label
+      text: "- Nutzung einschränken (Einschränkung, Art. 18 DSGVO): "
+
+    - id: rights-restriction-action-slot-service
+      text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
+
+    - id: rights-objection-label
+      text: "- Der Nutzung Ihrer Daten widersprechen, auch wenn die Daten aus berechtigtem Interesse (z. B. für Sicherheit und zuverlässigen Betrieb) genutzt werden (Art. 21 DSGVO): "
+
+    - id: rights-objection-action-slot-service
+      text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
+
+    - id: rights-other-requests
+      text: |
+        Für Funktionen, die nicht selbst in {{string:SERVICE_DISPLAY_NAME}} erledigt werden können, und für andere Datenschutzanfragen: {{string:CONTACT_PRIVACY_EMAIL}}
+
+    - id: complaint-right
+      text: |
+        ## Ihr Beschwerderecht
+
+        Wenn Sie denken, dass mit Ihren Daten nicht richtig umgegangen wird, können Sie sich bei einer Datenschutzbehörde beschweren.
+
+        Zuständige Datenschutzbehörde des Betreibers:
+
+        - {{string:AUTHORITY_SUPERVISORY_NAME}}
+        - {{string:AUTHORITY_SUPERVISORY_ADDRESS}}
+        - {{string:AUTHORITY_SUPERVISORY_WEBSITE}}
+
+    - id: security-and-changes-heading
+      text: |
+        ## Sicherheit und Änderungen
+
+    - id: security-measures
+      text: |
+        Bei {{string:SERVICE_DISPLAY_NAME}} gibt es Maßnahmen, damit Missbrauch erschwert wird und der Dienst zuverlässig läuft.
+
+    - id: policy-changes
+      text: |
+        Diese Datenschutzerklärung kann sich ändern, zum Beispiel wenn sich Gesetze, Funktionen oder die Technik ändern.
+        Bei wesentlichen Änderungen gibt es eine klare Mitteilung auf {{string:URL_CONTROLLER_WEBSITE}} oder direkt im Dienst.
+        Jede Fassung trägt ein Datum. Es gilt die jeweils veröffentlichte Fassung ab dem angegebenen Stand.

@@ -1,0 +1,10 @@
+kind: profile
+id: privacy-gdpr-default
+version: "1.0.0-draft2"
+parent:
+  id: privacy-gdpr-baseline
+  version: "1.0.0-draft2"
+overrides:
+  values:
+    RETENTION_OPERATIONAL_LOG_DATA: "14d"
+    RETENTION_BACKUP_TECHNICAL_COPIES: "7d"
