@@ -1,4 +1,4 @@
-# ClearTerms: Transparent Legal Agreements by Explicit Deviation
+# ClearTerms: Transparent Legal Agreements by Explicit Profile Chains
 
 ## Draft Specification v1.0
 
@@ -6,7 +6,7 @@
 
 The **ClearTerms** is a compositional model for representing legal and normative texts (e.g., privacy policies, terms of service, user agreements, and codes of conduct) in a form that is transparent to end users, technically verifiable, and suitable for federated and international environments.
 
-ClearTerms separates a shared, fair reference text (**Baseline**) from its canonical parameterization (**Default Profile**) and operator-specific changes (**Deviation Profile**). Trust is earned by making deviations explicit and machine-diffable, not by producing longer documents.
+ClearTerms separates a shared, fair reference text (**Baseline**) from one or more explicitly chained **Profiles**. Trust is earned by making every change explicit and machine-diffable, not by producing longer documents.
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **MAY**, and **RECOMMENDED** are to be interpreted as described in RFC 2119.
 
@@ -29,13 +29,12 @@ ClearTerms does not attempt to replace legal interpretation, encode jurisdiction
 
 ## 2. Model Overview
 
-A ClearTerms document is produced by composing up to three artifacts:
+A ClearTerms document is produced by composing one Baseline with one or more Profiles:
 
 1. **Baseline**: normative Markdown text blocks with placeholders, but no concrete values.
-2. **Default Profile**: selects a Baseline and supplies canonical values for baseline placeholders (a subset is allowed).
-3. **Deviation Profile**: references a Default Profile and overrides or adds values, and, exceptionally, may add or override text blocks.
+2. **Profile**: references a parent artifact via `parent` (either a Baseline or another Profile), overrides or adds values, and, exceptionally, may add or override text blocks.
 
-**Trust model**: Clients compare an operator’s Deviation Profile against a Default Profile anchored in a Baseline. Smaller deviations indicate stronger alignment with the shared baseline.
+**Trust model**: Clients compare an operator profile against an upstream profile anchored in a Baseline. Smaller deltas indicate stronger alignment with the shared baseline.
 
 ---
 
@@ -56,36 +55,40 @@ A Baseline SHOULD NOT contain operator-specific values.
 
 All placeholder keys used in a Baseline MUST have a single, consistent type and meaning across all language variants.
 
-### 3.2 Default Profile
+### 3.2 Profile
 
-A Default Profile provides canonical values for a specific Baseline.
+A Profile contributes values and optional text overrides or additions for a specific Baseline lineage.
 
-A Default Profile:
+A Profile:
 
-* MUST reference exactly one Baseline
-* MAY provide values for any placeholders used by the referenced Baseline
-* MUST NOT introduce new placeholder keys
-* MUST be versioned (this is the authoritative document version)
-
-Default values define shared canonical defaults and MAY intentionally omit operator-specific values.
-
-**Baseline + Default Profile + Deviation Profile** MUST render to a complete policy text with no unresolved placeholders.
-
-### 3.3 Deviation Profile
-
-A Deviation Profile expresses intentional divergence by an operator.
-
-A Deviation Profile:
-
-* MUST reference exactly one Default Profile
+* MUST reference exactly one parent artifact via `parent`
+* MUST be versioned
+* MAY provide values for any placeholders used by the effective texts
+* MUST NOT introduce new placeholder keys not referenced in text blocks
 * MAY override placeholder values
 
-As an exceptional measure, that SHOULD be a method of last resort, a deviation profile MAY modify text blocks as follows:
+As an exceptional measure, that SHOULD be a method of last resort, a profile MAY modify text blocks as follows:
 
 * MAY replace existing Baseline text blocks
 * MAY append additional text blocks to the end of the document
+* MAY introduce new placeholder keys in new or replaced text blocks.
 
-Deviation Profiles MUST NOT insert text blocks between existing blocks (i.e. no arbitrary insertion).
+Profiles MUST NOT insert text blocks between existing blocks (i.e. no arbitrary insertion).
+
+**Baseline + resolved Profile chain** MUST render to a complete policy text with no unresolved placeholders.
+
+### 3.3 Profile Chain
+
+Profile chains define how a target Profile is resolved.
+
+* A Profile whose `parent` references a Baseline is the first Profile in a chain.
+* A Profile whose `parent` references another Profile extends that chain.
+* Resolution MUST follow `parent` references.
+* Resolution stops when the current Profile references an artifact with kind `baseline`.
+* Every referenced `parent` artifact kind MUST be either `baseline` or `profile`.
+* Chains MUST be acyclic.
+
+In practice, resolving a valid chain always leads to one baseline lineage because each profile has exactly one parent edge and chain resolution terminates at a baseline.
 
 ---
 
@@ -112,7 +115,7 @@ This prevents “hash points to one thing, metadata claims another” situations
 
 Clients:
 
-* SHOULD be able to load Baselines and Default Profiles from sources other than the operator
+* SHOULD be able to load Baselines and Profiles from sources other than the operator
 * MUST verify reference chains
 * SHOULD treat any mismatch or missing referenced artifact as fatal
 
@@ -134,7 +137,7 @@ Clients:
 * Within a given language, block ids MUST be unique.
 * For multi-language Baselines, corresponding blocks across languages MUST use the same block id.
 * For multi-language Baselines, the set of block ids and their order MUST be identical across all languages.
-* These constraints also apply to blocks appended via Deviation Profiles: appended blocks MUST use identical block ids across all Baseline languages, positionally aligned.
+* These constraints also apply to blocks appended via Profile overrides: appended blocks MUST use identical block ids across all Baseline languages, positionally aligned.
 
 ### 5.3 Placeholder Discovery
 
@@ -192,10 +195,10 @@ No additional types are defined in this version.
 ### 6.3 Null Semantics and Fallbacks
 
 * All types (`string`, `number`, `duration`, `time`, `weekday`) MAY be `null`, meaning “not specified”.
-* If a value is `null`, rendering MUST use the Baseline’s inline fallback (`??fallback`).
+* If a value is `null`, rendering MUST use the effective text’s inline fallback (`??fallback`), if present.
 * `fallback` is rendered verbatim and MUST NOT be processed by any formatting option.
-* Default and Deviation profiles MUST NOT define fallbacks.
-* If a placeholder evaluates to `null` and no fallback exists in the Baseline text for the relevant language, rendering MUST fail.
+* Fallbacks are defined inline in text blocks and are not part of profile values.
+* If a placeholder evaluates to `null` and no fallback exists in the effective text for the relevant language, rendering MUST fail.
 
 ### 6.4 `number` Formatting
 
@@ -284,7 +287,7 @@ Semantics:
 
 * Absolute timestamps with timezone offsets or `Z` represent a fixed instant in time.
 * Wildcard components represent recurring or relative calendar events.
-* `null` is allowed and triggers Baseline fallback.
+* `null` is allowed and triggers inline fallback.
 
 ### 6.7 `weekday`
 
@@ -294,7 +297,7 @@ Allowed values (lowercase, abbreviated):
 
 The abbreviations are fixed and locale-independent.
 
-`null` is allowed and triggers Baseline fallback.
+`null` is allowed and triggers inline fallback.
 
 ---
 
@@ -303,7 +306,7 @@ The abbreviations are fixed and locale-independent.
 * Baselines MUST contain text blocks for at least one language.
 * Text blocks MUST exist per language.
 * Placeholder values are language-independent, but their rendering is language-specific.
-* Fallbacks are language-specific because they appear inline in Baseline texts.
+* Fallbacks are language-specific because they appear inline in text blocks of the effective text.
 * Formatting options use the Baseline language for locale selection.
 * Language tags follow BCP 47. Locale selection uses the primary language subtag (e.g. `de-CH` -> `de`). Unsupported languages MUST fall back to `en`.
 
@@ -316,12 +319,13 @@ Validation MUST be strict. There is no best-effort interpretation.
 Implementations MUST validate:
 
 * Reference chain integrity (hash) and reference consistency (`id`/`version` match; §4.2)
+* Profile chains MUST be acyclic
 * Type correctness of all placeholder values
 * Completeness: every discovered placeholder key MUST have a value in the effective profile
-* Completeness is evaluated on the effective profile (Default merged with Deviation), not on Default alone
+* Completeness is evaluated on the effective profile (merged across the resolved Profile chain), not on a single Profile alone
 * Profiles MUST NOT contain unused placeholder keys
 * No unresolved placeholders after substitution (i.e. no remaining unescaped `{{` sequences that match placeholder syntax)
-* For every `null` value, an applicable Baseline fallback MUST exist
+* For every `null` value, an applicable inline fallback in the effective text MUST exist
 
 Invalid ClearTerms configurations MUST be treated as configuration errors.
 
@@ -380,38 +384,16 @@ Rules:
 * For multi-language Baselines, corresponding blocks across languages MUST use the same block id.
 * For multi-language Baselines, the set and order of block ids MUST be identical across languages.
 
-### 9.2 Default Profile JSON
+### 9.2 Profile JSON
 
-A Default Profile JSON document MUST contain exactly:
-
-```json
-{
-  "kind": "default",
-  "id": "<string>",
-  "version": "<string>",
-  "baseline": {
-    "id": "<string>",
-    "version": "<string>",
-    "hash": "<hash>"
-  },
-  "values": {
-    "<key>": "<typed value>"
-  }
-}
-```
-
-The Baseline reference MUST satisfy §4.2.
-
-### 9.3 Deviation Profile JSON
-
-A Deviation Profile JSON document MUST contain exactly:
+A Profile JSON document MUST contain exactly:
 
 ```json
 {
-  "kind": "deviation",
+  "kind": "profile",
   "id": "<string>",
   "version": "<string>",
-  "default": {
+  "parent": {
     "id": "<string>",
     "version": "<string>",
     "hash": "<hash>"
@@ -437,27 +419,36 @@ A Deviation Profile JSON document MUST contain exactly:
 
 Rules:
 
-* `overrides.texts` MUST be present for all Baseline languages if present at all.
+* Top-level keys MUST be exactly: `kind`, `id`, `version`, `parent`, `overrides`.
+* `parent` MUST be present.
+* `parent` MUST be a mapping with exactly the keys `id`, `version`, and `hash`.
+* `overrides.values` MUST be present.
+* `overrides.texts` MAY be omitted.
+* Keys inside `overrides` MUST be exactly: `values` and optionally `texts`.
+* `overrides.values` MUST be a mapping from placeholder key to typed scalar JSON value (see §9.3).
+* `overrides.texts` MUST only target languages present in the referenced Baseline and MUST be present for all Baseline languages if present at all.
+* If `overrides.texts` is present, each language entry MUST be a mapping with exactly the keys `replace` and `append`.
+* `replace` MUST be a mapping from existing block id to text block string.
+* `append` MUST be a list of text blocks, each with exactly the keys `id` and `text`.
 * `replace` replaces existing blocks by block id.
 * Implementations MUST reject attempts to replace a non-existent block id.
 * `append` adds additional blocks to the end of the language’s block list, preserving order.
 * Appended blocks MUST specify `id` and `text`, and appended block ids MUST be unique and MUST NOT collide with existing Baseline block ids.
 * For multi-language Baselines:
-    * `replace` MUST define the same set of block ids in every language.
-    * `append` MUST append the same number of blocks in every language, and the appended block ids MUST be identical and positionally aligned across languages.
+  * `replace` MUST define the same set of block ids in every language.
+  * `append` MUST append the same number of blocks in every language, and the appended block ids MUST be identical and positionally aligned across languages.
 * Implementations MUST reject any other form of insertion.
 
-The Default reference MUST satisfy §4.2.
-
-Deviation text overrides MUST only target languages present in the referenced Baseline. If `overrides.texts` is present, it MUST be provided for all languages present in the referenced Baseline.
+* The parent reference MUST satisfy §4.2.
+* The resolved parent artifact kind MUST be either `baseline` or `profile`.
 
 Additional constraints for multi-language Baselines:
 
 * `replace` operations MUST be defined for the same set of block ids in every language.
 * `append` operations MUST append the same number of blocks in every language (one appended block position corresponds across languages), preserving order.
-* Implementations MUST reject deviations that modify texts for only a subset of the Baseline’s languages.
+* Implementations MUST reject profiles that modify texts for only a subset of the Baseline’s languages.
 
-### 9.4 Typed Values in JSON
+### 9.3 Typed Values in JSON
 
 * `string`: JSON string, or null
 * `number`: JSON number, or null
@@ -470,7 +461,7 @@ Additional constraints for multi-language Baselines:
 ## 10. Change Management
 
 * Baseline versions MUST be explicitly visible.
-* Default Profile versions are authoritative.
+* Profile versions are authoritative.
 * Changes MUST be textually inspectable, machine-diffable, and UI-explainable.
 * There are no implicit upgrades.
 
@@ -481,13 +472,13 @@ Additional constraints for multi-language Baselines:
 ClearTerms’ primary security property is **inspectability**.
 
 * Treat mismatches and missing references as fatal.
-* Prefer minimal deviations; large deviations are a user-facing risk signal.
+* Prefer minimal profile deltas; large deltas are a user-facing risk signal.
 
 ---
 
 ## 12. Complete Minimal Example (Non-Normative)
 
-This example uses all placeholder types and demonstrates `null` triggering Baseline fallbacks.
+This example uses all placeholder types and demonstrates `null` triggering inline fallbacks.
 
 ### 12.1 Baseline
 
@@ -545,39 +536,41 @@ This example uses all placeholder types and demonstrates `null` triggering Basel
 }
 ```
 
-### 12.2 Default Profile
+### 12.2 Profile A
 
 ```json
 {
-  "kind": "default",
-  "id": "example-policy-default",
+  "kind": "profile",
+  "id": "example-policy-profile-a",
   "version": "1.0",
-  "baseline": {
+  "parent": {
     "id": "example-policy",
     "version": "1.0",
     "hash": "sha256:BASELINE_HASH"
   },
-  "values": {
-    "retention_period": "30d",
-    "start_time": "2025-03-23T13:33:43Z",
-    "support_day": "mon",
-    "max_records": 1000,
-    "operator_name": "Example Organization"
+  "overrides": {
+    "values": {
+      "retention_period": "30d",
+      "start_time": "2025-03-23T13:33:43Z",
+      "support_day": "mon",
+      "max_records": 1000,
+      "operator_name": "Example Organization"
+    }
   }
 }
 ```
 
-### 12.3 Deviation Profile
+### 12.3 Profile B
 
 ```json
 {
-  "kind": "deviation",
+  "kind": "profile",
   "id": "example-policy-operator",
   "version": "1.0",
-  "default": {
-    "id": "example-policy-default",
+  "parent": {
+    "id": "example-policy-profile-a",
     "version": "1.0",
-    "hash": "sha256:DEFAULT_HASH"
+    "hash": "sha256:PROFILE_A_HASH"
   },
   "overrides": {
     "values": {
@@ -614,5 +607,6 @@ This example uses all placeholder types and demonstrates `null` triggering Basel
 
 Notes:
 
-* `max_records: null` triggers the Baseline fallback `??a limited number`.
+* `max_records: null` triggers the inline fallback `??a limited number`.
+* Profile B references Profile A, forming a two-step chain.
 * Text blocks are overridden for `support` and an additional `extra` block is appended.
