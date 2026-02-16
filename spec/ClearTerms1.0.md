@@ -381,7 +381,7 @@ A Baseline JSON document MUST contain exactly:
   "texts": {
     "<language-tag>": [
       { "id": "<block-id>", "text": "<text block>" },
-      { "id": "<block-id>", "text": null }
+      { "id": "<block-id>", "text": null, "hints": { "expectedContent": "<hint>", "overrideSeverity": "required" } }
     ]
   }
 }
@@ -389,9 +389,18 @@ A Baseline JSON document MUST contain exactly:
 
 Rules:
 
-* Each block MUST be an object with keys `id` and `text`.
+* Each block MUST be an object with keys `id` and `text`, and MAY include `hints`.
 * `id` MUST be a string and MUST be stable within the Baseline family.
 * `text` MUST be either a string or `null`.
+* If present, `hints` MUST be an object with optional keys `expectedContent` and `overrideSeverity`.
+* If present, `hints.expectedContent` MUST be a string.
+* If present, `hints.overrideSeverity` MUST be one of `normal`, `restrictive`, `required`.
+* Severity semantics:
+  * `normal`: overriding this block is generally acceptable.
+  * `restrictive`: overriding this block should be treated as a notable deviation and shown as cautionary to users.
+  * `required`: this block is expected to be overridden by derived profiles (typical for `text: null` baseline slots).
+* If no severity is specified for a Baseline block, effective severity is `restrictive`.
+* For Baseline blocks with `text: null` and no explicit severity, effective severity is `required`.
 * For multi-language Baselines, corresponding blocks across languages MUST use the same block id.
 * For multi-language Baselines, the set and order of block ids MUST be identical across languages.
 * For multi-language Baselines, if a block id has `text: null` in one language, it MUST have `text: null` in all Baseline languages.
@@ -434,22 +443,22 @@ Rules:
 * Top-level keys MUST be exactly: `kind`, `id`, `version`, `parent`, `overrides`.
 * `parent` MUST be present.
 * `parent` MUST be a mapping with exactly the keys `id`, `version`, and `hash`.
-* `overrides.values` MUST be present.
+* `overrides.values` MAY be omitted.
 * `overrides.texts` MAY be omitted.
 * Keys inside `overrides` MUST be exactly: `values` and optionally `texts`.
-* `overrides.values` MUST be a mapping from placeholder key to typed scalar JSON value (see §9.3).
+* If present, `overrides.values` MUST be a mapping from placeholder key to typed scalar JSON value (see §9.3).
 * `overrides.texts` MUST only target languages present in the referenced Baseline and MUST be present for all Baseline languages if present at all.
-* If `overrides.texts` is present, each language entry MUST be a mapping with exactly the keys `replace` and `append`.
-* `replace` MUST be a mapping from existing block id to text block string.
-* `append` MUST be a list of text blocks, each with exactly the keys `id` and `text`.
+* If `overrides.texts` is present, each language entry MUST be a mapping with key `replace` and MAY include `append`.
+* `replace` MUST be a mapping from existing block id to non-null text block string.
+* If present, `append` MUST be a list of text blocks, each with keys `id` and `text`.
 * `replace` replaces existing blocks by block id.
 * Implementations MUST reject attempts to replace a non-existent block id.
-* `replace` values MUST be non-null strings.
 * `append` adds additional blocks to the end of the language’s block list, preserving order.
-* Appended blocks MUST specify `id` and `text`, and appended block ids MUST be unique and MUST NOT collide with existing Baseline block ids.
+* If present, appended blocks MUST specify `id` and `text`, and appended block ids MUST be unique and MUST NOT collide with existing Baseline block ids.
+* Profile text overrides MUST NOT define `hints` or severity metadata.
 * For multi-language Baselines:
   * `replace` MUST define the same set of block ids in every language.
-  * `append` MUST append the same number of blocks in every language, and the appended block ids MUST be identical and positionally aligned across languages.
+  * If `append` is present, it MUST append the same number of blocks in every language, and the appended block ids MUST be identical and positionally aligned across languages.
 * Implementations MUST reject any other form of insertion.
 
 * The parent reference MUST satisfy §4.2.
@@ -458,7 +467,7 @@ Rules:
 Additional constraints for multi-language Baselines:
 
 * `replace` operations MUST be defined for the same set of block ids in every language.
-* `append` operations MUST append the same number of blocks in every language (one appended block position corresponds across languages), preserving order.
+* If present, `append` operations MUST append the same number of blocks in every language (one appended block position corresponds across languages), preserving order.
 * Implementations MUST reject profiles that modify texts for only a subset of the Baseline’s languages.
 
 ### 9.3 Typed Values in JSON

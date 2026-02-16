@@ -505,7 +505,7 @@ class ClearTermsDocumentReaderTest {
     }
 
     @Test
-    fun `rejects deviation text override with missing append`() {
+    fun `reads deviation text override with missing append`() {
         val json =
             """
             {
@@ -520,9 +520,21 @@ class ClearTermsDocumentReaderTest {
             }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
-            reader.readDeviation(parser.parse(json))
-        }
+        val deviation = reader.readDeviation(parser.parse(json))
+
+        assertEquals(
+            "Support",
+            deviation.overrides.texts
+                ?.getValue("en")
+                ?.replace
+                ?.get("support"),
+        )
+        assertEquals(
+            null,
+            deviation.overrides.texts
+                ?.getValue("en")
+                ?.append,
+        )
     }
 
     @Test
@@ -738,7 +750,7 @@ class ClearTermsDocumentReaderTest {
         assertEquals("example-policy", profile.parent.id)
         assertEquals(
             "Example Organization",
-            (profile.overrides.values.getValue("operator_name") as ClearTermsJsonNode.ScalarNode.StringNode).value,
+            (profile.overrides.values?.getValue("operator_name") as ClearTermsJsonNode.ScalarNode.StringNode).value,
         )
         assertEquals(
             "Contact: support@example.org.",
@@ -829,6 +841,60 @@ class ClearTermsDocumentReaderTest {
     }
 
     @Test
+    fun `reads profile with missing overrides values`() {
+        val json =
+            """
+            {
+              "kind": "profile",
+              "id": "example-policy-a",
+              "version": "1.0",
+              "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "overrides": {
+                "texts": {
+                  "en": {
+                    "replace": { "contact": "Contact: support@example.org." }
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+
+        val profile = reader.readProfile(parser.parse(json))
+
+        assertEquals(null, profile.overrides.values)
+        assertEquals(
+            "Contact: support@example.org.",
+            profile.overrides.texts
+                ?.getValue("en")
+                ?.replace
+                ?.get("contact"),
+        )
+    }
+
+    @Test
+    fun `rejects profile overrides values that are not a mapping`() {
+        val json =
+            """
+            {
+              "kind": "profile",
+              "id": "example-policy-a",
+              "version": "1.0",
+              "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "overrides": {
+                "values": "invalid"
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readProfile(parser.parse(json))
+            }
+
+        assertEquals("Key 'values' must be a mapping", exception.message)
+    }
+
+    @Test
     fun `rejects profile language override that is not a mapping`() {
         val json =
             """
@@ -881,5 +947,292 @@ class ClearTermsDocumentReaderTest {
             }
 
         assertEquals("Replace text must be string", exception.message)
+    }
+
+    @Test
+    fun `reads baseline block with hints`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [
+                  {
+                    "id": "contact",
+                    "text": null,
+                    "hints": {
+                      "expectedContent": "Provide support channels and response times.",
+                      "overrideSeverity": "required"
+                    }
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+
+        val baseline = reader.readBaseline(parser.parse(json))
+        val block = baseline.textsByLanguage.getValue("en").single()
+
+        assertEquals("Provide support channels and response times.", block.hints?.expectedContent)
+        assertEquals(ClearTermsTextOverrideSeverity.REQUIRED, block.hints?.overrideSeverity)
+    }
+
+    @Test
+    fun `reads baseline hints with normal severity`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [
+                  {
+                    "id": "contact",
+                    "text": "Contact.",
+                    "hints": { "overrideSeverity": "normal" }
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+
+        val baseline = reader.readBaseline(parser.parse(json))
+        val block = baseline.textsByLanguage.getValue("en").single()
+
+        assertEquals(ClearTermsTextOverrideSeverity.NORMAL, block.hints?.overrideSeverity)
+    }
+
+    @Test
+    fun `reads baseline hints with restrictive severity`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [
+                  {
+                    "id": "contact",
+                    "text": "Contact.",
+                    "hints": { "overrideSeverity": "restrictive" }
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+
+        val baseline = reader.readBaseline(parser.parse(json))
+        val block = baseline.textsByLanguage.getValue("en").single()
+
+        assertEquals(ClearTermsTextOverrideSeverity.RESTRICTIVE, block.hints?.overrideSeverity)
+    }
+
+    @Test
+    fun `reads baseline hints with expected content and missing severity`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [
+                  {
+                    "id": "contact",
+                    "text": null,
+                    "hints": { "expectedContent": "Provide contact details." }
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+
+        val baseline = reader.readBaseline(parser.parse(json))
+        val block = baseline.textsByLanguage.getValue("en").single()
+
+        assertEquals("Provide contact details.", block.hints?.expectedContent)
+        assertEquals(null, block.hints?.overrideSeverity)
+    }
+
+    @Test
+    fun `rejects profile replace mapping with hints`() {
+        val json =
+            """
+            {
+              "kind": "profile",
+              "id": "example-policy-a",
+              "version": "1.0",
+              "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "overrides": {
+                "texts": {
+                  "en": {
+                    "replace": {
+                      "contact": {
+                        "text": "Contact: support@example.org.",
+                        "hints": { "overrideSeverity": "required" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readProfile(parser.parse(json))
+            }
+
+        assertEquals("Replace text must be string", exception.message)
+    }
+
+    @Test
+    fun `rejects unknown hint override severity`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [
+                  {
+                    "id": "contact",
+                    "text": null,
+                    "hints": { "overrideSeverity": "soft" }
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readBaseline(parser.parse(json))
+            }
+
+        assertEquals("Unknown override severity 'soft'", exception.message)
+    }
+
+    @Test
+    fun `rejects hints that are not a mapping`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [
+                  {
+                    "id": "contact",
+                    "text": null,
+                    "hints": "invalid"
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readBaseline(parser.parse(json))
+            }
+
+        assertEquals("Key 'hints' must be a mapping", exception.message)
+    }
+
+    @Test
+    fun `rejects non string expectedContent in hints`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [
+                  {
+                    "id": "contact",
+                    "text": null,
+                    "hints": { "expectedContent": 12 }
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readBaseline(parser.parse(json))
+            }
+
+        assertEquals("Key 'expectedContent' must be a string", exception.message)
+    }
+
+    @Test
+    fun `rejects non string overrideSeverity in hints`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [
+                  {
+                    "id": "contact",
+                    "text": null,
+                    "hints": { "overrideSeverity": 5 }
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readBaseline(parser.parse(json))
+            }
+
+        assertEquals("Key 'overrideSeverity' must be a string", exception.message)
+    }
+
+    @Test
+    fun `rejects hints in profile append blocks`() {
+        val json =
+            """
+            {
+              "kind": "profile",
+              "id": "example-policy-a",
+              "version": "1.0",
+              "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:abc" },
+              "overrides": {
+                "texts": {
+                  "en": {
+                    "replace": { "contact": "Contact: support@example.org." },
+                    "append": [
+                      {
+                        "id": "extra",
+                        "text": "Extra.",
+                        "hints": { "overrideSeverity": "required" }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readProfile(parser.parse(json))
+            }
+
+        assertEquals("Unknown key 'hints'", exception.message)
     }
 }

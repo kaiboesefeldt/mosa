@@ -31,11 +31,5 @@ class ClearTermsJsonObjectContract(
             ?: throw ClearTermsValidationException("Key '$key' must be a mapping")
     }
 
-    fun requireSequence(key: String): ClearTermsJsonNode.ArrayNode {
-        val node = map.entries.getValue(key)
-        return node as? ClearTermsJsonNode.ArrayNode
-            ?: throw ClearTermsValidationException("Key '$key' must be a list")
-    }
-
     fun optionalNode(key: String): ClearTermsJsonNode? = map.entries[key]
 }

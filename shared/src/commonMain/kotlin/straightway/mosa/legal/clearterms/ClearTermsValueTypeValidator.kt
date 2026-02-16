@@ -75,6 +75,6 @@ class ClearTermsValueTypeValidator(
     }
 
     private companion object {
-        val weekdayRegex = Regex("""^(mon|tue|wed|thu|fri|sat|sun)$""")
+        private val weekdayRegex = Regex("""^(mon|tue|wed|thu|fri|sat|sun)$""")
     }
 }

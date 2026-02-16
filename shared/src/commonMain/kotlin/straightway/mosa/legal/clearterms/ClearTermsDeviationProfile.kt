@@ -13,6 +13,6 @@ data class ClearTermsDeviationProfile(
 
     data class TextOverrides(
         val replace: Map<String, String>,
-        val append: List<ClearTermsTextBlock>,
+        val append: List<ClearTermsTextBlock>?,
     )
 }

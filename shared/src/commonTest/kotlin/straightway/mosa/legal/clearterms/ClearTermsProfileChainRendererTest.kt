@@ -165,6 +165,43 @@ class ClearTermsProfileChainRendererTest {
         }
 
     @Test
+    fun `renders profile chain when profile omits values and only overrides text`() =
+        runTest {
+            hasher.reset()
+            val baseline =
+                """
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "contact", "text": null } ]
+                  }
+                }
+                """.trimIndent()
+            val profile =
+                """
+                {
+                  "kind": "profile",
+                  "id": "example-policy-a",
+                  "version": "1.0",
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:01" },
+                  "overrides": {
+                    "texts": {
+                      "en": {
+                        "replace": { "contact": "Contact only text override." }
+                      }
+                    }
+                  }
+                }
+                """.trimIndent()
+
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en")
+
+            assertEquals("Contact only text override.", result)
+        }
+
+    @Test
     fun `rejects parent mismatch in profile chain`() =
         runTest {
             hasher.reset()
@@ -210,6 +247,42 @@ class ClearTermsProfileChainRendererTest {
                 }
 
             assertEquals("Reference id mismatch", exception.message)
+        }
+
+    @Test
+    fun `rejects missing language in profile chain rendering`() =
+        runTest {
+            hasher.reset()
+            val baseline =
+                """
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "operator", "text": "Operator: {{string:operator_name}}." } ]
+                  }
+                }
+                """.trimIndent()
+            val profile =
+                """
+                {
+                  "kind": "profile",
+                  "id": "example-policy-a",
+                  "version": "1.0",
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:01" },
+                  "overrides": {
+                    "values": { "operator_name": "Org A" }
+                  }
+                }
+                """.trimIndent()
+
+            val exception =
+                assertFailsWith<ClearTermsValidationException> {
+                    renderer.renderLanguage(baseline, listOf(profile), "de")
+                }
+
+            assertEquals("Language 'de' not available", exception.message)
         }
 
     private class SequenceHashProvider : ClearTermsHashProvider {

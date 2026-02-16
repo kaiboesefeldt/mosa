@@ -34,6 +34,9 @@ texts:
 
     - id: service-description-slot-service
       text: null
+      hints:
+        expectedContent: "Service-specific replacement required in derived profiles."
+        overrideSeverity: required
 
     - id: data-use-principle
       text: |
@@ -47,6 +50,9 @@ texts:
 
     - id: data-categories-slot-service
       text: null
+      hints:
+        expectedContent: "Service-specific replacement required in derived profiles."
+        overrideSeverity: required
 
     - id: data-categories-operational
       text: |
@@ -62,9 +68,15 @@ texts:
 
     - id: data-sources-hint-slot-service
       text: null
+      hints:
+        expectedContent: "Service-specific replacement required in derived profiles."
+        overrideSeverity: required
 
     - id: local-processing-slot-service
       text: null
+      hints:
+        expectedContent: "Service-specific replacement required in derived profiles."
+        overrideSeverity: required
 
     - id: purposes-heading
       text: |
@@ -74,6 +86,9 @@ texts:
 
     - id: purposes-list-slot-service
       text: null
+      hints:
+        expectedContent: "Service-specific replacement required in derived profiles."
+        overrideSeverity: required
 
     - id: legal-basis-heading
       text: |
@@ -103,6 +118,9 @@ texts:
 
     - id: recipients-list-slot-service
       text: null
+      hints:
+        expectedContent: "Service-specific replacement required in derived profiles."
+        overrideSeverity: required
 
     - id: third-country-transfers-heading
       text: |
@@ -110,6 +128,9 @@ texts:
 
     - id: third-country-transfers-slot-service
       text: null
+      hints:
+        expectedContent: "Service-specific replacement required in derived profiles."
+        overrideSeverity: required
 
     - id: third-country-transfers-conditions
       text: |
@@ -118,6 +139,9 @@ texts:
 
     - id: third-country-transfers-detail-slot-service
       text: null
+      hints:
+        expectedContent: "Service-specific replacement required in derived profiles."
+        overrideSeverity: required
 
     - id: retention-heading
       text: |
@@ -133,9 +157,15 @@ texts:
 
     - id: retention-slot-service
       text: null
+      hints:
+        expectedContent: "Service-specific replacement required in derived profiles."
+        overrideSeverity: required
 
     - id: retention-deletion-details-slot-service
       text: null
+      hints:
+        expectedContent: "Service-specific replacement required in derived profiles."
+        overrideSeverity: required
 
     - id: retention-backups
       text: |
@@ -148,6 +178,9 @@ texts:
 
     - id: provision-obligation-slot-service
       text: null
+      hints:
+        expectedContent: "Service-specific replacement required in derived profiles."
+        overrideSeverity: required
 
     - id: automated-decisions
       text: |

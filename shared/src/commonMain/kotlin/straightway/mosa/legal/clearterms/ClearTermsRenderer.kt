@@ -119,7 +119,7 @@ class ClearTermsRenderer(
 
         parsedProfiles.forEach { parsed ->
             profileValidator.validateReference(parsed.profile.parent, parentId, parentVersion, parentHash)
-            mergedRawValues.putAll(parsed.profile.overrides.values)
+            mergedRawValues.putAll(parsed.profile.overrides.values ?: emptyMap())
             intermediateTexts = profileValidator.applyTextOverrides(intermediateTexts, parsed.profile.overrides.texts)
             parentId = parsed.profile.id
             parentVersion = parsed.profile.version

@@ -138,6 +138,19 @@ class ClearTermsJsonParserTest {
     }
 
     @Test
+    fun `parses escaped newline`() {
+        val json =
+            """
+            { "root": "line1\nline2" }
+            """.trimIndent()
+
+        val root = parser.parse(json)
+        val value = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.StringNode
+
+        assertEquals("line1\nline2", value.value)
+    }
+
+    @Test
     fun `rejects invalid escape`() {
         val json =
             """

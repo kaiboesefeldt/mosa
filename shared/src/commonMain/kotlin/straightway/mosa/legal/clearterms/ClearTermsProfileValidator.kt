@@ -126,14 +126,18 @@ class ClearTermsProfileValidator(
         textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
     ) {
         val existingIds = blockIdSet(textsByLanguage)
-        val appendReference = overrides.values.first().append
+        val appendReference =
+            overrides.values
+                .first()
+                .append
+                .orEmpty()
         val appendIds = appendReference.map { it.id }
         requireUnique(appendIds, "Append block ids must be unique")
         if (appendIds.any { it in existingIds }) {
             throw ClearTermsValidationException("Append block ids must not collide with baseline")
         }
         overrides.values.forEach { languageOverrides ->
-            if (languageOverrides.append.map { it.id } != appendIds) {
+            if (languageOverrides.append.orEmpty().map { it.id } != appendIds) {
                 throw ClearTermsValidationException("Append block ids must align across languages")
             }
         }
@@ -155,10 +159,10 @@ class ClearTermsProfileValidator(
                 if (replacement == null) {
                     block
                 } else {
-                    ClearTermsTextBlock(block.id, replacement)
+                    ClearTermsTextBlock(block.id, replacement, block.hints)
                 }
             }
-        return replaced + overrides.append
+        return replaced + overrides.append.orEmpty()
     }
 
     private fun requireAllValuesPresent(

@@ -51,6 +51,11 @@ Die YAMLs entsprechen semantisch den ClearTerms-JSONs, mit einer Ausnahme:
 - Referenzen in YAML enthalten **keine Hashes**.
 - Hashes werden erst aus den generierten kanonischen JSONs berechnet und dann in die JSON-Referenzen eingetragen.
 - Das `default`-Profil darf Placeholder-Werte auslassen. Pflicht ist nur, dass `default + deviation` zusammen alle nicht-optionalen Placeholder auflösen.
+- Bei `profile` darf `overrides.values` fehlen.
+- Bei Text-Overrides darf `append` fehlen.
+- Baseline-Textblöcke dürfen optional `hints` enthalten (`expectedContent`, `overrideSeverity` mit `normal|restrictive|required`).
+- Profile-Text-Overrides (`replace`, `append`) enthalten keine `hints`.
+- Wird keine `overrideSeverity` gesetzt, gilt effektiv `restrictive`; für `text: null` gilt effektiv `required`.
 
 ### 4.3 Empfohlene Ablage
 

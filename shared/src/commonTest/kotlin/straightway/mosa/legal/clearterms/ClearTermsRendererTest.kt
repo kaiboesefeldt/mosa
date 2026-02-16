@@ -1834,7 +1834,7 @@ class ClearTermsRendererTest {
         }
 
     @Test
-    fun `renders overflow day in thirty day month`() =
+    fun `renders overflow day in all thirty day months`() =
         runTest {
             val baseline =
                 baselineJson(
@@ -1844,12 +1844,59 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-04-31" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val monthByNumber =
+                mapOf(
+                    4 to "April",
+                    6 to "June",
+                    9 to "September",
+                    11 to "November",
+                )
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            monthByNumber.forEach { (month, monthName) ->
+                val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-${month.toString().padStart(2, '0')}-31" }""")
+                val deviation = deviationJson(valuesJson = """{ }""")
 
-            assertEquals("Start: on the last day of April 2025.", result)
+                val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+                assertEquals("Start: on the last day of $monthName 2025.", result)
+            }
+        }
+
+    @Test
+    fun `renders day 31 behavior for all months`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
+                    """.trimIndent(),
+                )
+            val expectedByMonth =
+                mapOf(
+                    1 to "Start: on January 31, 2025.",
+                    2 to "Start: on the last day of February 2025.",
+                    3 to "Start: on March 31, 2025.",
+                    4 to "Start: on the last day of April 2025.",
+                    5 to "Start: on May 31, 2025.",
+                    6 to "Start: on the last day of June 2025.",
+                    7 to "Start: on July 31, 2025.",
+                    8 to "Start: on August 31, 2025.",
+                    9 to "Start: on the last day of September 2025.",
+                    10 to "Start: on October 31, 2025.",
+                    11 to "Start: on the last day of November 2025.",
+                    12 to "Start: on December 31, 2025.",
+                )
+
+            expectedByMonth.forEach { (month, expectedText) ->
+                val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-${month.toString().padStart(2, '0')}-31" }""")
+                val deviation = deviationJson(valuesJson = """{ }""")
+
+                val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+                assertEquals(expectedText, result)
+            }
         }
 
     @Test

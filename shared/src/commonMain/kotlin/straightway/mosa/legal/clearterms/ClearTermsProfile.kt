@@ -7,12 +7,12 @@ data class ClearTermsProfile(
     val overrides: Overrides,
 ) {
     data class Overrides(
-        val values: Map<String, ClearTermsJsonNode.ScalarNode>,
+        val values: Map<String, ClearTermsJsonNode.ScalarNode>?,
         val texts: Map<String, TextOverrides>?,
     )
 
     data class TextOverrides(
         val replace: Map<String, String>,
-        val append: List<ClearTermsTextBlock>,
+        val append: List<ClearTermsTextBlock>?,
     )
 }
