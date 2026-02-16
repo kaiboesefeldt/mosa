@@ -16,48 +16,48 @@ class ClearTermsRendererTest {
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [
-      { "id": "retention", "text": "Retention: {{duration:retention_period??as long as necessary}}.\n" },
-      { "id": "operator", "text": "Operator: {{string:operator_name}}." }
-    ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [
+                      { "id": "retention", "text": "Retention: {{duration:retention_period??as long as necessary}}.\n" },
+                      { "id": "operator", "text": "Operator: {{string:operator_name}}." }
+                    ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": {
-    "retention_period": null,
-    "operator_name": "Example Organization"
-  }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": {
+                    "retention_period": null,
+                    "operator_name": "Example Organization"
+                  }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
 
             val expected =
                 """
-Retention: as long as necessary.
-Operator: Example Organization.
+                Retention: as long as necessary.
+                Operator: Example Organization.
                 """.trimIndent()
             assertEquals(expected, result)
         }
@@ -67,43 +67,43 @@ Operator: Example Organization.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [
-      { "id": "retention", "text": "Retention: {{duration:retention_period??as long as necessary}}." }
-    ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [
+                      { "id": "retention", "text": "Retention: {{duration:retention_period??as long as necessary}}." }
+                    ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "retention_period": "30d" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "retention_period": "30d" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": { "retention_period": "infinite" } }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": { "retention_period": "infinite" } }
+                }
                 """.trimIndent()
 
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
 
             val expected =
                 """
-Retention: infinite.
+                Retention: infinite.
                 """.trimIndent()
             assertEquals(expected, result)
         }
@@ -113,68 +113,68 @@ Retention: infinite.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [
-      { "id": "support", "text": "Support: {{weekday:support_day??business days}}." }
-    ],
-    "de": [
-      { "id": "support", "text": "Support: {{weekday:support_day??Werktagen}}." }
-    ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [
+                      { "id": "support", "text": "Support: {{weekday:support_day??business days}}." }
+                    ],
+                    "de": [
+                      { "id": "support", "text": "Support: {{weekday:support_day??Werktagen}}." }
+                    ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "support_day": "mon" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "support_day": "mon" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": {
-    "values": {},
-    "texts": {
-      "en": {
-        "replace": {
-          "support": "Support: {{weekday:support_day}}.\nNote: responses vary.\n"
-        },
-        "append": [
-          { "id": "extra", "text": "Additional terms." }
-        ]
-      },
-      "de": {
-        "replace": {
-          "support": "Support: {{weekday:support_day}}.\nHinweis: Antworten variieren."
-        },
-        "append": [
-          { "id": "extra", "text": "Zusätzliche Bestimmungen." }
-        ]
-      }
-    }
-  }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": {},
+                    "texts": {
+                      "en": {
+                        "replace": {
+                          "support": "Support: {{weekday:support_day}}.\nNote: responses vary.\n"
+                        },
+                        "append": [
+                          { "id": "extra", "text": "Additional terms." }
+                        ]
+                      },
+                      "de": {
+                        "replace": {
+                          "support": "Support: {{weekday:support_day}}.\nHinweis: Antworten variieren."
+                        },
+                        "append": [
+                          { "id": "extra", "text": "Zusätzliche Bestimmungen." }
+                        ]
+                      }
+                    }
+                  }
+                }
                 """.trimIndent()
 
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
 
             val expected =
                 """
-Support: Monday.
-Note: responses vary.
-Additional terms.
+                Support: Monday.
+                Note: responses vary.
+                Additional terms.
                 """.trimIndent()
             assertEquals(expected, result)
         }
@@ -185,9 +185,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "limit", "text": "Limit: {{number:max_records}}." } ]
-}
+                    {
+                      "en": [ { "id": "limit", "text": "Limit: {{number:max_records}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "max_records": 5 }""")
@@ -196,9 +196,9 @@ Additional terms.
                     valuesJson = """{ }""",
                     textsJson =
                         """
-{
-  "en": { "replace": { "limit": "Limit: {{number:max_records??none}}." }, "append": [] }
-}
+                        {
+                          "en": { "replace": { "limit": "Limit: {{number:max_records??none}}." }, "append": [] }
+                        }
                         """.trimIndent(),
                 )
 
@@ -212,36 +212,36 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [
-      { "id": "operator", "text": "Operator: {{string:operator_name}}." }
-    ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [
+                      { "id": "operator", "text": "Operator: {{string:operator_name}}." }
+                    ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": {}
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": {}
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -254,36 +254,36 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [
-      { "id": "operator", "text": "Operator: {{string:operator_name}}." }
-    ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [
+                      { "id": "operator", "text": "Operator: {{string:operator_name}}." }
+                    ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": {}
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": {}
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": { "operator_name": "Example Organization" } }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": { "operator_name": "Example Organization" } }
+                }
                 """.trimIndent()
 
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
@@ -297,9 +297,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "operator", "text": "Operator: {{string:operator_name}}." } ]
-}
+                    {
+                      "en": [ { "id": "operator", "text": "Operator: {{string:operator_name}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "operator_name": "Example Org", "unused": "extra" }""")
@@ -318,36 +318,36 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [
-      { "id": "operator", "text": "Operator: {{string:operator_name}}." }
-    ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [
+                      { "id": "operator", "text": "Operator: {{string:operator_name}}." }
+                    ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "operator_name": "Example Organization", "extra_value": 12 }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "operator_name": "Example Organization", "extra_value": 12 }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -360,36 +360,36 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [
-      { "id": "operator", "text": "Operator: {{string:operator_name}}." }
-    ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [
+                      { "id": "operator", "text": "Operator: {{string:operator_name}}." }
+                    ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:FFFF" },
-  "values": { "operator_name": "Example Organization" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:FFFF" },
+                  "values": { "operator_name": "Example Organization" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -402,35 +402,35 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "one", "text": "One" } ],
-    "de": [ { "id": "two", "text": "Zwei" } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "one", "text": "One" } ],
+                    "de": [ { "id": "two", "text": "Zwei" } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": {}
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": {}
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -443,35 +443,35 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "one", "text": "One" }, { "id": "two", "text": "Two" } ],
-    "de": [ { "id": "dup", "text": "Eins" }, { "id": "dup", "text": "Zwei" } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "one", "text": "One" }, { "id": "two", "text": "Two" } ],
+                    "de": [ { "id": "dup", "text": "Eins" }, { "id": "dup", "text": "Zwei" } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": {}
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": {}
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             val result =
@@ -487,40 +487,40 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "support", "text": "Support: {{weekday:support_day??business days}}." } ],
-    "de": [ { "id": "support", "text": "Support: {{weekday:support_day??Werktagen}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "support", "text": "Support: {{weekday:support_day??business days}}." } ],
+                    "de": [ { "id": "support", "text": "Support: {{weekday:support_day??Werktagen}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "support_day": "mon" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "support_day": "mon" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": {
-    "values": {},
-    "texts": {
-      "en": { "replace": { "support": "Support: {{weekday:support_day}}." }, "append": [] }
-    }
-  }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": {},
+                    "texts": {
+                      "en": { "replace": { "support": "Support: {{weekday:support_day}}." }, "append": [] }
+                    }
+                  }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -533,37 +533,37 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "support", "text": "Support: {{weekday:support_day??business days}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "support", "text": "Support: {{weekday:support_day??business days}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "support_day": "mon" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "support_day": "mon" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": {
-    "values": {},
-    "texts": { "en": { "replace": { "missing": "X" }, "append": [] } }
-  }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": {},
+                    "texts": { "en": { "replace": { "missing": "X" }, "append": [] } }
+                  }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -576,42 +576,42 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "support", "text": "Support: {{weekday:support_day??business days}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "support", "text": "Support: {{weekday:support_day??business days}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "support_day": "mon" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "support_day": "mon" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": {
-    "values": {},
-    "texts": {
-      "en": {
-        "replace": { "support": "Support: {{weekday:support_day}}." },
-        "append": [ { "id": "support", "text": "Extra." } ]
-      }
-    }
-  }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": {},
+                    "texts": {
+                      "en": {
+                        "replace": { "support": "Support: {{weekday:support_day}}." },
+                        "append": [ { "id": "support", "text": "Extra." } ]
+                      }
+                    }
+                  }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -624,42 +624,42 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "support_day": "mon" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "support_day": "mon" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": {
-    "values": {},
-    "texts": {
-      "en": {
-        "replace": { "support": "Support: {{weekday:support_day}}." },
-        "append": [ { "id": "extra", "text": "Extra: {{string:note??fallback}}." } ]
-      }
-    }
-  }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": {},
+                    "texts": {
+                      "en": {
+                        "replace": { "support": "Support: {{weekday:support_day}}." },
+                        "append": [ { "id": "extra", "text": "Extra: {{string:note??fallback}}." } ]
+                      }
+                    }
+                  }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -672,45 +672,45 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "support", "text": "Support: {{weekday:support_day??business days}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "support", "text": "Support: {{weekday:support_day??business days}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "support_day": "mon" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "support_day": "mon" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": {
-    "values": {},
-    "texts": {
-      "en": {
-        "replace": { "support": "Support: {{weekday:support_day}}." },
-        "append": [
-          { "id": "extra", "text": "Extra one." },
-          { "id": "extra", "text": "Extra two." }
-        ]
-      }
-    }
-  }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": {},
+                    "texts": {
+                      "en": {
+                        "replace": { "support": "Support: {{weekday:support_day}}." },
+                        "append": [
+                          { "id": "extra", "text": "Extra one." },
+                          { "id": "extra", "text": "Extra two." }
+                        ]
+                      }
+                    }
+                  }
+                }
                 """.trimIndent()
 
             val result =
@@ -726,34 +726,34 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "limit", "text": "Limit: {{number:max_records??a limited number}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "limit", "text": "Limit: {{number:max_records??a limited number}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "max_records": "not-a-number" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "max_records": "not-a-number" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -766,34 +766,34 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "retention", "text": "Retention: {{duration:retention_period}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "retention", "text": "Retention: {{duration:retention_period}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "retention_period": null }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "retention_period": null }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -806,36 +806,36 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [
-      { "id": "operator", "text": "Literal \\{{ and \\}} then {{string:operator_name}}." }
-    ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [
+                      { "id": "operator", "text": "Literal \\{{ and \\}} then {{string:operator_name}}." }
+                    ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "operator_name": "Example" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "operator_name": "Example" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
@@ -849,34 +849,34 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "start_time": "2025-01-02T10:00:00" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "start_time": "2025-01-02T10:00:00" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -889,34 +889,34 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "start_time": "2025-13-02T10:00:00Z" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "start_time": "2025-13-02T10:00:00Z" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -929,34 +929,34 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "start_time": "2025-01-00T10:00:00Z" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "start_time": "2025-01-00T10:00:00Z" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -969,34 +969,34 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "start_time": "2025-01-02T25:00:00Z" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "start_time": "2025-01-02T25:00:00Z" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -1009,34 +1009,34 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "start_time": "2025-01-02T10:00:60Z" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "start_time": "2025-01-02T10:00:60Z" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -1099,13 +1099,13 @@ Additional terms.
             val defaultProfile = defaultJson(valuesJson = """{ }""")
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:FFFF" },
-  "overrides": { "values": { } }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:FFFF" },
+                  "overrides": { "values": { } }
+                }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
@@ -1157,10 +1157,10 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "support", "text": "Support: {{string:level}}" } ],
-  "de": [ { "id": "support", "text": "Support: {{string:level}}" } ]
-}
+                    { 
+                      "en": [ { "id": "support", "text": "Support: {{string:level}}" } ],
+                      "de": [ { "id": "support", "text": "Support: {{string:level}}" } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile =
@@ -1172,10 +1172,10 @@ Additional terms.
                     valuesJson = """{ }""",
                     textsJson =
                         """
-{
-  "en": { "replace": { "support": "A" }, "append": [] },
-  "de": { "replace": { "other": "B" }, "append": [] }
-}
+                        {
+                          "en": { "replace": { "support": "A" }, "append": [] },
+                          "de": { "replace": { "other": "B" }, "append": [] }
+                        }
                         """.trimIndent(),
                 )
 
@@ -1190,10 +1190,10 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "support", "text": "Support: {{string:level}}" } ],
-  "de": [ { "id": "support", "text": "Support: {{string:level}}" } ]
-}
+                    { 
+                      "en": [ { "id": "support", "text": "Support: {{string:level}}" } ],
+                      "de": [ { "id": "support", "text": "Support: {{string:level}}" } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile =
@@ -1205,10 +1205,10 @@ Additional terms.
                     valuesJson = """{ }""",
                     textsJson =
                         """
-{
-  "en": { "replace": { "support": "A" }, "append": [ { "id": "extra", "text": "E" } ] },
-  "de": { "replace": { "support": "B" }, "append": [ { "id": "extra2", "text": "E2" } ] }
-}
+                        {
+                          "en": { "replace": { "support": "A" }, "append": [ { "id": "extra", "text": "E" } ] },
+                          "de": { "replace": { "support": "B" }, "append": [ { "id": "extra2", "text": "E2" } ] }
+                        }
                         """.trimIndent(),
                 )
 
@@ -1223,12 +1223,12 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [
-    { "id": "one", "text": "One." },
-    { "id": "two", "text": "Two." }
-  ]
-}
+                    { 
+                      "en": [
+                        { "id": "one", "text": "One." },
+                        { "id": "two", "text": "Two." }
+                      ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ }""")
@@ -1237,9 +1237,9 @@ Additional terms.
                     valuesJson = """{ }""",
                     textsJson =
                         """
-{
-  "en": { "replace": { "one": "Uno." }, "append": [] }
-}
+                        {
+                          "en": { "replace": { "one": "Uno." }, "append": [] }
+                        }
                         """.trimIndent(),
                 )
 
@@ -1254,9 +1254,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "support", "text": "Support: {{string:level}}" } ]
-}
+                    { 
+                      "en": [ { "id": "support", "text": "Support: {{string:level}}" } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile =
@@ -1268,9 +1268,9 @@ Additional terms.
                     valuesJson = """{ }""",
                     textsJson =
                         """
-{
-  "en": { "replace": { "support": "Support: {{string:level??fallback}}" }, "append": [] }
-}
+                        {
+                          "en": { "replace": { "support": "Support: {{string:level??fallback}}" }, "append": [] }
+                        }
                         """.trimIndent(),
                 )
 
@@ -1285,12 +1285,12 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [
-    { "id": "one", "text": "One {{string:value}}" },
-    { "id": "two", "text": "Two {{number:value}}" }
-  ]
-}
+                    { 
+                      "en": [
+                        { "id": "one", "text": "One {{string:value}}" },
+                        { "id": "two", "text": "Two {{number:value}}" }
+                      ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "text" }""")
@@ -1307,9 +1307,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "limit", "text": "Limit: {{number:max_records??unknown}}." } ]
-}
+                    { 
+                      "en": [ { "id": "limit", "text": "Limit: {{number:max_records??unknown}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "max_records": null }""")
@@ -1326,9 +1326,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "operator", "text": "Operator: {{string:operator_name??unspecified}}." } ]
-}
+                    {
+                      "en": [ { "id": "operator", "text": "Operator: {{string:operator_name??unspecified}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "operator_name": null }""")
@@ -1345,9 +1345,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "limit", "text": "Limit: {{number:max_records}}." } ]
-}
+                    { 
+                      "en": [ { "id": "limit", "text": "Limit: {{number:max_records}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "max_records": 10 }""")
@@ -1364,9 +1364,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "limit", "text": "Limit: {{number:max_records}}." } ]
-}
+                    { 
+                      "en": [ { "id": "limit", "text": "Limit: {{number:max_records}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "max_records": 10.5 }""")
@@ -1383,9 +1383,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "limit", "text": "Limit: {{number:max_records}}." } ]
-}
+                    { 
+                      "en": [ { "id": "limit", "text": "Limit: {{number:max_records}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "max_records": -10.25 }""")
@@ -1402,9 +1402,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "operator", "text": "Operator: {{string:name}}." } ]
-}
+                    { 
+                      "en": [ { "id": "operator", "text": "Operator: {{string:name}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "name": 12 }""")
@@ -1421,9 +1421,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "retention", "text": "Retention: {{duration:period}}." } ]
-}
+                    { 
+                      "en": [ { "id": "retention", "text": "Retention: {{duration:period}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "period": 12 }""")
@@ -1440,9 +1440,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "retention", "text": "Retention: {{duration:period}}." } ]
-}
+                    { 
+                      "en": [ { "id": "retention", "text": "Retention: {{duration:period}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "period": "1x" }""")
@@ -1459,9 +1459,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "retention", "text": "Retention: {{duration:period}}." } ]
-}
+                    {
+                      "en": [ { "id": "retention", "text": "Retention: {{duration:period}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "period": "s" }""")
@@ -1478,9 +1478,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "retention", "text": "Retention: {{duration:period}}." } ]
-}
+                    {
+                      "en": [ { "id": "retention", "text": "Retention: {{duration:period}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "period": "as" }""")
@@ -1497,9 +1497,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "retention", "text": "Retention: {{duration:period}}." } ]
-}
+                    {
+                      "en": [ { "id": "retention", "text": "Retention: {{duration:period}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "period": "\"30d" }""")
@@ -1516,9 +1516,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "retention", "text": "Retention: {{duration:period}}." } ]
-}
+                    {
+                      "en": [ { "id": "retention", "text": "Retention: {{duration:period}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "period": "  \"30d\"  " }""")
@@ -1535,9 +1535,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    { 
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-01-02T10:00:00Z" }""")
@@ -1554,9 +1554,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-01-02T10:30Z" }""")
@@ -1573,9 +1573,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-01-02T10:00-05:00" }""")
@@ -1592,9 +1592,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
-}
+                    { 
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time??soon}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": null }""")
@@ -1611,9 +1611,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    { 
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": 10 }""")
@@ -1630,9 +1630,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
-}
+                    { 
+                      "en": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "support_day": "mon" }""")
@@ -1649,9 +1649,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-*-15T12:00:00+01:00" }""")
@@ -1668,9 +1668,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-02-*" }""")
@@ -1687,9 +1687,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-*-05" }""")
@@ -1706,9 +1706,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-*-*" }""")
@@ -1725,9 +1725,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-02-05" }""")
@@ -1744,9 +1744,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-02-*" }""")
@@ -1763,9 +1763,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-*-15" }""")
@@ -1782,9 +1782,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-*-*" }""")
@@ -1801,9 +1801,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-02-31" }""")
@@ -1820,9 +1820,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-02-31" }""")
@@ -1839,9 +1839,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-04-31" }""")
@@ -1858,9 +1858,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2024-02-29" }""")
@@ -1877,9 +1877,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2023-02-29" }""")
@@ -1896,9 +1896,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "1900-02-29" }""")
@@ -1915,9 +1915,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-*-31" }""")
@@ -1934,9 +1934,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
-}
+                    {
+                      "en": [ { "id": "start", "text": "Start: {{time:start_time}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-*-31" }""")
@@ -1953,9 +1953,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "price", "text": "Price: {{number:amount?format=decimal(2)&grouping=on}}." } ]
-}
+                    {
+                      "en": [ { "id": "price", "text": "Price: {{number:amount?format=decimal(2)&grouping=on}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "amount": 1234.5 }""")
@@ -1972,9 +1972,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "count", "text": "Count: {{number:count?format=integer&grouping=off}}." } ]
-}
+                    {
+                      "en": [ { "id": "count", "text": "Count: {{number:count?format=integer&grouping=off}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "count": 1234.6 }""")
@@ -1991,9 +1991,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "count", "text": "Count: {{number:count?format=integer&grouping=off}}." } ]
-}
+                    {
+                      "en": [ { "id": "count", "text": "Count: {{number:count?format=integer&grouping=off}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "count": -1.5 }""")
@@ -2010,9 +2010,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "count", "text": "Count: {{number:count?format=decimal(0)&grouping=on}}." } ]
-}
+                    {
+                      "en": [ { "id": "count", "text": "Count: {{number:count?format=decimal(0)&grouping=on}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "count": 1200.4 }""")
@@ -2029,9 +2029,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "count", "text": "Count: {{number:count?format=decimal(2)&grouping=off}}." } ]
-}
+                    {
+                      "en": [ { "id": "count", "text": "Count: {{number:count?format=decimal(2)&grouping=off}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "count": 1234.5 }""")
@@ -2048,9 +2048,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "count", "text": "Count: {{number:count?format=decimal(2)&grouping=off}}." } ]
-}
+                    {
+                      "en": [ { "id": "count", "text": "Count: {{number:count?format=decimal(2)&grouping=off}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "count": 1e7 }""")
@@ -2067,9 +2067,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "count", "text": "Count: {{number:count?format=integer&grouping=on}}." } ]
-}
+                    {
+                      "en": [ { "id": "count", "text": "Count: {{number:count?format=integer&grouping=on}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "count": 999.0 }""")
@@ -2086,9 +2086,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "ratio", "text": "Ratio: {{number:ratio}}." } ]
-}
+                    {
+                      "en": [ { "id": "ratio", "text": "Ratio: {{number:ratio}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "ratio": 1.25 }""")
@@ -2105,9 +2105,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "support", "text": "Support: {{weekday:support_day??weekdays}}." } ]
-}
+                    {
+                      "en": [ { "id": "support", "text": "Support: {{weekday:support_day??weekdays}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "support_day": null }""")
@@ -2180,9 +2180,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
-}
+                    {
+                      "en": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "support_day": "sun" }""")
@@ -2198,34 +2198,34 @@ Additional terms.
         runTest {
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "fr": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "fr": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
+                  }
+                }
                 """.trimIndent()
             val defaultProfile =
                 """
-{
-  "kind": "default",
-  "id": "example-policy-default",
-  "version": "1.0",
-  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-  "values": { "support_day": "mon" }
-}
+                {
+                  "kind": "default",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "values": { "support_day": "mon" }
+                }
                 """.trimIndent()
             val deviation =
                 """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
-  "overrides": { "values": {} }
-}
+                {
+                  "kind": "deviation",
+                  "id": "example-policy-operator",
+                  "version": "1.0",
+                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": { "values": {} }
+                }
                 """.trimIndent()
 
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "fr")
@@ -2239,9 +2239,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
-}
+                    { 
+                      "en": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "support_day": 2 }""")
@@ -2258,9 +2258,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
-}
+                    {
+                      "en": [ { "id": "support", "text": "Support: {{weekday:support_day}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "support_day": "monday" }""")
@@ -2277,9 +2277,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "support", "text": "Support: {{string:level}}." } ]
-}
+                    { 
+                      "en": [ { "id": "support", "text": "Support: {{string:level}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "level": "basic" }""")
@@ -2288,9 +2288,9 @@ Additional terms.
                     valuesJson = """{ }""",
                     textsJson =
                         """
-{
-  "en": { "replace": { "support": "Support: {{string:level}} {{string:detail}}." }, "append": [] }
-}
+                        {
+                          "en": { "replace": { "support": "Support: {{string:level}} {{string:detail}}." }, "append": [] }
+                        }
                         """.trimIndent(),
                 )
 
@@ -2305,9 +2305,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
-}
+                    { 
+                      "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "{{string:inner}}" }""")
@@ -2324,9 +2324,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
-}
+                    {
+                      "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "{{number:inner?}}" }""")
@@ -2343,9 +2343,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
-}
+                    {
+                      "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "{{number:inner?format}}" }""")
@@ -2362,9 +2362,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
-}
+                    {
+                      "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "{{number:inner}}" }""")
@@ -2381,9 +2381,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
-}
+                    {
+                      "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "{{duration:inner}}" }""")
@@ -2400,9 +2400,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
-}
+                    {
+                      "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "{{time:inner}}" }""")
@@ -2419,9 +2419,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
-}
+                    {
+                      "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "{{weekday:inner}}" }""")
@@ -2438,9 +2438,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
-}
+                    { 
+                      "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "{{string:inner" }""")
@@ -2457,9 +2457,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
-}
+                    {
+                      "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "{{bogus:inner}}" }""")
@@ -2476,9 +2476,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
-}
+                    {
+                      "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "{{string:bad key}}" }""")
@@ -2495,9 +2495,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{
-  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
-}
+                    {
+                      "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "{{string:}}" }""")
@@ -2514,9 +2514,9 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
-}
+                    { 
+                      "en": [ { "id": "token", "text": "Value: {{string:value}}." } ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ "value": "{{not_placeholder}}" }""")
@@ -2533,12 +2533,12 @@ Additional terms.
             val baseline =
                 baselineJson(
                     """
-{ 
-  "en": [
-    { "id": "dup", "text": "One" },
-    { "id": "dup", "text": "Two" }
-  ]
-}
+                    { 
+                      "en": [
+                        { "id": "dup", "text": "One" },
+                        { "id": "dup", "text": "Two" }
+                      ]
+                    }
                     """.trimIndent(),
                 )
             val defaultProfile = defaultJson(valuesJson = """{ }""")
@@ -2558,12 +2558,12 @@ Additional terms.
         version: String = "1.0",
     ): String =
         """
-{
-  "kind": "baseline",
-  "id": "$id",
-  "version": "$version",
-  "texts": $textsJson
-}
+        {
+          "kind": "baseline",
+          "id": "$id",
+          "version": "$version",
+          "texts": $textsJson
+        }
         """.trimIndent()
 
     private fun defaultJson(
@@ -2574,13 +2574,13 @@ Additional terms.
         version: String = "1.0",
     ): String =
         """
-{
-  "kind": "default",
-  "id": "$id",
-  "version": "$version",
-  "baseline": { "id": "$baselineId", "version": "$baselineVersion", "hash": "sha256:0102" },
-  "values": $valuesJson
-}
+        {
+          "kind": "default",
+          "id": "$id",
+          "version": "$version",
+          "baseline": { "id": "$baselineId", "version": "$baselineVersion", "hash": "sha256:0102" },
+          "values": $valuesJson
+        }
         """.trimIndent()
 
     private fun deviationJson(
@@ -2593,19 +2593,21 @@ Additional terms.
             if (textsJson == null) {
                 ""
             } else {
-                """,
-  "texts": $textsJson"""
+                """
+                ,
+                  "texts": $textsJson
+                """.trimIndent()
             }
         return """
-{
-  "kind": "deviation",
-  "id": "example-policy-operator",
-  "version": "1.0",
-  "default": { "id": "$defaultId", "version": "$defaultVersion", "hash": "sha256:0102" },
-  "overrides": {
-    "values": $valuesJson$textsPart
-  }
-}
+            {
+              "kind": "deviation",
+              "id": "example-policy-operator",
+              "version": "1.0",
+              "default": { "id": "$defaultId", "version": "$defaultVersion", "hash": "sha256:0102" },
+              "overrides": {
+                "values": $valuesJson$textsPart
+              }
+            }
             """.trimIndent()
     }
 

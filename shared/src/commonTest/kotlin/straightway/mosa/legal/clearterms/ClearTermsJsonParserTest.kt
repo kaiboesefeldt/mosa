@@ -12,15 +12,15 @@ class ClearTermsJsonParserTest {
     fun `parses object with scalars arrays and nested objects`() {
         val json =
             """
-{
-  "root": {
-    "string": "value",
-    "number": 12.5,
-    "nullValue": null,
-    "list": ["one", "two"],
-    "nested": { "key": "nested-value" }
-  }
-}
+            {
+              "root": {
+                "string": "value",
+                "number": 12.5,
+                "nullValue": null,
+                "list": ["one", "two"],
+                "nested": { "key": "nested-value" }
+              }
+            }
             """.trimIndent()
 
         val root = parser.parse(json)
@@ -42,7 +42,7 @@ class ClearTermsJsonParserTest {
     fun `rejects root that is not an object`() {
         val json =
             """
-["one", "two"]
+            ["one", "two"]
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -54,7 +54,7 @@ class ClearTermsJsonParserTest {
     fun `rejects duplicate keys`() {
         val json =
             """
-{ "root": { "key": "one", "key": "two" } }
+            { "root": { "key": "one", "key": "two" } }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -66,7 +66,7 @@ class ClearTermsJsonParserTest {
     fun `rejects boolean values`() {
         val json =
             """
-{ "root": true }
+            { "root": true }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -78,7 +78,7 @@ class ClearTermsJsonParserTest {
     fun `rejects invalid json`() {
         val json =
             """
-{ "root": [ }
+            { "root": [ }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -90,7 +90,7 @@ class ClearTermsJsonParserTest {
     fun `rejects unterminated array right after opening bracket`() {
         val json =
             """
-{ "root": [
+            { "root": [
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -102,7 +102,7 @@ class ClearTermsJsonParserTest {
     fun `parses empty object`() {
         val json =
             """
-{ "root": {} }
+            { "root": {} }
             """.trimIndent()
 
         val root = parser.parse(json)
@@ -115,7 +115,7 @@ class ClearTermsJsonParserTest {
     fun `parses unicode escapes`() {
         val json =
             """
-{ "root": "\u0041" }
+            { "root": "\u0041" }
             """.trimIndent()
 
         val root = parser.parse(json)
@@ -128,7 +128,7 @@ class ClearTermsJsonParserTest {
     fun `parses unicode escapes with hex letters`() {
         val json =
             """
-{ "root": "\u00af" }
+            { "root": "\u00af" }
             """.trimIndent()
 
         val root = parser.parse(json)
@@ -141,7 +141,7 @@ class ClearTermsJsonParserTest {
     fun `rejects invalid escape`() {
         val json =
             """
-{ "root": "\x" }
+            { "root": "\x" }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -153,7 +153,7 @@ class ClearTermsJsonParserTest {
     fun `rejects trailing content after value`() {
         val json =
             """
-{ "root": {} } trailing
+            { "root": {} } trailing
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -172,7 +172,7 @@ class ClearTermsJsonParserTest {
     fun `parses negative numbers`() {
         val json =
             """
-{ "root": -12 }
+            { "root": -12 }
             """.trimIndent()
 
         val root = parser.parse(json)
@@ -185,7 +185,7 @@ class ClearTermsJsonParserTest {
     fun `rejects negative sign without digits`() {
         val json =
             """
-{ "root": - }
+            { "root": - }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -204,7 +204,7 @@ class ClearTermsJsonParserTest {
     fun `parses zero`() {
         val json =
             """
-{ "root": 0 }
+            { "root": 0 }
             """.trimIndent()
 
         val root = parser.parse(json)
@@ -217,7 +217,7 @@ class ClearTermsJsonParserTest {
     fun `rejects unterminated object`() {
         val json =
             """
-{ "root": { "a": 1
+            { "root": { "a": 1
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -229,7 +229,7 @@ class ClearTermsJsonParserTest {
     fun `rejects object missing comma`() {
         val json =
             """
-{ "root": { "a": 1 "b": 2 } }
+            { "root": { "a": 1 "b": 2 } }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -241,7 +241,7 @@ class ClearTermsJsonParserTest {
     fun `rejects object missing colon`() {
         val json =
             """
-{ "root" 1 }
+            { "root" 1 }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -253,7 +253,7 @@ class ClearTermsJsonParserTest {
     fun `rejects unterminated array`() {
         val json =
             """
-{ "root": [ 1
+            { "root": [ 1
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -265,7 +265,7 @@ class ClearTermsJsonParserTest {
     fun `rejects array missing comma`() {
         val json =
             """
-{ "root": [1 2] }
+            { "root": [1 2] }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -287,7 +287,7 @@ class ClearTermsJsonParserTest {
     fun `rejects unterminated string`() {
         val json =
             """
-{ "root": "value }
+            { "root": "value }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -336,7 +336,7 @@ class ClearTermsJsonParserTest {
     fun `rejects numbers without digits after exponent`() {
         val json =
             """
-{ "root": 1e }
+            { "root": 1e }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -367,7 +367,7 @@ class ClearTermsJsonParserTest {
     fun `rejects incomplete object key`() {
         val json =
             """
-{
+            {
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {
@@ -379,7 +379,7 @@ class ClearTermsJsonParserTest {
     fun `rejects invalid null literal`() {
         val json =
             """
-{ "root": nul }
+            { "root": nul }
             """.trimIndent()
 
         assertFailsWith<ClearTermsValidationException> {

@@ -17,47 +17,47 @@ class ClearTermsProfileChainRendererTest {
             hasher.reset()
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [
-      { "id": "operator", "text": "Operator: {{string:operator_name}}." },
-      { "id": "limit", "text": "Limit: {{number:max_records??unknown}}." }
-    ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [
+                      { "id": "operator", "text": "Operator: {{string:operator_name}}." },
+                      { "id": "limit", "text": "Limit: {{number:max_records??unknown}}." }
+                    ]
+                  }
+                }
                 """.trimIndent()
             val profileA =
                 """
-{
-  "kind": "profile",
-  "id": "example-policy-a",
-  "version": "1.0",
-  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:01" },
-  "overrides": {
-    "values": {
-      "operator_name": "Org A",
-      "max_records": 10
-    }
-  }
-}
+                {
+                  "kind": "profile",
+                  "id": "example-policy-a",
+                  "version": "1.0",
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:01" },
+                  "overrides": {
+                    "values": {
+                      "operator_name": "Org A",
+                      "max_records": 10
+                    }
+                  }
+                }
                 """.trimIndent()
             val profileB =
                 """
-{
-  "kind": "profile",
-  "id": "example-policy-b",
-  "version": "1.0",
-  "parent": { "id": "example-policy-a", "version": "1.0", "hash": "sha256:02" },
-  "overrides": {
-    "values": {
-      "operator_name": "Org B",
-      "max_records": null
-    }
-  }
-}
+                {
+                  "kind": "profile",
+                  "id": "example-policy-b",
+                  "version": "1.0",
+                  "parent": { "id": "example-policy-a", "version": "1.0", "hash": "sha256:02" },
+                  "overrides": {
+                    "values": {
+                      "operator_name": "Org B",
+                      "max_records": null
+                    }
+                  }
+                }
                 """.trimIndent()
 
             val result = renderer.renderLanguage(baseline, listOf(profileA, profileB), "en")
@@ -71,14 +71,14 @@ class ClearTermsProfileChainRendererTest {
             hasher.reset()
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "operator", "text": "Operator: {{string:operator_name}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "operator", "text": "Operator: {{string:operator_name}}." } ]
+                  }
+                }
                 """.trimIndent()
 
             val exception =
@@ -95,26 +95,26 @@ class ClearTermsProfileChainRendererTest {
             hasher.reset()
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "contact", "text": null } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "contact", "text": null } ]
+                  }
+                }
                 """.trimIndent()
             val profile =
                 """
-{
-  "kind": "profile",
-  "id": "example-policy-a",
-  "version": "1.0",
-  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:01" },
-  "overrides": {
-    "values": {}
-  }
-}
+                {
+                  "kind": "profile",
+                  "id": "example-policy-a",
+                  "version": "1.0",
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:01" },
+                  "overrides": {
+                    "values": {}
+                  }
+                }
                 """.trimIndent()
 
             val exception =
@@ -131,32 +131,32 @@ class ClearTermsProfileChainRendererTest {
             hasher.reset()
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "contact", "text": null } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "contact", "text": null } ]
+                  }
+                }
                 """.trimIndent()
             val profile =
                 """
-{
-  "kind": "profile",
-  "id": "example-policy-a",
-  "version": "1.0",
-  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:01" },
-  "overrides": {
-    "values": {},
-    "texts": {
-      "en": {
-        "replace": { "contact": "Contact: support@example.org." },
-        "append": []
-      }
-    }
-  }
-}
+                {
+                  "kind": "profile",
+                  "id": "example-policy-a",
+                  "version": "1.0",
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:01" },
+                  "overrides": {
+                    "values": {},
+                    "texts": {
+                      "en": {
+                        "replace": { "contact": "Contact: support@example.org." },
+                        "append": []
+                      }
+                    }
+                  }
+                }
                 """.trimIndent()
 
             val result = renderer.renderLanguage(baseline, listOf(profile), "en")
@@ -170,38 +170,38 @@ class ClearTermsProfileChainRendererTest {
             hasher.reset()
             val baseline =
                 """
-{
-  "kind": "baseline",
-  "id": "example-policy",
-  "version": "1.0",
-  "texts": {
-    "en": [ { "id": "operator", "text": "Operator: {{string:operator_name}}." } ]
-  }
-}
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "operator", "text": "Operator: {{string:operator_name}}." } ]
+                  }
+                }
                 """.trimIndent()
             val profileA =
                 """
-{
-  "kind": "profile",
-  "id": "example-policy-a",
-  "version": "1.0",
-  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:01" },
-  "overrides": {
-    "values": { "operator_name": "Org A" }
-  }
-}
+                {
+                  "kind": "profile",
+                  "id": "example-policy-a",
+                  "version": "1.0",
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:01" },
+                  "overrides": {
+                    "values": { "operator_name": "Org A" }
+                  }
+                }
                 """.trimIndent()
             val profileB =
                 """
-{
-  "kind": "profile",
-  "id": "example-policy-b",
-  "version": "1.0",
-  "parent": { "id": "wrong-id", "version": "1.0", "hash": "sha256:02" },
-  "overrides": {
-    "values": {}
-  }
-}
+                {
+                  "kind": "profile",
+                  "id": "example-policy-b",
+                  "version": "1.0",
+                  "parent": { "id": "wrong-id", "version": "1.0", "hash": "sha256:02" },
+                  "overrides": {
+                    "values": {}
+                  }
+                }
                 """.trimIndent()
 
             val exception =
