@@ -59,6 +59,20 @@ texts:
 
         Hinweis: In Beiträgen können Sie frei schreiben. Angaben über andere Personen sollten Sie dabei allerdings nur machen, wenn Sie sich sicher sind, dass das erlaubt ist.
 
+    - id: local-browser-processing
+      text: |
+        ## Lokale Verarbeitung im Browser
+
+        Ein wichtiger Teil von {{string:service_name}} läuft direkt im Browser auf Ihrem eigenen Gerät.
+
+        Dabei werden Daten auch lokal im Browser gespeichert, zum Beispiel:
+
+        - veröffentlichte Beiträge und Antworten, die Sie abrufen
+        - die Themenliste
+        - welche Ihrer Konten im Browser gespeichert sind und welches davon gerade aktiv ist
+
+        Gründe dafür sind Datenschutz und Geschwindigkeit: Ein Teil der Daten bleibt dadurch direkt auf Ihrem Gerät und damit unter Ihrer eigenen Kontrolle, und Inhalte können schneller angezeigt werden.
+
     - id: purposes-legal-bases
       text: |
         ## Warum Ihre Daten genutzt werden und warum das erlaubt ist
@@ -112,7 +126,8 @@ texts:
     - id: retention_deletion
       text: |
         - Nach dem Löschen wird der Inhalt auf diesem Pod nicht mehr bereitgestellt und zeitnah entfernt.
-        - Eine vollständige Löschung überall im Internet kann nicht garantiert werden (zum Beispiel, wenn andere Nutzerinnen und Nutzer den Inhalt bereits im Browser gespeichert haben).
+        - Eine vollständige Löschung überall im Internet kann nicht garantiert werden. Das gilt auch für Ihre eigenen Beiträge und Antworten, wenn andere Nutzerinnen und Nutzer diese bereits auf ihren Geräten gespeichert haben.
+        - Daten, die auf Ihrem eigenen Gerät gespeichert sind, bleiben dort, bis sie entfernt werden (durch Funktionen in {{string:service_name}}, durch den Browser oder durch Löschen der Browserdaten durch die nutzende Person). Ohne aktives Löschen können Beiträge zeitlich unbegrenzt auf Ihrem Gerät bleiben.
 
     - id: retention_backups
       text: |
