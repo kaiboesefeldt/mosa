@@ -1,233 +1,58 @@
-# ClearTerms Implementierungsplan (Pod + Client)
+# ClearTerms Implementierungsplan
 
 ## 1. Ziel und Scope
 
-Dieser Plan beschreibt die Laufzeit-Integration von ClearTerms im MOSA-Pod und im Client.
+Dieser Plan beschreibt die Integration von ClearTerms im MOSA-Pod und im Client.
 
 Im Scope:
 - Bereitstellung von ClearTerms-Artefakten über Pod-Endpoints
-- Interne Pflege der Inhalte in YAML + Markdown-Textblöcken
-- Generierung kanonischer JSON-Artefakte beim Pod-Start inkl. Hash-Berechnung und Referenzverkettung
-- Striktes Rendering und Nutzung im Client
-- Sichtbare Zugänglichkeit von Datenschutzerklärung, Nutzungsbedingungen und Impressum im Client
+- Pflege der Inhalte in YAML (inkl. Markdown-Textblöcken)
+- Erzeugung kanonischer JSON-Artefakte mit Hash-Verkettung
+- Clientseitiges Rendering und Anzeige der Rechtstexte
 
 Nicht im Scope:
 - Version-Historie oder Mehrfach-Version-Auslieferung
-- `bundle`-Endpoint
-- Signatur über Deviation-Profile
-- Externer Baseline-Server (kann später separat entstehen)
+- Bundle-Endpoint
+- Zusätzliche Signatur auf Profil-Artefakten
+- Externer Baseline-/Profil-Server
 
-## 2. Architekturentscheidungen (festgelegt)
+## 2. Ist-Stand (Server)
 
-1. Keine `bundle`-API. Es gibt getrennte Endpoints für Baseline, Default und Deviation.
-2. Keine Mehrfachversionen in dieser Software. Pro Dokumenttyp wird genau ein aktueller Satz ausgeliefert.
-3. Generierung der JSON-Artefakte erfolgt beim Pod-Start.
-4. Wenn Generierung oder serverseitige Artefakt-Validierung fehlschlägt, startet der Pod nicht weiter (fail-fast).
-5. Client ist bei Fetch-/Validierungsfehlern strikt: dann kein Zugriff auf den Pod (harte Sperre).
-6. Keine zusätzliche kryptografische Signatur über Deviation im aktuellen Schritt.
+Umgesetzt:
+- YAML-zu-kanonischem-JSON-Konvertierung für Baseline + Profilkette inkl. Hash-Eintrag in Parent-Referenzen
+- Bereitstellung der Privacy-Dokumente über eigenen Service und eigenen Controller
+- Endpoints:
+  - `GET /v1/legal/privacy/baseline`
+  - `GET /v1/legal/privacy/default`
+  - `GET /v1/legal/privacy/mosa`
+- Rückgabeformat: kanonisches ClearTerms-JSON (`application/json`)
+- Tests für Konvertierung, Hash-Kette, Service und Endpoints
 
-## 3. Dokumenttypen
+## 3. Datenquelle (Privacy)
 
-Initial werden drei Dokumenttypen integriert:
-- `privacy` (Datenschutzerklärung)
-- `terms` (Nutzungsbedingungen)
-- `imprint` (Impressum)
-
-Jeder Dokumenttyp besteht aus:
-- Baseline
-- Default Profile
-- Deviation Profile
-
-## 4. Datenquelle im Pod (YAML)
-
-### 4.1 Source of Truth
-
-Die Artefakte werden intern als YAML gepflegt.  
-Textblöcke werden als Markdown in den YAMLs geführt.
-
-### 4.2 Wichtige Modellregel
-
-Die YAMLs entsprechen semantisch den ClearTerms-JSONs, mit einer Ausnahme:
-- Referenzen in YAML enthalten **keine Hashes**.
-- Hashes werden erst aus den generierten kanonischen JSONs berechnet und dann in die JSON-Referenzen eingetragen.
-- Das `default`-Profil darf Placeholder-Werte auslassen. Pflicht ist nur, dass `default + deviation` zusammen alle nicht-optionalen Placeholder auflösen.
-- Bei `profile` darf `overrides.values` fehlen.
-- Bei Text-Overrides darf `append` fehlen.
-- Baseline-Textblöcke dürfen optional `hints` enthalten (`expectedContent`, `overrideSeverity` mit `normal|restrictive|required`).
-- Profile-Text-Overrides (`replace`, `append`) enthalten keine `hints`.
-- Wird keine `overrideSeverity` gesetzt, gilt effektiv `restrictive`; für `text: null` gilt effektiv `required`.
-
-### 4.3 Empfohlene Ablage
-
-Pod-Ressourcen, z. B.:
+Aktuell genutzte Ressourcen:
 - `server/src/main/resources/clearterms/privacy/privacy-gdpr-baseline.yaml`
 - `server/src/main/resources/clearterms/privacy/privacy-gdpr-default.yaml`
 - `server/src/main/resources/clearterms/privacy/mosa-privacy-gdpr-service.yaml`
-- analog für `terms` und `imprint`
-
-Deployment-Datei im Pod-Arbeitsverzeichnis:
-- `privacy.deviation.yaml` (verpflichtend)
 
 Regel:
-- `privacy.deviation.yaml` wird nicht aus den Server-Ressourcen geladen, sondern aus dem aktuellen Arbeitsverzeichnis des Pods.
-- Fehlt die Datei oder ist sie ungültig, schlägt der Pod-Start fehl (fail-fast).
+- YAML-Referenzen enthalten keine Hashes.
+- Hashes werden aus kanonischem JSON berechnet und in Parent-Referenzen gesetzt.
 
-## 5. Generierungspipeline beim Pod-Start
+## 4. Offene Punkte (Server)
 
-Für jeden Dokumenttyp (`privacy`, `terms`, `imprint`) wird beim Start eine feste Pipeline durchlaufen:
+1. Startverhalten auf fail-fast für Legal-Artefakte explizit absichern (Artefaktaufbau und Validierung beim Pod-Start erzwingen).
+2. Dokumenttypen `terms` und `imprint` analog zu `privacy` integrieren (YAML + Endpoints + Tests).
+3. Optional: Endpunktdesign vereinheitlichen, falls später wieder ein generisches `docType`-Routing gewünscht ist.
 
-1. YAML laden:
-   - `baseline` und `default` aus Ressourcen
-   - `privacy.deviation.yaml` für `privacy` aus dem Pod-Arbeitsverzeichnis
-   - für andere Dokumenttypen zunächst weiter aus Ressourcen (bis separat entschieden)
-2. YAML in interne ClearTerms-Modelle konvertieren.
-3. Baseline und Default zunächst als JSON ohne Hash-in-Referenz serialisieren.
-4. Kanonisierung und Hash-Berechnung:
-   - Baseline: canonical JSON -> SHA-256 -> `sha256:<hex>`
-   - Default: canonical JSON -> SHA-256 -> `sha256:<hex>`
-5. Referenzen einsetzen:
-   - Default.baseline.hash = Baseline-Hash
-   - Deviation.default.hash = Default-Hash
-6. Finale JSONs erzeugen.
-7. Strikte serverseitige Validierung der Artefakte:
-   - JSON-Struktur und Referenzkonsistenz (inkl. `id`/`version`/`hash`) müssen gültig sein.
-   - Vollständigkeit gilt für die effektiven Werte aus `default + deviation`.
-   - Es findet kein Rendering im Pod statt.
-8. Ergebnis im Speicher ablegen und für Endpoints bereitstellen.
+## 5. Offene Punkte (Client)
 
-Fail-fast-Regel:
-- Jeder Fehler in Parsing, Mapping, Kanonisierung, Hashing oder serverseitiger Artefakt-Validierung bricht den Pod-Start ab.
+1. Fetch-Schicht für die Legal-Endpoints integrieren.
+2. Rendering-Pipeline (`ClearTermsRenderer` + Markdown->HTML) in der UI anschließen.
+3. Striktes Fehlerverhalten im Client sicherstellen (kein stilles Fallback).
+4. Sichtbare Einstiegspunkte für Rechtstexte in der UI vervollständigen.
 
-## 6. Pod-API
+## 6. Qualität
 
-Keine Bundle-API, nur getrennte Endpoints:
-
-- `GET /v1/legal/{docType}/baseline`
-- `GET /v1/legal/{docType}/default`
-- `GET /v1/legal/{docType}/deviation`
-
-Parameter:
-- `{docType}` in `{privacy, terms, imprint}`
-
-Antwort:
-- jeweiliges ClearTerms-JSON als UTF-8 JSON
-
-Fehlerfälle:
-- Unbekannter `docType` -> 404
-- Laufzeitfehler bei Auslieferung -> 500 (sollte bei erfolgreichem Start praktisch nicht auftreten)
-
-## 7. Validierung und Betriebsverhalten
-
-Artefakt-Validierung wird zentral beim Start durchgeführt, nicht erst bei Request.
-
-Konsequenzen:
-- Pod liefert nur verifizierte, intern konsistente Artefakte aus.
-- Inkonsistenzen werden als Deployment-/Konfigurationsfehler behandelt.
-- Es gibt keinen „best effort“-Fallback.
-- Der Pod rendert keine Rechtstexte. Rendering passiert ausschließlich im Client.
-
-## 8. Client-Integration
-
-## 8.1 Datenfluss
-
-Für gewählten Dokumenttyp und Sprache:
-1. Baseline JSON laden
-2. Default JSON laden
-3. Deviation JSON laden
-4. `ClearTermsRenderer` mit diesen drei JSONs ausführen
-5. Ergebnis-Markdown in HTML rendern (Markdown-Lib)
-6. HTML anzeigen
-
-## 8.2 Striktes Fehlerverhalten
-
-Wenn einer dieser Schritte fehlschlägt (Fetch, Parsing, Renderer-Validierung):
-- Pod-Zugriff im Client wird blockiert.
-- Nutzer sieht einen klaren Fehlerzustand (kein stilles Fallback).
-
-Das ist absichtlich streng und entspricht dem Trust-Modell.
-
-## 8.3 UI-Zugänglichkeit
-
-Rechtstexte werden gut sichtbar erreichbar gemacht:
-- Footer-Links zu Datenschutz, Nutzungsbedingungen, Impressum
-- Zusätzlich im Login/Registrierungskontext verlinken
-
-Empfohlene Seitenstruktur:
-- Eigene Legal-Route mit Auswahl/Unterseiten für `privacy`, `terms`, `imprint`
-
-## 9. Implementierungsschritte (inkrementell)
-
-1. Server:
-   - YAML-Modelle + Loader für die drei Dokumenttypen
-   - Generator-Service (`yaml -> json -> canonical hash -> references`)
-   - Start-up Hook mit fail-fast
-2. Server:
-   - Drei Read-Endpoints pro Dokumenttyp
-   - Tests für Endpoint-Verhalten und Start-up-Fail-fast
-3. Inhalte:
-   - Erste Entwürfe in YAML/Markdown für `privacy`, `terms`, `imprint`
-   - Deployment-Beispiel für `privacy.deviation.yaml` bereitstellen
-4. Client:
-   - Fetch-Schicht für drei Endpoints
-   - Renderer-Integration + Markdown->HTML
-   - Striktes Sperrverhalten bei Fehlern
-5. Client:
-   - UI-Einstiegspunkte (Footer + Auth-Kontext)
-6. Späterer Ausbau:
-   - UI für Abweichungsanzeige (Deviation vs. Default/Baseline)
-7. Qualität:
-   - `./gradlew check` muss grün
-
-## 10. Teststrategie
-
-Server-Tests:
-- YAML-Laden und Mapping
-- Hash-Berechnung und Referenzverkettung
-- Fail-fast bei fehlerhaften YAMLs/Inkonsistenzen
-- Fail-fast, wenn `privacy.deviation.yaml` fehlt oder ungültig ist
-- Endpoint-Tests je `docType` und Artefakt-Typ
-
-Client-Tests:
-- Erfolgsfall: 3 Fetches -> Rendering -> Anzeige
-- Fehlerfälle: einzelner Fetch/Renderer-Fehler blockiert Pod-Zugriff
-- Sichtbarkeit der Links/Routes für `privacy`, `terms`, `imprint`
-
-## 11. Self-Service-Gaps bei Betroffenenrechten (Stand heute)
-
-Zielbild:
-- Alle gesetzlich relevanten Betroffenenrechte sollen bevorzugt im Self-Service wahrnehmbar sein.
-
-Bereits im Self-Service vorhanden:
-- Löschung eigener Inhalte (Art. 17 DSGVO) über:
-  - `DELETE /v1/posts/{id}` (einzelner eigener Beitrag)
-  - `DELETE /v1/posts` (alle eigenen Beiträge)
-
-Noch nicht im Self-Service abgedeckt:
-- Auskunft (Art. 15 DSGVO):
-  - Kein dedizierter Endpunkt für eine vollständige Datenkopie aller personenbezogenen Daten pro GID.
-  - Kein Exportformat für maschinenlesbare Gesamtauskunft.
-- Berichtigung (Art. 16 DSGVO):
-  - Kein Endpunkt zur Korrektur bereits gespeicherter Inhalte oder Metadaten.
-  - Derzeit nur indirekt über Löschen und Neuveröffentlichen möglich.
-- Einschränkung der Verarbeitung (Art. 18 DSGVO):
-  - Kein Mechanismus, um Verarbeitung pro GID/datensatzbezogen einzuschränken, ohne vollständige Löschung.
-- Datenübertragbarkeit (Art. 20 DSGVO):
-  - Kein Endpunkt für strukturierten Gesamtexport der von einer Person bereitgestellten Daten.
-- Widerspruch (Art. 21 DSGVO):
-  - Kein Self-Service-Opt-out für auf berechtigte Interessen gestützte Verarbeitungsschritte.
-- Widerruf von Einwilligungen:
-  - Kein dediziertes Consent-Management mit Widerruf pro Zweck im Self-Service.
-
-Konsequenz für diese Iteration:
-- Datenschutzerklärung weist transparent aus, welche Rechte bereits im Self-Service möglich sind und welche derzeit über `privacy_contact_email` bearbeitet werden.
-- Für die nicht abgedeckten Rechte bleiben manuelle Prozesse beim Pod-Betreiber erforderlich.
-
-## 12. Offene Punkte (bewusst zurückgestellt)
-
-1. Mehrfachversionierung und historische Auslieferung
-2. Externer Baseline-/Default-Server
-3. Signatur auf Deviation
-4. Bundle-Endpoint
-5. Detaillierte Abweichungsanzeige im Client (späterer Ausbau)
-
-Diese Punkte sind explizit nicht Teil dieser Iteration und können später separat geplant werden.
+- Für neue Server-Funktionalität gilt: Unit-/Endpoint-Tests mit klarer, deterministischer Abdeckung.
+- Ziel bleibt ein grüner `./gradlew check`-Lauf im Gesamtprojekt.
