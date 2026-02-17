@@ -5,6 +5,7 @@ import straightway.mosa.auth.configureAuthAppModule
 import straightway.mosa.content.configureContentAppModule
 import straightway.mosa.defense.configureDefenseAppModule
 import straightway.mosa.embedding.configureEmbeddingAppModule
+import straightway.mosa.legal.clearterms.configureLegalAppModule
 import straightway.mosa.network.configureNetworkAppModule
 import straightway.mosa.vectorstore.configureVectorStoreAppModule
 import straightway.mosa.webclient.configureWebClientAppModule
@@ -20,6 +21,7 @@ fun Module.configureMosaAppModule(arguments: CommandLineArgumentStore = CommandL
     configureDefenseAppModule()
     configureAuthAppModule()
     configureContentAppModule()
+    configureLegalAppModule()
     configureEmbeddingAppModule()
     configureWebClientAppModule()
 }
