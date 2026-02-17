@@ -2,6 +2,7 @@
 
 ## General
 - Answer in the same language as the request formulated by the user.
+- Never create commits unless the user explicitly asks for a commit.
 
 ## Module Topology
 - `server/src/main/kotlin` – Ktor + Koin application entry point (`Main.kt`) with controllers, services, and DI wiring in `AppModule.kt`.
@@ -47,6 +48,7 @@
 - Kotlin 2.2, ktlint enforced via `org.jmailen.kotlinter`; avoid wildcard imports, keep indentation and spacing at defaults, and do not add trailing whitespace or superfluous EOF newlines.
 - Expressive naming over comments; prefer extracting helpers instead of annotating code. Maintain `straightway.mosa.*` packaging and align file names with their top-level declarations.
 - Tests live beside code in each module under `src/test/kotlin`. Keep them fast, deterministic, and focused—one scenario per test.
+- Never use deprecated API.
 - If you introduce new libs, always make sure you use the most recent stable version, if possible. Look up the most recent version using a web search!!
 - Don't use code comments at all! Instead, write the code so expressive, that comments are not required, e.g. by naming of code entities and extracted functions, that are named to make the functionality clear.
 - Avoid over-engineering!
