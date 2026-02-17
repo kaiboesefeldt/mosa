@@ -104,7 +104,7 @@ class ClearTermsYamlCanonicalJsonConverter(
         when {
             node.isObject -> {
                 val entries = linkedMapOf<String, ClearTermsJsonNode>()
-                node.fields().forEach { (key, value) ->
+                node.properties().forEach { (key, value) ->
                     entries[key] = fromJacksonNode(value)
                 }
                 ClearTermsJsonNode.ObjectNode(entries)
