@@ -1,7 +1,12 @@
 package straightway.mosa.legal
 
+import io.mockk.every
+import io.mockk.mockk
 import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
 import straightway.mosa.legal.clearterms.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
@@ -16,7 +21,11 @@ class LegalServiceTest {
 
     @Test
     fun `provides canonical json documents for privacy baseline default mosa and service`() {
-        val service = LegalService(operatorProfilePath = writeOperatorProfile())
+        val service =
+            LegalService(
+                operatorProfilePath = writeOperatorProfile(),
+                completenessChecker = completenessChecker(complete = true),
+            )
 
         val baselineJson = service.privacyBaselineCanonicalJson()
         val defaultJson = service.privacyDefaultCanonicalJson()
@@ -41,7 +50,11 @@ class LegalServiceTest {
 
     @Test
     fun `chains parent hashes from baseline to default to mosa to service`() {
-        val service = LegalService(operatorProfilePath = writeOperatorProfile())
+        val service =
+            LegalService(
+                operatorProfilePath = writeOperatorProfile(),
+                completenessChecker = completenessChecker(complete = true),
+            )
 
         val baselineJson = service.privacyBaselineCanonicalJson()
         val defaultJson = service.privacyDefaultCanonicalJson()
@@ -67,14 +80,39 @@ class LegalServiceTest {
     @Test
     fun `fails when operator profile file is missing`() {
         val missingPath = Files.createTempDirectory("legal-service-missing").resolve("mosa_privacy.yaml")
-
+        val stdout = ByteArrayOutputStream()
         val exception =
-            assertFailsWith<IllegalStateException> {
-                LegalService(operatorProfilePath = missingPath)
+            captureStdout(stdout) {
+                assertFailsWith<IllegalStateException> {
+                    LegalService(
+                        operatorProfilePath = missingPath,
+                        completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile"),
+                    )
+                }
             }
 
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile skeleton:"))
         assertTrue(exception.message?.contains("mosa_privacy.yaml") == true)
         assertTrue(exception.message?.contains(missingPath.toAbsolutePath().normalize().toString()) == true)
+    }
+
+    @Test
+    fun `prints skeleton and fails when profile chain is incomplete`() {
+        val stdout = ByteArrayOutputStream()
+
+        val exception =
+            captureStdout(stdout) {
+                assertFailsWith<IllegalStateException> {
+                    LegalService(
+                        operatorProfilePath = writeOperatorProfile(),
+                        completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile\nid: \"template\""),
+                    )
+                }
+            }
+
+        assertEquals("Legal profile chain is incomplete", exception.message)
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile skeleton:"))
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("id: \"template\""))
     }
 
     private fun sha256(value: String): String {
@@ -86,6 +124,39 @@ class LegalServiceTest {
         val path = Files.createTempDirectory("legal-service").resolve("mosa_privacy.yaml")
         Files.writeString(path, operatorProfileYaml())
         return path
+    }
+
+    private fun completenessChecker(
+        complete: Boolean,
+        skeletonYaml: String = "kind: profile",
+    ): ClearTermsProfileChainCompletenessChecker {
+        val checker = mockk<ClearTermsProfileChainCompletenessChecker>()
+        every {
+            checker.analyze(
+                any(),
+                any(),
+            )
+        } returns
+            ClearTermsProfileChainCompletenessChecker.Result(
+                complete = complete,
+                missingPlaceholderKeys = emptyList(),
+                unresolvedRequiredBlockIdsByLanguage = emptyMap(),
+                skeletonYaml = skeletonYaml,
+            )
+        return checker
+    }
+
+    private fun captureStdout(
+        stdout: ByteArrayOutputStream,
+        block: () -> IllegalStateException,
+    ): IllegalStateException {
+        val previous = System.out
+        System.setOut(PrintStream(stdout, true, Charsets.UTF_8))
+        return try {
+            block()
+        } finally {
+            System.setOut(previous)
+        }
     }
 
     private fun operatorProfileYaml(): String =
