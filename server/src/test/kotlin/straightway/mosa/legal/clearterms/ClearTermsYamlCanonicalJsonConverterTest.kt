@@ -263,6 +263,131 @@ class ClearTermsYamlCanonicalJsonConverterTest {
     }
 
     @Test
+    fun `rejects profile with unknown top level key`() {
+        val baselineYaml =
+            """
+            kind: baseline
+            id: baseline-1
+            version: "1.0"
+            texts:
+              en:
+                - id: intro
+                  text: "Hello"
+            """.trimIndent()
+        val profileYaml =
+            """
+            kind: profile
+            id: profile-1
+            version: "1.0"
+            parent:
+              id: baseline-1
+              version: "1.0"
+            overrides:
+              values: {}
+            extra: "present"
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                converter.convert(baselineYaml, listOf(profileYaml))
+            }
+
+        assertEquals("Unknown key 'extra'", exception.message)
+    }
+
+    @Test
+    fun `rejects profile with missing required key`() {
+        val baselineYaml =
+            """
+            kind: baseline
+            id: baseline-1
+            version: "1.0"
+            texts:
+              en:
+                - id: intro
+                  text: "Hello"
+            """.trimIndent()
+        val profileYaml =
+            """
+            kind: profile
+            id: profile-1
+            version: "1.0"
+            parent:
+              id: baseline-1
+              version: "1.0"
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                converter.convert(baselineYaml, listOf(profileYaml))
+            }
+
+        assertEquals("Missing key 'overrides'", exception.message)
+    }
+
+    @Test
+    fun `rejects profile with non mapping parent`() {
+        val baselineYaml =
+            """
+            kind: baseline
+            id: baseline-1
+            version: "1.0"
+            texts:
+              en:
+                - id: intro
+                  text: "Hello"
+            """.trimIndent()
+        val profileYaml =
+            """
+            kind: profile
+            id: profile-1
+            version: "1.0"
+            parent: baseline-1
+            overrides:
+              values: {}
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                converter.convert(baselineYaml, listOf(profileYaml))
+            }
+
+        assertEquals("Key 'parent' must be a mapping", exception.message)
+    }
+
+    @Test
+    fun `rejects profile with non string parent id`() {
+        val baselineYaml =
+            """
+            kind: baseline
+            id: baseline-1
+            version: "1.0"
+            texts:
+              en:
+                - id: intro
+                  text: "Hello"
+            """.trimIndent()
+        val profileYaml =
+            """
+            kind: profile
+            id: profile-1
+            version: "1.0"
+            parent:
+              id: 123
+              version: "1.0"
+            overrides:
+              values: {}
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                converter.convert(baselineYaml, listOf(profileYaml))
+            }
+
+        assertEquals("Key 'id' must be a string", exception.message)
+    }
+
+    @Test
     fun `rejects unsupported boolean value in overrides values`() {
         val baselineYaml =
             """
@@ -346,6 +471,62 @@ class ClearTermsYamlCanonicalJsonConverterTest {
         val exception =
             assertFailsWith<ClearTermsValidationException> {
                 converter.convert(baselineYaml, listOf(invalidProfileYaml))
+            }
+
+        assertTrue((exception.message ?: "").startsWith("Invalid YAML document:"))
+    }
+
+    @Test
+    fun `rejects baseline yaml root that is not a mapping`() {
+        val baselineYaml = "- kind: baseline"
+        val profileYaml =
+            """
+            kind: profile
+            id: profile-1
+            version: "1.0"
+            parent:
+              id: baseline-1
+              version: "1.0"
+            overrides:
+              values: {}
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                converter.convert(baselineYaml, listOf(profileYaml))
+            }
+
+        assertEquals("Root document must be a mapping", exception.message)
+    }
+
+    @Test
+    fun `rejects yaml document with duplicate keys`() {
+        val baselineYaml =
+            """
+            kind: baseline
+            id: baseline-1
+            version: "1.0"
+            id: baseline-2
+            texts:
+              en:
+                - id: intro
+                  text: "Hello"
+            """.trimIndent()
+        val profileYaml =
+            """
+            kind: profile
+            id: profile-1
+            version: "1.0"
+            parent:
+              id: baseline-1
+              version: "1.0"
+            overrides:
+              values: {}
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                converter.convert(baselineYaml, listOf(profileYaml))
             }
 
         assertTrue((exception.message ?: "").startsWith("Invalid YAML document:"))
