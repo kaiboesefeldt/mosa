@@ -1,4 +1,4 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal
 
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
@@ -64,5 +64,20 @@ class LegalControllerTest {
             assertEquals(HttpStatusCode.OK, response.status)
             assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
             assertEquals("{\"kind\":\"profile\",\"id\":\"mosa\"}", response.body<String>())
+        }
+
+    @Test
+    fun `returns canonical service json on v1 privacy operator endpoint`() =
+        environment {
+            every { legalService.privacyServiceCanonicalJson() } returns "{\"kind\":\"profile\",\"id\":\"service\"}"
+
+            val response =
+                client.get("/v1/legal/privacy/operator") {
+                    bearerAuth("token")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
+            assertEquals("{\"kind\":\"profile\",\"id\":\"service\"}", response.body<String>())
         }
 }

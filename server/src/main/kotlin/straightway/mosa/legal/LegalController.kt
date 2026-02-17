@@ -1,4 +1,4 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal
 
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -27,6 +27,13 @@ class LegalController(
         getRoute("/legal/privacy/mosa") {
             call.respondText(
                 text = legalService.privacyMosaCanonicalJson(),
+                contentType = ContentType.Application.Json,
+                status = HttpStatusCode.OK,
+            )
+        }
+        getRoute("/legal/privacy/operator") {
+            call.respondText(
+                text = legalService.privacyServiceCanonicalJson(),
                 contentType = ContentType.Application.Json,
                 status = HttpStatusCode.OK,
             )

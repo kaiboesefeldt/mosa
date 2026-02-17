@@ -26,6 +26,8 @@ import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
+import straightway.mosa.legal.LegalController
+import straightway.mosa.legal.LegalService
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import straightway.mosa.webclient.WebClientCommandLineOptions.Companion.SERVE_SOURCE_MAPS
 import straightway.mosa.webclient.WebClientController
@@ -58,7 +60,7 @@ class AppModuleTest {
         mockkObject(LuceneLocalVectorStore.Companion)
         mockOnnxEmbeddingService()
         mockVectorStore()
-        koinApplication = koinApplication { modules(module { configureMosaAppModule() }) }
+        koinApplication = createKoinApplication()
     }
 
     @AfterEach
@@ -143,7 +145,7 @@ class AppModuleTest {
             CommandLineArgumentStore.from { name ->
                 if (name == SERVE_SOURCE_MAPS) true else null
             }
-        koinApplication = koinApplication { modules(module { configureMosaAppModule(arguments) }) }
+        koinApplication = createKoinApplication(arguments)
         assertSame(arguments, koin.get<CommandLineArgumentStore>())
     }
 
@@ -154,6 +156,7 @@ class AppModuleTest {
             setOf(
                 ContentController::class,
                 AuthenticationController::class,
+                LegalController::class,
                 WebClientController::class,
             ),
             controllerTypes,
@@ -172,17 +175,11 @@ class AppModuleTest {
     fun `WebClientController serves source maps if switched on`() {
         koinApplication!!.close()
         koinApplication =
-            koinApplication {
-                modules(
-                    module {
-                        configureMosaAppModule(
-                            CommandLineArgumentStore.from {
-                                if (it == SERVE_SOURCE_MAPS) true else null
-                            },
-                        )
-                    },
-                )
-            }
+            createKoinApplication(
+                CommandLineArgumentStore.from {
+                    if (it == SERVE_SOURCE_MAPS) true else null
+                },
+            )
         assertTrue(koin.get<WebClientController>().serveSourceMaps)
     }
 
@@ -229,4 +226,15 @@ class AppModuleTest {
             }
         }
     }
+
+    private fun createKoinApplication(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY): KoinApplication =
+        koinApplication {
+            allowOverride(true)
+            modules(
+                module {
+                    configureMosaAppModule(arguments)
+                    single<LegalService> { mockk(relaxed = true) }
+                },
+            )
+        }
 }
