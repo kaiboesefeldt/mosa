@@ -55,60 +55,39 @@
   - Kotlin data classes and `@Serializable` code may report inaccurately.
   - Kotlin/JS coverage is currently not measured.
 
-## 6. Build, Run, and Verification Commands
-### 6.1 Common commands
+## 6. Build and Verification Commands
+- Full quality gate: `./gradlew check`
 - Build all: `./gradlew build`
-- Run server: `./gradlew :server:run`
-- Create server fat jar: `./gradlew :server:shadowJar`
-- Run CLI example: `./gradlew :cli:run --args="search --pod http://localhost:8080 --topic 'query'"`
 - Run all tests: `./gradlew test`
 - Run module tests: `./gradlew :server:test` / `./gradlew :client:test`
 - Run single test: `./gradlew :server:test --tests straightway.mosa.SomeTest`
 - Coverage run: `./gradlew -Pkover clean test koverXmlReport koverVerify --no-daemon --stacktrace --continue`
 - Format all: `./gradlew formatKotlin`
 - Lint all: `./gradlew lintKotlin`
-- Clean outputs: `./gradlew clean`
+- Run server: `./gradlew :server:run`
+- Run CLI example: `./gradlew :cli:run --args="search --pod http://localhost:8080 --topic 'query'"`
 
-### 6.2 Notes
+### Notes
 - Coverage report path: `build/reports/kover/report.xml`
 - `straightway.mosa.content.QualityTest` may be excluded for intermediate runs unless embedding/vector-store behavior is changed.
 - Gradle warnings can be ignored.
 
 ## 7. Repository Topology
-- `server/src/main/kotlin`: Ktor + Koin server (`Main.kt`, `AppModule.kt`, controllers/services/auth/vector components).
+- `server/src/main/kotlin`: Ktor server and business services.
 - `client/src/jsMain/kotlin`: Kotlin/JS web client.
-- `cli/src/main/kotlin/straightway/mosa/cli`: JVM CLI (`push`, `search`, `cert`, `identity`).
-- `shared/src/commonMain/kotlin`: shared multiplatform DTOs/models.
-- `models/`: optional DJL/ONNX assets (keep large model files out of commits unless intentional).
-- `mosa_lucene_index/`: persistent local Lucene KNN index (delete to reset local state).
+- `cli/src/main/kotlin/straightway/mosa/cli`: JVM CLI commands.
+- `shared/src/commonMain/kotlin`: Shared DTOs/models.
+- `models/`: Optional model assets (avoid committing large artifacts unintentionally).
+- `mosa_lucene_index/`: Local Lucene index data (delete to reset local state).
 
-## 8. Runtime Architecture Snapshot
-### 8.1 Server
-- Ktor 3.2 Netty server with Koin 4.1 DI.
-- `OnnxLocalEmbeddingService` uses DJL + ONNX Runtime with `efederici/multilingual-e5-small-4096`.
-- `LuceneLocalVectorStore` persists vectors in `MMapDirectory` at `mosa_lucene_index`.
-- Auth uses MIS-JWT bearer tokens via `Auth0TokenUtil`.
-- Routes:
-  - Open: `/v1/approvegid`
-  - Auth required: `/v1/publish`, `/v1/reply`, `/v1/query`, `/v1/queryon`
-- `WebClientController` serves SPA from `static/`, injects `window.MOSA_POD_BASE`, and serves source maps only when `MOSA_SERVE_SOURCE_MAPS=true`.
-- `shadowJar` builds `mosa-server-all.jar` and depends on copied client assets.
-
-### 8.2 Client
-- Kotlin/JS IR app with Koin + Ktor JS client + coroutines.
-- Entry point: `straightway.mosa.client.Main`.
-- `copyClientFiles` copies production bundle into server static resources before `processResources`/`shadowJar`.
-- HTML template: `client/src/jsMain/resources/index.html`.
-- Font Awesome Free included via npm.
-
-### 8.3 CLI
-- `CliMain.kt` with `kotlinx-cli` subcommands.
-- `MosaRestClient` uses Ktor CIO + Jackson, requests pod certificates, builds MIS-JWTs.
-- Default pod: `http://localhost:8080` (`--pod` to override).
-- Keypair via `--keypair` (Base64-URL without padding) or ephemeral identity generation.
+## 8. Runtime Snapshot (Compact)
+- Server: Ktor + Koin, auth via MIS-JWT bearer tokens.
+- Routes: `/v1/approvegid` is open; `/v1/publish`, `/v1/reply`, `/v1/query`, `/v1/queryon` require auth.
+- Embeddings/vector storage: ONNX local embeddings + Lucene local vector store.
+- Client assets are copied into server static resources for packaging.
 
 ## 9. Security Constraints
-- Ed25519 signing uses `TransientEd25519Factory`; keys are ephemeral unless explicitly persisted.
-- `PodCertificateService` signs URL-safe Base64 encoded certificates with finite validity (default 7 days via `AuthenticationController`).
+- Ed25519 signing uses transient keys unless explicitly persisted.
+- Certificates are URL-safe Base64 encoded and time-limited.
 - Never commit secrets or credential material.
 - Never commit large model artifacts unintentionally.
