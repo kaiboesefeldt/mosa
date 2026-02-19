@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.header
 import io.ktor.client.request.delete
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -31,6 +32,10 @@ interface PodAccess {
     suspend fun search(request: QueryRequest, jwt: String): SearchResult
     suspend fun searchOn(request: QueryOnRequest, jwt: String): SearchResult
     suspend fun fetch(request: FetchRequest, jwt: String): FetchResult
+    suspend fun privacyBaselineClearTerms(): String
+    suspend fun privacyDefaultClearTerms(): String
+    suspend fun privacyMosaClearTerms(): String
+    suspend fun privacyOperatorClearTerms(): String
 }
 
 class PodAccessImpl(
@@ -86,6 +91,26 @@ class PodAccessImpl(
             .ensureSuccess("/v1/fetch", request)
             .body()
 
+    override suspend fun privacyBaselineClearTerms(): String =
+        get("/v1/legal/privacy/baseline")
+            .ensureSuccess("/v1/legal/privacy/baseline", Unit)
+            .body()
+
+    override suspend fun privacyDefaultClearTerms(): String =
+        get("/v1/legal/privacy/default")
+            .ensureSuccess("/v1/legal/privacy/default", Unit)
+            .body()
+
+    override suspend fun privacyMosaClearTerms(): String =
+        get("/v1/legal/privacy/mosa")
+            .ensureSuccess("/v1/legal/privacy/mosa", Unit)
+            .body()
+
+    override suspend fun privacyOperatorClearTerms(): String =
+        get("/v1/legal/privacy/operator")
+            .ensureSuccess("/v1/legal/privacy/operator", Unit)
+            .body()
+
     private suspend fun post(path: String, payload: Any, jwt: String? = null): HttpResponse =
         httpClient.post("$podBase$path") {
             contentType(ContentType.Application.Json)
@@ -104,6 +129,11 @@ class PodAccessImpl(
         httpClient.delete("$podBase$path") {
             contentType(ContentType.Application.Json)
             header(HttpHeaders.Authorization, "Bearer $jwt")
+        }
+
+    private suspend fun get(path: String): HttpResponse =
+        httpClient.get("$podBase$path") {
+            contentType(ContentType.Application.Json)
         }
 
     private fun HttpResponse.ensureSuccess(path: String, payload: Any): HttpResponse =

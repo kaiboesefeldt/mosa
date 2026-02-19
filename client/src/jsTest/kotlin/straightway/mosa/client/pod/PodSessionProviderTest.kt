@@ -224,6 +224,22 @@ private class FakeSessionPodAccess(
     override suspend fun fetch(request: FetchRequest, jwt: String): FetchResult {
         error("not expected")
     }
+
+    override suspend fun privacyBaselineClearTerms(): String {
+        error("not expected")
+    }
+
+    override suspend fun privacyDefaultClearTerms(): String {
+        error("not expected")
+    }
+
+    override suspend fun privacyMosaClearTerms(): String {
+        error("not expected")
+    }
+
+    override suspend fun privacyOperatorClearTerms(): String {
+        error("not expected")
+    }
 }
 
 private class StaticIdentityRepository(

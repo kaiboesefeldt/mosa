@@ -312,6 +312,22 @@ private class RecordingPodAccess(
             }
         return FetchResult(entries)
     }
+
+    override suspend fun privacyBaselineClearTerms(): String {
+        error("Not implemented")
+    }
+
+    override suspend fun privacyDefaultClearTerms(): String {
+        error("Not implemented")
+    }
+
+    override suspend fun privacyMosaClearTerms(): String {
+        error("Not implemented")
+    }
+
+    override suspend fun privacyOperatorClearTerms(): String {
+        error("Not implemented")
+    }
 }
 
 private class FakeReplyCache : ReplyCache {

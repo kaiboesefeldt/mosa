@@ -283,6 +283,57 @@ class PodAccessTest {
         )
     }
 
+    @Test
+    fun `privacy baseline clear terms sends get and returns raw json`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, "{\"kind\":\"baseline\"}")
+
+        val result = podAccess.privacyBaselineClearTerms()
+
+        assertEquals("{\"kind\":\"baseline\"}", result)
+        assertGetRequest(capturedRequests.single(), "v1/legal/privacy/baseline")
+    }
+
+    @Test
+    fun `privacy default clear terms sends get and returns raw json`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, "{\"kind\":\"profile\",\"id\":\"default\"}")
+
+        val result = podAccess.privacyDefaultClearTerms()
+
+        assertEquals("{\"kind\":\"profile\",\"id\":\"default\"}", result)
+        assertGetRequest(capturedRequests.single(), "v1/legal/privacy/default")
+    }
+
+    @Test
+    fun `privacy mosa clear terms sends get and returns raw json`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, "{\"kind\":\"profile\",\"id\":\"mosa\"}")
+
+        val result = podAccess.privacyMosaClearTerms()
+
+        assertEquals("{\"kind\":\"profile\",\"id\":\"mosa\"}", result)
+        assertGetRequest(capturedRequests.single(), "v1/legal/privacy/mosa")
+    }
+
+    @Test
+    fun `privacy operator clear terms sends get and returns raw json`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, "{\"kind\":\"profile\",\"id\":\"operator\"}")
+
+        val result = podAccess.privacyOperatorClearTerms()
+
+        assertEquals("{\"kind\":\"profile\",\"id\":\"operator\"}", result)
+        assertGetRequest(capturedRequests.single(), "v1/legal/privacy/operator")
+    }
+
+    @Test
+    fun `privacy baseline clear terms throws when backend returns error`() = runTest {
+        val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
+
+        assertRestError("/v1/legal/privacy/baseline", HttpStatusCode.BadRequest) { podAccess.privacyBaselineClearTerms() }
+    }
+
     private fun podAccess(handler: MockRequestHandler): PodAccess {
         val client =
             HttpClient(MockEngine) {
@@ -316,6 +367,20 @@ class PodAccessTest {
             capturedRequests += request
             respond(
                 content = json.encodeToString(payload),
+                status = status,
+                headers = jsonHeaders,
+            )
+        }
+
+    private fun podAccessResponding(
+        status: HttpStatusCode,
+        capturedRequests: MutableList<HttpRequestData>,
+        payload: String,
+    ): PodAccess =
+        podAccess { request ->
+            capturedRequests += request
+            respond(
+                content = payload,
                 status = status,
                 headers = jsonHeaders,
             )
@@ -359,6 +424,15 @@ class PodAccessTest {
         assertEquals(HttpMethod.Delete, request.method)
         assertEquals("https://pod.example/$route", request.url.toString())
         assertEquals("Bearer $bearerToken", request.headers[HttpHeaders.Authorization])
+    }
+
+    private fun assertGetRequest(
+        request: HttpRequestData,
+        route: String,
+    ) {
+        assertEquals(HttpMethod.Get, request.method)
+        assertEquals("https://pod.example/$route", request.url.toString())
+        assertNull(request.headers[HttpHeaders.Authorization])
     }
 
     private suspend fun assertRestError(path: String, status: HttpStatusCode, call: suspend () -> Unit) {

@@ -145,6 +145,22 @@ private class RecordingPublishPodAccess : PodAccess {
     override suspend fun fetch(request: FetchRequest, jwt: String): FetchResult {
         error("not used")
     }
+
+    override suspend fun privacyBaselineClearTerms(): String {
+        error("not used")
+    }
+
+    override suspend fun privacyDefaultClearTerms(): String {
+        error("not used")
+    }
+
+    override suspend fun privacyMosaClearTerms(): String {
+        error("not used")
+    }
+
+    override suspend fun privacyOperatorClearTerms(): String {
+        error("not used")
+    }
 }
 
 private class PublishStaticIdentityRepository(
