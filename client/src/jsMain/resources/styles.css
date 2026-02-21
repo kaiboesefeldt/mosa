@@ -1721,6 +1721,108 @@ button:disabled {
     margin-top: 0.25rem;
 }
 
+.app-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-shell__content {
+    flex: 1;
+}
+
+.legal-fab {
+    position: fixed;
+    left: 0.9rem;
+    bottom: 0.9rem;
+    z-index: 22;
+    display: grid;
+    gap: 0.45rem;
+    justify-items: start;
+}
+
+.legal-fab__trigger {
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--color-text);
+    padding: 0.45rem 0.8rem;
+    font-size: 0.86rem;
+    font-weight: 700;
+    box-shadow: var(--shadow-soft);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.legal-fab__label {
+    display: inline;
+}
+
+.legal-fab__trigger:hover {
+    border-color: rgba(99, 102, 241, 0.55);
+}
+
+.legal-fab__menu {
+    display: grid;
+    gap: 0.3rem;
+    min-width: 190px;
+    padding: 0.4rem;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
+}
+
+.legal-fab__menu a {
+    color: var(--color-text);
+    text-decoration: none;
+    border-radius: 9px;
+    padding: 0.45rem 0.55rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.legal-fab__menu a:hover {
+    background: rgba(99, 102, 241, 0.12);
+}
+
+.legal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(2px);
+}
+
+.legal-dialog {
+    width: min(640px, 100%);
+    display: grid;
+    gap: 0.75rem;
+    padding: 1.2rem 1.3rem;
+    border-radius: 16px;
+    border: 1px solid var(--color-border);
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: var(--shadow-elevated);
+}
+
+.legal-dialog__title {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.legal-dialog__close {
+    justify-self: end;
+    color: rgba(30, 64, 175, 0.92);
+    text-decoration: underline;
+    text-underline-offset: 0.14em;
+    font-weight: 600;
+}
+
 #keys {
     white-space: pre-wrap;
 }
@@ -1764,5 +1866,16 @@ button:disabled {
     .composer-button {
         bottom: 0.9rem;
         right: 0.9rem;
+    }
+
+    .legal-fab__trigger {
+        padding: 0.45rem;
+        width: 2.45rem;
+        height: 2.45rem;
+        justify-content: center;
+    }
+
+    .legal-fab__label {
+        display: none;
     }
 }
