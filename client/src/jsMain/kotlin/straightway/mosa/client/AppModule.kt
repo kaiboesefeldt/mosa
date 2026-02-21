@@ -59,12 +59,21 @@ import straightway.mosa.client.content.TopicStore
 import straightway.mosa.client.content.IndexedDbReplyCache
 import straightway.mosa.client.content.ReplyReferenceStore
 import straightway.mosa.client.content.ReplySearchService
+import straightway.mosa.client.legal.ClearTermsPrivacyContentProvider
+import straightway.mosa.client.legal.LegalPrivacyPolicyService
+import straightway.mosa.client.legal.PrivacyClearTermsContentProvider
 import straightway.mosa.client.ui.BrowserIdentitySessionStore
 import straightway.mosa.client.ui.IdentitySessionStore
 import straightway.mosa.identity.FictionalNameGenerator
+import straightway.mosa.legal.clearterms.ClearTermsBrowserHashProvider
+import straightway.mosa.legal.clearterms.ClearTermsBrowserTextEncoder
+import straightway.mosa.legal.clearterms.ClearTermsHashProvider
+import straightway.mosa.legal.clearterms.ClearTermsJsonParser
 import straightway.mosa.legal.clearterms.ClearTermsLocaleProvider
 import straightway.mosa.legal.clearterms.ClearTermsLocaleRepository
+import straightway.mosa.legal.clearterms.ClearTermsRenderer
 import straightway.mosa.legal.clearterms.ClearTermsResourceReader
+import straightway.mosa.legal.clearterms.ClearTermsTextEncoder
 import straightway.mosa.legal.clearterms.JsClearTermsResourceReader
 import web.idb.IDBFactory
 import web.idb.indexedDB
@@ -160,6 +169,28 @@ object AppModule : KoinComponent {
                         single<Logger> { BrowserLogger() }
                         single<ClearTermsResourceReader> { JsClearTermsResourceReader() }
                         single<ClearTermsLocaleProvider> { ClearTermsLocaleRepository(get()) }
+                        single { ClearTermsJsonParser() }
+                        single<ClearTermsHashProvider> { ClearTermsBrowserHashProvider(get()) }
+                        single<ClearTermsTextEncoder> { ClearTermsBrowserTextEncoder() }
+                        single {
+                            ClearTermsRenderer(
+                                parser = get(),
+                                hashProvider = get(),
+                                textEncoder = get(),
+                                localeProvider = get(),
+                            )
+                        }
+                        single<PrivacyClearTermsContentProvider> { ClearTermsPrivacyContentProvider(get()) }
+                        single {
+                            LegalPrivacyPolicyService(
+                                podBaseProvider = get(),
+                                podAccessFactory = get(),
+                                preferredLanguageTagsProvider = {
+                                    get<BrowserPrefs>().languages.map { locale -> locale.toString() }
+                                },
+                                clearTermsContentProvider = get(),
+                            )
+                        }
                     },
                 )
             }

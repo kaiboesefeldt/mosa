@@ -1823,6 +1823,41 @@ button:disabled {
     font-weight: 600;
 }
 
+.legal-dialog__content {
+    max-height: min(60vh, 640px);
+    overflow-y: auto;
+    padding-right: 0.2rem;
+    line-height: 1.5;
+}
+
+.legal-dialog__content h1,
+.legal-dialog__content h2,
+.legal-dialog__content h3 {
+    margin: 0.9rem 0 0.4rem;
+    line-height: 1.3;
+}
+
+.legal-dialog__content h1 {
+    font-size: 1.25rem;
+}
+
+.legal-dialog__content h2 {
+    font-size: 1.1rem;
+}
+
+.legal-dialog__content p {
+    margin: 0.45rem 0;
+}
+
+.legal-dialog__content ul {
+    margin: 0.4rem 0 0.6rem 1.25rem;
+    padding: 0;
+}
+
+.legal-dialog__content li {
+    margin: 0.2rem 0;
+}
+
 #keys {
     white-space: pre-wrap;
 }

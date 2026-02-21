@@ -292,7 +292,7 @@ class ClearTermsRendererTest {
         }
 
     @Test
-    fun `rejects unused default values`() =
+    fun `ignores unused default values`() =
         runTest {
             val baseline =
                 baselineJson(
@@ -305,16 +305,13 @@ class ClearTermsRendererTest {
             val defaultProfile = defaultJson(valuesJson = """{ "operator_name": "Example Org", "unused": "extra" }""")
             val deviation = deviationJson(valuesJson = """{ }""")
 
-            val result =
-                assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
-                }
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
 
-            assertEquals("Unknown placeholder 'unused'", result.message)
+            assertEquals("Operator: Example Org.", result)
         }
 
     @Test
-    fun `rejects unused values`() =
+    fun `ignores unused values`() =
         runTest {
             val baseline =
                 """
@@ -350,9 +347,9 @@ class ClearTermsRendererTest {
                 }
                 """.trimIndent()
 
-            assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
-            }
+            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+
+            assertEquals("Operator: Example Organization.", result)
         }
 
     @Test

@@ -75,8 +75,8 @@ class ClearTermsProfileValidator(
         requireAll: Boolean,
     ): Map<String, ClearTermsValue> {
         requireAllValuesPresent(rawValues, types, requireAll)
-        return rawValues.mapValues { (key, raw) ->
-            val type = types[key] ?: throw ClearTermsValidationException("Unknown placeholder '$key'")
+        return types.mapValues { (key, type) ->
+            val raw = rawValues[key] ?: ClearTermsJsonNode.ScalarNode.NullNode
             val value = scalarNodeValue(raw)
             valueTypeValidator.validate(type, value)
             ClearTermsValue(type, value)

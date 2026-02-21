@@ -84,16 +84,20 @@ fun createMosaApiCorsPlugin(
                 HttpMethod.Options -> handlePreflightRequest(call)
 
                 HttpMethod.Post, HttpMethod.Delete -> {
-                    if (path.equals(APPROVE_GID_ROUTE, ignoreCase = true)) return@onCall
+                    if (isUnauthenticatedApiRoute(path, call.request.httpMethod)) return@onCall
                     call
                         .secureEndpointViolation(requireTlsForPod, clientIpResolver)
                         ?.let { call.respond(it) }
                 }
 
                 HttpMethod.Get ->
-                    call
-                        .secureEndpointViolation(requireTlsForPod, clientIpResolver)
-                        ?.let { call.respond(it) }
+                    if (isUnauthenticatedApiRoute(path, call.request.httpMethod)) {
+                        return@onCall
+                    } else {
+                        call
+                            .secureEndpointViolation(requireTlsForPod, clientIpResolver)
+                            ?.let { call.respond(it) }
+                    }
 
                 else -> call.respond(HttpStatusCode.MethodNotAllowed)
             }
@@ -112,6 +116,7 @@ private fun createMosaRequireTlsPlugin(clientIpResolver: ClientIpResolver): Appl
 
 private const val API_ROUTE_PREFIX = "/v1/"
 private const val APPROVE_GID_ROUTE = "/v1/approvegid"
+private const val LEGAL_PRIVACY_ROUTE_PREFIX = "/v1/legal/privacy/"
 private const val ALLOWED_CORS_METHODS = "POST, GET, DELETE, OPTIONS"
 private const val ALLOWED_CORS_HEADERS = "Authorization, Content-Type"
 private const val CORS_MAX_AGE_SECONDS = "7200"
@@ -131,6 +136,16 @@ private fun ApplicationCall.appendPreflightHeaders() {
     response.headers.append(HttpHeaders.AccessControlAllowHeaders, ALLOWED_CORS_HEADERS)
     response.headers.append(HttpHeaders.AccessControlMaxAge, CORS_MAX_AGE_SECONDS)
 }
+
+private fun isUnauthenticatedApiRoute(
+    path: String,
+    method: HttpMethod,
+): Boolean =
+    when (method) {
+        HttpMethod.Post -> path.equals(APPROVE_GID_ROUTE, ignoreCase = true)
+        HttpMethod.Get -> path.startsWith(LEGAL_PRIVACY_ROUTE_PREFIX, ignoreCase = true)
+        else -> false
+    }
 
 private fun ApplicationCall.secureEndpointViolation(
     requireTlsForPod: Boolean,

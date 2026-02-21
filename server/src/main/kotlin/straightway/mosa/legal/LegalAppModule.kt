@@ -5,13 +5,47 @@ import org.koin.core.qualifier.StringQualifier
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import straightway.mosa.base.BaseController
+import straightway.mosa.legal.clearterms.ClearTermsCanonicalJson
+import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
+import straightway.mosa.legal.clearterms.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.ClearTermsPlaceholderParser
+import straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker
+import straightway.mosa.legal.clearterms.ClearTermsProfileValidator
+import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
 import java.nio.file.Path
 
 fun Module.configureLegalAppModule() {
     single(legalPrivacyProfilePathQualifier) { Path.of("mosa_privacy.yaml") }
     single {
+        ClearTermsYamlCanonicalJsonConverter()
+    }
+    single {
+        ClearTermsProfileChainCompletenessChecker()
+    }
+    single {
+        ClearTermsJsonParser()
+    }
+    single {
+        ClearTermsDocumentReader()
+    }
+    single {
+        ClearTermsProfileValidator(placeholderParser = get())
+    }
+    single {
+        ClearTermsPlaceholderParser()
+    }
+    single {
+        ClearTermsCanonicalJson()
+    }
+    single {
         LegalService(
+            canonicalJsonConverter = get(),
+            completenessChecker = get(),
             operatorProfilePath = get(legalPrivacyProfilePathQualifier),
+            parser = get(),
+            reader = get(),
+            profileValidator = get(),
+            canonicalJson = get(),
         )
     }
     single { LegalController(get()) } bind BaseController::class
