@@ -69,13 +69,14 @@ class LegalService(
                     operatorValuesOverride = extractOperatorValuesBestEffort(operatorYaml),
                 )
             }
-        val completenessFallback =
-            fallbackForIncompleteFullChain(
+        val fullChainContext = createFullChainContext(fullConversion)
+        val fallbackDocuments =
+            fallbackForInvalidFullChain(
                 mandatoryContext = mandatoryContext,
-                fullConversion = fullConversion,
+                fullChainContext = fullChainContext,
             )
-        if (completenessFallback != null) {
-            return completenessFallback
+        if (fallbackDocuments != null) {
+            return fallbackDocuments
         }
         return createPrivacyLegalDocuments(fullConversion)
     }
@@ -111,15 +112,11 @@ class LegalService(
             ),
         )
 
-    private fun fallbackForIncompleteFullChain(
+    private fun fallbackForInvalidFullChain(
         mandatoryContext: MandatoryChainContext,
-        fullConversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
+        fullChainContext: FullChainContext,
     ): PrivacyLegalDocuments? {
-        val analysis =
-            completenessChecker.analyze(
-                baselineCanonicalJson = fullConversion.baseline.canonicalJson,
-                profileChainCanonicalJsons = fullConversion.profiles.map { artifact -> artifact.canonicalJson },
-            )
+        val analysis = analyzeChainCompleteness(fullChainContext.conversion.baseline.canonicalJson, fullChainContext.profileCanonicalJsons)
         if (!analysis.complete) {
             return fallbackToMosaServiceProfile(
                 mandatoryConversion = mandatoryContext.conversion,
@@ -128,37 +125,58 @@ class LegalService(
                 skeletonYamlOverride = analysis.skeletonYaml,
             )
         }
-        val fullProfiles = fullConversion.profiles.map { artifact -> reader.readProfile(parser.parse(artifact.canonicalJson)) }
+        throwWhenChainHasInvalidValueTypes(fullChainContext)
+        val fullChainValidationError = missingRequiredChainValuesError(fullChainContext)
+        if (fullChainValidationError == null) {
+            return null
+        }
+        return fallbackToMosaServiceProfile(
+            mandatoryConversion = mandatoryContext.conversion,
+            mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
+            reason = "Legal profile chain has invalid placeholder values: ${fullChainValidationError.message}",
+            operatorValuesOverride = serviceProfileValues(fullChainContext.profiles),
+        )
+    }
+
+    private fun throwWhenChainHasInvalidValueTypes(fullChainContext: FullChainContext) {
         val valueTypeValidationError =
             validateChainValues(
-                baselineCanonicalJson = fullConversion.baseline.canonicalJson,
-                profiles = fullProfiles,
+                baselineCanonicalJson = fullChainContext.conversion.baseline.canonicalJson,
+                profiles = fullChainContext.profiles,
                 requireAll = false,
             )
-        valueTypeValidationError?.let {
+        if (valueTypeValidationError != null) {
             throw IllegalStateException(
-                "Legal profile chain has invalid placeholder values: ${it.message}",
+                "Legal profile chain has invalid placeholder values: ${valueTypeValidationError.message}",
             )
         }
-        val fullChainValidationError =
-            validateChainValues(
-                baselineCanonicalJson = fullConversion.baseline.canonicalJson,
-                profiles = fullProfiles,
-                requireAll = true,
-            )
-
-        if (fullChainValidationError != null) {
-            val serviceProfileValues = fullProfiles.lastOrNull()?.overrides?.values ?: emptyMap()
-            return fallbackToMosaServiceProfile(
-                mandatoryConversion = mandatoryContext.conversion,
-                mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
-                reason = "Legal profile chain has invalid placeholder values: ${fullChainValidationError.message}",
-                operatorValuesOverride = serviceProfileValues,
-            )
-        }
-
-        return null
     }
+
+    private fun missingRequiredChainValuesError(fullChainContext: FullChainContext): ClearTermsValidationException? =
+        validateChainValues(
+            baselineCanonicalJson = fullChainContext.conversion.baseline.canonicalJson,
+            profiles = fullChainContext.profiles,
+            requireAll = true,
+        )
+
+    private fun analyzeChainCompleteness(
+        baselineCanonicalJson: String,
+        profileCanonicalJsons: List<String>,
+    ): ClearTermsProfileChainCompletenessChecker.Result =
+        completenessChecker.analyze(
+            baselineCanonicalJson = baselineCanonicalJson,
+            profileChainCanonicalJsons = profileCanonicalJsons,
+        )
+
+    private fun createFullChainContext(conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult): FullChainContext =
+        FullChainContext(
+            conversion = conversion,
+            profiles = conversion.profiles.map { artifact -> reader.readProfile(parser.parse(artifact.canonicalJson)) },
+            profileCanonicalJsons = conversion.profiles.map { artifact -> artifact.canonicalJson },
+        )
+
+    private fun serviceProfileValues(profiles: List<ClearTermsProfile>): Map<String, ClearTermsJsonNode.ScalarNode> =
+        profiles.lastOrNull()?.overrides?.values ?: emptyMap()
 
     private fun readRequiredResource(path: String): String =
         javaClass.classLoader
@@ -426,6 +444,12 @@ class LegalService(
         val defaultYaml: String,
         val mosaYaml: String,
         val conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
+        val profileCanonicalJsons: List<String>,
+    )
+
+    private data class FullChainContext(
+        val conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
+        val profiles: List<ClearTermsProfile>,
         val profileCanonicalJsons: List<String>,
     )
 
