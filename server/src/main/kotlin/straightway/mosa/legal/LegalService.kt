@@ -36,42 +36,94 @@ class LegalService(
     fun privacyServiceCanonicalJson(): String = documents.serviceCanonicalJson
 
     private fun loadPrivacyDocuments(): PrivacyLegalDocuments {
-        val baselineYaml = readRequiredResource(BASELINE_RESOURCE)
-        val defaultYaml = readRequiredResource(DEFAULT_RESOURCE)
-        val mosaYaml = readRequiredResource(MOSA_RESOURCE)
-        val mandatoryConversion = canonicalJsonConverter.convert(baselineYaml, listOf(defaultYaml, mosaYaml))
-        val mandatoryCanonicals = mandatoryConversion.profiles.map { artifact -> artifact.canonicalJson }
+        val mandatoryContext = loadMandatoryChainContext()
         val operatorYaml =
             readOptionalProfile(operatorProfilePath) ?: return fallbackToMosaServiceProfile(
-                mandatoryConversion = mandatoryConversion,
-                mandatoryCanonicals = mandatoryCanonicals,
+                mandatoryConversion = mandatoryContext.conversion,
+                mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
                 reason = "Operator profile file is missing at '${
                     operatorProfilePath.toAbsolutePath().normalize()
                 }'",
             )
+        return loadPrivacyDocumentsFromOperatorProfile(
+            mandatoryContext = mandatoryContext,
+            operatorYaml = operatorYaml,
+        )
+    }
 
+    private fun loadPrivacyDocumentsFromOperatorProfile(
+        mandatoryContext: MandatoryChainContext,
+        operatorYaml: String,
+    ): PrivacyLegalDocuments {
         val fullConversion =
             try {
-                canonicalJsonConverter.convert(baselineYaml, listOf(defaultYaml, mosaYaml, operatorYaml))
+                convertFullChain(
+                    mandatoryContext = mandatoryContext,
+                    operatorYaml = operatorYaml,
+                )
             } catch (exception: ClearTermsValidationException) {
                 return fallbackToMosaServiceProfile(
-                    mandatoryConversion = mandatoryConversion,
-                    mandatoryCanonicals = mandatoryCanonicals,
+                    mandatoryConversion = mandatoryContext.conversion,
+                    mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
                     reason = "Operator profile is invalid and could not be converted: ${exception.message}",
                     operatorValuesOverride = extractOperatorValuesBestEffort(operatorYaml),
                 )
             }
+        val completenessFallback =
+            fallbackForIncompleteFullChain(
+                mandatoryContext = mandatoryContext,
+                fullConversion = fullConversion,
+            )
+        if (completenessFallback != null) {
+            return completenessFallback
+        }
+        return createPrivacyLegalDocuments(fullConversion)
+    }
 
-        val fullChainCanonicals = fullConversion.profiles.map { artifact -> artifact.canonicalJson }
+    private fun loadMandatoryChainContext(): MandatoryChainContext {
+        val baselineYaml = readRequiredResource(BASELINE_RESOURCE)
+        val defaultYaml = readRequiredResource(DEFAULT_RESOURCE)
+        val mosaYaml = readRequiredResource(MOSA_RESOURCE)
+        val mandatoryConversion =
+            canonicalJsonConverter.convert(
+                baselineYaml,
+                listOf(defaultYaml, mosaYaml),
+            )
+        return MandatoryChainContext(
+            baselineYaml = baselineYaml,
+            defaultYaml = defaultYaml,
+            mosaYaml = mosaYaml,
+            conversion = mandatoryConversion,
+            profileCanonicalJsons = mandatoryConversion.profiles.map { artifact -> artifact.canonicalJson },
+        )
+    }
+
+    private fun convertFullChain(
+        mandatoryContext: MandatoryChainContext,
+        operatorYaml: String,
+    ): ClearTermsYamlCanonicalJsonConverter.ConversionResult =
+        canonicalJsonConverter.convert(
+            mandatoryContext.baselineYaml,
+            listOf(
+                mandatoryContext.defaultYaml,
+                mandatoryContext.mosaYaml,
+                operatorYaml,
+            ),
+        )
+
+    private fun fallbackForIncompleteFullChain(
+        mandatoryContext: MandatoryChainContext,
+        fullConversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
+    ): PrivacyLegalDocuments? {
         val analysis =
             completenessChecker.analyze(
                 baselineCanonicalJson = fullConversion.baseline.canonicalJson,
-                profileChainCanonicalJsons = fullChainCanonicals,
+                profileChainCanonicalJsons = fullConversion.profiles.map { artifact -> artifact.canonicalJson },
             )
         if (!analysis.complete) {
             return fallbackToMosaServiceProfile(
-                mandatoryConversion = mandatoryConversion,
-                mandatoryCanonicals = mandatoryCanonicals,
+                mandatoryConversion = mandatoryContext.conversion,
+                mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
                 reason = "Legal profile chain is incomplete",
                 skeletonYamlOverride = analysis.skeletonYaml,
             )
@@ -98,19 +150,14 @@ class LegalService(
         if (fullChainValidationError != null) {
             val serviceProfileValues = fullProfiles.lastOrNull()?.overrides?.values ?: emptyMap()
             return fallbackToMosaServiceProfile(
-                mandatoryConversion = mandatoryConversion,
-                mandatoryCanonicals = mandatoryCanonicals,
+                mandatoryConversion = mandatoryContext.conversion,
+                mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
                 reason = "Legal profile chain has invalid placeholder values: ${fullChainValidationError.message}",
                 operatorValuesOverride = serviceProfileValues,
             )
         }
 
-        return PrivacyLegalDocuments(
-            baselineCanonicalJson = fullConversion.baseline.canonicalJson,
-            defaultCanonicalJson = fullConversion.profiles[0].canonicalJson,
-            mosaCanonicalJson = fullConversion.profiles[1].canonicalJson,
-            serviceCanonicalJson = fullConversion.profiles[2].canonicalJson,
-        )
+        return null
     }
 
     private fun readRequiredResource(path: String): String =
@@ -175,57 +222,82 @@ class LegalService(
     ): String {
         val baseline = parseBaselineFrom(mandatoryConversion.baseline.canonicalJson)
         val mandatoryProfiles = mandatoryConversion.profiles.map { artifact -> reader.readProfile(parser.parse(artifact.canonicalJson)) }
-        var effectiveTexts = baseline.textsByLanguage
-        val mergedValues = linkedMapOf<String, ClearTermsJsonNode.ScalarNode>()
-        mandatoryProfiles.forEach { profile ->
-            mergedValues.putAll(profile.overrides.values ?: emptyMap())
-            effectiveTexts = profileValidator.applyTextOverrides(effectiveTexts, profile.overrides.texts)
-        }
-        mergedValues.putAll(operatorValuesOverride)
+        val (effectiveTexts, mergedValues) = baseline.mergeWithProfiles(mandatoryProfiles)
+        val fallbackValues =
+            fallbackValues(
+                effectiveTexts = effectiveTexts,
+                mergedValues = mergedValues,
+                operatorValuesOverride = operatorValuesOverride,
+            )
+        val textOverrides = textOverridesForUnresolvedBlocks(effectiveTexts)
+        val profileNode =
+            fallbackServiceProfileNode(
+                parentProfile = mandatoryProfiles.last(),
+                parentHash = mandatoryConversion.profiles.last().hash,
+                fallbackValues = fallbackValues,
+                textOverrides = textOverrides,
+            )
+        return canonicalJson.canonicalize(profileNode)
+    }
 
+    private fun fallbackValues(
+        effectiveTexts: Map<String, List<ClearTermsTextBlock>>,
+        mergedValues: Map<String, ClearTermsJsonNode.ScalarNode>,
+        operatorValuesOverride: Map<String, ClearTermsJsonNode.ScalarNode>,
+    ): Map<String, ClearTermsJsonNode.ScalarNode> {
+        val mergedWithOperatorOverrides = linkedMapOf<String, ClearTermsJsonNode.ScalarNode>()
+        mergedWithOperatorOverrides.putAll(mergedValues)
+        mergedWithOperatorOverrides.putAll(operatorValuesOverride)
         val placeholderTypes = profileValidator.placeholdersByKey(effectiveTexts)
         val fallbackValues = linkedMapOf<String, ClearTermsJsonNode.ScalarNode>()
         placeholderTypes.forEach { (key, type) ->
-            val existing = mergedValues[key]
+            val existing = mergedWithOperatorOverrides[key]
             if (existing == null || existing is ClearTermsJsonNode.ScalarNode.NullNode) {
                 fallbackValues[key] = defaultValueNode(type)
-            } else {
+            } else if (operatorValuesOverride.containsKey(key)) {
                 val coerced = coerceSingleValueOrNull(key, type, existing)
-                if (coerced != null && operatorValuesOverride.containsKey(key)) {
+                if (coerced != null) {
                     fallbackValues[key] = coerced
                 }
             }
         }
+        return fallbackValues
+    }
 
-        val unresolvedByLanguage =
-            effectiveTexts
-                .mapValues { (_, blocks) ->
-                    blocks.filter { block -> block.text == null }.map { block -> block.id }
-                }.filterValues { ids -> ids.isNotEmpty() }
-
-        val textOverrides =
-            if (unresolvedByLanguage.isEmpty()) {
-                null
-            } else {
+    private fun textOverridesForUnresolvedBlocks(effectiveTexts: Map<String, List<ClearTermsTextBlock>>): ClearTermsJsonNode.ObjectNode? {
+        val unresolvedByLanguage = unresolvedBlockIdsByLanguage(effectiveTexts)
+        if (unresolvedByLanguage.isEmpty()) {
+            return null
+        }
+        return ClearTermsJsonNode.ObjectNode(
+            unresolvedByLanguage.mapValues { (language, blockIds) ->
+                val replace =
+                    ClearTermsJsonNode.ObjectNode(
+                        blockIds.associateWith { blockId ->
+                            ClearTermsJsonNode.ScalarNode.StringNode(defaultReplacementText(language, blockId))
+                        },
+                    )
                 ClearTermsJsonNode.ObjectNode(
-                    unresolvedByLanguage.mapValues { (language, blockIds) ->
-                        val replace =
-                            ClearTermsJsonNode.ObjectNode(
-                                blockIds.associateWith { blockId ->
-                                    ClearTermsJsonNode.ScalarNode.StringNode(defaultReplacementText(language, blockId))
-                                },
-                            )
-                        ClearTermsJsonNode.ObjectNode(
-                            mapOf(
-                                "replace" to replace,
-                            ),
-                        )
-                    },
+                    mapOf(
+                        "replace" to replace,
+                    ),
                 )
-            }
+            },
+        )
+    }
 
-        val parentProfile = mandatoryProfiles.last()
-        val parentHash = mandatoryConversion.profiles.last().hash
+    private fun unresolvedBlockIdsByLanguage(effectiveTexts: Map<String, List<ClearTermsTextBlock>>): Map<String, List<String>> =
+        effectiveTexts
+            .mapValues { (_, blocks) ->
+                blocks.filter { block -> block.text == null }.map { block -> block.id }
+            }.filterValues { ids -> ids.isNotEmpty() }
+
+    private fun fallbackServiceProfileNode(
+        parentProfile: ClearTermsProfile,
+        parentHash: String,
+        fallbackValues: Map<String, ClearTermsJsonNode.ScalarNode>,
+        textOverrides: ClearTermsJsonNode.ObjectNode?,
+    ): ClearTermsJsonNode.ObjectNode {
         val overridesEntries =
             linkedMapOf<String, ClearTermsJsonNode>().apply {
                 this["values"] = ClearTermsJsonNode.ObjectNode(fallbackValues)
@@ -233,24 +305,22 @@ class LegalService(
                     this["texts"] = textOverrides
                 }
             }
-        val profileNode =
-            ClearTermsJsonNode.ObjectNode(
-                linkedMapOf(
-                    "kind" to ClearTermsJsonNode.ScalarNode.StringNode("profile"),
-                    "id" to ClearTermsJsonNode.ScalarNode.StringNode("mosa-privacy-fallback-service"),
-                    "version" to ClearTermsJsonNode.ScalarNode.StringNode("${parentProfile.version}-fallback"),
-                    "parent" to
-                        ClearTermsJsonNode.ObjectNode(
-                            linkedMapOf(
-                                "id" to ClearTermsJsonNode.ScalarNode.StringNode(parentProfile.id),
-                                "version" to ClearTermsJsonNode.ScalarNode.StringNode(parentProfile.version),
-                                "hash" to ClearTermsJsonNode.ScalarNode.StringNode(parentHash),
-                            ),
+        return ClearTermsJsonNode.ObjectNode(
+            linkedMapOf(
+                "kind" to ClearTermsJsonNode.ScalarNode.StringNode("profile"),
+                "id" to ClearTermsJsonNode.ScalarNode.StringNode("mosa-privacy-fallback-service"),
+                "version" to ClearTermsJsonNode.ScalarNode.StringNode("${parentProfile.version}-fallback"),
+                "parent" to
+                    ClearTermsJsonNode.ObjectNode(
+                        linkedMapOf(
+                            "id" to ClearTermsJsonNode.ScalarNode.StringNode(parentProfile.id),
+                            "version" to ClearTermsJsonNode.ScalarNode.StringNode(parentProfile.version),
+                            "hash" to ClearTermsJsonNode.ScalarNode.StringNode(parentHash),
                         ),
-                    "overrides" to ClearTermsJsonNode.ObjectNode(overridesEntries),
-                ),
-            )
-        return canonicalJson.canonicalize(profileNode)
+                    ),
+                "overrides" to ClearTermsJsonNode.ObjectNode(overridesEntries),
+            ),
+        )
     }
 
     private fun validateChainValues(
@@ -350,6 +420,22 @@ class LegalService(
         val mosaCanonicalJson: String,
         val serviceCanonicalJson: String,
     )
+
+    private data class MandatoryChainContext(
+        val baselineYaml: String,
+        val defaultYaml: String,
+        val mosaYaml: String,
+        val conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
+        val profileCanonicalJsons: List<String>,
+    )
+
+    private fun createPrivacyLegalDocuments(conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult): PrivacyLegalDocuments =
+        PrivacyLegalDocuments(
+            baselineCanonicalJson = conversion.baseline.canonicalJson,
+            defaultCanonicalJson = conversion.profiles[0].canonicalJson,
+            mosaCanonicalJson = conversion.profiles[1].canonicalJson,
+            serviceCanonicalJson = conversion.profiles[2].canonicalJson,
+        )
 
     private companion object {
         private const val BASELINE_RESOURCE = "clearterms/privacy/privacy-gdpr-baseline.yaml"
