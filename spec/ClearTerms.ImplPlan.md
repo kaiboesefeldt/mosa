@@ -20,13 +20,18 @@ Nicht im Scope:
 
 Umgesetzt:
 - YAML-zu-kanonischem-JSON-Konvertierung für Baseline + Profilkette inkl. Hash-Eintrag in Parent-Referenzen
-- Bereitstellung der Privacy-Dokumente über eigenen Service und eigenen Controller
+- Bereitstellung der Privacy-Dokumente über `LegalService` und `LegalController`
 - Endpoints:
   - `GET /v1/legal/privacy/baseline`
   - `GET /v1/legal/privacy/default`
   - `GET /v1/legal/privacy/mosa`
+  - `GET /v1/legal/privacy/operator`
 - Rückgabeformat: kanonisches ClearTerms-JSON (`application/json`)
-- Tests für Konvertierung, Hash-Kette, Service und Endpoints
+- Betreiberprofil-Quelle ist Datei `mosa_privacy.yaml` (Pfad relativ zum Startverzeichnis)
+- Fallback-Verhalten ist implementiert:
+  - fehlt oder ist das Betreiberprofil unvollständig/inkonsistent, wird ein synthetisches Service-Profil erzeugt
+  - bei fachlich ungültigen Placeholder-Wertetypen wird der Start abgebrochen (`IllegalStateException`)
+- Tests für Konvertierung, Hash-Kette, Service-Fallback und Endpoints sind vorhanden
 
 ## 3. Datenquelle (Privacy)
 
@@ -39,18 +44,25 @@ Regel:
 - YAML-Referenzen enthalten keine Hashes.
 - Hashes werden aus kanonischem JSON berechnet und in Parent-Referenzen gesetzt.
 
-## 4. Offene Punkte (Server)
+## 4. Ist-Stand (Client)
 
-1. Startverhalten auf fail-fast für Legal-Artefakte explizit absichern (Artefaktaufbau und Validierung beim Pod-Start erzwingen).
-2. Dokumenttypen `terms` und `imprint` analog zu `privacy` integrieren (YAML + Endpoints + Tests).
-3. Optional: Endpunktdesign vereinheitlichen, falls später wieder ein generisches `docType`-Routing gewünscht ist.
+Umgesetzt:
+- Fetch-Schicht für Privacy-ClearTerms integriert (`PodAccess`):
+  - Baseline, Default, MOSA und Operator-Profil werden geladen
+- Rendering-Pipeline integriert:
+  - `ClearTermsRenderer` rendert sprachspezifische Markdown-Texte
+  - Markdown wird im Client in HTML umgewandelt und angezeigt
+- Fehler werden nicht still geschluckt:
+  - fehlgeschlagene Privacy-Ladung führt zu Fehlerzustand in der UI
+- Sichtbarer Einstiegspunkt in der UI vorhanden (Legal-Menü, Privacy-Dialog)
 
-## 5. Offene Punkte (Client)
+Noch offen:
+- `terms` und `imprint` sind in der UI noch Dummy-Inhalte (keine ClearTerms-Quelle)
 
-1. Fetch-Schicht für die Legal-Endpoints integrieren.
-2. Rendering-Pipeline (`ClearTermsRenderer` + Markdown->HTML) in der UI anschließen.
-3. Striktes Fehlerverhalten im Client sicherstellen (kein stilles Fallback).
-4. Sichtbare Einstiegspunkte für Rechtstexte in der UI vervollständigen.
+## 5. Offene Punkte (Server)
+
+1. Dokumenttypen `terms` und `imprint` analog zu `privacy` integrieren (YAML + Endpoints + Tests).
+2. Optional: Endpunktdesign vereinheitlichen, falls später wieder ein generisches `docType`-Routing gewünscht ist.
 
 ## 6. Qualität
 
