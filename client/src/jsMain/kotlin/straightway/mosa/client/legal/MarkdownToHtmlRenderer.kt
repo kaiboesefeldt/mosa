@@ -80,14 +80,40 @@ class MarkdownToHtmlRenderer {
 
     private fun escape(text: String): String =
         buildString {
-            text.forEach { char ->
-                when (char) {
-                    '&' -> append("&amp;")
-                    '<' -> append("&lt;")
-                    '>' -> append("&gt;")
-                    '"' -> append("&quot;")
-                    '\'' -> append("&#39;")
-                    else -> append(char)
+            var index = 0
+            while (index < text.length) {
+                when {
+                    text.startsWith(LegalPrivacyPolicyService.MARKER_OPEN_LIGHT_GREEN, index) -> {
+                        append("""<span class="legal-ct-bg-light-green">""")
+                        index += LegalPrivacyPolicyService.MARKER_OPEN_LIGHT_GREEN.length
+                    }
+
+                    text.startsWith(LegalPrivacyPolicyService.MARKER_OPEN_YELLOW, index) -> {
+                        append("""<span class="legal-ct-bg-yellow">""")
+                        index += LegalPrivacyPolicyService.MARKER_OPEN_YELLOW.length
+                    }
+
+                    text.startsWith(LegalPrivacyPolicyService.MARKER_OPEN_RED, index) -> {
+                        append("""<span class="legal-ct-bg-red">""")
+                        index += LegalPrivacyPolicyService.MARKER_OPEN_RED.length
+                    }
+
+                    text.startsWith(LegalPrivacyPolicyService.MARKER_CLOSE, index) -> {
+                        append("</span>")
+                        index += LegalPrivacyPolicyService.MARKER_CLOSE.length
+                    }
+
+                    else -> {
+                        when (val char = text[index]) {
+                            '&' -> append("&amp;")
+                            '<' -> append("&lt;")
+                            '>' -> append("&gt;")
+                            '"' -> append("&quot;")
+                            '\'' -> append("&#39;")
+                            else -> append(char)
+                        }
+                        index += 1
+                    }
                 }
             }
         }

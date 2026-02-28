@@ -41,6 +41,35 @@ class ClearTermsValueRenderer(
         return result.toString()
     }
 
+    fun renderBlockSegments(
+        block: ClearTermsTextBlock,
+        values: Map<String, ClearTermsValue>,
+        languageTag: String,
+        placeholderBackgroundByKey: Map<String, ClearTermsRenderBackground>,
+    ): List<ClearTermsRenderedBlock.Segment> {
+        val text = block.text ?: throw ClearTermsValidationException("Unresolved text block '${block.id}'")
+        val segments = placeholderParser.parse(text)
+        val renderedSegments = mutableListOf<ClearTermsRenderedBlock.Segment>()
+        segments.forEach { segment ->
+            when (segment) {
+                is ClearTermsPlaceholderParser.Segment.Literal -> {
+                    if (segment.text.isNotEmpty()) {
+                        renderedSegments += ClearTermsRenderedBlock.Segment(segment.text, ClearTermsRenderBackground.NONE)
+                    }
+                }
+
+                is ClearTermsPlaceholderParser.Segment.Placeholder -> {
+                    val rendered = renderPlaceholder(segment.placeholder, values, languageTag)
+                    if (rendered.isNotEmpty()) {
+                        val background = placeholderBackgroundByKey[segment.placeholder.key] ?: ClearTermsRenderBackground.NONE
+                        renderedSegments += ClearTermsRenderedBlock.Segment(rendered, background)
+                    }
+                }
+            }
+        }
+        return mergeAdjacentSegments(renderedSegments)
+    }
+
     private fun renderPlaceholder(
         placeholder: ClearTermsPlaceholder,
         values: Map<String, ClearTermsValue>,
@@ -92,6 +121,12 @@ class ClearTermsValueRenderer(
         return false
     }
 
+    fun ensureNoUnresolvedPlaceholders(text: String) {
+        if (containsUnresolvedPlaceholder(text)) {
+            throw ClearTermsValidationException("Rendered text contains unresolved placeholders")
+        }
+    }
+
     private fun matchesPlaceholderSyntax(content: String): Boolean {
         val parts = content.split("??", limit = 2)
         val main = parts[0]
@@ -118,4 +153,20 @@ class ClearTermsValueRenderer(
 
     private fun isSupportedPlaceholderType(value: String): Boolean =
         value == "string" || value == "number" || value == "duration" || value == "time" || value == "weekday"
+
+    private fun mergeAdjacentSegments(segments: List<ClearTermsRenderedBlock.Segment>): List<ClearTermsRenderedBlock.Segment> {
+        if (segments.isEmpty()) {
+            return emptyList()
+        }
+        val merged = mutableListOf<ClearTermsRenderedBlock.Segment>()
+        segments.forEach { segment ->
+            val last = merged.lastOrNull()
+            if (last != null && last.background == segment.background) {
+                merged[merged.lastIndex] = ClearTermsRenderedBlock.Segment(last.text + segment.text, last.background)
+            } else {
+                merged += segment
+            }
+        }
+        return merged
+    }
 }

@@ -12,6 +12,9 @@ import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.SearchResult
+import straightway.mosa.legal.clearterms.ClearTermsRenderBackground
+import straightway.mosa.legal.clearterms.ClearTermsRenderResult
+import straightway.mosa.legal.clearterms.ClearTermsRenderedBlock
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -26,7 +29,7 @@ class LegalPrivacyPolicyServiceTest {
                 podBaseProvider = fixedPodBaseProvider("https://pod.example"),
                 podAccessFactory = { podAccess },
                 preferredLanguageTagsProvider = { listOf("de-DE") },
-                clearTermsContentProvider = fixedContentProvider(mapOf("de" to "# Datenschutz")),
+                clearTermsContentProvider = fixedContentProvider(renderResultOf(mapOf("de" to "# Datenschutz"))),
             )
 
         val html = service.loadPrivacyPolicyHtml()
@@ -45,7 +48,7 @@ class LegalPrivacyPolicyServiceTest {
                 podBaseProvider = fixedPodBaseProvider("https://pod.example"),
                 podAccessFactory = { RecordingPrivacyPodAccess() },
                 preferredLanguageTagsProvider = { listOf("fr-FR") },
-                clearTermsContentProvider = fixedContentProvider(mapOf("en" to "# Privacy")),
+                clearTermsContentProvider = fixedContentProvider(renderResultOf(mapOf("en" to "# Privacy"))),
             )
 
         val html = service.loadPrivacyPolicyHtml()
@@ -60,7 +63,7 @@ class LegalPrivacyPolicyServiceTest {
                 podBaseProvider = fixedPodBaseProvider(""),
                 podAccessFactory = { RecordingPrivacyPodAccess() },
                 preferredLanguageTagsProvider = { listOf("de") },
-                clearTermsContentProvider = fixedContentProvider(mapOf("de" to "# Datenschutz")),
+                clearTermsContentProvider = fixedContentProvider(renderResultOf(mapOf("de" to "# Datenschutz"))),
             )
 
         assertFailsWith<IllegalStateException> {
@@ -82,9 +85,9 @@ class LegalPrivacyPolicyServiceTest {
                         override suspend fun renderedTextsByLanguage(
                             baselineJson: String,
                             profileJsons: List<String>,
-                        ): Map<String, String> {
+                        ): ClearTermsRenderResult {
                             seenProfiles = profileJsons
-                            return mapOf("de" to "# Datenschutz")
+                            return renderResultOf(mapOf("de" to "# Datenschutz"))
                         }
                     },
             )
@@ -93,6 +96,164 @@ class LegalPrivacyPolicyServiceTest {
 
         assertContains(html, "<h1>Datenschutz</h1>")
         assertEquals(listOf("default", "mosa"), seenProfiles)
+    }
+
+    @Test
+    fun `renders highlighted placeholder segment as span`() = runTest {
+        val service =
+            LegalPrivacyPolicyService(
+                podBaseProvider = fixedPodBaseProvider("https://pod.example"),
+                podAccessFactory = { RecordingPrivacyPodAccess() },
+                preferredLanguageTagsProvider = { listOf("de") },
+                clearTermsContentProvider =
+                    fixedContentProvider(
+                        renderResultOf(
+                            textsByLanguage = mapOf("de" to "ignored"),
+                            blocksByLanguage =
+                                mapOf(
+                                    "de" to
+                                        listOf(
+                                            ClearTermsRenderedBlock(
+                                                id = "main",
+                                                segments =
+                                                    listOf(
+                                                        ClearTermsRenderedBlock.Segment("Operator: ", ClearTermsRenderBackground.NONE),
+                                                        ClearTermsRenderedBlock.Segment("Org A", ClearTermsRenderBackground.LIGHT_GREEN),
+                                                        ClearTermsRenderedBlock.Segment(".", ClearTermsRenderBackground.NONE),
+                                                    ),
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    ),
+            )
+
+        val html = service.loadPrivacyPolicyHtml()
+
+        assertContains(html, """Operator: <span class="legal-ct-bg-light-green">Org A</span>.""")
+    }
+
+    @Test
+    fun `fails when clearterms provider returns no texts`() = runTest {
+        val service =
+            LegalPrivacyPolicyService(
+                podBaseProvider = fixedPodBaseProvider("https://pod.example"),
+                podAccessFactory = { RecordingPrivacyPodAccess() },
+                preferredLanguageTagsProvider = { listOf("de") },
+                clearTermsContentProvider = fixedContentProvider(renderResultOf(emptyMap())),
+            )
+
+        val exception =
+            assertFailsWith<IllegalStateException> {
+                service.loadPrivacyPolicyHtml()
+            }
+
+        assertEquals("No ClearTerms text available", exception.message)
+    }
+
+    @Test
+    fun `uses primary language fallback from region preference`() = runTest {
+        val service =
+            LegalPrivacyPolicyService(
+                podBaseProvider = fixedPodBaseProvider("https://pod.example"),
+                podAccessFactory = { RecordingPrivacyPodAccess() },
+                preferredLanguageTagsProvider = { listOf("de-DE") },
+                clearTermsContentProvider = fixedContentProvider(renderResultOf(mapOf("de" to "# Datenschutz"))),
+            )
+
+        val html = service.loadPrivacyPolicyHtml()
+
+        assertContains(html, "<h1>Datenschutz</h1>")
+    }
+
+    @Test
+    fun `falls back to alphabetically first language when no preferred and no english exists`() = runTest {
+        val service =
+            LegalPrivacyPolicyService(
+                podBaseProvider = fixedPodBaseProvider("https://pod.example"),
+                podAccessFactory = { RecordingPrivacyPodAccess() },
+                preferredLanguageTagsProvider = { listOf("it-IT") },
+                clearTermsContentProvider =
+                    fixedContentProvider(
+                        renderResultOf(
+                            mapOf(
+                                "fr" to "# Confidentialite",
+                                "de" to "# Datenschutz",
+                            ),
+                        ),
+                    ),
+            )
+
+        val html = service.loadPrivacyPolicyHtml()
+
+        assertContains(html, "<h1>Datenschutz</h1>")
+    }
+
+    @Test
+    fun `wraps block in background div when full block has non default background`() = runTest {
+        val service =
+            LegalPrivacyPolicyService(
+                podBaseProvider = fixedPodBaseProvider("https://pod.example"),
+                podAccessFactory = { RecordingPrivacyPodAccess() },
+                preferredLanguageTagsProvider = { listOf("de") },
+                clearTermsContentProvider =
+                    fixedContentProvider(
+                        renderResultOf(
+                            textsByLanguage = mapOf("de" to "ignored"),
+                            blocksByLanguage =
+                                mapOf(
+                                    "de" to
+                                        listOf(
+                                            ClearTermsRenderedBlock(
+                                                id = "main",
+                                                segments =
+                                                    listOf(
+                                                        ClearTermsRenderedBlock.Segment("Block text", ClearTermsRenderBackground.RED),
+                                                    ),
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    ),
+            )
+
+        val html = service.loadPrivacyPolicyHtml()
+
+        assertContains(html, """<div class="legal-ct-bg-red"><p><span class="legal-ct-bg-red">Block text</span></p></div>""")
+    }
+
+    @Test
+    fun `does not wrap block when colored segments are mixed`() = runTest {
+        val service =
+            LegalPrivacyPolicyService(
+                podBaseProvider = fixedPodBaseProvider("https://pod.example"),
+                podAccessFactory = { RecordingPrivacyPodAccess() },
+                preferredLanguageTagsProvider = { listOf("de") },
+                clearTermsContentProvider =
+                    fixedContentProvider(
+                        renderResultOf(
+                            textsByLanguage = mapOf("de" to "ignored"),
+                            blocksByLanguage =
+                                mapOf(
+                                    "de" to
+                                        listOf(
+                                            ClearTermsRenderedBlock(
+                                                id = "main",
+                                                segments =
+                                                    listOf(
+                                                        ClearTermsRenderedBlock.Segment("A", ClearTermsRenderBackground.RED),
+                                                        ClearTermsRenderedBlock.Segment("B", ClearTermsRenderBackground.YELLOW),
+                                                    ),
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    ),
+            )
+
+        val html = service.loadPrivacyPolicyHtml()
+
+        assertContains(html, """<span class="legal-ct-bg-red">A</span><span class="legal-ct-bg-yellow">B</span>""")
     }
 }
 
@@ -103,13 +264,18 @@ private fun fixedPodBaseProvider(base: String): PodBaseProvider =
         null
     }
 
-private fun fixedContentProvider(textsByLanguage: Map<String, String>): PrivacyClearTermsContentProvider =
+private fun fixedContentProvider(result: ClearTermsRenderResult): PrivacyClearTermsContentProvider =
     object : PrivacyClearTermsContentProvider {
         override suspend fun renderedTextsByLanguage(
             baselineJson: String,
             profileJsons: List<String>,
-        ): Map<String, String> = textsByLanguage
+        ): ClearTermsRenderResult = result
     }
+
+private fun renderResultOf(
+    textsByLanguage: Map<String, String>,
+    blocksByLanguage: Map<String, List<ClearTermsRenderedBlock>> = emptyMap(),
+): ClearTermsRenderResult = ClearTermsRenderResult(textsByLanguage, blocksByLanguage)
 
 private class RecordingPrivacyPodAccess(
     private val baseline: String = "baseline",
