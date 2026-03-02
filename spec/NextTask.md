@@ -3,48 +3,43 @@
 Die ClearTerms-Dokumente sollen abhängig davon, woher sie stammen, farblich hinterlegt werden.
 
 Grundsätzlich gilt, dass die Baseline als "vertrauenswürdig" gilt. Die Baseline definiert bestimmte
-Textblöcke mit `null`, sodass sie von einem Profil überschrieben werden müssen. Außerdem definiert
-sie Platzhalter ohne Defaultwert, die ebenfalls überschrieben werden müssen.
+Textblöcke mit `null`, sodass sie von einem Profil gesetzt werden müssen. Außerdem müssen alle
+Platzhalter überschrieben werden.
 
-Darüber hinaus können Profile auch andere Textblöcke und Platzhalter überschreiben, oder sie können
-mehrfach überschrieben werden von aufeinander aufbauenden Profilen.
+Darüber hinaus können Profile auch andere Textblöcke sowie bereits von vorigen Profilen gesetzte
+Platzhalter überschreiben.
 
-## Hellgrüner Hintergrund
+## Ohne eingefärbten Hintergrund
 
-Alle Texte, die aus `null`-Überschreibungen kommen oder die Pflichtersetzungen von Werten sind,
-werden hellgrün hinterlegt dargestellt. Das gilt aber nur, wenn sie in exakt einem Profil
-überschrieben werden.
+Alle Texte, die unverändert aus der Baseline oder aus `null`-Überschreibungen von Textblöcken kommen,
+werden ohne eingefärbten Hintergrund dargestellt. Gleiches gilt für Platzhalter-Ersetzungen von Werten,
+aber nur, wenn sie in exakt einem Profil überschrieben werden (`Override-Anzahl = 1` für den Platzhalter)
 
-Hintergrund: Das sind praktisch alle Texte, die man über die Profile liefern MUSS, weil ansonsten
-das Rendering einen Fehler liefert.
+Hintergrund: Das sind alle Texte, die entweder unverändert sind, oder die man über die
+Profile liefern MUSS, weil ansonsten das Rendering einen Fehler liefert.
 
 ## Gelber Hintergrund
 
-Alle anderen Texte, die aus Platzhaltern kommen und nur in einem einzigen Profil überschrieben sind,
-werden gelb hinterlegt dargestellt.
+Alle Texte aus Platzhaltern, die in mehr als einem Profil der Kette überschrieben wurden.
 
 ## Roter Hintergrund
 
-Alle Texte, die aus überschriebenen Textblöcken kommen, oder die Platzhalter mehr als einmal
-überschreiben. werden rot hinterlegt dargestellt. Das gilt z.B. auch für Textblöcke, die zwar in
-der Baseline `null` sind, dann aber zuerst im Default-Profil und dann noch einmal im Operator-Profil
-überschrieben werden.
-
-# Kein Hintergrund
-
-Alle anderen Texte werden ohne spezifischen Hintergrund gerendert.
+Alle Texte, die aus überschriebenen oder hinzugefügten Textblöcken kommen, werden rot hinterlegt
+dargestellt. Das gilt z.B. auch für Textblöcke, die zwar in der Baseline `null` sind, dann aber
+zuerst in dem einen Profil und dann noch einmal in einem nachfolgenden Profil überschrieben werden.
 
 ---
 
 ## Präzise Begriffe
 
 - `Textblock`: Ein benannter Block im ClearTerms-Modell.
+- `Null-Textblock`: Ein Textblock, der in der Baseline explizit `null` ist und daher zwingend gesetzt werden muss.
+- `hinzugefügter Textblock`: Ein Textblock, den es in der Baseline nicht gibt und der über ein Profil neu hinzugefügt wurde.
 - `Platzhalter`: Ein zu ersetzender Wert innerhalb eines Textes.
 - `Baseline`: Die vertrauenswürdige Ausgangsdefinition.
 - `Profilkette`: Die geordnete Folge angewendeter Profile (z. B. Baseline -> Default-Profil -> Operator-Profil).
 - `Überschreibung`: Eine Wertsetzung in einem Profil, die den vorherigen Stand ersetzt.
-- `Pflichtwert`: Ein Platzhalter ohne Defaultwert in der Baseline, der zwingend von Profilen gesetzt werden muss.
-- `Null-Textblock`: Ein Textblock, der in der Baseline explizit `null` ist und daher zwingend gesetzt werden muss.
+- `Pflichtwert`: Ein Platzhalter, der zwingend von nachfolgenden Profilen gesetzt werden muss.
 - `Override-Anzahl`: Anzahl der Profile in der Profilkette, die für ein konkretes finales Textelement (Block oder Platzhalterwert) eine Überschreibung liefern.
 
 Hinweis zur Zählung:
@@ -61,51 +56,43 @@ Die Farbe wird auf den final gerenderten Text angewendet:
 
 Wenn mehrere Regeln gleichzeitig zutreffen, gilt diese Reihenfolge:
 1. Rot
-2. Hellgrün
-3. Gelb
-4. Kein Hintergrund
+2. Gelb
+3. Ohne eingefärbten Hintergrund
 
 ## Eindeutige Entscheidungsregeln
 
 ### 1) Rot
 
 Ein finales Textelement wird rot, wenn mindestens eine der Bedingungen gilt:
-- Es ist ein Textblock, der in mindestens einem Profil überschrieben wurde.
-- Es ist ein Platzhalterwert mit `Override-Anzahl > 1`.
+- Es ist ein Textblock, der in der Baseline nicht mit `null` definiert ist und in mindestens einem
+  Profil überschrieben wurde.
+- Es ist ein Textblock mit `Override-Anzahl > 1`.
+- Es ist ein neu hinzugefügter Textblock.
 
 Beispiele:
-- Baseline `null` -> Default-Profil setzt Wert -> Operator-Profil setzt erneut Wert: rot.
+- Baseline-Textblock `null` -> Default-Profil setzt Wert -> Operator-Profil setzt erneut Wert: rot.
 - Baseline-Textblock mit Inhalt -> Operator-Profil überschreibt: rot.
 
-### 2) Hellgrün
+### 2) Gelb
 
-Ein finales Textelement wird hellgrün, wenn beide Bedingungen gelten:
-- Es stammt aus einer Pflichtsetzung, also:
-  - Textblock war in Baseline `null`, oder
-  - Platzhalter war in Baseline ohne Defaultwert.
-- `Override-Anzahl == 1`.
+Ein Platzhalterwert wird gelb, wenn gilt: `Override-Anzahl > 1`.
 
 Beispiele:
-- Baseline `null`-Block -> nur Default-Profil setzt einmal: hellgrün.
-- Platzhalter ohne Default -> nur Operator-Profil setzt einmal: hellgrün.
+- Platzhalterwert wird im Default-Profil auf 7d gesetzt und im Operator-Profil auf 14d: gelb.
 
-### 3) Gelb
+### 3) Ohne eingefärbten Hintergrund
 
-Ein finales Textelement wird gelb, wenn beide Bedingungen gelten:
-- Es ist ein Platzhalterwert, der nicht unter die Hellgrün-Regel fällt.
-- `Override-Anzahl == 1`.
+Ein finales Textelement wird ohne farbigen Hintergrund angezeigt, wenn eine dieser Bedingungen gilt:
+- Es stammt unverändert aus der Baseline
+- Es handelt sich um einen Textblock, der in der Baseline mit `null` definiert wurde, mit
+  `Override-Anzahl = 1`.
+- Es handelt sich um einen Platzhalter mit `Override-Anzahl = 1`.
 
 Beispiele:
-- Platzhalter mit Baseline-Default -> genau ein Profil setzt abweichenden Wert: gelb.
-
-### 4) Kein Hintergrund
-
-Kein Hintergrund für alle übrigen Fälle, insbesondere:
-- Werte, die unverändert aus der Baseline kommen.
-- Platzhalter mit Baseline-Default, die nie überschrieben wurden.
-- Textblöcke, die nie in Profilen überschrieben wurden.
+- Baseline `null`-Block -> nur Default-Profil setzt einmal: ohne farbigen Hintergrund.
+- Platzhalter -> nur Operator-Profil setzt einmal: ohne farbigen Hintergrund.
 
 ## Klärung für Fehlerfälle
 
-- Wenn ein Pflichtwert (Null-Textblock oder Platzhalter ohne Defaultwert) bis zum Ende der Profilkette nicht gesetzt ist, gilt das als Renderfehler wie bisher.
+- Wenn ein Null-Textblock oder Platzhalter bis zum Ende der Profilkette nicht gesetzt ist, gilt das als Renderfehler wie bisher.
 - Die Farbregeln werden nur auf erfolgreich gerenderte Inhalte angewendet.
