@@ -15,7 +15,7 @@ class ClearTermsRenderHighlightTest {
         )
 
     @Test
-    fun `marks required placeholder from single profile override as light green`() =
+    fun `keeps required placeholder from single profile override uncolored`() =
         runTest {
             val baseline =
                 """
@@ -51,11 +51,7 @@ class ClearTermsRenderHighlightTest {
                     .segments
 
             assertEquals(
-                listOf(
-                    ClearTermsRenderBackground.NONE,
-                    ClearTermsRenderBackground.LIGHT_GREEN,
-                    ClearTermsRenderBackground.NONE,
-                ),
+                listOf(ClearTermsRenderBackground.NONE),
                 segments.map {
                     it.background
                 },
@@ -64,7 +60,7 @@ class ClearTermsRenderHighlightTest {
         }
 
     @Test
-    fun `marks optional placeholder from single profile override as yellow`() =
+    fun `keeps optional placeholder from single profile override uncolored`() =
         runTest {
             val baseline =
                 """
@@ -100,11 +96,7 @@ class ClearTermsRenderHighlightTest {
                     .segments
 
             assertEquals(
-                listOf(
-                    ClearTermsRenderBackground.NONE,
-                    ClearTermsRenderBackground.YELLOW,
-                    ClearTermsRenderBackground.NONE,
-                ),
+                listOf(ClearTermsRenderBackground.NONE),
                 segments.map {
                     it.background
                 },
@@ -157,7 +149,7 @@ class ClearTermsRenderHighlightTest {
         }
 
     @Test
-    fun `marks single override of null baseline text block as light green`() =
+    fun `keeps single override of null baseline text block uncolored`() =
         runTest {
             val baseline =
                 """
@@ -197,11 +189,11 @@ class ClearTermsRenderHighlightTest {
                     .single()
                     .segments
 
-            assertEquals(listOf(ClearTermsRenderBackground.LIGHT_GREEN), segments.map { it.background })
+            assertEquals(listOf(ClearTermsRenderBackground.NONE), segments.map { it.background })
         }
 
     @Test
-    fun `marks placeholder overridden by multiple profiles as red`() =
+    fun `marks placeholder overridden by multiple profiles as yellow`() =
         runTest {
             val baseline =
                 """
@@ -251,7 +243,7 @@ class ClearTermsRenderHighlightTest {
             assertEquals(
                 listOf(
                     ClearTermsRenderBackground.NONE,
-                    ClearTermsRenderBackground.RED,
+                    ClearTermsRenderBackground.YELLOW,
                     ClearTermsRenderBackground.NONE,
                 ),
                 segments.map { it.background },
@@ -357,6 +349,54 @@ class ClearTermsRenderHighlightTest {
         }
 
     @Test
+    fun `marks appended text block as red`() =
+        runTest {
+            val baseline =
+                """
+                {
+                  "kind": "baseline",
+                  "id": "policy",
+                  "version": "1",
+                  "texts": {
+                    "en": [
+                      { "id": "main", "text": "Main text." }
+                    ]
+                  }
+                }
+                """.trimIndent()
+            val profile =
+                """
+                {
+                  "kind": "profile",
+                  "id": "policy-a",
+                  "version": "1",
+                  "parent": { "id": "policy", "version": "1", "hash": "sha256:01" },
+                  "overrides": {
+                    "values": {},
+                    "texts": {
+                      "en": {
+                        "replace": {},
+                        "append": [
+                          { "id": "new-block", "text": "Added block." }
+                        ]
+                      }
+                    }
+                  }
+                }
+                """.trimIndent()
+
+            val result = renderer.renderAll(baseline, listOf(profile))
+            val segments =
+                result.blocksByLanguage
+                    .getValue("en")
+                    .single { it.id == "new-block" }
+                    .segments
+
+            assertEquals(listOf(ClearTermsRenderBackground.RED), segments.map { it.background })
+            assertEquals("Added block.", segments.single().text)
+        }
+
+    @Test
     fun `supports legacy default deviation overload and returns highlighted result`() =
         runTest {
             val baseline =
@@ -409,7 +449,7 @@ class ClearTermsRenderHighlightTest {
             assertEquals(
                 listOf(
                     ClearTermsRenderBackground.NONE,
-                    ClearTermsRenderBackground.RED,
+                    ClearTermsRenderBackground.YELLOW,
                     ClearTermsRenderBackground.NONE,
                 ),
                 segments.map { it.background },

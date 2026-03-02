@@ -99,7 +99,7 @@ class LegalPrivacyPolicyServiceTest {
     }
 
     @Test
-    fun `renders highlighted placeholder segment as span`() = runTest {
+    fun `renders highlighted placeholder segment as yellow span`() = runTest {
         val service =
             LegalPrivacyPolicyService(
                 podBaseProvider = fixedPodBaseProvider("https://pod.example"),
@@ -118,7 +118,7 @@ class LegalPrivacyPolicyServiceTest {
                                                 segments =
                                                     listOf(
                                                         ClearTermsRenderedBlock.Segment("Operator: ", ClearTermsRenderBackground.NONE),
-                                                        ClearTermsRenderedBlock.Segment("Org A", ClearTermsRenderBackground.LIGHT_GREEN),
+                                                        ClearTermsRenderedBlock.Segment("Org A", ClearTermsRenderBackground.YELLOW),
                                                         ClearTermsRenderedBlock.Segment(".", ClearTermsRenderBackground.NONE),
                                                     ),
                                             ),
@@ -130,7 +130,7 @@ class LegalPrivacyPolicyServiceTest {
 
         val html = service.loadPrivacyPolicyHtml()
 
-        assertContains(html, """Operator: <span class="legal-ct-bg-light-green">Org A</span>.""")
+        assertContains(html, """Operator: <span class="legal-ct-bg-yellow">Org A</span>.""")
     }
 
     @Test

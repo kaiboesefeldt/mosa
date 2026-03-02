@@ -116,7 +116,6 @@ class LegalPrivacyPolicyService(
     private fun cssClassFor(background: ClearTermsRenderBackground): String =
         when (background) {
             ClearTermsRenderBackground.NONE -> "legal-ct-bg-none"
-            ClearTermsRenderBackground.LIGHT_GREEN -> "legal-ct-bg-light-green"
             ClearTermsRenderBackground.YELLOW -> "legal-ct-bg-yellow"
             ClearTermsRenderBackground.RED -> "legal-ct-bg-red"
         }
@@ -124,13 +123,11 @@ class LegalPrivacyPolicyService(
     private fun openMarkerFor(background: ClearTermsRenderBackground): String =
         when (background) {
             ClearTermsRenderBackground.NONE -> ""
-            ClearTermsRenderBackground.LIGHT_GREEN -> MARKER_OPEN_LIGHT_GREEN
             ClearTermsRenderBackground.YELLOW -> MARKER_OPEN_YELLOW
             ClearTermsRenderBackground.RED -> MARKER_OPEN_RED
         }
 
     companion object {
-        const val MARKER_OPEN_LIGHT_GREEN = "[[CTBG:LG]]"
         const val MARKER_OPEN_YELLOW = "[[CTBG:YL]]"
         const val MARKER_OPEN_RED = "[[CTBG:RD]]"
         const val MARKER_CLOSE = "[[/CTBG]]"

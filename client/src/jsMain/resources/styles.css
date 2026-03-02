@@ -1858,10 +1858,6 @@ button:disabled {
     margin: 0.2rem 0;
 }
 
-.legal-ct-bg-light-green {
-    background: rgba(163, 230, 53, 0.35);
-}
-
 .legal-ct-bg-yellow {
     background: rgba(250, 204, 21, 0.35);
 }
@@ -1870,7 +1866,6 @@ button:disabled {
     background: rgba(248, 113, 113, 0.35);
 }
 
-.legal-dialog__content div.legal-ct-bg-light-green,
 .legal-dialog__content div.legal-ct-bg-yellow,
 .legal-dialog__content div.legal-ct-bg-red {
     padding: 0.15rem 0.2rem;

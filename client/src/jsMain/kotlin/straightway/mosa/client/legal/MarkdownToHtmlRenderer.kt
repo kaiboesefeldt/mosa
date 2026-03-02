@@ -83,11 +83,6 @@ class MarkdownToHtmlRenderer {
             var index = 0
             while (index < text.length) {
                 when {
-                    text.startsWith(LegalPrivacyPolicyService.MARKER_OPEN_LIGHT_GREEN, index) -> {
-                        append("""<span class="legal-ct-bg-light-green">""")
-                        index += LegalPrivacyPolicyService.MARKER_OPEN_LIGHT_GREEN.length
-                    }
-
                     text.startsWith(LegalPrivacyPolicyService.MARKER_OPEN_YELLOW, index) -> {
                         append("""<span class="legal-ct-bg-yellow">""")
                         index += LegalPrivacyPolicyService.MARKER_OPEN_YELLOW.length

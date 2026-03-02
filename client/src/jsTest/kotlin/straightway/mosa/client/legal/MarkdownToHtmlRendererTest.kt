@@ -40,15 +40,15 @@ class MarkdownToHtmlRendererTest {
     }
 
     @Test
-    fun `renders light green and red clearterms markers`() {
+    fun `renders yellow and red clearterms markers`() {
         val markdown =
-            "${LegalPrivacyPolicyService.MARKER_OPEN_LIGHT_GREEN}ok${LegalPrivacyPolicyService.MARKER_CLOSE} " +
+            "${LegalPrivacyPolicyService.MARKER_OPEN_YELLOW}ok${LegalPrivacyPolicyService.MARKER_CLOSE} " +
                 "${LegalPrivacyPolicyService.MARKER_OPEN_RED}risk${LegalPrivacyPolicyService.MARKER_CLOSE}"
 
         val html = renderer.render(markdown)
 
         assertEquals(
-            """<p><span class="legal-ct-bg-light-green">ok</span> <span class="legal-ct-bg-red">risk</span></p>""",
+            """<p><span class="legal-ct-bg-yellow">ok</span> <span class="legal-ct-bg-red">risk</span></p>""",
             html,
         )
     }
