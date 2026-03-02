@@ -381,7 +381,7 @@ A Baseline JSON document MUST contain exactly:
   "texts": {
     "<language-tag>": [
       { "id": "<block-id>", "text": "<text block>" },
-      { "id": "<block-id>", "text": null, "hints": { "expectedContent": "<hint>", "overrideSeverity": "required" } }
+      { "id": "<block-id>", "text": null, "hints": { "expectedContent": "<hint>", "override": "once" } }
     ]
   }
 }
@@ -392,15 +392,16 @@ Rules:
 * Each block MUST be an object with keys `id` and `text`, and MAY include `hints`.
 * `id` MUST be a string and MUST be stable within the Baseline family.
 * `text` MUST be either a string or `null`.
-* If present, `hints` MUST be an object with optional keys `expectedContent` and `overrideSeverity`.
+* If present, `hints` MUST be an object with optional keys `expectedContent` and `override`.
 * If present, `hints.expectedContent` MUST be a string.
-* If present, `hints.overrideSeverity` MUST be one of `normal`, `restrictive`, `required`.
-* Severity semantics:
-  * `normal`: overriding this block is generally acceptable.
-  * `restrictive`: overriding this block should be treated as a notable deviation and shown as cautionary to users.
-  * `required`: this block is expected to be overridden by derived profiles (typical for `text: null` baseline slots).
-* If no severity is specified for a Baseline block, effective severity is `restrictive`.
-* For Baseline blocks with `text: null` and no explicit severity, effective severity is `required`.
+* If present, `hints.override` MUST be one of `alert`, `warn`, `once`, `ok`.
+* Override semantics:
+  * `alert`: overriding this block should be treated as a notable deviation and shown as major cautionary to users (red).
+  * `warn`: overriding this block should be treated as a minor deviation and shown as minor cautionary to users (yellow).
+  * `once`: this block may be overridden by one of the profiles based on the baseline without any further notice to the user. If more than one profile in the profile chain overrides this block, this should be treated as a notable deviation and shown as major cautionary to users (red).
+  * `ok`: this block may be overridden without restriction and without notice to the user.
+* If no severity is specified for a Baseline block, effective severity is `alert`.
+* For Baseline blocks with `text: null` and no explicit severity, effective severity is `once`.
 * For multi-language Baselines, corresponding blocks across languages MUST use the same block id.
 * For multi-language Baselines, the set and order of block ids MUST be identical across languages.
 * For multi-language Baselines, if a block id has `text: null` in one language, it MUST have `text: null` in all Baseline languages.
