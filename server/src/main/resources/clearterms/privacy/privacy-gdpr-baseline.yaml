@@ -199,36 +199,48 @@ texts:
 
     - id: rights-access-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
+      hints:
+        overrideSeverity: normal
 
     - id: rights-portability-label
       text: "- Eigene Daten mitnehmen (Datenübertragbarkeit, Art. 20 DSGVO): "
 
     - id: rights-portability-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
+      hints:
+        overrideSeverity: normal
 
     - id: rights-rectification-label
       text: "- Fehler korrigieren (Berichtigung, Art. 16 DSGVO): "
 
     - id: rights-rectification-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
+      hints:
+        overrideSeverity: normal
 
     - id: rights-erasure-label
       text: "- Daten löschen lassen (Löschung, Art. 17 DSGVO): "
 
     - id: rights-erasure-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
+      hints:
+        overrideSeverity: normal
 
     - id: rights-restriction-label
       text: "- Nutzung einschränken (Einschränkung, Art. 18 DSGVO): "
 
     - id: rights-restriction-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
+      hints:
+        overrideSeverity: normal
 
     - id: rights-objection-label
       text: "- Der Nutzung Ihrer Daten widersprechen, auch wenn die Daten aus berechtigtem Interesse (z. B. für Sicherheit und zuverlässigen Betrieb) genutzt werden (Art. 21 DSGVO): "
 
     - id: rights-objection-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
+      hints:
+        overrideSeverity: normal
 
     - id: rights-other-requests
       text: |
