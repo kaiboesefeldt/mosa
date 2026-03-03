@@ -327,12 +327,20 @@ Validation MUST be strict. There is no best-effort interpretation.
 
 Implementations MUST validate:
 
+### 8.1 Chain and Reference Validation
+
 * Reference chain integrity (hash) and reference consistency (`id`/`version` match; §4.2)
 * Profile chains MUST be acyclic
+
+### 8.2 Placeholder and Value Validation
+
 * Type correctness of all placeholder values
 * Completeness: every discovered placeholder key MUST have a value in the effective profile
 * Completeness is evaluated on the effective profile (merged across the resolved Profile chain), not on a single Profile alone
 * Profiles MUST NOT contain unused placeholder keys
+
+### 8.3 Rendering Completeness Validation
+
 * No unresolved placeholders after substitution (i.e. no remaining unescaped `{{` sequences that match placeholder syntax)
 * For every `null` value, an applicable inline fallback in the final text MUST exist
 * Final text blocks MUST NOT be `null`; every `null` text block from the Baseline MUST be replaced through Profile `replace` overrides
@@ -389,9 +397,14 @@ A Baseline JSON document MUST contain exactly:
 
 Rules:
 
+#### 9.1.1 Block Shape
+
 * Each block MUST be an object with keys `id` and `text`, and MAY include `hints`.
 * `id` MUST be a string and MUST be stable within the Baseline family.
 * `text` MUST be either a string or `null`.
+
+#### 9.1.2 Hints and Severity
+
 * If present, `hints` MUST be an object with optional keys `expectedContent` and `override`.
 * If present, `hints.expectedContent` MUST be a string.
 * If present, `hints.override` MUST be one of `alert`, `warn`, `once`, `ok`.
@@ -402,6 +415,9 @@ Rules:
   * `ok`: this block may be overridden without restriction and without notice to the user.
 * If no severity is specified for a Baseline block, effective severity is `alert`.
 * For Baseline blocks with `text: null` and no explicit severity, effective severity is `once`.
+
+#### 9.1.3 Multi-Language Consistency
+
 * For multi-language Baselines, corresponding blocks across languages MUST use the same block id.
 * For multi-language Baselines, the set and order of block ids MUST be identical across languages.
 * For multi-language Baselines, if a block id has `text: null` in one language, it MUST have `text: null` in all Baseline languages.
@@ -441,13 +457,21 @@ A Profile JSON document MUST contain exactly:
 
 Rules:
 
+#### 9.2.1 Core Object Requirements
+
 * Top-level keys MUST be exactly: `kind`, `id`, `version`, `parent`, `overrides`.
 * `parent` MUST be present.
 * `parent` MUST be a mapping with exactly the keys `id`, `version`, and `hash`.
+
+#### 9.2.2 Overrides Object Requirements
+
 * `overrides.values` MAY be omitted.
 * `overrides.texts` MAY be omitted.
 * Keys inside `overrides` MUST be exactly: `values` and optionally `texts`.
 * If present, `overrides.values` MUST be a mapping from placeholder key to typed scalar JSON value (see §9.3).
+
+#### 9.2.3 Text Override Requirements
+
 * `overrides.texts` MUST only target languages present in the referenced Baseline and MUST be present for all Baseline languages if present at all.
 * If `overrides.texts` is present, each language entry MUST be a mapping with key `replace` and MAY include `append`.
 * `replace` MUST be a mapping from existing block id to non-null text block string.
@@ -457,13 +481,20 @@ Rules:
 * `append` adds additional blocks to the end of the language’s block list, preserving order.
 * If present, appended blocks MUST specify `id` and `text`, and appended block ids MUST be unique and MUST NOT collide with existing Baseline block ids.
 * Profile text overrides MUST NOT define `hints` or severity metadata.
+
+#### 9.2.4 Multi-Language Text Override Constraints
+
 * For multi-language Baselines:
   * `replace` MUST define the same set of block ids in every language.
   * If `append` is present, it MUST append the same number of blocks in every language, and the appended block ids MUST be identical and positionally aligned across languages.
 * Implementations MUST reject any other form of insertion.
 
+#### 9.2.5 Parent Constraints
+
 * The parent reference MUST satisfy §4.2.
 * The resolved parent artifact kind MUST be either `baseline` or `profile`.
+
+#### 9.2.6 Additional Multi-Language Constraints
 
 Additional constraints for multi-language Baselines:
 
