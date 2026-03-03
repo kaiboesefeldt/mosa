@@ -130,7 +130,7 @@ class LegalPrivacyPolicyServiceTest {
 
         val html = service.loadPrivacyPolicyHtml()
 
-        assertContains(html, """Operator: <span class="legal-ct-bg-yellow">Org A</span>.""")
+        assertContains(html, """Operator: <span class="legal-ct-bg-yellow legal-ct-baseline-diff">Org A</span>.""")
     }
 
     @Test
@@ -219,7 +219,10 @@ class LegalPrivacyPolicyServiceTest {
 
         val html = service.loadPrivacyPolicyHtml()
 
-        assertContains(html, """<div class="legal-ct-bg-red"><p><span class="legal-ct-bg-red">Block text</span></p></div>""")
+        assertContains(
+            html,
+            """<div class="legal-ct-bg-red"><p><span class="legal-ct-bg-red legal-ct-baseline-diff">Block text</span></p></div>""",
+        )
     }
 
     @Test
@@ -253,7 +256,44 @@ class LegalPrivacyPolicyServiceTest {
 
         val html = service.loadPrivacyPolicyHtml()
 
-        assertContains(html, """<span class="legal-ct-bg-red">A</span><span class="legal-ct-bg-yellow">B</span>""")
+        assertContains(
+            html,
+            """<span class="legal-ct-bg-red legal-ct-baseline-diff">A</span><span class="legal-ct-bg-yellow legal-ct-baseline-diff">B</span>""",
+        )
+    }
+
+    @Test
+    fun `wraps baseline override block with subtle marker class without deviation class`() = runTest {
+        val service =
+            LegalPrivacyPolicyService(
+                podBaseProvider = fixedPodBaseProvider("https://pod.example"),
+                podAccessFactory = { RecordingPrivacyPodAccess() },
+                preferredLanguageTagsProvider = { listOf("de") },
+                clearTermsContentProvider =
+                    fixedContentProvider(
+                        renderResultOf(
+                            textsByLanguage = mapOf("de" to "ignored"),
+                            blocksByLanguage =
+                                mapOf(
+                                    "de" to
+                                        listOf(
+                                            ClearTermsRenderedBlock(
+                                                id = "main",
+                                                isBaselineOverride = true,
+                                                segments =
+                                                    listOf(
+                                                        ClearTermsRenderedBlock.Segment("Changed text", ClearTermsRenderBackground.NONE),
+                                                    ),
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    ),
+            )
+
+        val html = service.loadPrivacyPolicyHtml()
+
+        assertContains(html, """<div class="legal-ct-baseline-diff"><p>Changed text</p></div>""")
     }
 }
 

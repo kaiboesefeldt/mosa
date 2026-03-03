@@ -15,7 +15,7 @@ class ClearTermsRenderHighlightTest {
         )
 
     @Test
-    fun `keeps required placeholder from single profile override uncolored`() =
+    fun `marks required placeholder from single profile override as yellow`() =
         runTest {
             val baseline =
                 """
@@ -51,7 +51,11 @@ class ClearTermsRenderHighlightTest {
                     .segments
 
             assertEquals(
-                listOf(ClearTermsRenderBackground.NONE),
+                listOf(
+                    ClearTermsRenderBackground.NONE,
+                    ClearTermsRenderBackground.YELLOW,
+                    ClearTermsRenderBackground.NONE,
+                ),
                 segments.map {
                     it.background
                 },
@@ -60,7 +64,7 @@ class ClearTermsRenderHighlightTest {
         }
 
     @Test
-    fun `keeps optional placeholder from single profile override uncolored`() =
+    fun `marks optional placeholder from single profile override as yellow`() =
         runTest {
             val baseline =
                 """
@@ -96,7 +100,11 @@ class ClearTermsRenderHighlightTest {
                     .segments
 
             assertEquals(
-                listOf(ClearTermsRenderBackground.NONE),
+                listOf(
+                    ClearTermsRenderBackground.NONE,
+                    ClearTermsRenderBackground.YELLOW,
+                    ClearTermsRenderBackground.NONE,
+                ),
                 segments.map {
                     it.background
                 },
@@ -278,6 +286,50 @@ class ClearTermsRenderHighlightTest {
                     .segments
 
             assertEquals(listOf(ClearTermsRenderBackground.NONE), segments.map { it.background })
+        }
+
+    @Test
+    fun `marks once text override as baseline override without color`() =
+        runTest {
+            val baseline =
+                """
+                {
+                  "kind": "baseline",
+                  "id": "policy",
+                  "version": "1",
+                  "texts": {
+                    "en": [
+                      { "id": "main", "text": "Baseline text.", "hints": { "override": "once" } }
+                    ]
+                  }
+                }
+                """.trimIndent()
+            val profile =
+                """
+                {
+                  "kind": "profile",
+                  "id": "policy-default",
+                  "version": "1",
+                  "parent": { "id": "policy", "version": "1", "hash": "sha256:01" },
+                  "overrides": {
+                    "values": {},
+                    "texts": {
+                      "en": {
+                        "replace": { "main": "Changed text." }
+                      }
+                    }
+                  }
+                }
+                """.trimIndent()
+
+            val result = renderer.renderAll(baseline, listOf(profile))
+            val block =
+                result.blocksByLanguage
+                    .getValue("en")
+                    .single()
+
+            assertEquals(true, block.isBaselineOverride)
+            assertEquals(listOf(ClearTermsRenderBackground.NONE), block.segments.map { it.background })
         }
 
     @Test

@@ -141,6 +141,7 @@ class ClearTermsRenderer(
         val renderedBlocksByLanguage =
             intermediateTexts.mapValues { (language, blocks) ->
                 blocks.map { block ->
+                    val blockOverrideTotal = blockOverrideCount[block.id] ?: 0
                     val blockBackground =
                         resolveBlockBackground(
                             blockId = block.id,
@@ -167,6 +168,7 @@ class ClearTermsRenderer(
                         }
                     ClearTermsRenderedBlock(
                         id = block.id,
+                        isBaselineOverride = blockOverrideTotal > 0,
                         segments = segments,
                     )
                 }
@@ -269,7 +271,7 @@ class ClearTermsRenderer(
             val overrideCount = placeholderOverrideCount[key] ?: 0
             backgrounds[key] =
                 when {
-                    overrideCount > 1 -> ClearTermsRenderBackground.YELLOW
+                    overrideCount > 0 -> ClearTermsRenderBackground.YELLOW
                     else -> ClearTermsRenderBackground.NONE
                 }
         }

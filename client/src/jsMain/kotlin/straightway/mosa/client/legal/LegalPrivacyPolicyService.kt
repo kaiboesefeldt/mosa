@@ -85,10 +85,19 @@ class LegalPrivacyPolicyService(
         val markdown = block.toMarkedMarkdown()
         val html = markdownToHtmlRenderer.render(markdown)
         val blockBackground = block.blockBackground()
-        return if (blockBackground == ClearTermsRenderBackground.NONE) {
+        return if (blockBackground == ClearTermsRenderBackground.NONE && !block.isBaselineOverride) {
             html
         } else {
-            """<div class="${cssClassFor(blockBackground)}">$html</div>"""
+            val classes =
+                buildList {
+                    if (blockBackground != ClearTermsRenderBackground.NONE) {
+                        add(cssClassFor(blockBackground))
+                    }
+                    if (block.isBaselineOverride) {
+                        add("legal-ct-baseline-diff")
+                    }
+                }.joinToString(" ")
+            """<div class="$classes">$html</div>"""
         }
     }
 

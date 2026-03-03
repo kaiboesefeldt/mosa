@@ -1859,17 +1859,39 @@ button:disabled {
 }
 
 .legal-ct-bg-yellow {
-    background: rgba(250, 204, 21, 0.35);
+    background: transparent;
 }
 
 .legal-ct-bg-red {
-    background: rgba(248, 113, 113, 0.35);
+    background: transparent;
+}
+
+.legal-ct-baseline-diff {
+    text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: rgba(15, 23, 42, 0.55);
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.16em;
+    text-decoration-skip-ink: none;
+}
+
+.legal-ct-baseline-diff p,
+.legal-ct-baseline-diff li,
+.legal-ct-baseline-diff h1,
+.legal-ct-baseline-diff h2,
+.legal-ct-baseline-diff h3 {
+    text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: rgba(15, 23, 42, 0.55);
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.16em;
+    text-decoration-skip-ink: none;
 }
 
 .legal-dialog__content div.legal-ct-bg-yellow,
 .legal-dialog__content div.legal-ct-bg-red {
-    padding: 0.15rem 0.2rem;
-    border-radius: 4px;
+    padding: 0;
+    border-radius: 0;
 }
 
 #keys {
