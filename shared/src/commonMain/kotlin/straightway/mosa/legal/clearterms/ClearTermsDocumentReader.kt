@@ -85,8 +85,15 @@ class ClearTermsDocumentReader {
         errorMessage: String,
     ): Map<String, ClearTermsJsonNode.ScalarNode> =
         node.entries.mapValues { (_, value) ->
-            value as? ClearTermsJsonNode.ScalarNode
-                ?: throw ClearTermsValidationException(errorMessage)
+            val scalar =
+                value as? ClearTermsJsonNode.ScalarNode
+                    ?: throw ClearTermsValidationException(errorMessage)
+            when (scalar) {
+                is ClearTermsJsonNode.ScalarNode.StringNode -> scalar
+                is ClearTermsJsonNode.ScalarNode.NumberNode -> scalar
+                ClearTermsJsonNode.ScalarNode.NullNode -> scalar
+                is ClearTermsJsonNode.ScalarNode.BooleanNode -> throw ClearTermsValidationException(errorMessage)
+            }
         }
 
     private fun parseDeviationTextOverrides(node: ClearTermsJsonNode): Map<String, ClearTermsDeviationProfile.TextOverrides> {
@@ -203,7 +210,12 @@ class ClearTermsDocumentReader {
                         ?: throw ClearTermsValidationException("Key 'override' must be a string")
                 parseSeverity(severityText)
             }
-        return ClearTermsTextBlockHints(expectedContent, override)
+        val inlineWithNext =
+            hintsContract.optionalNode("inlineWithNext")?.let { inlineNode ->
+                (inlineNode as? ClearTermsJsonNode.ScalarNode.BooleanNode)?.value
+                    ?: throw ClearTermsValidationException("Key 'inlineWithNext' must be a boolean")
+            }
+        return ClearTermsTextBlockHints(expectedContent, override, inlineWithNext)
     }
 
     private fun parseSeverity(value: String): ClearTermsTextOverrideSeverity =
@@ -245,6 +257,6 @@ class ClearTermsDocumentReader {
         private val textOverrideKeys = setOf("replace", "append")
         private val textBlockCoreKeys = setOf("id", "text")
         private val textBlockKeys = setOf("id", "text", "hints")
-        private val hintsKeys = setOf("expectedContent", "override")
+        private val hintsKeys = setOf("expectedContent", "override", "inlineWithNext")
     }
 }

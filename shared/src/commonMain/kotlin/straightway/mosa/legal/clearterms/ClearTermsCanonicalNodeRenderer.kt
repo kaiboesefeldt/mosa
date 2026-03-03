@@ -10,6 +10,7 @@ class ClearTermsCanonicalNodeRenderer(
             is ClearTermsJsonNode.ArrayNode -> renderArray(node)
             is ClearTermsJsonNode.ScalarNode.StringNode -> renderString(node.value)
             is ClearTermsJsonNode.ScalarNode.NumberNode -> numberRenderer.render(node.value)
+            is ClearTermsJsonNode.ScalarNode.BooleanNode -> node.value.toString()
             ClearTermsJsonNode.ScalarNode.NullNode -> "null"
         }
 

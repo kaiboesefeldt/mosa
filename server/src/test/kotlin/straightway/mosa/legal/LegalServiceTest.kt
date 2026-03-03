@@ -676,6 +676,7 @@ class LegalServiceTest {
                         "\\\"",
                     )}\""
                     is straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.NumberNode -> value.value.toString()
+                    is straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.BooleanNode -> value.value.toString()
                     is straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.NullNode -> "null"
                 }
             builder.appendLine("    $key: $yamlValue")

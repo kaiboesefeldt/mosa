@@ -63,15 +63,18 @@ class ClearTermsJsonParserTest {
     }
 
     @Test
-    fun `rejects boolean values`() {
+    fun `parses boolean values`() {
         val json =
             """
-            { "root": true }
+            { "root": true, "other": false }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
-            parser.parse(json)
-        }
+        val root = parser.parse(json)
+        val trueValue = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.BooleanNode
+        val falseValue = root.entries.getValue("other") as ClearTermsJsonNode.ScalarNode.BooleanNode
+
+        assertEquals(true, trueValue.value)
+        assertEquals(false, falseValue.value)
     }
 
     @Test

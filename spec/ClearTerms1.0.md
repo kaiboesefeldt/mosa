@@ -389,7 +389,11 @@ A Baseline JSON document MUST contain exactly:
   "texts": {
     "<language-tag>": [
       { "id": "<block-id>", "text": "<text block>" },
-      { "id": "<block-id>", "text": null, "hints": { "expectedContent": "<hint>", "override": "once" } }
+      {
+        "id": "<block-id>",
+        "text": null,
+        "hints": { "expectedContent": "<hint>", "override": "once", "inlineWithNext": true }
+      }
     ]
   }
 }
@@ -405,14 +409,18 @@ Rules:
 
 #### 9.1.2 Hints and Severity
 
-* If present, `hints` MUST be an object with optional keys `expectedContent` and `override`.
+* If present, `hints` MUST be an object with optional keys `expectedContent`, `override`, and `inlineWithNext`.
 * If present, `hints.expectedContent` MUST be a string.
 * If present, `hints.override` MUST be one of `alert`, `warn`, `once`, `ok`.
+* If present, `hints.inlineWithNext` MUST be a boolean.
 * Override semantics:
   * `alert`: overriding this block should be treated as a notable deviation and shown as major cautionary to users (red).
   * `warn`: overriding this block should be treated as a minor deviation and shown as minor cautionary to users (yellow).
   * `once`: this block may be overridden by one of the profiles based on the baseline without any further notice to the user. If more than one profile in the profile chain overrides this block, this should be treated as a notable deviation and shown as major cautionary to users (red).
   * `ok`: this block may be overridden without restriction and without notice to the user.
+* Rendering hint semantics:
+  * `inlineWithNext: true` means this block SHOULD be rendered inline with the immediately following block, preserving block order.
+  * This hint only affects presentation and MUST NOT change chain validation, placeholder resolution, hashing, or override semantics.
 * If no severity is specified for a Baseline block, effective severity is `alert`.
 * For Baseline blocks with `text: null` and no explicit severity, effective severity is `once`.
 

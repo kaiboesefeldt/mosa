@@ -39,7 +39,7 @@ class LegalPrivacyPolicyService(
             val markdown = normalizedTexts.getValue(languageTag)
             return markdownToHtmlRenderer.render(markdown)
         }
-        return renderedBlocks.joinToString("") { block -> renderBlock(block) }
+        return renderBlocks(renderedBlocks)
     }
 
     private fun selectLanguageTag(
@@ -101,14 +101,48 @@ class LegalPrivacyPolicyService(
         }
     }
 
-    private fun ClearTermsRenderedBlock.toMarkedMarkdown(): String =
-        segments.joinToString("") { segment ->
-            if (segment.background == ClearTermsRenderBackground.NONE) {
-                segment.text
+    private fun renderBlocks(blocks: List<ClearTermsRenderedBlock>): String {
+        val html = StringBuilder()
+        var index = 0
+        while (index < blocks.size) {
+            val current = blocks[index]
+            val next = blocks.getOrNull(index + 1)
+            if (current.inlineWithNext && next != null) {
+                html.append(renderInlinePair(current, next))
+                index += 2
             } else {
-                "${openMarkerFor(segment.background)}${segment.text}${MARKER_CLOSE}"
+                html.append(renderBlock(current))
+                index += 1
             }
         }
+        return html.toString()
+    }
+
+    private fun renderInlinePair(
+        current: ClearTermsRenderedBlock,
+        next: ClearTermsRenderedBlock,
+    ): String {
+        val markdown =
+            current.toMarkedMarkdown(includeBaselineOverrideMarker = true) +
+                next.toMarkedMarkdown(includeBaselineOverrideMarker = true)
+        return markdownToHtmlRenderer.render(markdown)
+    }
+
+    private fun ClearTermsRenderedBlock.toMarkedMarkdown(includeBaselineOverrideMarker: Boolean = false): String {
+        val rendered =
+            segments.joinToString("") { segment ->
+                if (segment.background == ClearTermsRenderBackground.NONE) {
+                    segment.text
+                } else {
+                    "${openMarkerFor(segment.background)}${segment.text}${MARKER_CLOSE}"
+                }
+            }
+        return if (includeBaselineOverrideMarker && isBaselineOverride) {
+            "$MARKER_OPEN_BASELINE$rendered$MARKER_CLOSE"
+        } else {
+            rendered
+        }
+    }
 
     private fun ClearTermsRenderedBlock.blockBackground(): ClearTermsRenderBackground {
         val first = segments.firstOrNull()?.background ?: ClearTermsRenderBackground.NONE
@@ -137,6 +171,7 @@ class LegalPrivacyPolicyService(
         }
 
     companion object {
+        const val MARKER_OPEN_BASELINE = "[[CTBG:DF]]"
         const val MARKER_OPEN_YELLOW = "[[CTBG:YL]]"
         const val MARKER_OPEN_RED = "[[CTBG:RD]]"
         const val MARKER_CLOSE = "[[/CTBG]]"

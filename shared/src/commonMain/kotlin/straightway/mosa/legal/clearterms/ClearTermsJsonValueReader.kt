@@ -13,7 +13,7 @@ class ClearTermsJsonValueReader(
             '[' -> parseArray()
             '"' -> ClearTermsJsonNode.ScalarNode.StringNode(parseString())
             'n' -> parseNull()
-            't', 'f' -> throw ClearTermsValidationException("Boolean values are not supported")
+            't', 'f' -> parseBoolean()
             else -> parseNumericValue(ch)
         }
     }
@@ -70,6 +70,19 @@ class ClearTermsJsonValueReader(
         expectSequence("null")
         return ClearTermsJsonNode.ScalarNode.NullNode
     }
+
+    private fun parseBoolean(): ClearTermsJsonNode.ScalarNode.BooleanNode =
+        when {
+            text.startsWith("true", index) -> {
+                index += 4
+                ClearTermsJsonNode.ScalarNode.BooleanNode(true)
+            }
+            text.startsWith("false", index) -> {
+                index += 5
+                ClearTermsJsonNode.ScalarNode.BooleanNode(false)
+            }
+            else -> throw ClearTermsValidationException("Expected boolean")
+        }
 
     private fun parseString(): String {
         expect('"')

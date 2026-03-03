@@ -169,6 +169,7 @@ class ClearTermsRenderer(
                     ClearTermsRenderedBlock(
                         id = block.id,
                         isBaselineOverride = blockOverrideTotal > 0,
+                        inlineWithNext = block.hints?.inlineWithNext == true,
                         segments = segments,
                     )
                 }

@@ -18,6 +18,10 @@ sealed class ClearTermsJsonNode {
             val value: Double,
         ) : ScalarNode()
 
+        data class BooleanNode(
+            val value: Boolean,
+        ) : ScalarNode()
+
         object NullNode : ScalarNode()
     }
 }

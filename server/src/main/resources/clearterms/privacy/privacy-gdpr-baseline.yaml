@@ -196,6 +196,8 @@ texts:
 
     - id: rights-access-label
       text: "- Wissen, welche Daten über Sie vorliegen (Auskunft, Art. 15 DSGVO): "
+      hints:
+        inlineWithNext: true
 
     - id: rights-access-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
@@ -204,6 +206,8 @@ texts:
 
     - id: rights-portability-label
       text: "- Eigene Daten mitnehmen (Datenübertragbarkeit, Art. 20 DSGVO): "
+      hints:
+        inlineWithNext: true
 
     - id: rights-portability-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
@@ -212,6 +216,8 @@ texts:
 
     - id: rights-rectification-label
       text: "- Fehler korrigieren (Berichtigung, Art. 16 DSGVO): "
+      hints:
+        inlineWithNext: true
 
     - id: rights-rectification-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
@@ -220,6 +226,8 @@ texts:
 
     - id: rights-erasure-label
       text: "- Daten löschen lassen (Löschung, Art. 17 DSGVO): "
+      hints:
+        inlineWithNext: true
 
     - id: rights-erasure-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
@@ -228,6 +236,8 @@ texts:
 
     - id: rights-restriction-label
       text: "- Nutzung einschränken (Einschränkung, Art. 18 DSGVO): "
+      hints:
+        inlineWithNext: true
 
     - id: rights-restriction-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
@@ -236,6 +246,8 @@ texts:
 
     - id: rights-objection-label
       text: "- Der Nutzung Ihrer Daten widersprechen, auch wenn die Daten aus berechtigtem Interesse (z. B. für Sicherheit und zuverlässigen Betrieb) genutzt werden (Art. 21 DSGVO): "
+      hints:
+        inlineWithNext: true
 
     - id: rights-objection-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}

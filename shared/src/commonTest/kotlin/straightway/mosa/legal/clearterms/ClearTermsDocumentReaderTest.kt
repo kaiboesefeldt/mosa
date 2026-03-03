@@ -964,7 +964,8 @@ class ClearTermsDocumentReaderTest {
                     "text": null,
                     "hints": {
                       "expectedContent": "Provide support channels and response times.",
-                      "override": "once"
+                      "override": "once",
+                      "inlineWithNext": true
                     }
                   }
                 ]
@@ -977,6 +978,7 @@ class ClearTermsDocumentReaderTest {
 
         assertEquals("Provide support channels and response times.", block.hints?.expectedContent)
         assertEquals(ClearTermsTextOverrideSeverity.ONCE, block.hints?.override)
+        assertEquals(true, block.hints?.inlineWithNext)
     }
 
     @Test
@@ -1082,6 +1084,32 @@ class ClearTermsDocumentReaderTest {
 
         assertEquals("Provide contact details.", block.hints?.expectedContent)
         assertEquals(null, block.hints?.override)
+    }
+
+    @Test
+    fun `reads baseline hints with inlineWithNext false`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [
+                  {
+                    "id": "contact",
+                    "text": "Contact.",
+                    "hints": { "inlineWithNext": false }
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+
+        val baseline = reader.readBaseline(parser.parse(json))
+        val block = baseline.textsByLanguage.getValue("en").single()
+
+        assertEquals(false, block.hints?.inlineWithNext)
     }
 
     @Test
@@ -1226,6 +1254,34 @@ class ClearTermsDocumentReaderTest {
             }
 
         assertEquals("Key 'override' must be a string", exception.message)
+    }
+
+    @Test
+    fun `rejects non boolean inlineWithNext in hints`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [
+                  {
+                    "id": "contact",
+                    "text": null,
+                    "hints": { "inlineWithNext": "yes" }
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                reader.readBaseline(parser.parse(json))
+            }
+
+        assertEquals("Key 'inlineWithNext' must be a boolean", exception.message)
     }
 
     @Test

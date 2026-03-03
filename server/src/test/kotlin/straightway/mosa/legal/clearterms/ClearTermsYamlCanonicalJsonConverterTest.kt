@@ -417,7 +417,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
                 converter.convert(baselineYaml, listOf(profileYaml))
             }
 
-        assertEquals("Only string, number and null values are supported", exception.message)
+        assertEquals("Override values must be scalar", exception.message)
     }
 
     @Test

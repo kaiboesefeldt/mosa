@@ -180,6 +180,7 @@ class ClearTermsProfileValidator(
         when (node) {
             is ClearTermsJsonNode.ScalarNode.StringNode -> node.value
             is ClearTermsJsonNode.ScalarNode.NumberNode -> node.value
+            is ClearTermsJsonNode.ScalarNode.BooleanNode -> node.value
             ClearTermsJsonNode.ScalarNode.NullNode -> null
         }
 

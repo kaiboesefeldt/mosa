@@ -2596,6 +2596,34 @@ class ClearTermsRendererTest {
             assertEquals("Baseline block ids must be unique", result.message)
         }
 
+    @Test
+    fun `carries inlineWithNext hint into rendered blocks`() =
+        runTest {
+            val baseline =
+                baselineJson(
+                    """
+                    {
+                      "en": [
+                        {
+                          "id": "rights-label",
+                          "text": "- Access: ",
+                          "hints": { "inlineWithNext": true }
+                        },
+                        { "id": "rights-action", "text": "Download data" }
+                      ]
+                    }
+                    """.trimIndent(),
+                )
+            val defaultProfile = defaultJson(valuesJson = """{ }""")
+            val deviation = deviationJson(valuesJson = """{ }""")
+
+            val result = renderer.renderAll(baseline, defaultProfile, deviation)
+            val blocks = result.blocksByLanguage.getValue("en")
+
+            assertEquals(true, blocks[0].inlineWithNext)
+            assertEquals(false, blocks[1].inlineWithNext)
+        }
+
     private fun baselineJson(
         textsJson: String,
         id: String = "example-policy",

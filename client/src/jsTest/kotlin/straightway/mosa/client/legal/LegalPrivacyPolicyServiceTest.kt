@@ -19,6 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 
 class LegalPrivacyPolicyServiceTest {
     @Test
@@ -294,6 +295,48 @@ class LegalPrivacyPolicyServiceTest {
         val html = service.loadPrivacyPolicyHtml()
 
         assertContains(html, """<div class="legal-ct-baseline-diff"><p>Changed text</p></div>""")
+    }
+
+    @Test
+    fun `renders inlineWithNext block together with following block`() = runTest {
+        val service =
+            LegalPrivacyPolicyService(
+                podBaseProvider = fixedPodBaseProvider("https://pod.example"),
+                podAccessFactory = { RecordingPrivacyPodAccess() },
+                preferredLanguageTagsProvider = { listOf("de") },
+                clearTermsContentProvider =
+                    fixedContentProvider(
+                        renderResultOf(
+                            textsByLanguage = mapOf("de" to "ignored"),
+                            blocksByLanguage =
+                                mapOf(
+                                    "de" to
+                                        listOf(
+                                            ClearTermsRenderedBlock(
+                                                id = "rights-access-label",
+                                                inlineWithNext = true,
+                                                segments =
+                                                    listOf(
+                                                        ClearTermsRenderedBlock.Segment("- Access: ", ClearTermsRenderBackground.NONE),
+                                                    ),
+                                            ),
+                                            ClearTermsRenderedBlock(
+                                                id = "rights-access-action-slot-service",
+                                                segments =
+                                                    listOf(
+                                                        ClearTermsRenderedBlock.Segment("Download data", ClearTermsRenderBackground.NONE),
+                                                    ),
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    ),
+            )
+
+        val html = service.loadPrivacyPolicyHtml()
+
+        assertContains(html, "<ul><li>Access: Download data</li></ul>")
+        assertFalse(html.contains("<p>Download data</p>"))
     }
 }
 
