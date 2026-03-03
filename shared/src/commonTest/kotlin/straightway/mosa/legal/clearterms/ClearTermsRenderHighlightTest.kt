@@ -15,7 +15,7 @@ class ClearTermsRenderHighlightTest {
         )
 
     @Test
-    fun `marks required placeholder from single profile override as yellow`() =
+    fun `keeps required placeholder from single profile override uncolored`() =
         runTest {
             val baseline =
                 """
@@ -53,18 +53,17 @@ class ClearTermsRenderHighlightTest {
             assertEquals(
                 listOf(
                     ClearTermsRenderBackground.NONE,
-                    ClearTermsRenderBackground.YELLOW,
+                    ClearTermsRenderBackground.NONE,
                     ClearTermsRenderBackground.NONE,
                 ),
-                segments.map {
-                    it.background
-                },
+                segments.map { it.background },
             )
+            assertEquals(listOf(false, true, false), segments.map { it.isBaselineOverride })
             assertEquals("Operator: Org A.", segments.joinToString("") { it.text })
         }
 
     @Test
-    fun `marks optional placeholder from single profile override as yellow`() =
+    fun `keeps optional placeholder from single profile override uncolored`() =
         runTest {
             val baseline =
                 """
@@ -102,13 +101,12 @@ class ClearTermsRenderHighlightTest {
             assertEquals(
                 listOf(
                     ClearTermsRenderBackground.NONE,
-                    ClearTermsRenderBackground.YELLOW,
+                    ClearTermsRenderBackground.NONE,
                     ClearTermsRenderBackground.NONE,
                 ),
-                segments.map {
-                    it.background
-                },
+                segments.map { it.background },
             )
+            assertEquals(listOf(false, true, false), segments.map { it.isBaselineOverride })
         }
 
     @Test

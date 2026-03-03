@@ -113,6 +113,7 @@ class ClearTermsValueRendererTest {
                         "a" to ClearTermsRenderBackground.YELLOW,
                         "b" to ClearTermsRenderBackground.YELLOW,
                     ),
+                placeholderIsBaselineOverrideByKey = emptyMap(),
             )
 
         assertEquals(
@@ -132,6 +133,7 @@ class ClearTermsValueRendererTest {
                 values = mapOf("a" to ClearTermsValue(ClearTermsPlaceholderType.STRING, "")),
                 languageTag = "en",
                 placeholderBackgroundByKey = emptyMap(),
+                placeholderIsBaselineOverrideByKey = emptyMap(),
             )
 
         assertEquals(emptyList(), segments)

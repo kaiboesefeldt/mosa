@@ -46,9 +46,7 @@ class LegalPrivacyPolicyService(
         textsByLanguage: Map<String, String>,
         preferredLanguageTags: List<String>,
     ): String {
-        if (textsByLanguage.isEmpty()) {
-            throw IllegalStateException("No ClearTerms text available")
-        }
+        check(textsByLanguage.isNotEmpty()) { "No ClearTerms text available" }
 
         val normalizedTexts = textsByLanguage.entries.associateBy({ normalizeLanguageTag(it.key) }, { it.value })
         val candidates =
@@ -97,7 +95,12 @@ class LegalPrivacyPolicyService(
                         add("legal-ct-baseline-diff")
                     }
                 }.joinToString(" ")
-            """<div class="$classes">$html</div>"""
+            val style = inlineStyleFor(blockBackground)
+            if (style.isEmpty()) {
+                """<div class="$classes">$html</div>"""
+            } else {
+                """<div class="$classes" style="$style">$html</div>"""
+            }
         }
     }
 
@@ -131,10 +134,12 @@ class LegalPrivacyPolicyService(
     private fun ClearTermsRenderedBlock.toMarkedMarkdown(includeBaselineOverrideMarker: Boolean = false): String {
         val rendered =
             segments.joinToString("") { segment ->
-                if (segment.background == ClearTermsRenderBackground.NONE) {
-                    segment.text
-                } else {
-                    "${openMarkerFor(segment.background)}${segment.text}${MARKER_CLOSE}"
+                when {
+                    segment.background != ClearTermsRenderBackground.NONE ->
+                        "${openMarkerFor(segment.background)}${segment.text}${MARKER_CLOSE}"
+                    segment.isBaselineOverride ->
+                        "$MARKER_OPEN_BASELINE${segment.text}$MARKER_CLOSE"
+                    else -> segment.text
                 }
             }
         return if (includeBaselineOverrideMarker && isBaselineOverride) {
@@ -170,10 +175,19 @@ class LegalPrivacyPolicyService(
             ClearTermsRenderBackground.RED -> MARKER_OPEN_RED
         }
 
+    private fun inlineStyleFor(background: ClearTermsRenderBackground): String =
+        when (background) {
+            ClearTermsRenderBackground.NONE -> ""
+            ClearTermsRenderBackground.YELLOW -> INLINE_STYLE_YELLOW
+            ClearTermsRenderBackground.RED -> INLINE_STYLE_RED
+        }
+
     companion object {
         const val MARKER_OPEN_BASELINE = "[[CTBG:DF]]"
         const val MARKER_OPEN_YELLOW = "[[CTBG:YL]]"
         const val MARKER_OPEN_RED = "[[CTBG:RD]]"
         const val MARKER_CLOSE = "[[/CTBG]]"
+        const val INLINE_STYLE_YELLOW = "background-color: #fef3c7; color: #78350f;"
+        const val INLINE_STYLE_RED = "background-color: #fee2e2; color: #7f1d1d;"
     }
 }

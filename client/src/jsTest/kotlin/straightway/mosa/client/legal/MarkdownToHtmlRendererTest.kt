@@ -37,7 +37,7 @@ class MarkdownToHtmlRendererTest {
         val html = renderer.render(markdown)
 
         assertEquals(
-            """<p>Value: <span class="legal-ct-bg-yellow legal-ct-baseline-diff">10</span>.</p>""",
+            """<p>Value: <span class="legal-ct-bg-yellow legal-ct-baseline-diff" style="background-color: #fef3c7; color: #78350f;">10</span>.</p>""",
             html,
         )
     }
@@ -51,7 +51,7 @@ class MarkdownToHtmlRendererTest {
         val html = renderer.render(markdown)
 
         assertEquals(
-            """<p><span class="legal-ct-bg-yellow legal-ct-baseline-diff">ok</span> <span class="legal-ct-bg-red legal-ct-baseline-diff">risk</span></p>""",
+            """<p><span class="legal-ct-bg-yellow legal-ct-baseline-diff" style="background-color: #fef3c7; color: #78350f;">ok</span> <span class="legal-ct-bg-red legal-ct-baseline-diff" style="background-color: #fee2e2; color: #7f1d1d;">risk</span></p>""",
             html,
         )
     }

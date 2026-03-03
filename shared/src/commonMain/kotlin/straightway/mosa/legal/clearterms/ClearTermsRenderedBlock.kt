@@ -9,5 +9,6 @@ data class ClearTermsRenderedBlock(
     data class Segment(
         val text: String,
         val background: ClearTermsRenderBackground,
+        val isBaselineOverride: Boolean = false,
     )
 }

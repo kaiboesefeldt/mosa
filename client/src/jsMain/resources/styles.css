@@ -1859,11 +1859,13 @@ button:disabled {
 }
 
 .legal-ct-bg-yellow {
-    background: transparent;
+    color: #78350f;
+    background-color: #fef3c7;
 }
 
 .legal-ct-bg-red {
-    background: transparent;
+    color: #7f1d1d;
+    background-color: #fee2e2;
 }
 
 .legal-ct-baseline-diff {

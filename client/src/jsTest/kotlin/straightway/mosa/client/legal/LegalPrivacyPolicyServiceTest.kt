@@ -131,7 +131,49 @@ class LegalPrivacyPolicyServiceTest {
 
         val html = service.loadPrivacyPolicyHtml()
 
-        assertContains(html, """Operator: <span class="legal-ct-bg-yellow legal-ct-baseline-diff">Org A</span>.""")
+        assertContains(
+            html,
+            """Operator: <span class="legal-ct-bg-yellow legal-ct-baseline-diff" style="background-color: #fef3c7; color: #78350f;">Org A</span>.""",
+        )
+    }
+
+    @Test
+    fun `renders uncolored overridden placeholder segment with baseline marker span`() = runTest {
+        val service =
+            LegalPrivacyPolicyService(
+                podBaseProvider = fixedPodBaseProvider("https://pod.example"),
+                podAccessFactory = { RecordingPrivacyPodAccess() },
+                preferredLanguageTagsProvider = { listOf("de") },
+                clearTermsContentProvider =
+                    fixedContentProvider(
+                        renderResultOf(
+                            textsByLanguage = mapOf("de" to "ignored"),
+                            blocksByLanguage =
+                                mapOf(
+                                    "de" to
+                                        listOf(
+                                            ClearTermsRenderedBlock(
+                                                id = "main",
+                                                segments =
+                                                    listOf(
+                                                        ClearTermsRenderedBlock.Segment("In ", ClearTermsRenderBackground.NONE),
+                                                        ClearTermsRenderedBlock.Segment(
+                                                            "Mosa",
+                                                            ClearTermsRenderBackground.NONE,
+                                                            isBaselineOverride = true,
+                                                        ),
+                                                        ClearTermsRenderedBlock.Segment(" werden Daten genutzt.", ClearTermsRenderBackground.NONE),
+                                                    ),
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    ),
+            )
+
+        val html = service.loadPrivacyPolicyHtml()
+
+        assertContains(html, """In <span class="legal-ct-baseline-diff">Mosa</span> werden Daten genutzt.""")
     }
 
     @Test
@@ -222,7 +264,7 @@ class LegalPrivacyPolicyServiceTest {
 
         assertContains(
             html,
-            """<div class="legal-ct-bg-red"><p><span class="legal-ct-bg-red legal-ct-baseline-diff">Block text</span></p></div>""",
+            """<div class="legal-ct-bg-red" style="background-color: #fee2e2; color: #7f1d1d;"><p><span class="legal-ct-bg-red legal-ct-baseline-diff" style="background-color: #fee2e2; color: #7f1d1d;">Block text</span></p></div>""",
         )
     }
 
@@ -259,7 +301,7 @@ class LegalPrivacyPolicyServiceTest {
 
         assertContains(
             html,
-            """<span class="legal-ct-bg-red legal-ct-baseline-diff">A</span><span class="legal-ct-bg-yellow legal-ct-baseline-diff">B</span>""",
+            """<span class="legal-ct-bg-red legal-ct-baseline-diff" style="background-color: #fee2e2; color: #7f1d1d;">A</span><span class="legal-ct-bg-yellow legal-ct-baseline-diff" style="background-color: #fef3c7; color: #78350f;">B</span>""",
         )
     }
 

@@ -160,9 +160,21 @@ class ClearTermsRenderer(
                                         finalPlaceholders = finalPlaceholders,
                                         placeholderOverrideCount = placeholderOverrideCount,
                                     ),
+                                placeholderIsBaselineOverrideByKey =
+                                    placeholderIsBaselineOverrideByKey(
+                                        finalPlaceholders = finalPlaceholders,
+                                        placeholderOverrideCount = placeholderOverrideCount,
+                                    ),
                             )
                         } else {
-                            val rendered = valueRenderer.renderBlockSegments(block, finalValues, language, emptyMap())
+                            val rendered =
+                                valueRenderer.renderBlockSegments(
+                                    block = block,
+                                    values = finalValues,
+                                    languageTag = language,
+                                    placeholderBackgroundByKey = emptyMap(),
+                                    placeholderIsBaselineOverrideByKey = emptyMap(),
+                                )
                             val text = rendered.joinToString("") { segment -> segment.text }
                             listOf(ClearTermsRenderedBlock.Segment(text, blockBackground))
                         }
@@ -272,10 +284,21 @@ class ClearTermsRenderer(
             val overrideCount = placeholderOverrideCount[key] ?: 0
             backgrounds[key] =
                 when {
-                    overrideCount > 0 -> ClearTermsRenderBackground.YELLOW
+                    overrideCount > 1 -> ClearTermsRenderBackground.YELLOW
                     else -> ClearTermsRenderBackground.NONE
                 }
         }
         return backgrounds
+    }
+
+    private fun placeholderIsBaselineOverrideByKey(
+        finalPlaceholders: Map<String, ClearTermsPlaceholderType>,
+        placeholderOverrideCount: Map<String, Int>,
+    ): Map<String, Boolean> {
+        val overrides = linkedMapOf<String, Boolean>()
+        finalPlaceholders.keys.forEach { key ->
+            overrides[key] = (placeholderOverrideCount[key] ?: 0) > 0
+        }
+        return overrides
     }
 }

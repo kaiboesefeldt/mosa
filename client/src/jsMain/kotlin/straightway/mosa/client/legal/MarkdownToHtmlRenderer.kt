@@ -89,12 +89,16 @@ class MarkdownToHtmlRenderer {
                     }
 
                     text.startsWith(LegalPrivacyPolicyService.MARKER_OPEN_YELLOW, index) -> {
-                        append("""<span class="legal-ct-bg-yellow legal-ct-baseline-diff">""")
+                        append(
+                            """<span class="legal-ct-bg-yellow legal-ct-baseline-diff" style="${LegalPrivacyPolicyService.INLINE_STYLE_YELLOW}">""",
+                        )
                         index += LegalPrivacyPolicyService.MARKER_OPEN_YELLOW.length
                     }
 
                     text.startsWith(LegalPrivacyPolicyService.MARKER_OPEN_RED, index) -> {
-                        append("""<span class="legal-ct-bg-red legal-ct-baseline-diff">""")
+                        append(
+                            """<span class="legal-ct-bg-red legal-ct-baseline-diff" style="${LegalPrivacyPolicyService.INLINE_STYLE_RED}">""",
+                        )
                         index += LegalPrivacyPolicyService.MARKER_OPEN_RED.length
                     }
 

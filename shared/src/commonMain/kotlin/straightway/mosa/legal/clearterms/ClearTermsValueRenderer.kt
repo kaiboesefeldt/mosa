@@ -46,6 +46,7 @@ class ClearTermsValueRenderer(
         values: Map<String, ClearTermsValue>,
         languageTag: String,
         placeholderBackgroundByKey: Map<String, ClearTermsRenderBackground>,
+        placeholderIsBaselineOverrideByKey: Map<String, Boolean>,
     ): List<ClearTermsRenderedBlock.Segment> {
         val text = block.text ?: throw ClearTermsValidationException("Unresolved text block '${block.id}'")
         val segments = placeholderParser.parse(text)
@@ -62,7 +63,8 @@ class ClearTermsValueRenderer(
                     val rendered = renderPlaceholder(segment.placeholder, values, languageTag)
                     if (rendered.isNotEmpty()) {
                         val background = placeholderBackgroundByKey[segment.placeholder.key] ?: ClearTermsRenderBackground.NONE
-                        renderedSegments += ClearTermsRenderedBlock.Segment(rendered, background)
+                        val isBaselineOverride = placeholderIsBaselineOverrideByKey[segment.placeholder.key] == true
+                        renderedSegments += ClearTermsRenderedBlock.Segment(rendered, background, isBaselineOverride)
                     }
                 }
             }
@@ -161,8 +163,13 @@ class ClearTermsValueRenderer(
         val merged = mutableListOf<ClearTermsRenderedBlock.Segment>()
         segments.forEach { segment ->
             val last = merged.lastOrNull()
-            if (last != null && last.background == segment.background) {
-                merged[merged.lastIndex] = ClearTermsRenderedBlock.Segment(last.text + segment.text, last.background)
+            if (last != null && last.background == segment.background && last.isBaselineOverride == segment.isBaselineOverride) {
+                merged[merged.lastIndex] =
+                    ClearTermsRenderedBlock.Segment(
+                        text = last.text + segment.text,
+                        background = last.background,
+                        isBaselineOverride = last.isBaselineOverride,
+                    )
             } else {
                 merged += segment
             }
