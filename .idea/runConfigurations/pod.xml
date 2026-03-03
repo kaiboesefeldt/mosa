@@ -2,7 +2,7 @@
   <configuration default="false" name="pod" type="JetRunConfigurationType">
     <option name="MAIN_CLASS_NAME" value="straightway.mosa.MainKt" />
     <module name="mosa.server.main" />
-    <option name="PROGRAM_PARAMETERS" value="serve --serve-source-maps  --dev-self-signed-tls --dev-cert-host $MOSA_HOST$ --https-port 8443 --memory-shedding-system-start 0.98 --memory-shedding-system-full 0.999" />
+    <option name="PROGRAM_PARAMETERS" value="serve --serve-source-maps  --dev-self-signed-tls --dev-cert-host $MOSA_HOST$ --https-port 8443 --memory-shedding-system-start 0.9 --memory-shedding-system-full 0.95" />
     <shortenClasspath name="NONE" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/runtime" />
     <method v="2">

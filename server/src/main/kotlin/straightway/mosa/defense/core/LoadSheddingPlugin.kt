@@ -19,9 +19,9 @@ import straightway.mosa.defense.cpu.ProcessCpuTimeSampler
 import straightway.mosa.defense.cpu.SmoothedCpuLoadSampler
 import straightway.mosa.defense.memory.GenericMemoryUsageSampler
 import straightway.mosa.defense.memory.MemorySheddingDecider
+import straightway.mosa.defense.memory.SystemMemoryUsageSampler
 import straightway.mosa.defense.requestduration.RequestDurationSheddingDecider
 import java.lang.management.ManagementFactory
-import java.lang.management.MemoryUsage
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.math.max
@@ -180,14 +180,7 @@ private fun Koin.systemMemorySheddingDecider() =
         getOrNull<OperatingSystemMXBean>()?.let { osBean ->
             MemorySheddingDecider(
                 systemMemorySheddingConfig,
-                GenericMemoryUsageSampler("SystemHeapMemory") {
-                    MemoryUsage(
-                        0L,
-                        osBean.totalMemorySize - osBean.freeMemorySize,
-                        osBean.totalMemorySize,
-                        osBean.totalMemorySize,
-                    )
-                },
+                SystemMemoryUsageSampler(osBean),
             )
         } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
             .also {
