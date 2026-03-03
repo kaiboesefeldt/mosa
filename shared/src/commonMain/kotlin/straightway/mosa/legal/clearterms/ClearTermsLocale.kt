@@ -8,6 +8,7 @@ data class ClearTermsLocale(
     val groupingSeparator: Char,
     val atWord: String,
     val patterns: Patterns,
+    val duration: DurationTexts = DurationTexts(),
 ) {
     data class Patterns(
         val onFullDate: String,
@@ -23,6 +24,36 @@ data class ClearTermsLocale(
         val onLastDayOfEveryMonthInYear: String,
         val onLastDayOfEveryMonth: String,
     )
+
+    data class DurationTexts(
+        val infinite: String = "infinite",
+        val units: Map<String, UnitTexts> = defaultDurationUnits,
+    ) {
+        data class UnitTexts(
+            val singular: String,
+            val plural: String,
+        )
+
+        fun labelFor(
+            unit: Char,
+            singular: Boolean,
+        ): String {
+            val texts = units[unit.toString()] ?: throw ClearTermsValidationException("Unsupported duration unit '$unit'")
+            return if (singular) texts.singular else texts.plural
+        }
+
+        private companion object {
+            private val defaultDurationUnits: Map<String, UnitTexts> =
+                mapOf(
+                    "s" to UnitTexts("second", "seconds"),
+                    "m" to UnitTexts("minute", "minutes"),
+                    "h" to UnitTexts("hour", "hours"),
+                    "d" to UnitTexts("day", "days"),
+                    "w" to UnitTexts("week", "weeks"),
+                    "y" to UnitTexts("year", "years"),
+                )
+        }
+    }
 
     fun monthName(month: Int): String = months[month - 1]
 

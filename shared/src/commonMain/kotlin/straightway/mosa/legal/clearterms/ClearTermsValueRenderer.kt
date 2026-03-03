@@ -4,6 +4,7 @@ class ClearTermsValueRenderer(
     private val placeholderParser: ClearTermsPlaceholderParser,
     private val localeProvider: ClearTermsLocaleProvider,
     private val numberRenderer: ClearTermsNumberRenderer = ClearTermsNumberRenderer(),
+    private val durationTextRenderer: ClearTermsDurationTextRenderer = ClearTermsDurationTextRenderer(),
     private val timeTextRenderer: ClearTermsTimeTextRenderer = ClearTermsTimeTextRenderer(),
 ) {
     fun renderBlocks(
@@ -97,7 +98,7 @@ class ClearTermsValueRenderer(
         return when (value.type) {
             ClearTermsPlaceholderType.STRING -> raw as String
             ClearTermsPlaceholderType.NUMBER -> numberRenderer.format(raw as Double, placeholder.numberOptions, locale)
-            ClearTermsPlaceholderType.DURATION -> raw as String
+            ClearTermsPlaceholderType.DURATION -> durationTextRenderer.renderDurationValue(raw as String, locale)
             ClearTermsPlaceholderType.TIME -> timeTextRenderer.renderTimeValue(raw as String, locale)
             ClearTermsPlaceholderType.WEEKDAY -> timeTextRenderer.renderWeekday(raw as String, locale)
         }

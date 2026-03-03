@@ -103,7 +103,7 @@ class ClearTermsRendererTest {
 
             val expected =
                 """
-                Retention: infinite.
+                Retention: indefinitely.
                 """.trimIndent()
             assertEquals(expected, result)
         }
@@ -1523,7 +1523,7 @@ class ClearTermsRendererTest {
 
             val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
 
-            assertEquals("Retention:   \"30d\"  .", result)
+            assertEquals("Retention: 30 days.", result)
         }
 
     @Test
@@ -2742,6 +2742,7 @@ class ClearTermsRendererTest {
                                 onLastDayOfEveryMonthInYear = "on the last day of every month in {year}",
                                 onLastDayOfEveryMonth = "on the last day of every month",
                             ),
+                        duration = ClearTermsLocale.DurationTexts(infinite = "indefinitely"),
                     ),
                 "de" to
                     ClearTermsLocale(
@@ -2788,6 +2789,19 @@ class ClearTermsRendererTest {
                                 onLastDayOfMonthEveryYear = "am letzten Tag des {month} jedes Jahr",
                                 onLastDayOfEveryMonthInYear = "am letzten Tag jedes Monats im Jahr {year}",
                                 onLastDayOfEveryMonth = "am letzten Tag jedes Monats",
+                            ),
+                        duration =
+                            ClearTermsLocale.DurationTexts(
+                                infinite = "unbegrenzt",
+                                units =
+                                    mapOf(
+                                        "s" to ClearTermsLocale.DurationTexts.UnitTexts("Sekunde", "Sekunden"),
+                                        "m" to ClearTermsLocale.DurationTexts.UnitTexts("Minute", "Minuten"),
+                                        "h" to ClearTermsLocale.DurationTexts.UnitTexts("Stunde", "Stunden"),
+                                        "d" to ClearTermsLocale.DurationTexts.UnitTexts("Tag", "Tage"),
+                                        "w" to ClearTermsLocale.DurationTexts.UnitTexts("Woche", "Wochen"),
+                                        "y" to ClearTermsLocale.DurationTexts.UnitTexts("Jahr", "Jahre"),
+                                    ),
                             ),
                     ),
             )

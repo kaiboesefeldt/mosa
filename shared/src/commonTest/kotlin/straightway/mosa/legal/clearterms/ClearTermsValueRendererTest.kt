@@ -60,14 +60,50 @@ class ClearTermsValueRendererTest {
                     mapOf(
                         "name" to ClearTermsValue(ClearTermsPlaceholderType.STRING, "Alice"),
                         "limit" to ClearTermsValue(ClearTermsPlaceholderType.NUMBER, 12.5),
-                        "dur" to ClearTermsValue(ClearTermsPlaceholderType.DURATION, "P1D"),
+                        "dur" to ClearTermsValue(ClearTermsPlaceholderType.DURATION, "1d"),
                         "start" to ClearTermsValue(ClearTermsPlaceholderType.TIME, "2025-01-15"),
                         "day" to ClearTermsValue(ClearTermsPlaceholderType.WEEKDAY, "mon"),
                     ),
                 languageTag = "en",
             )
 
-        assertEquals("User Alice, limit 12.5, duration P1D, time on January 15, 2025, weekday Monday.", rendered)
+        assertEquals("User Alice, limit 12.5, duration 1 day, time on January 15, 2025, weekday Monday.", rendered)
+    }
+
+    @Test
+    fun `renders duration values localized in german`() {
+        val rendered =
+            renderer.renderBlocks(
+                blocks =
+                    listOf(
+                        ClearTermsTextBlock(
+                            id = "main",
+                            text = "Aufbewahrung: {{duration:dur}}.",
+                        ),
+                    ),
+                values = mapOf("dur" to ClearTermsValue(ClearTermsPlaceholderType.DURATION, "14d")),
+                languageTag = "de",
+            )
+
+        assertEquals("Aufbewahrung: 14 Tage.", rendered)
+    }
+
+    @Test
+    fun `renders infinite duration localized`() {
+        val rendered =
+            renderer.renderBlocks(
+                blocks =
+                    listOf(
+                        ClearTermsTextBlock(
+                            id = "main",
+                            text = "Retention: {{duration:dur}}.",
+                        ),
+                    ),
+                values = mapOf("dur" to ClearTermsValue(ClearTermsPlaceholderType.DURATION, "infinite")),
+                languageTag = "en",
+            )
+
+        assertEquals("Retention: indefinitely.", rendered)
     }
 
     @Test
@@ -176,6 +212,13 @@ class ClearTermsValueRendererTest {
 
     private class TestLocaleProvider : ClearTermsLocaleProvider {
         override fun resolve(languageTag: String): ClearTermsLocale =
+            if (languageTag.lowercase().startsWith("de")) {
+                germanLocale()
+            } else {
+                englishLocale()
+            }
+
+        private fun englishLocale(): ClearTermsLocale =
             ClearTermsLocale(
                 language = "en",
                 months =
@@ -220,6 +263,71 @@ class ClearTermsValueRendererTest {
                         onLastDayOfMonthEveryYear = "on the last day of {month} every year",
                         onLastDayOfEveryMonthInYear = "on the last day of every month in {year}",
                         onLastDayOfEveryMonth = "on the last day of every month",
+                    ),
+                duration =
+                    ClearTermsLocale.DurationTexts(
+                        infinite = "indefinitely",
+                    ),
+            )
+
+        private fun germanLocale(): ClearTermsLocale =
+            ClearTermsLocale(
+                language = "de",
+                months =
+                    listOf(
+                        "Januar",
+                        "Februar",
+                        "Maerz",
+                        "April",
+                        "Mai",
+                        "Juni",
+                        "Juli",
+                        "August",
+                        "September",
+                        "Oktober",
+                        "November",
+                        "Dezember",
+                    ),
+                weekdays =
+                    mapOf(
+                        "mon" to "Montag",
+                        "tue" to "Dienstag",
+                        "wed" to "Mittwoch",
+                        "thu" to "Donnerstag",
+                        "fri" to "Freitag",
+                        "sat" to "Samstag",
+                        "sun" to "Sonntag",
+                    ),
+                decimalSeparator = ',',
+                groupingSeparator = '.',
+                atWord = "um",
+                patterns =
+                    ClearTermsLocale.Patterns(
+                        onFullDate = "am {day}. {month} {year}",
+                        inMonthYear = "im {month} {year}",
+                        onDayOfEveryMonthInYear = "am {day}. jedes Monats im Jahr {year}",
+                        inYear = "im Jahr {year}",
+                        onMonthDayEveryYear = "am {day}. {month} jedes Jahr",
+                        everyDayInMonth = "jeden Tag im {month}",
+                        onDayOfEveryMonth = "am {day}. jedes Monats",
+                        everyDay = "jeden Tag",
+                        onLastDayOfMonth = "am letzten Tag des {month} {year}",
+                        onLastDayOfMonthEveryYear = "am letzten Tag des {month} jedes Jahr",
+                        onLastDayOfEveryMonthInYear = "am letzten Tag jedes Monats im Jahr {year}",
+                        onLastDayOfEveryMonth = "am letzten Tag jedes Monats",
+                    ),
+                duration =
+                    ClearTermsLocale.DurationTexts(
+                        infinite = "unbegrenzt",
+                        units =
+                            mapOf(
+                                "s" to ClearTermsLocale.DurationTexts.UnitTexts("Sekunde", "Sekunden"),
+                                "m" to ClearTermsLocale.DurationTexts.UnitTexts("Minute", "Minuten"),
+                                "h" to ClearTermsLocale.DurationTexts.UnitTexts("Stunde", "Stunden"),
+                                "d" to ClearTermsLocale.DurationTexts.UnitTexts("Tag", "Tage"),
+                                "w" to ClearTermsLocale.DurationTexts.UnitTexts("Woche", "Wochen"),
+                                "y" to ClearTermsLocale.DurationTexts.UnitTexts("Jahr", "Jahre"),
+                            ),
                     ),
             )
     }

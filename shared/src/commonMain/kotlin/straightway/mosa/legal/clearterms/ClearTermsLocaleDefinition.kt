@@ -11,6 +11,7 @@ data class ClearTermsLocaleDefinition(
     val groupingSeparator: String,
     val atWord: String,
     val patterns: Patterns,
+    val duration: DurationTexts = DurationTexts(),
 ) {
     @Serializable
     data class Patterns(
@@ -27,6 +28,30 @@ data class ClearTermsLocaleDefinition(
         val onLastDayOfEveryMonthInYear: String,
         val onLastDayOfEveryMonth: String,
     )
+
+    @Serializable
+    data class DurationTexts(
+        val infinite: String = "infinite",
+        val units: Map<String, UnitTexts> = defaultDurationUnits,
+    ) {
+        @Serializable
+        data class UnitTexts(
+            val singular: String,
+            val plural: String,
+        )
+
+        private companion object {
+            private val defaultDurationUnits: Map<String, UnitTexts> =
+                mapOf(
+                    "s" to UnitTexts("second", "seconds"),
+                    "m" to UnitTexts("minute", "minutes"),
+                    "h" to UnitTexts("hour", "hours"),
+                    "d" to UnitTexts("day", "days"),
+                    "w" to UnitTexts("week", "weeks"),
+                    "y" to UnitTexts("year", "years"),
+                )
+        }
+    }
 
     fun toLocale(): ClearTermsLocale =
         ClearTermsLocale(
@@ -50,6 +75,17 @@ data class ClearTermsLocaleDefinition(
                     onLastDayOfMonthEveryYear = patterns.onLastDayOfMonthEveryYear,
                     onLastDayOfEveryMonthInYear = patterns.onLastDayOfEveryMonthInYear,
                     onLastDayOfEveryMonth = patterns.onLastDayOfEveryMonth,
+                ),
+            duration =
+                ClearTermsLocale.DurationTexts(
+                    infinite = duration.infinite,
+                    units =
+                        duration.units.mapValues { (_, value) ->
+                            ClearTermsLocale.DurationTexts.UnitTexts(
+                                singular = value.singular,
+                                plural = value.plural,
+                            )
+                        },
                 ),
         )
 }

@@ -26,6 +26,35 @@
   "decimalSeparator": ",",
   "groupingSeparator": ".",
   "atWord": "um",
+  "duration": {
+    "infinite": "unbegrenzt",
+    "units": {
+      "s": {
+        "singular": "Sekunde",
+        "plural": "Sekunden"
+      },
+      "m": {
+        "singular": "Minute",
+        "plural": "Minuten"
+      },
+      "h": {
+        "singular": "Stunde",
+        "plural": "Stunden"
+      },
+      "d": {
+        "singular": "Tag",
+        "plural": "Tage"
+      },
+      "w": {
+        "singular": "Woche",
+        "plural": "Wochen"
+      },
+      "y": {
+        "singular": "Jahr",
+        "plural": "Jahre"
+      }
+    }
+  },
   "patterns": {
     "onFullDate": "am {day}. {month} {year}",
     "inMonthYear": "im {month} {year}",
