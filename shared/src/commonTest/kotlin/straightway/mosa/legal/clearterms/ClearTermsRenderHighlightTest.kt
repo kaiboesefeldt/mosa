@@ -149,6 +149,94 @@ class ClearTermsRenderHighlightTest {
         }
 
     @Test
+    fun `marks text block override as yellow when baseline override hint is warn`() =
+        runTest {
+            val baseline =
+                """
+                {
+                  "kind": "baseline",
+                  "id": "policy",
+                  "version": "1",
+                  "texts": {
+                    "en": [
+                      { "id": "main", "text": "Baseline text.", "hints": { "override": "warn" } }
+                    ]
+                  }
+                }
+                """.trimIndent()
+            val profile =
+                """
+                {
+                  "kind": "profile",
+                  "id": "policy-default",
+                  "version": "1",
+                  "parent": { "id": "policy", "version": "1", "hash": "sha256:01" },
+                  "overrides": {
+                    "values": {},
+                    "texts": {
+                      "en": {
+                        "replace": { "main": "Changed text." }
+                      }
+                    }
+                  }
+                }
+                """.trimIndent()
+
+            val result = renderer.renderAll(baseline, listOf(profile))
+            val segments =
+                result.blocksByLanguage
+                    .getValue("en")
+                    .single()
+                    .segments
+
+            assertEquals(listOf(ClearTermsRenderBackground.YELLOW), segments.map { it.background })
+        }
+
+    @Test
+    fun `keeps text block override uncolored when baseline override hint is ok`() =
+        runTest {
+            val baseline =
+                """
+                {
+                  "kind": "baseline",
+                  "id": "policy",
+                  "version": "1",
+                  "texts": {
+                    "en": [
+                      { "id": "main", "text": "Baseline text.", "hints": { "override": "ok" } }
+                    ]
+                  }
+                }
+                """.trimIndent()
+            val profile =
+                """
+                {
+                  "kind": "profile",
+                  "id": "policy-default",
+                  "version": "1",
+                  "parent": { "id": "policy", "version": "1", "hash": "sha256:01" },
+                  "overrides": {
+                    "values": {},
+                    "texts": {
+                      "en": {
+                        "replace": { "main": "Changed text." }
+                      }
+                    }
+                  }
+                }
+                """.trimIndent()
+
+            val result = renderer.renderAll(baseline, listOf(profile))
+            val segments =
+                result.blocksByLanguage
+                    .getValue("en")
+                    .single()
+                    .segments
+
+            assertEquals(listOf(ClearTermsRenderBackground.NONE), segments.map { it.background })
+        }
+
+    @Test
     fun `keeps single override of null baseline text block uncolored`() =
         runTest {
             val baseline =

@@ -19,11 +19,11 @@ class ClearTermsProfileChainCompletenessCheckerTest {
               "version":"1.0",
               "texts":{
                 "de":[
-                  {"id":"slot","text":null,"hints":{"expectedContent":"Fill this section","overrideSeverity":"required"}},
+                  {"id":"slot","text":null,"hints":{"expectedContent":"Fill this section","override":"once"}},
                   {"id":"contact","text":"Kontakt: {{string:CONTACT_EMAIL}}"}
                 ],
                 "en":[
-                  {"id":"slot","text":null,"hints":{"expectedContent":"Fill this section","overrideSeverity":"required"}},
+                  {"id":"slot","text":null,"hints":{"expectedContent":"Fill this section","override":"once"}},
                   {"id":"contact","text":"Contact: {{string:CONTACT_EMAIL}}"}
                 ]
               }
@@ -74,11 +74,11 @@ class ClearTermsProfileChainCompletenessCheckerTest {
               "version":"1.0",
               "texts":{
                 "de":[
-                  {"id":"slot","text":null,"hints":{"expectedContent":"Fill this section","overrideSeverity":"required"}},
+                  {"id":"slot","text":null,"hints":{"expectedContent":"Fill this section","override":"once"}},
                   {"id":"contact","text":"Kontakt: {{string:CONTACT_EMAIL}}"}
                 ],
                 "en":[
-                  {"id":"slot","text":null,"hints":{"expectedContent":"Fill this section","overrideSeverity":"required"}},
+                  {"id":"slot","text":null,"hints":{"expectedContent":"Fill this section","override":"once"}},
                   {"id":"contact","text":"Contact: {{string:CONTACT_EMAIL}}"}
                 ]
               }
@@ -338,7 +338,7 @@ class ClearTermsProfileChainCompletenessCheckerTest {
               "version":"1.0",
               "texts":{
                 "en":[
-                  {"id":"policy","text":"Policy text","hints":{"overrideSeverity":"required"}}
+                  {"id":"policy","text":null,"hints":{"override":"once"}}
                 ]
               }
             }
@@ -363,7 +363,7 @@ class ClearTermsProfileChainCompletenessCheckerTest {
               "version":"1.0",
               "texts":{
                 "en":[
-                  {"id":"policy","text":null,"hints":{"expectedContent":"First line\nSecond line\rThird line","overrideSeverity":"required"}}
+                  {"id":"policy","text":null,"hints":{"expectedContent":"First line\nSecond line\rThird line","override":"once"}}
                 ]
               }
             }
@@ -413,7 +413,7 @@ class ClearTermsProfileChainCompletenessCheckerTest {
               "version":"1.0",
               "texts":{
                 "en":[
-                  {"id":"slot","text":null,"hints":{"expectedContent":"Fill slot","overrideSeverity":"required"}},
+                  {"id":"slot","text":null,"hints":{"expectedContent":"Fill slot","override":"once"}},
                   {"id":"contact","text":"Contact: {{string:CONTACT_EMAIL}}"}
                 ]
               }

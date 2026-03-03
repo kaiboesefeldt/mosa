@@ -964,7 +964,7 @@ class ClearTermsDocumentReaderTest {
                     "text": null,
                     "hints": {
                       "expectedContent": "Provide support channels and response times.",
-                      "overrideSeverity": "required"
+                      "override": "once"
                     }
                   }
                 ]
@@ -976,7 +976,7 @@ class ClearTermsDocumentReaderTest {
         val block = baseline.textsByLanguage.getValue("en").single()
 
         assertEquals("Provide support channels and response times.", block.hints?.expectedContent)
-        assertEquals(ClearTermsTextOverrideSeverity.REQUIRED, block.hints?.overrideSeverity)
+        assertEquals(ClearTermsTextOverrideSeverity.ONCE, block.hints?.override)
     }
 
     @Test
@@ -992,7 +992,7 @@ class ClearTermsDocumentReaderTest {
                   {
                     "id": "contact",
                     "text": "Contact.",
-                    "hints": { "overrideSeverity": "normal" }
+                    "hints": { "override": "ok" }
                   }
                 ]
               }
@@ -1002,11 +1002,11 @@ class ClearTermsDocumentReaderTest {
         val baseline = reader.readBaseline(parser.parse(json))
         val block = baseline.textsByLanguage.getValue("en").single()
 
-        assertEquals(ClearTermsTextOverrideSeverity.NORMAL, block.hints?.overrideSeverity)
+        assertEquals(ClearTermsTextOverrideSeverity.OK, block.hints?.override)
     }
 
     @Test
-    fun `reads baseline hints with restrictive severity`() {
+    fun `reads baseline hints with alert severity`() {
         val json =
             """
             {
@@ -1018,7 +1018,7 @@ class ClearTermsDocumentReaderTest {
                   {
                     "id": "contact",
                     "text": "Contact.",
-                    "hints": { "overrideSeverity": "restrictive" }
+                    "hints": { "override": "alert" }
                   }
                 ]
               }
@@ -1028,7 +1028,33 @@ class ClearTermsDocumentReaderTest {
         val baseline = reader.readBaseline(parser.parse(json))
         val block = baseline.textsByLanguage.getValue("en").single()
 
-        assertEquals(ClearTermsTextOverrideSeverity.RESTRICTIVE, block.hints?.overrideSeverity)
+        assertEquals(ClearTermsTextOverrideSeverity.ALERT, block.hints?.override)
+    }
+
+    @Test
+    fun `reads baseline hints with warn severity`() {
+        val json =
+            """
+            {
+              "kind": "baseline",
+              "id": "example-policy",
+              "version": "1.0",
+              "texts": {
+                "en": [
+                  {
+                    "id": "contact",
+                    "text": "Contact.",
+                    "hints": { "override": "warn" }
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+
+        val baseline = reader.readBaseline(parser.parse(json))
+        val block = baseline.textsByLanguage.getValue("en").single()
+
+        assertEquals(ClearTermsTextOverrideSeverity.WARN, block.hints?.override)
     }
 
     @Test
@@ -1055,7 +1081,7 @@ class ClearTermsDocumentReaderTest {
         val block = baseline.textsByLanguage.getValue("en").single()
 
         assertEquals("Provide contact details.", block.hints?.expectedContent)
-        assertEquals(null, block.hints?.overrideSeverity)
+        assertEquals(null, block.hints?.override)
     }
 
     @Test
@@ -1073,7 +1099,7 @@ class ClearTermsDocumentReaderTest {
                     "replace": {
                       "contact": {
                         "text": "Contact: support@example.org.",
-                        "hints": { "overrideSeverity": "required" }
+                        "hints": { "override": "once" }
                       }
                     }
                   }
@@ -1103,7 +1129,7 @@ class ClearTermsDocumentReaderTest {
                   {
                     "id": "contact",
                     "text": null,
-                    "hints": { "overrideSeverity": "soft" }
+                    "hints": { "override": "soft" }
                   }
                 ]
               }
@@ -1175,7 +1201,7 @@ class ClearTermsDocumentReaderTest {
     }
 
     @Test
-    fun `rejects non string overrideSeverity in hints`() {
+    fun `rejects non string override in hints`() {
         val json =
             """
             {
@@ -1187,7 +1213,7 @@ class ClearTermsDocumentReaderTest {
                   {
                     "id": "contact",
                     "text": null,
-                    "hints": { "overrideSeverity": 5 }
+                    "hints": { "override": 5 }
                   }
                 ]
               }
@@ -1199,7 +1225,7 @@ class ClearTermsDocumentReaderTest {
                 reader.readBaseline(parser.parse(json))
             }
 
-        assertEquals("Key 'overrideSeverity' must be a string", exception.message)
+        assertEquals("Key 'override' must be a string", exception.message)
     }
 
     @Test
@@ -1219,7 +1245,7 @@ class ClearTermsDocumentReaderTest {
                       {
                         "id": "extra",
                         "text": "Extra.",
-                        "hints": { "overrideSeverity": "required" }
+                        "hints": { "override": "once" }
                       }
                     ]
                   }

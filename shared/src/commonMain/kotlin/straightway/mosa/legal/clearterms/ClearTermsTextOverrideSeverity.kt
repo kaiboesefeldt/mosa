@@ -1,7 +1,8 @@
 package straightway.mosa.legal.clearterms
 
 enum class ClearTermsTextOverrideSeverity {
-    NORMAL,
-    RESTRICTIVE,
-    REQUIRED,
+    ALERT,
+    WARN,
+    ONCE,
+    OK,
 }

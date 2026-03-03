@@ -36,7 +36,7 @@ texts:
       text: null
       hints:
         expectedContent: "Service-specific replacement required in derived profiles."
-        overrideSeverity: required
+        override: once
 
     - id: data-use-principle
       text: |
@@ -52,7 +52,7 @@ texts:
       text: null
       hints:
         expectedContent: "Service-specific replacement required in derived profiles."
-        overrideSeverity: required
+        override: once
 
     - id: data-categories-operational
       text: |
@@ -70,13 +70,13 @@ texts:
       text: null
       hints:
         expectedContent: "Service-specific replacement required in derived profiles."
-        overrideSeverity: required
+        override: once
 
     - id: local-processing-slot-service
       text: null
       hints:
         expectedContent: "Service-specific replacement required in derived profiles."
-        overrideSeverity: required
+        override: once
 
     - id: purposes-heading
       text: |
@@ -88,7 +88,7 @@ texts:
       text: null
       hints:
         expectedContent: "Service-specific replacement required in derived profiles."
-        overrideSeverity: required
+        override: once
 
     - id: legal-basis-heading
       text: |
@@ -120,7 +120,7 @@ texts:
       text: null
       hints:
         expectedContent: "Service-specific replacement required in derived profiles."
-        overrideSeverity: required
+        override: once
 
     - id: third-country-transfers-heading
       text: |
@@ -130,7 +130,7 @@ texts:
       text: null
       hints:
         expectedContent: "Service-specific replacement required in derived profiles."
-        overrideSeverity: required
+        override: once
 
     - id: third-country-transfers-conditions
       text: |
@@ -141,7 +141,7 @@ texts:
       text: null
       hints:
         expectedContent: "Service-specific replacement required in derived profiles."
-        overrideSeverity: required
+        override: once
 
     - id: retention-heading
       text: |
@@ -159,13 +159,13 @@ texts:
       text: null
       hints:
         expectedContent: "Service-specific replacement required in derived profiles."
-        overrideSeverity: required
+        override: once
 
     - id: retention-deletion-details-slot-service
       text: null
       hints:
         expectedContent: "Service-specific replacement required in derived profiles."
-        overrideSeverity: required
+        override: once
 
     - id: retention-backups
       text: |
@@ -180,7 +180,7 @@ texts:
       text: null
       hints:
         expectedContent: "Service-specific replacement required in derived profiles."
-        overrideSeverity: required
+        override: once
 
     - id: automated-decisions
       text: |
@@ -200,7 +200,7 @@ texts:
     - id: rights-access-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
       hints:
-        overrideSeverity: normal
+        override: once
 
     - id: rights-portability-label
       text: "- Eigene Daten mitnehmen (Datenübertragbarkeit, Art. 20 DSGVO): "
@@ -208,7 +208,7 @@ texts:
     - id: rights-portability-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
       hints:
-        overrideSeverity: normal
+        override: once
 
     - id: rights-rectification-label
       text: "- Fehler korrigieren (Berichtigung, Art. 16 DSGVO): "
@@ -216,7 +216,7 @@ texts:
     - id: rights-rectification-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
       hints:
-        overrideSeverity: normal
+        override: once
 
     - id: rights-erasure-label
       text: "- Daten löschen lassen (Löschung, Art. 17 DSGVO): "
@@ -224,7 +224,7 @@ texts:
     - id: rights-erasure-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
       hints:
-        overrideSeverity: normal
+        override: once
 
     - id: rights-restriction-label
       text: "- Nutzung einschränken (Einschränkung, Art. 18 DSGVO): "
@@ -232,7 +232,7 @@ texts:
     - id: rights-restriction-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
       hints:
-        overrideSeverity: normal
+        override: once
 
     - id: rights-objection-label
       text: "- Der Nutzung Ihrer Daten widersprechen, auch wenn die Daten aus berechtigtem Interesse (z. B. für Sicherheit und zuverlässigen Betrieb) genutzt werden (Art. 21 DSGVO): "
@@ -240,7 +240,7 @@ texts:
     - id: rights-objection-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
       hints:
-        overrideSeverity: normal
+        override: once
 
     - id: rights-other-requests
       text: |

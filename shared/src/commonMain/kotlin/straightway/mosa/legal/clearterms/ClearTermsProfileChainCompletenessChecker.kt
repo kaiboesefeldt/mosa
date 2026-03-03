@@ -66,9 +66,8 @@ class ClearTermsProfileChainCompletenessChecker(
     private fun requiredBlockIds(baseline: ClearTermsBaseline): Set<String> =
         baseline.textsByLanguage.values
             .first()
-            .filter { block ->
-                block.text == null || block.hints?.overrideSeverity == ClearTermsTextOverrideSeverity.REQUIRED
-            }.map { block -> block.id }
+            .filter { block -> block.text == null }
+            .map { block -> block.id }
             .toSet()
 
     private fun unresolvedRequiredBlocks(

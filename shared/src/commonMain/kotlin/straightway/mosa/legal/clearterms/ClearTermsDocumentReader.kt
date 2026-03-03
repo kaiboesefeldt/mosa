@@ -196,21 +196,22 @@ class ClearTermsDocumentReader {
                         ?: throw ClearTermsValidationException("Key 'expectedContent' must be a string")
                 textNode.value
             }
-        val overrideSeverity =
-            hintsContract.optionalNode("overrideSeverity")?.let { severityNode ->
+        val override =
+            hintsContract.optionalNode("override")?.let { severityNode ->
                 val severityText =
                     (severityNode as? ClearTermsJsonNode.ScalarNode.StringNode)?.value
-                        ?: throw ClearTermsValidationException("Key 'overrideSeverity' must be a string")
+                        ?: throw ClearTermsValidationException("Key 'override' must be a string")
                 parseSeverity(severityText)
             }
-        return ClearTermsTextBlockHints(expectedContent, overrideSeverity)
+        return ClearTermsTextBlockHints(expectedContent, override)
     }
 
     private fun parseSeverity(value: String): ClearTermsTextOverrideSeverity =
         when (value) {
-            "normal" -> ClearTermsTextOverrideSeverity.NORMAL
-            "restrictive" -> ClearTermsTextOverrideSeverity.RESTRICTIVE
-            "required" -> ClearTermsTextOverrideSeverity.REQUIRED
+            "alert" -> ClearTermsTextOverrideSeverity.ALERT
+            "warn" -> ClearTermsTextOverrideSeverity.WARN
+            "once" -> ClearTermsTextOverrideSeverity.ONCE
+            "ok" -> ClearTermsTextOverrideSeverity.OK
             else -> throw ClearTermsValidationException("Unknown override severity '$value'")
         }
 
@@ -244,6 +245,6 @@ class ClearTermsDocumentReader {
         private val textOverrideKeys = setOf("replace", "append")
         private val textBlockCoreKeys = setOf("id", "text")
         private val textBlockKeys = setOf("id", "text", "hints")
-        private val hintsKeys = setOf("expectedContent", "overrideSeverity")
+        private val hintsKeys = setOf("expectedContent", "override")
     }
 }

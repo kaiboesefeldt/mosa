@@ -118,17 +118,11 @@ class ClearTermsRenderer(
         var intermediateTexts = baseline.textsByLanguage
         val blockOverrideCount = linkedMapOf<String, Int>()
         val placeholderOverrideCount = linkedMapOf<String, Int>()
-        val baselineBlockIds =
+        val baselineBlocksById =
             baseline.textsByLanguage.values
                 .first()
-                .map { it.id }
-                .toSet()
-        val baselineNullBlockIds =
-            baseline.textsByLanguage.values
-                .first()
-                .filter { it.text == null }
-                .map { it.id }
-                .toSet()
+                .associateBy { it.id }
+        val baselineBlockIds = baselineBlocksById.keys
 
         parsedProfiles.forEach { parsed ->
             profileValidator.validateReference(parsed.profile.parent, parentId, parentVersion, parentHash)
@@ -151,8 +145,8 @@ class ClearTermsRenderer(
                         resolveBlockBackground(
                             blockId = block.id,
                             blockOverrideCount = blockOverrideCount,
+                            baselineBlocksById = baselineBlocksById,
                             baselineBlockIds = baselineBlockIds,
-                            baselineNullBlockIds = baselineNullBlockIds,
                         )
                     val segments =
                         if (blockBackground == ClearTermsRenderBackground.NONE) {
@@ -236,18 +230,32 @@ class ClearTermsRenderer(
     private fun resolveBlockBackground(
         blockId: String,
         blockOverrideCount: Map<String, Int>,
+        baselineBlocksById: Map<String, ClearTermsTextBlock>,
         baselineBlockIds: Set<String>,
-        baselineNullBlockIds: Set<String>,
     ): ClearTermsRenderBackground {
         val count = blockOverrideCount[blockId] ?: 0
         if (blockId !in baselineBlockIds && count > 0) {
             return ClearTermsRenderBackground.RED
         }
-        if (count > 1) {
-            return ClearTermsRenderBackground.RED
+        if (count == 0) {
+            return ClearTermsRenderBackground.NONE
         }
-        if (count == 1 && blockId !in baselineNullBlockIds) {
-            return ClearTermsRenderBackground.RED
+        val baselineBlock = baselineBlocksById[blockId] ?: return ClearTermsRenderBackground.NONE
+        val effectiveSeverity =
+            baselineBlock.hints?.override
+                ?: if (baselineBlock.text == null) {
+                    ClearTermsTextOverrideSeverity.ONCE
+                } else {
+                    ClearTermsTextOverrideSeverity.ALERT
+                }
+        when (effectiveSeverity) {
+            ClearTermsTextOverrideSeverity.ALERT -> return ClearTermsRenderBackground.RED
+            ClearTermsTextOverrideSeverity.WARN -> return ClearTermsRenderBackground.YELLOW
+            ClearTermsTextOverrideSeverity.ONCE ->
+                if (count > 1) {
+                    return ClearTermsRenderBackground.RED
+                }
+            ClearTermsTextOverrideSeverity.OK -> return ClearTermsRenderBackground.NONE
         }
         return ClearTermsRenderBackground.NONE
     }
