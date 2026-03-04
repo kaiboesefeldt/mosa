@@ -32,6 +32,7 @@ import straightway.mosa.client.legal.LegalRailMarker
 import straightway.mosa.client.legal.LegalMarkerSeverity
 import straightway.mosa.client.legal.LegalViewportIndicator
 import straightway.mosa.client.legal.computeLegalViewportIndicator
+import straightway.mosa.client.legal.MarkdownToHtmlRenderer
 import straightway.mosa.client.legal.quantizeRailMarkers
 import straightway.mosa.client.ui.IdentityConnectedView
 import straightway.mosa.client.ui.IdentityProfileView
@@ -44,6 +45,8 @@ import web.dom.Element
 import web.html.ButtonType
 import web.html.HTMLDivElement
 import web.dom.Element as WebElement
+
+private val comparisonMarkdownRenderer = MarkdownToHtmlRenderer()
 
 @ExperimentalWasmJsInterop
 fun main() {
@@ -465,7 +468,7 @@ private fun buildComparisonBox(
     boxLabel.textContent = label
     val boxText = document.createElement("div")
     boxText.className = "legal-ct-comparison-box__text"
-    boxText.textContent = uncriticalText
+    boxText.asDynamic().innerHTML = comparisonMarkdownRenderer.render(uncriticalText)
     box.appendChild(boxLabel)
     box.appendChild(boxText)
     return box.unsafeCast<WebElement>()
