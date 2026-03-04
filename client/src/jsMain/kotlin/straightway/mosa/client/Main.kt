@@ -88,6 +88,7 @@ private val IdentityApp = FC<Props> {
         if (activeLegalDocument != LEGAL_DOCUMENT_PRIVACY) {
             privacyDocumentState = PrivacyDocumentState.Idle
             legalDocumentContentRef.current?.asDynamic()?.innerHTML = ""
+            lastRenderedLegalHtmlRef.current = ""
             activeComparison = null
             legalDiffMarkers = emptyList()
             return@useEffect
