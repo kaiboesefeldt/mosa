@@ -61,6 +61,7 @@ private val IdentityApp = FC<Props> {
     val scope = useMemo(*mainNoDependencies) { MainScope() }
     val legalDocumentContentRef = useRef<HTMLDivElement>()
     val lastRenderedLegalHtmlRef = useRef("")
+    val lastAutoScrolledComparisonRef = useRef("")
     val legalRequestVersion = useRef(0)
     var isLegalMenuVisible by useState(false)
     var activeLegalDocument by useState<String?>(null)
@@ -148,7 +149,11 @@ private val IdentityApp = FC<Props> {
 
         fun refreshComparisonBox() {
             removeExistingComparisonBoxes(contentElement)
-            val selection = activeComparison ?: return
+            val selection =
+                activeComparison ?: run {
+                    lastAutoScrolledComparisonRef.current = ""
+                    return
+                }
             val uncriticalText =
                 readyState.document.uncriticalTextByBlockId[selection.blockId]
                     ?.ifBlank { translator.translate("legal.comparison.original.missing") }
@@ -156,7 +161,11 @@ private val IdentityApp = FC<Props> {
             val groupElement = findComparisonGroupElement(contentElement, selection.groupId) ?: return
             val box = buildComparisonBox(uncriticalText, translator.translate("legal.comparison.original"))
             groupElement.parentElement?.insertBefore(box, groupElement.nextSibling)
-            scrollComparisonBoxIntoView(contentElement, box)
+            val selectionKey = "${selection.groupId}|${selection.blockId}"
+            if (lastAutoScrolledComparisonRef.current != selectionKey) {
+                scrollComparisonBoxIntoView(contentElement, box)
+                lastAutoScrolledComparisonRef.current = selectionKey
+            }
         }
 
         refreshComparisonBox()
