@@ -149,10 +149,14 @@ private val IdentityApp = FC<Props> {
         fun refreshComparisonBox() {
             removeExistingComparisonBoxes(contentElement)
             val selection = activeComparison ?: return
-            val uncriticalText = readyState.document.uncriticalTextByBlockId[selection.blockId] ?: "..."
+            val uncriticalText =
+                readyState.document.uncriticalTextByBlockId[selection.blockId]
+                    ?.ifBlank { translator.translate("legal.comparison.original.missing") }
+                    ?: translator.translate("legal.comparison.original.missing")
             val groupElement = findComparisonGroupElement(contentElement, selection.groupId) ?: return
             val box = buildComparisonBox(uncriticalText, translator.translate("legal.comparison.original"))
             groupElement.parentElement?.insertBefore(box, groupElement.nextSibling)
+            scrollComparisonBoxIntoView(contentElement, box)
         }
 
         refreshComparisonBox()
@@ -248,9 +252,22 @@ private val IdentityApp = FC<Props> {
             }
             section {
                 className = ClassName("legal-dialog")
-                h2 {
-                    className = ClassName("legal-dialog__title")
-                    +(legalDialogTitle ?: "")
+                div {
+                    className = ClassName("legal-dialog__header")
+                    h2 {
+                        className = ClassName("legal-dialog__title")
+                        +(legalDialogTitle ?: "")
+                    }
+                    button {
+                        type = "button".unsafeCast<ButtonType>()
+                        className = ClassName("legal-dialog__close")
+                        ariaLabel = translator.translate("legal.close.label")
+                        title = translator.translate("legal.close.label")
+                        onClick = {
+                            activeLegalDocument = null
+                        }
+                        +"x"
+                    }
                 }
                 when (activeLegalDocument) {
                     LEGAL_DOCUMENT_PRIVACY -> {
@@ -335,15 +352,6 @@ private val IdentityApp = FC<Props> {
                             +"Verantwortlich ist der Heimat-Pod, von dem diese App geladen wurde."
                         }
                     }
-                }
-                a {
-                    className = ClassName("legal-dialog__close")
-                    href = "#close-legal"
-                    onClick = { event ->
-                        event.preventDefault()
-                        activeLegalDocument = null
-                    }
-                    +translator.translate("legal.close.label")
                 }
             }
         }
@@ -452,6 +460,25 @@ private fun buildComparisonBox(
     box.appendChild(boxLabel)
     box.appendChild(boxText)
     return box.unsafeCast<WebElement>()
+}
+
+private fun scrollComparisonBoxIntoView(
+    contentElement: HTMLDivElement,
+    box: WebElement,
+) {
+    val contentRect = contentElement.getBoundingClientRect()
+    val boxRect = box.getBoundingClientRect()
+    val margin = 12.0
+    when {
+        boxRect.bottom > contentRect.bottom - margin -> {
+            val delta = boxRect.bottom - contentRect.bottom + margin
+            contentElement.scrollTop += delta
+        }
+        boxRect.top < contentRect.top + margin -> {
+            val delta = contentRect.top - boxRect.top + margin
+            contentElement.scrollTop -= delta
+        }
+    }
 }
 
 private fun resolveClickableMarker(target: dynamic): Element? {

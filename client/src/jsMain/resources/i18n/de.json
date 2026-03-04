@@ -89,6 +89,7 @@
   "legal.privacy.load.error": "Datenschutzerklärung konnte nicht geladen werden.",
   "legal.close.label": "Schließen",
   "legal.comparison.original": "Original",
+  "legal.comparison.original.missing": "Kein ursprünglicher Text vorhanden.",
   "profile.identityAvatar.connect": "Identität übernehmen",
   "profile.identityAvatar.tooltip": "Avatar anklicken, um diese Identität zu übernehmen",
   "profile.description": "Es geht um den Inhalt!",

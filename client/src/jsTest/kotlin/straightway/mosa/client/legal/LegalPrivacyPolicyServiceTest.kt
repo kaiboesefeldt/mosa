@@ -773,7 +773,7 @@ class LegalPrivacyPolicyServiceTest {
         val document = service.loadPrivacyPolicyDocument()
 
         assertContains(document.html, "Finaler Text")
-        assertEquals("...", document.uncriticalTextByBlockId["service-description-slot-service"])
+        assertEquals("", document.uncriticalTextByBlockId["service-description-slot-service"])
     }
 }
 

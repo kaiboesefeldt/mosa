@@ -89,6 +89,7 @@
   "legal.privacy.load.error": "Privacy policy could not be loaded.",
   "legal.close.label": "Close",
   "legal.comparison.original": "Original",
+  "legal.comparison.original.missing": "No original text available.",
   "profile.identityAvatar.connect": "Adopt identity",
   "profile.identityAvatar.tooltip": "Click the avatar to adopt this identity",
   "profile.description": "It's about the content!",

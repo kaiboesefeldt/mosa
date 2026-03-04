@@ -272,7 +272,7 @@ class LegalPrivacyPolicyService(
                     ?.joinToString("") { segment -> segment.text }
                     ?.replace(unresolvedPlaceholderRegex, "...")
                     ?.ifBlank { "..." }
-                    ?: "..."
+                    ?: ""
             map[blockId] = previousText
         }
         return map
@@ -323,7 +323,7 @@ class LegalPrivacyPolicyService(
             result[blockId] =
                 previousStep
                     ?.renderBlockTextBestEffort(normalizedLanguageTag, blockId)
-                    ?: "..."
+                    ?: ""
         }
         return result
     }
@@ -419,7 +419,7 @@ class LegalPrivacyPolicyService(
         languageTag: String,
         blockId: String,
     ): String {
-        val block = textsByLanguage[languageTag].orEmpty().firstOrNull { candidate -> candidate.id == blockId } ?: return "..."
+        val block = textsByLanguage[languageTag].orEmpty().firstOrNull { candidate -> candidate.id == blockId } ?: return ""
         val renderedText =
             runCatching {
                 val placeholderTypes = clearTermsProfileValidator.placeholdersByKey(textsByLanguage)

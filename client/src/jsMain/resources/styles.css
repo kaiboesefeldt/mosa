@@ -1810,17 +1810,41 @@ button:disabled {
     box-shadow: var(--shadow-elevated);
 }
 
+.legal-dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
 .legal-dialog__title {
     margin: 0;
     font-size: 1.1rem;
 }
 
 .legal-dialog__close {
-    justify-self: end;
-    color: rgba(30, 64, 175, 0.92);
-    text-decoration: underline;
-    text-underline-offset: 0.14em;
-    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: #ffffff;
+    color: #1f2937;
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.legal-dialog__close:hover {
+    background: #f8fafc;
+}
+
+.legal-dialog__close:focus-visible {
+    outline: 2px solid rgba(59, 130, 246, 0.7);
+    outline-offset: 1px;
 }
 
 .legal-dialog__content {
