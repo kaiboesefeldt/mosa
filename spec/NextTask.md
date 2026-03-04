@@ -1,98 +1,86 @@
-# Nächste Aufgabe
+# Next Task: Inline-Vergleich für markierte Textstellen in ClearTerms
 
-Die ClearTerms-Dokumente sollen abhängig davon, woher sie stammen, farblich hinterlegt werden.
+## Ziel
+Für markierte Textstellen (gelb/rot) soll der Nutzer direkt im Dokument sehen, wie sich der aktuelle Text gegenüber der ursprünglichen Version unterscheidet.
 
-Grundsätzlich gilt, dass die Baseline als "vertrauenswürdig" gilt. Die Baseline definiert bestimmte
-Textblöcke mit `null`, sodass sie von einem Profil gesetzt werden müssen. Außerdem müssen alle
-Platzhalter überschrieben werden.
+Der Vergleich wird inline unterhalb der betroffenen Stelle eingeblendet. Es wird kein weiteres Popover geöffnet.
 
-Darüber hinaus können Profile auch andere Textblöcke sowie bereits von vorigen Profilen gesetzte
-Platzhalter überschreiben.
+## Scope und Constraints
+1. Verglichen werden genau zwei Versionen:
+- unkritischer Text (siehe Begriffsdefinition unten)
+- aktueller Text (effektiv gerenderter Text)
 
-## Ohne eingefärbten Hintergrund
+2. Es gibt keine zusätzlichen Begründungsdaten und keine juristischen Erklärungen.
 
-Alle Texte, die unverändert aus der Baseline oder aus `null`-Überschreibungen von Textblöcken kommen,
-werden ohne eingefärbten Hintergrund dargestellt. Gleiches gilt für Platzhalter-Ersetzungen von Werten,
-aber nur, wenn sie in exakt einem Profil überschrieben werden (`Override-Anzahl = 1` für den Platzhalter)
+3. Die Datenschutzansicht läuft bereits in einem Dialog/Overlay. Es gibt keine Dialog-in-Dialog- oder Popover-in-Popover-Lösung.
 
-Hintergrund: Das sind alle Texte, die entweder unverändert sind, oder die man über die
-Profile liefern MUSS, weil ansonsten das Rendering einen Fehler liefert.
+4. Fokus sind kurze Textblöcke. Lange Blöcke müssen funktional korrekt bleiben.
 
-## Gelber Hintergrund
+5. Diese Aufgabe gilt generell für ClearTerms-Dokumente und wird anhand des Privacy-Dokuments umgesetzt.
 
-Alle Texte aus Platzhaltern, die in mehr als einem Profil der Kette überschrieben wurden.
+## Begriffe
+- Markierte Stelle: Text mit Severity gelb oder rot.
+- Betroffener Block: `ClearTermsRenderedBlock` mit `id`.
+- Unkritischer Text eines Blocks: Blockzustand entlang der Profilkette, bis einschließlich des letzten Zustands ohne gelbe/rote Markierung dieses Blocks.
+- Sobald der Block in der Kette erstmals gelb oder rot markiert ist, wird der unmittelbar davor liegende Zustand als unkritischer Text verwendet.
+- Vergleichsbox: Inline-Bereich direkt unter dem betroffenen Block mit unkritischen Text des Blocks.
 
-## Roter Hintergrund
+## Daten- und Mapping-Regeln
+1. Klick/Tap-Ziel ist ein markiertes Segment. Der Vergleich bezieht sich immer auf den gesamten betroffenen Block.
 
-Alle Texte, die aus überschriebenen oder hinzugefügten Textblöcken kommen, werden rot hinterlegt
-dargestellt. Das gilt z.B. auch für Textblöcke, die zwar in der Baseline `null` sind, dann aber
-zuerst in dem einen Profil und dann noch einmal in einem nachfolgenden Profil überschrieben werden.
+2. Jeder interaktive Marker im DOM muss den Block eindeutig referenzieren:
+- Pflicht: `data-ct-block-id="<blockId>"`
 
----
+3. Der Text der Vergleichsbox ist der gerenderte unkritische Text desselben `blockId` in derselben Sprache.
 
-## Präzise Begriffe
+4. Wenn für einen markierten Block der unkritische Text unaufgelöste Platzhalter enthält, so werden diese mit "..." gerendert.
 
-- `Textblock`: Ein benannter Block im ClearTerms-Modell.
-- `Null-Textblock`: Ein Textblock, der in der Baseline explizit `null` ist und daher zwingend gesetzt werden muss.
-- `hinzugefügter Textblock`: Ein Textblock, den es in der Baseline nicht gibt und der über ein Profil neu hinzugefügt wurde.
-- `Platzhalter`: Ein zu ersetzender Wert innerhalb eines Textes.
-- `Baseline`: Die vertrauenswürdige Ausgangsdefinition.
-- `Profilkette`: Die geordnete Folge angewendeter Profile (z. B. Baseline -> Default-Profil -> Operator-Profil).
-- `Überschreibung`: Eine Wertsetzung in einem Profil, die den vorherigen Stand ersetzt.
-- `Pflichtwert`: Ein Platzhalter, der zwingend von nachfolgenden Profilen gesetzt werden muss.
-- `Override-Anzahl`: Anzahl der Profile in der Profilkette, die für ein konkretes finales Textelement (Block oder Platzhalterwert) eine Überschreibung liefern.
+## Interaktionsregeln
+1. Klick/Tap auf markierte Stelle:
+- aktueller Text bleibt unverändert sichtbar
+- Vergleichsbox wird direkt unter diesem Block ein-/ausgeblendet
+- Für Blöcke mit `inlineWithNext = true` wird das Inline-Paar als ein gemeinsamer Interaktionsblock behandelt.
+- Die Vergleichsbox wird unterhalb des gesamten Inline-Paares angezeigt.
 
-Hinweis zur Zählung:
-- Es zählt auf Profilebene, nicht auf Dateiebene.
-- Ein Profil zählt pro konkretem Zielwert höchstens einmal, auch wenn intern mehrfach zusammengeführt wird.
+2. Es darf maximal eine Vergleichsbox gleichzeitig geöffnet sein.
+- Öffnen einer neuen Vergleichsbox schließt die vorher geöffnete.
+- Klick auf dieselbe Stelle schließt die aktuell geöffnete Vergleichsbox.
 
-## Ziel der Farbgebung
+3. Verhalten ist auf Desktop und Mobile identisch.
 
-Die Farbe wird auf den final gerenderten Text angewendet:
-- Bei Textblöcken: auf den gesamten finalen Block.
-- Bei Platzhaltern: nur auf den eingesetzten Text des Platzhalters.
+4. Die Vergleichsbox zeigt:
+- Label `Original` als lokalisierten UI-Text (mindestens `de` und `en`).
+- Unkritischen Text des betroffenen Blocks
+- kein Token-/Wortdiff
 
-## Priorität der Farbregeln
+## Rail-Regeln (Mobile)
+1. Mobile hat eine dauerhaft sichtbare vertikale Rail innerhalb des Legal-Dialogs.
+- Mobile ist definiert als Viewport `max-width: 900px`.
 
-Wenn mehrere Regeln gleichzeitig zutreffen, gilt diese Reihenfolge:
-1. Rot
-2. Gelb
-3. Ohne eingefärbten Hintergrund
+2. Die Rail ist rein visuell. Kein Tap, kein Jump-to-Position.
 
-## Eindeutige Entscheidungsregeln
+3. Markerpositionen sind proportional zur Scrollhöhe des Dokument-Contents.
 
-### 1) Rot
+4. Kollisionsregel:
+- Marker werden auf Rail-Pixelposition quantisiert (`round(topPercent * railHeightPx / 100)`).
+- Fallen gelb und rot in denselben quantisierten Pixel-Bucket, wird nur rot dargestellt.
 
-Ein finales Textelement wird rot, wenn mindestens eine der Bedingungen gilt:
-- Es ist ein Textblock, der in der Baseline nicht mit `null` definiert ist und in mindestens einem
-  Profil überschrieben wurde.
-- Es ist ein Textblock mit `Override-Anzahl > 1`.
-- Es ist ein neu hinzugefügter Textblock.
+5. Die Rail zeigt zusätzlich einen dezenten Viewport-Indikator:
+- Position entspricht aktueller `scrollTop / (scrollHeight - clientHeight)`.
+- Größe entspricht `clientHeight / scrollHeight` (mit sinnvoller Mindesthöhe für Sichtbarkeit).
+- Randfall: Wenn `scrollHeight <= clientHeight`, ist der Indikator auf voller Rail-Höhe mit Position `top = 0`.
 
-Beispiele:
-- Baseline-Textblock `null` -> Default-Profil setzt Wert -> Operator-Profil setzt erneut Wert: rot.
-- Baseline-Textblock mit Inhalt -> Operator-Profil überschreibt: rot.
+## Nicht Teil dieser Aufgabe
+- Filter/Übersichten wie `nur rote`, `x von y`, Clustering
+- Komplexe Diff-Visualisierung mit granularer Token-Hervorhebung
+- Fachliche `Warum`-Begründungen über den reinen Textvergleich hinaus
+- Interaktive Rail-Navigation
 
-### 2) Gelb
-
-Ein Platzhalterwert wird gelb, wenn gilt: `Override-Anzahl > 1`.
-
-Beispiele:
-- Platzhalterwert wird im Default-Profil auf 7d gesetzt und im Operator-Profil auf 14d: gelb.
-
-### 3) Ohne eingefärbten Hintergrund
-
-Ein finales Textelement wird ohne farbigen Hintergrund angezeigt, wenn eine dieser Bedingungen gilt:
-- Es stammt unverändert aus der Baseline
-- Es handelt sich um einen Textblock, der in der Baseline mit `null` definiert wurde, mit
-  `Override-Anzahl = 1`.
-- Es handelt sich um einen Platzhalter mit `Override-Anzahl = 1`.
-
-Beispiele:
-- Baseline `null`-Block -> nur Default-Profil setzt einmal: ohne farbigen Hintergrund.
-- Platzhalter -> nur Operator-Profil setzt einmal: ohne farbigen Hintergrund.
-
-## Klärung für Fehlerfälle
-
-- Wenn ein Null-Textblock oder Platzhalter bis zum Ende der Profilkette nicht gesetzt ist, gilt das als Renderfehler wie bisher.
-- Die Farbregeln werden nur auf erfolgreich gerenderte Inhalte angewendet.
+## Akzeptanzkriterien (testbar)
+1. Nutzer kann auf gelb/rot markierten Text klicken/tappen und sieht inline darunter den unkritischen Text des betroffenen Blocks.
+2. Beim Vergleich wird kein zusätzliches Popover/kein zusätzlicher Dialog geöffnet.
+3. Der aktuelle Text bleibt stets sichtbar.
+4. Zu jedem Zeitpunkt ist höchstens eine Vergleichsbox geöffnet.
+5. Desktop und Mobile zeigen dasselbe Expand/Collapse-Verhalten.
+6. Auf Mobile ist die Rail dauerhaft sichtbar, inklusive Marker und Viewport-Indikator.
+7. Bei Marker-Kollision in derselben Rail-Position wird rot dargestellt.
