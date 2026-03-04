@@ -1826,8 +1826,39 @@ button:disabled {
 .legal-dialog__content {
     max-height: min(60vh, 640px);
     overflow-y: auto;
-    padding-right: 0.2rem;
+    padding-right: 0.9rem;
     line-height: 1.5;
+}
+
+.legal-dialog__content-wrap {
+    position: relative;
+}
+
+.legal-dialog__scroll-marker-rail {
+    position: absolute;
+    top: 0.25rem;
+    right: 0;
+    bottom: 0.25rem;
+    width: 6px;
+    pointer-events: none;
+}
+
+.legal-dialog__scroll-marker {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 999px;
+    transform: translateY(-50%);
+    opacity: 0.95;
+}
+
+.legal-dialog__scroll-marker--yellow {
+    background-color: #f59e0b;
+}
+
+.legal-dialog__scroll-marker--red {
+    background-color: #dc2626;
 }
 
 .legal-dialog__content h1,

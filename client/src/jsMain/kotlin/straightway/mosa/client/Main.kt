@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
 import kotlin.js.unsafeCast
 import kotlin.js.console
+import kotlin.math.abs
 import react.FC
 import react.Props
 import react.create
@@ -58,6 +59,7 @@ private val IdentityApp = FC<Props> {
     var isLegalMenuVisible by useState(false)
     var activeLegalDocument by useState<String?>(null)
     var privacyDocumentState by useState<PrivacyDocumentState>(PrivacyDocumentState.Idle)
+    var legalDiffMarkers by useState<List<Pair<Double, String>>>(emptyList())
     val activeDocumentTitle =
         when (activeLegalDocument) {
             LEGAL_DOCUMENT_PRIVACY -> translator.translate("legal.privacy.label")
@@ -113,7 +115,14 @@ private val IdentityApp = FC<Props> {
                 is PrivacyDocumentState.Ready -> state.html
                 is PrivacyDocumentState.Error -> ""
             }
-        legalDocumentContentRef.current?.asDynamic()?.innerHTML = html
+        val contentElement = legalDocumentContentRef.current
+        contentElement?.asDynamic()?.innerHTML = html
+        legalDiffMarkers =
+            if (activeLegalDocument == LEGAL_DOCUMENT_PRIVACY && html.isNotBlank() && contentElement != null) {
+                collectLegalScrollMarkers(contentElement)
+            } else {
+                emptyList()
+            }
     }
 
     useEffect(*mainNoDependencies) {
@@ -223,8 +232,30 @@ private val IdentityApp = FC<Props> {
 
                             privacyDocumentState is PrivacyDocumentState.Ready -> {
                                 div {
-                                    className = ClassName("legal-dialog__content")
-                                    ref = legalDocumentContentRef
+                                    className = ClassName("legal-dialog__content-wrap")
+                                    div {
+                                        className = ClassName("legal-dialog__content")
+                                        ref = legalDocumentContentRef
+                                    }
+                                    if (legalDiffMarkers.isNotEmpty()) {
+                                        div {
+                                            className = ClassName("legal-dialog__scroll-marker-rail")
+                                            legalDiffMarkers.forEachIndexed { index, marker ->
+                                                val topPercent = marker.first
+                                                val severity = marker.second
+                                                div {
+                                                    className =
+                                                        ClassName(
+                                                            "legal-dialog__scroll-marker legal-dialog__scroll-marker--$severity",
+                                                        )
+                                                    this.asDynamic().key = "legal-scroll-marker-$index-$severity-$topPercent"
+                                                    val markerStyle: dynamic = js("({})")
+                                                    markerStyle.top = "$topPercent%"
+                                                    this.asDynamic().style = markerStyle
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -259,7 +290,47 @@ private val IdentityApp = FC<Props> {
 private const val LEGAL_DOCUMENT_PRIVACY = "privacy"
 private const val LEGAL_DOCUMENT_IMPRINT = "imprint"
 private const val LEGAL_DOCUMENT_TERMS = "terms"
+private const val LEGAL_MARKER_RED = "red"
+private const val LEGAL_MARKER_YELLOW = "yellow"
 private val mainNoDependencies: Array<dynamic> = emptyArray()
+
+private fun collectLegalScrollMarkers(contentElement: HTMLDivElement): List<Pair<Double, String>> {
+    val totalHeight = contentElement.scrollHeight.toDouble()
+    if (totalHeight <= 0.0) {
+        return emptyList()
+    }
+    val contentRect = contentElement.getBoundingClientRect()
+    val nodes = contentElement.querySelectorAll(".legal-ct-bg-yellow, .legal-ct-bg-red")
+    val markers = mutableListOf<Pair<Double, String>>()
+    val nodeCount = nodes.length
+    for (index in 0 until nodeCount) {
+        val node = nodes.item(index) ?: continue
+        val severity =
+            when {
+                node.className.toString().contains("legal-ct-bg-red") -> LEGAL_MARKER_RED
+                node.className.toString().contains("legal-ct-bg-yellow") -> LEGAL_MARKER_YELLOW
+                else -> null
+            } ?: continue
+        val nodeTop = node.getBoundingClientRect().top - contentRect.top + contentElement.scrollTop
+        val topPercent = ((nodeTop / totalHeight) * 100.0).coerceIn(0.0, 100.0)
+        markers += topPercent to severity
+    }
+
+    if (markers.isEmpty()) {
+        return emptyList()
+    }
+
+    val sortedByTop = markers.sortedBy { it.first }
+    val mergedMarkers = mutableListOf<Pair<Double, String>>()
+    for (marker in sortedByTop) {
+        val previous = mergedMarkers.lastOrNull()
+        if (previous != null && previous.second == marker.second && abs(previous.first - marker.first) < 0.75) {
+            continue
+        }
+        mergedMarkers += marker
+    }
+    return mergedMarkers
+}
 
 private sealed interface PrivacyDocumentState {
     data object Idle : PrivacyDocumentState
