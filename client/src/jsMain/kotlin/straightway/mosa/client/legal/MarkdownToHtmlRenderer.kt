@@ -89,17 +89,21 @@ class MarkdownToHtmlRenderer {
                     }
 
                     text.startsWith(LegalPrivacyPolicyService.MARKER_OPEN_YELLOW, index) -> {
+                        val marker = parseMarker(text, index, LegalPrivacyPolicyService.MARKER_OPEN_YELLOW)
+                        val blockIdAttribute = marker.blockId?.let { blockId -> """ data-ct-block-id="${escapeAttribute(blockId)}"""" } ?: ""
                         append(
-                            """<span class="legal-ct-bg-yellow legal-ct-baseline-diff" style="${LegalPrivacyPolicyService.INLINE_STYLE_YELLOW}">""",
+                            """<span$blockIdAttribute class="legal-ct-bg-yellow legal-ct-baseline-diff" style="${LegalPrivacyPolicyService.INLINE_STYLE_YELLOW}">""",
                         )
-                        index += LegalPrivacyPolicyService.MARKER_OPEN_YELLOW.length
+                        index += marker.length
                     }
 
                     text.startsWith(LegalPrivacyPolicyService.MARKER_OPEN_RED, index) -> {
+                        val marker = parseMarker(text, index, LegalPrivacyPolicyService.MARKER_OPEN_RED)
+                        val blockIdAttribute = marker.blockId?.let { blockId -> """ data-ct-block-id="${escapeAttribute(blockId)}"""" } ?: ""
                         append(
-                            """<span class="legal-ct-bg-red legal-ct-baseline-diff" style="${LegalPrivacyPolicyService.INLINE_STYLE_RED}">""",
+                            """<span$blockIdAttribute class="legal-ct-bg-red legal-ct-baseline-diff" style="${LegalPrivacyPolicyService.INLINE_STYLE_RED}">""",
                         )
-                        index += LegalPrivacyPolicyService.MARKER_OPEN_RED.length
+                        index += marker.length
                     }
 
                     text.startsWith(LegalPrivacyPolicyService.MARKER_CLOSE, index) -> {
@@ -121,4 +125,33 @@ class MarkdownToHtmlRenderer {
                 }
             }
         }
+
+    private fun escapeAttribute(value: String): String =
+        value
+            .replace("&", "&amp;")
+            .replace("\"", "&quot;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+
+    private fun parseMarker(
+        text: String,
+        startIndex: Int,
+        prefix: String,
+    ): ParsedMarker {
+        val markerEnd = text.indexOf(LegalPrivacyPolicyService.MARKER_OPEN_SUFFIX, startIndex + prefix.length)
+        if (markerEnd < 0) {
+            return ParsedMarker(length = prefix.length, blockId = null)
+        }
+        val payload = text.substring(startIndex + prefix.length, markerEnd)
+        val blockId = payload.removePrefix(":").takeIf { it.isNotBlank() }
+        return ParsedMarker(
+            length = markerEnd + LegalPrivacyPolicyService.MARKER_OPEN_SUFFIX.length - startIndex,
+            blockId = blockId,
+        )
+    }
+
+    private data class ParsedMarker(
+        val length: Int,
+        val blockId: String?,
+    )
 }

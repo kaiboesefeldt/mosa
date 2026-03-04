@@ -8,7 +8,6 @@ import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
 import kotlin.js.unsafeCast
 import kotlin.js.console
-import kotlin.math.abs
 import react.FC
 import react.Props
 import react.create
@@ -29,6 +28,11 @@ import react.useState
 import straightway.mosa.client.assets.FontAwesomeResources
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.legal.LegalPrivacyPolicyService
+import straightway.mosa.client.legal.LegalRailMarker
+import straightway.mosa.client.legal.LegalMarkerSeverity
+import straightway.mosa.client.legal.LegalViewportIndicator
+import straightway.mosa.client.legal.computeLegalViewportIndicator
+import straightway.mosa.client.legal.quantizeRailMarkers
 import straightway.mosa.client.ui.IdentityConnectedView
 import straightway.mosa.client.ui.IdentityProfileView
 import straightway.mosa.client.ui.applyFrom
@@ -36,6 +40,7 @@ import straightway.mosa.client.ui.IdentityScreen
 import straightway.mosa.client.ui.PasswordPromptOverlay
 import straightway.mosa.client.ui.useIdentitySession
 import web.cssom.ClassName
+import web.dom.Element
 import web.html.ButtonType
 import web.html.HTMLDivElement
 import web.dom.Element as WebElement
@@ -55,11 +60,14 @@ private val IdentityApp = FC<Props> {
     val legalPrivacyPolicyService = useMemo(*mainNoDependencies) { GlobalContext.get().get<LegalPrivacyPolicyService>() }
     val scope = useMemo(*mainNoDependencies) { MainScope() }
     val legalDocumentContentRef = useRef<HTMLDivElement>()
+    val lastRenderedLegalHtmlRef = useRef("")
     val legalRequestVersion = useRef(0)
     var isLegalMenuVisible by useState(false)
     var activeLegalDocument by useState<String?>(null)
     var privacyDocumentState by useState<PrivacyDocumentState>(PrivacyDocumentState.Idle)
-    var legalDiffMarkers by useState<List<Pair<Double, String>>>(emptyList())
+    var activeComparison by useState<LegalComparisonSelection?>(null)
+    var legalDiffMarkers by useState<List<LegalRailMarker>>(emptyList())
+    var legalViewportIndicator by useState(LegalViewportIndicator(topPercent = 0.0, heightPercent = 100.0))
     val activeDocumentTitle =
         when (activeLegalDocument) {
             LEGAL_DOCUMENT_PRIVACY -> translator.translate("legal.privacy.label")
@@ -80,6 +88,8 @@ private val IdentityApp = FC<Props> {
         if (activeLegalDocument != LEGAL_DOCUMENT_PRIVACY) {
             privacyDocumentState = PrivacyDocumentState.Idle
             legalDocumentContentRef.current?.asDynamic()?.innerHTML = ""
+            activeComparison = null
+            legalDiffMarkers = emptyList()
             return@useEffect
         }
 
@@ -92,13 +102,13 @@ private val IdentityApp = FC<Props> {
         privacyDocumentState = PrivacyDocumentState.Loading
 
         scope.launch {
-            val result = runCatching { legalPrivacyPolicyService.loadPrivacyPolicyHtml() }
+            val result = runCatching { legalPrivacyPolicyService.loadPrivacyPolicyDocument() }
             if (legalRequestVersion.current != requestVersion) {
                 return@launch
             }
             result
-                .onSuccess { html ->
-                    privacyDocumentState = PrivacyDocumentState.Ready(html)
+                .onSuccess { document ->
+                    privacyDocumentState = PrivacyDocumentState.Ready(document)
                 }
                 .onFailure {
                     console.error("Failed to load privacy policy", it)
@@ -112,17 +122,39 @@ private val IdentityApp = FC<Props> {
             when (val state = privacyDocumentState) {
                 PrivacyDocumentState.Idle -> ""
                 PrivacyDocumentState.Loading -> ""
-                is PrivacyDocumentState.Ready -> state.html
+                is PrivacyDocumentState.Ready -> state.document.html
                 is PrivacyDocumentState.Error -> ""
             }
         val contentElement = legalDocumentContentRef.current
-        contentElement?.asDynamic()?.innerHTML = html
-        legalDiffMarkers =
-            if (activeLegalDocument == LEGAL_DOCUMENT_PRIVACY && html.isNotBlank() && contentElement != null) {
-                collectLegalScrollMarkers(contentElement)
-            } else {
-                emptyList()
+        val lastRenderedHtml = lastRenderedLegalHtmlRef.current ?: ""
+        if (contentElement != null && html != lastRenderedHtml) {
+            contentElement.asDynamic().innerHTML = html
+            lastRenderedLegalHtmlRef.current = html
+            activeComparison = null
+            updateLegalRail(contentElement) { markers, indicator ->
+                legalDiffMarkers = markers
+                legalViewportIndicator = indicator
             }
+        }
+    }
+
+    useEffect(arrayOf(privacyDocumentState, activeComparison, translator)) {
+        if (activeLegalDocument != LEGAL_DOCUMENT_PRIVACY) {
+            return@useEffect
+        }
+        val readyState = privacyDocumentState as? PrivacyDocumentState.Ready ?: return@useEffect
+        val contentElement = legalDocumentContentRef.current ?: return@useEffect
+
+        fun refreshComparisonBox() {
+            removeExistingComparisonBoxes(contentElement)
+            val selection = activeComparison ?: return
+            val uncriticalText = readyState.document.uncriticalTextByBlockId[selection.blockId] ?: "..."
+            val groupElement = findComparisonGroupElement(contentElement, selection.groupId) ?: return
+            val box = buildComparisonBox(uncriticalText, translator.translate("legal.comparison.original"))
+            groupElement.parentElement?.insertBefore(box, groupElement.nextSibling)
+        }
+
+        refreshComparisonBox()
     }
 
     useEffect(*mainNoDependencies) {
@@ -236,24 +268,54 @@ private val IdentityApp = FC<Props> {
                                     div {
                                         className = ClassName("legal-dialog__content")
                                         ref = legalDocumentContentRef
-                                    }
-                                    if (legalDiffMarkers.isNotEmpty()) {
-                                        div {
-                                            className = ClassName("legal-dialog__scroll-marker-rail")
-                                            legalDiffMarkers.forEachIndexed { index, marker ->
-                                                val topPercent = marker.first
-                                                val severity = marker.second
-                                                div {
-                                                    className =
-                                                        ClassName(
-                                                            "legal-dialog__scroll-marker legal-dialog__scroll-marker--$severity",
-                                                        )
-                                                    this.asDynamic().key = "legal-scroll-marker-$index-$severity-$topPercent"
-                                                    val markerStyle: dynamic = js("({})")
-                                                    markerStyle.top = "$topPercent%"
-                                                    this.asDynamic().style = markerStyle
+                                        onMouseDown = mouseDownHandler@{ event ->
+                                            val marker = resolveClickableMarker(event.target)
+                                            if (marker == null) return@mouseDownHandler
+                                            val blockId = resolveBlockId(marker)
+                                            if (blockId == null) return@mouseDownHandler
+                                            val groupId =
+                                                (marker.closest("[data-ct-group-id]") as? Element)?.getAttribute("data-ct-group-id") ?: blockId
+                                            event.preventDefault()
+                                            activeComparison =
+                                                if (activeComparison?.groupId == groupId && activeComparison?.blockId == blockId) {
+                                                    null
+                                                } else {
+                                                    LegalComparisonSelection(groupId = groupId, blockId = blockId)
                                                 }
+                                        }
+                                        onScroll = scrollHandler@{
+                                            val contentElement = legalDocumentContentRef.current ?: return@scrollHandler
+                                            updateLegalRail(contentElement) { markers, indicator ->
+                                                legalDiffMarkers = markers
+                                                legalViewportIndicator = indicator
                                             }
+                                        }
+                                    }
+                                    div {
+                                        className = ClassName("legal-dialog__scroll-marker-rail")
+                                        legalDiffMarkers.forEachIndexed { index, marker ->
+                                            val severity =
+                                                when (marker.severity) {
+                                                    LegalMarkerSeverity.RED -> LEGAL_MARKER_RED
+                                                    LegalMarkerSeverity.YELLOW -> LEGAL_MARKER_YELLOW
+                                                }
+                                            div {
+                                                className =
+                                                    ClassName(
+                                                        "legal-dialog__scroll-marker legal-dialog__scroll-marker--$severity",
+                                                    )
+                                                this.asDynamic().key = "legal-scroll-marker-$index-$severity-${marker.topPercent}"
+                                                val markerStyle: dynamic = js("({})")
+                                                markerStyle.top = "${marker.topPercent}%"
+                                                this.asDynamic().style = markerStyle
+                                            }
+                                        }
+                                        div {
+                                            className = ClassName("legal-dialog__viewport-indicator")
+                                            val indicatorStyle: dynamic = js("({})")
+                                            indicatorStyle.top = "${legalViewportIndicator.topPercent}%"
+                                            indicatorStyle.height = "${legalViewportIndicator.heightPercent}%"
+                                            this.asDynamic().style = indicatorStyle
                                         }
                                     }
                                 }
@@ -294,42 +356,43 @@ private const val LEGAL_MARKER_RED = "red"
 private const val LEGAL_MARKER_YELLOW = "yellow"
 private val mainNoDependencies: Array<dynamic> = emptyArray()
 
-private fun collectLegalScrollMarkers(contentElement: HTMLDivElement): List<Pair<Double, String>> {
+private fun collectLegalScrollMarkers(contentElement: HTMLDivElement): List<LegalRailMarker> {
     val totalHeight = contentElement.scrollHeight.toDouble()
     if (totalHeight <= 0.0) {
         return emptyList()
     }
     val contentRect = contentElement.getBoundingClientRect()
     val nodes = contentElement.querySelectorAll(".legal-ct-bg-yellow, .legal-ct-bg-red")
-    val markers = mutableListOf<Pair<Double, String>>()
+    val markers = mutableListOf<LegalRailMarker>()
     val nodeCount = nodes.length
     for (index in 0 until nodeCount) {
         val node = nodes.item(index) ?: continue
         val severity =
             when {
-                node.className.toString().contains("legal-ct-bg-red") -> LEGAL_MARKER_RED
-                node.className.toString().contains("legal-ct-bg-yellow") -> LEGAL_MARKER_YELLOW
+                node.className.toString().contains("legal-ct-bg-red") -> LegalMarkerSeverity.RED
+                node.className.toString().contains("legal-ct-bg-yellow") -> LegalMarkerSeverity.YELLOW
                 else -> null
             } ?: continue
         val nodeTop = node.getBoundingClientRect().top - contentRect.top + contentElement.scrollTop
         val topPercent = ((nodeTop / totalHeight) * 100.0).coerceIn(0.0, 100.0)
-        markers += topPercent to severity
+        markers += LegalRailMarker(topPercent = topPercent, severity = severity)
     }
+    return markers
+}
 
-    if (markers.isEmpty()) {
-        return emptyList()
-    }
-
-    val sortedByTop = markers.sortedBy { it.first }
-    val mergedMarkers = mutableListOf<Pair<Double, String>>()
-    for (marker in sortedByTop) {
-        val previous = mergedMarkers.lastOrNull()
-        if (previous != null && previous.second == marker.second && abs(previous.first - marker.first) < 0.75) {
-            continue
-        }
-        mergedMarkers += marker
-    }
-    return mergedMarkers
+private fun updateLegalRail(
+    contentElement: HTMLDivElement,
+    apply: (List<LegalRailMarker>, LegalViewportIndicator) -> Unit,
+) {
+    val rawMarkers = collectLegalScrollMarkers(contentElement)
+    val markers = quantizeRailMarkers(rawMarkers, contentElement.clientHeight)
+    val indicator =
+        computeLegalViewportIndicator(
+            scrollTop = contentElement.scrollTop,
+            scrollHeight = contentElement.scrollHeight.toDouble(),
+            clientHeight = contentElement.clientHeight.toDouble(),
+        )
+    apply(markers, indicator)
 }
 
 private sealed interface PrivacyDocumentState {
@@ -338,10 +401,83 @@ private sealed interface PrivacyDocumentState {
     data object Loading : PrivacyDocumentState
 
     data class Ready(
-        val html: String,
+        val document: straightway.mosa.client.legal.LegalPrivacyPolicyDocument,
     ) : PrivacyDocumentState
 
     data class Error(
         val text: String,
     ) : PrivacyDocumentState
+}
+
+private data class LegalComparisonSelection(
+    val groupId: String,
+    val blockId: String,
+)
+
+private fun findComparisonGroupElement(
+    contentElement: HTMLDivElement,
+    groupId: String,
+): Element? {
+    val groups = contentElement.querySelectorAll("[data-ct-group-id]")
+    for (index in 0 until groups.length) {
+        val candidate = groups.item(index) as? Element ?: continue
+        if (candidate.getAttribute("data-ct-group-id") == groupId) {
+            return candidate
+        }
+    }
+    return null
+}
+
+private fun removeExistingComparisonBoxes(contentElement: HTMLDivElement) {
+    val existing = contentElement.parentElement?.querySelectorAll(".legal-ct-comparison-box") ?: return
+    for (index in existing.length - 1 downTo 0) {
+        val node = existing.item(index) ?: continue
+        node.parentNode?.removeChild(node)
+    }
+}
+
+private fun buildComparisonBox(
+    uncriticalText: String,
+    label: String,
+): WebElement {
+    val box = document.createElement("div")
+    box.className = "legal-ct-comparison-box"
+    val boxLabel = document.createElement("div")
+    boxLabel.className = "legal-ct-comparison-box__label"
+    boxLabel.textContent = label
+    val boxText = document.createElement("div")
+    boxText.className = "legal-ct-comparison-box__text"
+    boxText.textContent = uncriticalText
+    box.appendChild(boxLabel)
+    box.appendChild(boxText)
+    return box.unsafeCast<WebElement>()
+}
+
+private fun resolveClickableMarker(target: dynamic): Element? {
+    var node = target
+    while (node != null) {
+        val classList = node.classList
+        if (classList != null) {
+            val isYellow = classList.contains("legal-ct-bg-yellow") as? Boolean ?: false
+            val isRed = classList.contains("legal-ct-bg-red") as? Boolean ?: false
+            if (isYellow || isRed) {
+                return node.unsafeCast<Element>()
+            }
+        }
+        node = node.parentNode
+    }
+    return null
+}
+
+private fun resolveBlockId(marker: Element): String? {
+    val direct = marker.getAttribute("data-ct-block-id")
+    if (!direct.isNullOrBlank()) {
+        return direct
+    }
+    val group = marker.closest("[data-ct-block-ids]") as? Element ?: return null
+    val groupIds = group.getAttribute("data-ct-block-ids") ?: return null
+    return groupIds
+        .split(' ')
+        .map { value -> value.trim() }
+        .firstOrNull { value -> value.isNotEmpty() }
 }
