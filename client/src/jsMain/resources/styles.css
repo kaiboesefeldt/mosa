@@ -2037,4 +2037,15 @@ button:disabled {
     .legal-fab__label {
         display: none;
     }
+
+    .legal-dialog__content {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .legal-dialog__content::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+        display: none;
+    }
 }
