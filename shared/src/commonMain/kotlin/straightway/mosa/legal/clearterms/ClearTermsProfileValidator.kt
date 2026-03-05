@@ -49,8 +49,8 @@ class ClearTermsProfileValidator(
         validateOverrideLanguages(overrides, textsByLanguage)
         validateReplaceDefinitions(overrides, textsByLanguage)
         validateAppendDefinitions(overrides, textsByLanguage)
-        return textsByLanguage.mapValues { (language, blocks) ->
-            mergeLanguageBlocks(blocks, overrides.getValue(language))
+        return overrides.mapValues { (language, languageOverrides) ->
+            mergeLanguageBlocks(textsByLanguage.getValue(language), languageOverrides)
         }
     }
 
@@ -84,6 +84,9 @@ class ClearTermsProfileValidator(
     }
 
     fun validateFinalTextsResolved(textsByLanguage: Map<String, List<ClearTermsTextBlock>>) {
+        if (textsByLanguage.isEmpty()) {
+            throw ClearTermsValidationException("No languages available after applying profile chain")
+        }
         textsByLanguage.forEach { (language, blocks) ->
             val unresolved = blocks.firstOrNull { it.text == null }
             if (unresolved != null) {
@@ -96,8 +99,9 @@ class ClearTermsProfileValidator(
         overrides: Map<String, ClearTermsProfile.TextOverrides>,
         textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
     ) {
-        if (overrides.keys != textsByLanguage.keys) {
-            throw ClearTermsValidationException("Deviation texts must cover all baseline languages")
+        val unsupportedLanguage = overrides.keys.firstOrNull { it !in textsByLanguage.keys }
+        if (unsupportedLanguage != null) {
+            throw ClearTermsValidationException("Override language '$unsupportedLanguage' is not supported by parent profile")
         }
     }
 
@@ -105,6 +109,9 @@ class ClearTermsProfileValidator(
         overrides: Map<String, ClearTermsProfile.TextOverrides>,
         textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
     ) {
+        if (overrides.isEmpty()) {
+            return
+        }
         val existingIds = blockIdSet(textsByLanguage)
         val replaceKeys =
             overrides.values
@@ -125,6 +132,9 @@ class ClearTermsProfileValidator(
         overrides: Map<String, ClearTermsProfile.TextOverrides>,
         textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
     ) {
+        if (overrides.isEmpty()) {
+            return
+        }
         val existingIds = blockIdSet(textsByLanguage)
         val appendReference =
             overrides.values

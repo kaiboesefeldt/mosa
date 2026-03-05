@@ -480,7 +480,7 @@ class ClearTermsRendererTest {
         }
 
     @Test
-    fun `rejects deviation texts missing language`() =
+    fun `supports deviation texts for subset of languages`() =
         runTest {
             val baseline =
                 """
@@ -520,9 +520,14 @@ class ClearTermsRendererTest {
                 }
                 """.trimIndent()
 
-            assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
-            }
+            val renderedEn = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val exception =
+                assertFailsWith<ClearTermsValidationException> {
+                    renderer.renderLanguage(baseline, defaultProfile, deviation, "de")
+                }
+
+            assertEquals("Support: Monday.", renderedEn)
+            assertEquals("Language 'de' not available", exception.message)
         }
 
     @Test

@@ -444,4 +444,153 @@ class ClearTermsProfileChainCompletenessCheckerTest {
         assertEquals(listOf("CONTACT_EMAIL"), result.missingPlaceholderKeys)
         assertEquals(emptyList(), result.unresolvedRequiredBlockIdsByLanguage.getValue("en"))
     }
+
+    @Test
+    fun `shrinks supported language set when profiles provide only subsets`() {
+        val baselineCanonicalJson =
+            """
+            {
+              "kind":"baseline",
+              "id":"baseline-1",
+              "version":"1.0",
+              "texts":{
+                "de":[{"id":"main","text":"DE"}],
+                "en":[{"id":"main","text":"EN"}],
+                "fr":[{"id":"main","text":"FR"}],
+                "zh":[{"id":"main","text":"ZH"}]
+              }
+            }
+            """.trimIndent()
+        val firstProfileCanonicalJson =
+            """
+            {
+              "kind":"profile",
+              "id":"profile-1",
+              "version":"1.0",
+              "parent":{"id":"baseline-1","version":"1.0","hash":"sha256:aa"},
+              "overrides":{
+                "texts":{
+                  "de":{"replace":{"main":"DE 1"}},
+                  "en":{"replace":{"main":"EN 1"}},
+                  "zh":{"replace":{"main":"ZH 1"}}
+                }
+              }
+            }
+            """.trimIndent()
+        val secondProfileCanonicalJson =
+            """
+            {
+              "kind":"profile",
+              "id":"profile-2",
+              "version":"1.0",
+              "parent":{"id":"profile-1","version":"1.0","hash":"sha256:bb"},
+              "overrides":{
+                "texts":{
+                  "en":{"replace":{"main":"EN 2"}},
+                  "zh":{"replace":{"main":"ZH 2"}}
+                }
+              }
+            }
+            """.trimIndent()
+
+        val result =
+            checker.analyze(
+                baselineCanonicalJson = baselineCanonicalJson,
+                profileChainCanonicalJsons = listOf(firstProfileCanonicalJson, secondProfileCanonicalJson),
+            )
+
+        assertTrue(result.complete)
+        assertEquals(setOf("en", "zh"), result.unresolvedRequiredBlockIdsByLanguage.keys)
+    }
+
+    @Test
+    fun `fails when no language remains at end of profile chain`() {
+        val baselineCanonicalJson =
+            """
+            {
+              "kind":"baseline",
+              "id":"baseline-1",
+              "version":"1.0",
+              "texts":{
+                "en":[{"id":"main","text":"EN"}]
+              }
+            }
+            """.trimIndent()
+        val profileCanonicalJson =
+            """
+            {
+              "kind":"profile",
+              "id":"profile-1",
+              "version":"1.0",
+              "parent":{"id":"baseline-1","version":"1.0","hash":"sha256:aa"},
+              "overrides":{
+                "texts":{}
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                checker.analyze(
+                    baselineCanonicalJson = baselineCanonicalJson,
+                    profileChainCanonicalJsons = listOf(profileCanonicalJson),
+                )
+            }
+
+        assertEquals("No languages available after applying profile chain", exception.message)
+    }
+
+    @Test
+    fun `fails when a profile introduces language outside previous subset`() {
+        val baselineCanonicalJson =
+            """
+            {
+              "kind":"baseline",
+              "id":"baseline-1",
+              "version":"1.0",
+              "texts":{
+                "de":[{"id":"main","text":"DE"}],
+                "en":[{"id":"main","text":"EN"}]
+              }
+            }
+            """.trimIndent()
+        val firstProfileCanonicalJson =
+            """
+            {
+              "kind":"profile",
+              "id":"profile-1",
+              "version":"1.0",
+              "parent":{"id":"baseline-1","version":"1.0","hash":"sha256:aa"},
+              "overrides":{
+                "texts":{
+                  "en":{"replace":{"main":"EN 1"}}
+                }
+              }
+            }
+            """.trimIndent()
+        val secondProfileCanonicalJson =
+            """
+            {
+              "kind":"profile",
+              "id":"profile-2",
+              "version":"1.0",
+              "parent":{"id":"profile-1","version":"1.0","hash":"sha256:bb"},
+              "overrides":{
+                "texts":{
+                  "de":{"replace":{"main":"DE 2"}}
+                }
+              }
+            }
+            """.trimIndent()
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                checker.analyze(
+                    baselineCanonicalJson = baselineCanonicalJson,
+                    profileChainCanonicalJsons = listOf(firstProfileCanonicalJson, secondProfileCanonicalJson),
+                )
+            }
+
+        assertEquals("Override language 'de' is not supported by parent profile", exception.message)
+    }
 }

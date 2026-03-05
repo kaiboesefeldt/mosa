@@ -285,6 +285,98 @@ class ClearTermsProfileChainRendererTest {
             assertEquals("Language 'de' not available", exception.message)
         }
 
+    @Test
+    fun `renders only final language subset after chained profile text overrides`() =
+        runTest {
+            hasher.reset()
+            val baseline =
+                """
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "de": [ { "id": "main", "text": "DE" } ],
+                    "en": [ { "id": "main", "text": "EN" } ],
+                    "fr": [ { "id": "main", "text": "FR" } ],
+                    "zh": [ { "id": "main", "text": "ZH" } ]
+                  }
+                }
+                """.trimIndent()
+            val profileA =
+                """
+                {
+                  "kind": "profile",
+                  "id": "example-policy-a",
+                  "version": "1.0",
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:01" },
+                  "overrides": {
+                    "texts": {
+                      "de": { "replace": { "main": "DE 1" } },
+                      "en": { "replace": { "main": "EN 1" } },
+                      "zh": { "replace": { "main": "ZH 1" } }
+                    }
+                  }
+                }
+                """.trimIndent()
+            val profileB =
+                """
+                {
+                  "kind": "profile",
+                  "id": "example-policy-b",
+                  "version": "1.0",
+                  "parent": { "id": "example-policy-a", "version": "1.0", "hash": "sha256:02" },
+                  "overrides": {
+                    "texts": {
+                      "en": { "replace": { "main": "EN 2" } },
+                      "zh": { "replace": { "main": "ZH 2" } }
+                    }
+                  }
+                }
+                """.trimIndent()
+
+            val result = renderer.renderAll(baseline, listOf(profileA, profileB))
+
+            assertEquals(setOf("en", "zh"), result.textsByLanguage.keys)
+            assertEquals("EN 2", result.textsByLanguage.getValue("en"))
+        }
+
+    @Test
+    fun `rejects profile chain when no language remains after text overrides`() =
+        runTest {
+            hasher.reset()
+            val baseline =
+                """
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [ { "id": "main", "text": "EN" } ]
+                  }
+                }
+                """.trimIndent()
+            val profile =
+                """
+                {
+                  "kind": "profile",
+                  "id": "example-policy-a",
+                  "version": "1.0",
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:01" },
+                  "overrides": {
+                    "texts": {}
+                  }
+                }
+                """.trimIndent()
+
+            val exception =
+                assertFailsWith<ClearTermsValidationException> {
+                    renderer.renderAll(baseline, listOf(profile))
+                }
+
+            assertEquals("No languages available after applying profile chain", exception.message)
+        }
+
     private class SequenceHashProvider : ClearTermsHashProvider {
         private var index = 0
 

@@ -23,6 +23,9 @@ class ClearTermsProfileChainCompletenessChecker(
             mergedValues.putAll(profile.overrides.values ?: emptyMap())
             effectiveTexts = profileValidator.applyTextOverrides(effectiveTexts, profile.overrides.texts)
         }
+        if (effectiveTexts.isEmpty()) {
+            throw ClearTermsValidationException("No languages available after applying profile chain")
+        }
 
         val unresolvedRequiredBlockIdsByLanguage = unresolvedRequiredBlocks(effectiveTexts, requiredBlockIds)
         val placeholders = placeholderRequirements(effectiveTexts)

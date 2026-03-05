@@ -146,7 +146,7 @@ Clients:
 * Within a given language, block ids MUST be unique.
 * For multi-language Baselines, corresponding blocks across languages MUST use the same block id.
 * For multi-language Baselines, the set of block ids and their order MUST be identical across all languages.
-* These constraints also apply to blocks appended via Profile overrides: appended blocks MUST use identical block ids across all Baseline languages, positionally aligned.
+* These constraints also apply to blocks appended via Profile overrides: appended blocks MUST use identical block ids across all currently supported languages of that profile step, positionally aligned.
 
 ### 5.3 Placeholder Discovery
 
@@ -480,7 +480,7 @@ Rules:
 
 #### 9.2.3 Text Override Requirements
 
-* `overrides.texts` MUST only target languages present in the referenced Baseline and MUST be present for all Baseline languages if present at all.
+* `overrides.texts` MUST only target languages currently supported by the parent text state (Baseline for the first Profile, otherwise the previous Profile state).
 * If `overrides.texts` is present, each language entry MUST be a mapping with key `replace` and MAY include `append`.
 * `replace` MUST be a mapping from existing block id to non-null text block string.
 * If present, `append` MUST be a list of text blocks, each with keys `id` and `text`.
@@ -492,7 +492,10 @@ Rules:
 
 #### 9.2.4 Multi-Language Text Override Constraints
 
-* For multi-language Baselines:
+* For multi-language parent text states:
+  * If `overrides.texts` is present, it defines the complete next supported language set for that step.
+  * The next supported language set MUST be a subset of the parent step language set.
+  * Languages removed in one step MUST NOT be re-introduced by later Profiles.
   * `replace` MUST define the same set of block ids in every language.
   * If `append` is present, it MUST append the same number of blocks in every language, and the appended block ids MUST be identical and positionally aligned across languages.
 * Implementations MUST reject any other form of insertion.
@@ -502,13 +505,10 @@ Rules:
 * The parent reference MUST satisfy §4.2.
 * The resolved parent artifact kind MUST be either `baseline` or `profile`.
 
-#### 9.2.6 Additional Multi-Language Constraints
+#### 9.2.6 Additional Chain Constraints
 
-Additional constraints for multi-language Baselines:
-
-* `replace` operations MUST be defined for the same set of block ids in every language.
-* If present, `append` operations MUST append the same number of blocks in every language (one appended block position corresponds across languages), preserving order.
-* Implementations MUST reject profiles that modify texts for only a subset of the Baseline’s languages.
+* A profile chain MUST be rejected if `overrides.texts` references a language that is not supported by its parent text state.
+* A profile chain MUST be rejected if the final supported language set is empty.
 
 ### 9.3 Typed Values in JSON
 
