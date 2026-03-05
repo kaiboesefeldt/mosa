@@ -1,6 +1,3 @@
-kind: baseline
-id: privacy-gdpr-baseline
-version: "1.0.0-draft2"
 texts:
   de:
     - id: policy-title

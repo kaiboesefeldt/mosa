@@ -1,13 +1,4 @@
-kind: profile
-id: mosa-privacy-gdpr-service
-version: "1.0.0-draft2"
-parent:
-  id: privacy-gdpr-default
-  version: "1.0.0-draft2"
 overrides:
-  values:
-    SERVICE_DISPLAY_NAME: "Mosa"
-    RETENTION_SERVICE_CONTENT: "infinite"
   texts:
     de:
       replace:
