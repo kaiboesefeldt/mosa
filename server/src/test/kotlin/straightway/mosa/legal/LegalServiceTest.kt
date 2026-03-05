@@ -14,6 +14,7 @@ import straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessCheck
 import straightway.mosa.legal.clearterms.ClearTermsProfileValidator
 import straightway.mosa.legal.clearterms.ClearTermsRenderer
 import straightway.mosa.legal.clearterms.ClearTermsTextEncoder
+import straightway.mosa.legal.clearterms.ClearTermsValidationException
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
@@ -242,6 +243,94 @@ class LegalServiceTest {
         val serviceProfile = reader.readProfile(parser.parse(service.privacyServiceCanonicalJson()))
         assertEquals("privacy-operator-service", serviceProfile.id)
         assertEquals("mosa-privacy-gdpr-service", serviceProfile.parent.id)
+    }
+
+    @Test
+    fun `loads operator profile text overrides from sibling language fragment files`() {
+        val missingPath = Files.createTempDirectory("legal-service-fragment-seed").resolve("mosa_privacy.yaml")
+        val fallbackSeedService =
+            createLegalService(
+                operatorProfilePath = missingPath,
+                completenessChecker = completenessChecker(complete = true),
+            )
+        val fallbackProfile = reader.readProfile(parser.parse(fallbackSeedService.privacyServiceCanonicalJson()))
+        val operatorValues = checkNotNull(fallbackProfile.overrides.values)
+
+        val operatorPath = Files.createTempDirectory("legal-service-fragment-operator").resolve("mosa_privacy.yaml")
+        Files.writeString(operatorPath, validOperatorProfileYaml(operatorValues))
+        Files.writeString(
+            operatorPath.resolveSibling("mosa_privacy.de.yaml"),
+            """
+            overrides:
+              texts:
+                de:
+                  replace:
+                    retention-slot-service: "- Veröffentlichte Inhalte: bis auf Widerruf."
+            """.trimIndent(),
+        )
+
+        val service =
+            createLegalService(
+                operatorProfilePath = operatorPath,
+                completenessChecker = completenessChecker(complete = true),
+            )
+
+        val serviceProfile = reader.readProfile(parser.parse(service.privacyServiceCanonicalJson()))
+        val deOverrides = checkNotNull(checkNotNull(serviceProfile.overrides.texts)["de"])
+
+        assertEquals("privacy-operator-service", serviceProfile.id)
+        assertEquals("- Veröffentlichte Inhalte: bis auf Widerruf.", deOverrides.replace["retention-slot-service"])
+    }
+
+    @Test
+    fun `ignores sibling fragments when base operator file does not end with yaml`() {
+        val missingPath = Files.createTempDirectory("legal-service-non-yaml-seed").resolve("mosa_privacy.yaml")
+        val fallbackSeedService =
+            createLegalService(
+                operatorProfilePath = missingPath,
+                completenessChecker = completenessChecker(complete = true),
+            )
+        val fallbackProfile = reader.readProfile(parser.parse(fallbackSeedService.privacyServiceCanonicalJson()))
+        val operatorValues = checkNotNull(fallbackProfile.overrides.values)
+
+        val path = Files.createTempDirectory("legal-service-non-yaml-operator").resolve("mosa_privacy.txt")
+        Files.writeString(path, validOperatorProfileYaml(operatorValues))
+        Files.writeString(path.resolveSibling("mosa_privacy.txt.de.yaml"), "overrides: [")
+
+        val service =
+            createLegalService(
+                operatorProfilePath = path,
+                completenessChecker = completenessChecker(complete = true),
+            )
+
+        val serviceProfile = reader.readProfile(parser.parse(service.privacyServiceCanonicalJson()))
+        assertEquals("privacy-operator-service", serviceProfile.id)
+    }
+
+    @Test
+    fun `fails startup when operator profile and fragment define same language`() {
+        val path = Files.createTempDirectory("legal-service-duplicate-language").resolve("mosa_privacy.yaml")
+        Files.writeString(path, operatorProfileYamlWithGermanTextOverride())
+        Files.writeString(
+            path.resolveSibling("mosa_privacy.de.yaml"),
+            """
+            overrides:
+              texts:
+                de:
+                  replace:
+                    retention-slot-service: "- Fragment-Text"
+            """.trimIndent(),
+        )
+
+        val exception =
+            assertFailsWith<ClearTermsValidationException> {
+                createLegalService(
+                    operatorProfilePath = path,
+                    completenessChecker = completenessChecker(complete = true),
+                )
+            }
+
+        assertEquals("Language 'de' is defined more than once", exception.message)
     }
 
     @Test
@@ -607,6 +696,23 @@ class LegalServiceTest {
             RETENTION_OPERATIONAL_LOG_DATA: null
             IRRELEVANT_NUMBER: 42
             IRRELEVANT_BOOLEAN: true
+        """.trimIndent()
+
+    private fun operatorProfileYamlWithGermanTextOverride(): String =
+        """
+        kind: profile
+        id: privacy-operator-service
+        version: "1.0.0-draft2"
+        parent:
+          id: mosa-privacy-gdpr-service
+          version: "1.0.0-draft2"
+        overrides:
+          values:
+            SERVICE_DISPLAY_NAME: "Operator Service"
+          texts:
+            de:
+              replace:
+                retention-slot-service: "- Basis-Text"
         """.trimIndent()
 
     private fun syntheticBaselineWithAllPlaceholderTypesAndUnresolvedEnglishText(): String =

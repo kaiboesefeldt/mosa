@@ -15,15 +15,20 @@ import straightway.mosa.legal.clearterms.ClearTermsProfileValidator
 import straightway.mosa.legal.clearterms.ClearTermsTextBlock
 import straightway.mosa.legal.clearterms.ClearTermsValidationException
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
+import straightway.mosa.legal.clearterms.ClearTermsYamlLanguageFragmentMerger
+import java.net.JarURLConnection
+import java.nio.file.Files
+import java.nio.file.Path
 
 class LegalService(
     private val canonicalJsonConverter: ClearTermsYamlCanonicalJsonConverter,
-    private val operatorProfilePath: java.nio.file.Path,
+    private val operatorProfilePath: Path,
     private val completenessChecker: ClearTermsProfileChainCompletenessChecker,
     private val parser: ClearTermsJsonParser,
     private val reader: ClearTermsDocumentReader,
     private val profileValidator: ClearTermsProfileValidator,
     private val canonicalJson: ClearTermsCanonicalJson,
+    private val languageFragmentMerger: ClearTermsYamlLanguageFragmentMerger = ClearTermsYamlLanguageFragmentMerger(),
 ) {
     private val documents: PrivacyLegalDocuments = loadPrivacyDocuments()
 
@@ -178,22 +183,114 @@ class LegalService(
     private fun serviceProfileValues(profiles: List<ClearTermsProfile>): Map<String, ClearTermsJsonNode.ScalarNode> =
         profiles.lastOrNull()?.overrides?.values ?: emptyMap()
 
-    private fun readRequiredResource(path: String): String =
+    private fun readRequiredResource(path: String): String {
+        val baseYaml = readResource(path) ?: throw IllegalStateException("Missing resource '$path'")
+        val fragmentYamls = listResourceFragments(path).map { fragmentPath -> readRequiredResourceWithoutFragments(fragmentPath) }
+        return languageFragmentMerger.merge(baseYaml, fragmentYamls)
+    }
+
+    private fun readOptionalProfile(path: Path): String? {
+        val normalizedPath = path.toAbsolutePath().normalize()
+        if (!Files.exists(normalizedPath)) {
+            return null
+        }
+        val baseYaml = Files.readString(normalizedPath, Charsets.UTF_8)
+        val fragmentYamls = listSiblingFileFragments(normalizedPath).map { fragmentPath -> Files.readString(fragmentPath, Charsets.UTF_8) }
+        return languageFragmentMerger.merge(baseYaml, fragmentYamls)
+    }
+
+    private fun readRequiredResourceWithoutFragments(path: String): String =
+        readResource(path) ?: throw IllegalStateException("Missing resource '$path'")
+
+    private fun readResource(path: String): String? =
         javaClass.classLoader
             .getResourceAsStream(path)
             ?.bufferedReader(Charsets.UTF_8)
             ?.use { it.readText() }
-            ?: throw IllegalStateException("Missing resource '$path'")
 
-    private fun readOptionalProfile(path: java.nio.file.Path): String? {
-        val normalizedPath = path.toAbsolutePath().normalize()
-        if (!java.nio.file.Files
-                .exists(normalizedPath)
-        ) {
-            return null
+    private fun listSiblingFileFragments(basePath: Path): List<Path> {
+        val baseFileName = basePath.fileName.toString()
+        if (!baseFileName.endsWith(".yaml")) {
+            return emptyList()
         }
-        return java.nio.file.Files
-            .readString(normalizedPath, Charsets.UTF_8)
+        val prefix = "${baseFileName.removeSuffix(".yaml")}."
+        val parent = basePath.parent ?: Path.of(".")
+        return Files
+            .list(parent)
+            .use { stream ->
+                stream
+                    .filter { candidate ->
+                        Files.isRegularFile(candidate) &&
+                            candidate.fileName.toString() != baseFileName &&
+                            candidate.fileName.toString().startsWith(prefix) &&
+                            candidate.fileName.toString().endsWith(".yaml")
+                    }.sorted()
+                    .toList()
+            }
+    }
+
+    private fun listResourceFragments(basePath: String): List<String> {
+        val baseFileName = basePath.substringAfterLast('/')
+        if (!baseFileName.endsWith(".yaml")) {
+            return emptyList()
+        }
+        val prefix = "${baseFileName.removeSuffix(".yaml")}."
+        val directoryPath = basePath.substringBeforeLast('/', "")
+        val discovered = linkedSetOf<String>()
+        val resources = javaClass.classLoader.getResources(directoryPath)
+        while (resources.hasMoreElements()) {
+            val directoryUrl = resources.nextElement()
+            when (directoryUrl.protocol) {
+                "file" -> {
+                    val directory = Path.of(directoryUrl.toURI())
+                    Files
+                        .list(directory)
+                        .use { stream ->
+                            stream
+                                .filter { candidate ->
+                                    Files.isRegularFile(candidate) &&
+                                        candidate.fileName.toString() != baseFileName &&
+                                        candidate.fileName.toString().startsWith(prefix) &&
+                                        candidate.fileName.toString().endsWith(".yaml")
+                                }.map { candidate ->
+                                    if (directoryPath.isEmpty()) {
+                                        candidate.fileName.toString()
+                                    } else {
+                                        "$directoryPath/${candidate.fileName}"
+                                    }
+                                }.sorted()
+                                .forEach { candidatePath -> discovered.add(candidatePath) }
+                        }
+                }
+                "jar" -> {
+                    val connection = directoryUrl.openConnection() as JarURLConnection
+                    val directoryEntryPrefix = connection.entryName.trimEnd('/') + "/"
+                    val siblingNames =
+                        connection
+                            .jarFile
+                            .entries()
+                            .asSequence()
+                            .map { entry -> entry.name }
+                            .filter { entryName ->
+                                entryName.startsWith(directoryEntryPrefix) &&
+                                    !entryName.removePrefix(directoryEntryPrefix).contains("/")
+                            }.map { entryName -> entryName.removePrefix(directoryEntryPrefix) }
+                            .filter { name ->
+                                name != baseFileName &&
+                                    name.startsWith(prefix) &&
+                                    name.endsWith(".yaml")
+                            }.sorted()
+                    siblingNames.forEach { name ->
+                        if (directoryPath.isEmpty()) {
+                            discovered.add(name)
+                        } else {
+                            discovered.add("$directoryPath/$name")
+                        }
+                    }
+                }
+            }
+        }
+        return discovered.toList()
     }
 
     private fun printProfileChainSkeleton(

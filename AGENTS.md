@@ -85,6 +85,9 @@
 - Routes: `/v1/approvegid` is open; `/v1/publish`, `/v1/reply`, `/v1/query`, `/v1/queryon` require auth.
 - Embeddings/vector storage: ONNX local embeddings + Lucene local vector store.
 - Client assets are copied into server static resources for packaging.
+- ClearTerms YAML loading supports optional language fragment files:
+  - Baseline: `<name>.<lang>.yaml` fragments contribute to root `texts`.
+  - Profile: `<name>.<lang>.yaml` fragments contribute to `overrides.texts`.
 
 ## 9. Security Constraints
 - Ed25519 signing uses transient keys unless explicitly persisted.
