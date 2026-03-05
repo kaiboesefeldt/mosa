@@ -1863,22 +1863,19 @@ button:disabled {
     max-height: min(60vh, 640px);
     overflow-y: auto;
     min-width: 0;
-    padding-right: 0;
+    padding-right: 0.9rem;
     line-height: 1.5;
 }
 
 .legal-dialog__content-wrap {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 6px;
-    gap: 0.4rem;
-    align-items: stretch;
+    position: relative;
 }
 
 .legal-dialog__scroll-marker-rail {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
+    position: absolute;
+    top: 0.25rem;
+    right: 0;
+    bottom: 0.25rem;
     width: 6px;
     pointer-events: none;
 }
@@ -1908,6 +1905,7 @@ button:disabled {
     border-radius: 999px;
     background: rgba(15, 23, 42, 0.18);
     min-height: 12px;
+    display: none;
 }
 
 .legal-dialog__content h1,
@@ -2096,7 +2094,20 @@ button:disabled {
     }
 
     .legal-dialog__content-wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 6px;
         gap: 0.3rem;
+    }
+
+    .legal-dialog__scroll-marker-rail {
+        position: relative;
+        top: auto;
+        right: auto;
+        bottom: auto;
+    }
+
+    .legal-dialog__viewport-indicator {
+        display: block;
     }
 
     .legal-ct-comparison-box {
