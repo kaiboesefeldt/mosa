@@ -163,10 +163,10 @@ private val IdentityApp = FC<Props> {
                     ?: translator.translate("legal.comparison.original.missing")
             val groupElement = findComparisonGroupElement(contentElement, selection.groupId) ?: return
             val box = buildComparisonBox(uncriticalText, translator.translate("legal.comparison.original"))
-            mountComparisonBox(contentElement, box)
+            mountComparisonBox(contentElement, groupElement, box)
             val selectionKey = "${selection.groupId}|${selection.blockId}"
             if (lastAutoScrolledComparisonRef.current != selectionKey) {
-                scrollComparisonGroupIntoView(contentElement, groupElement)
+                scrollComparisonIntoView(contentElement, groupElement, box)
                 lastAutoScrolledComparisonRef.current = selectionKey
             }
         }
@@ -450,7 +450,7 @@ private fun findComparisonGroupElement(
 }
 
 private fun removeExistingComparisonBoxes(contentElement: HTMLDivElement) {
-    val existing = contentElement.parentElement?.querySelectorAll(".legal-ct-comparison-box") ?: return
+    val existing = contentElement.querySelectorAll(".legal-ct-comparison-box")
     for (index in existing.length - 1 downTo 0) {
         val node = existing.item(index) ?: continue
         node.parentNode?.removeChild(node)
@@ -474,20 +474,24 @@ private fun buildComparisonBox(
     return box.unsafeCast<WebElement>()
 }
 
-private fun scrollComparisonGroupIntoView(
+private fun scrollComparisonIntoView(
     contentElement: HTMLDivElement,
     groupElement: Element,
+    comparisonBox: WebElement,
 ) {
     val contentRect = contentElement.getBoundingClientRect()
     val groupRect = groupElement.getBoundingClientRect()
+    val boxRect = comparisonBox.getBoundingClientRect()
     val margin = 12.0
+    val top = minOf(groupRect.top, boxRect.top)
+    val bottom = maxOf(groupRect.bottom, boxRect.bottom)
     when {
-        groupRect.bottom > contentRect.bottom - margin -> {
-            val delta = groupRect.bottom - contentRect.bottom + margin
+        bottom > contentRect.bottom - margin -> {
+            val delta = bottom - contentRect.bottom + margin
             contentElement.scrollTop += delta
         }
-        groupRect.top < contentRect.top + margin -> {
-            val delta = contentRect.top - groupRect.top + margin
+        top < contentRect.top + margin -> {
+            val delta = contentRect.top - top + margin
             contentElement.scrollTop -= delta
         }
     }
@@ -495,10 +499,15 @@ private fun scrollComparisonGroupIntoView(
 
 private fun mountComparisonBox(
     contentElement: HTMLDivElement,
+    groupElement: Element,
     box: WebElement,
 ) {
-    val wrapElement = contentElement.parentElement ?: return
-    wrapElement.appendChild(box)
+    val nextSibling = groupElement.nextSibling
+    if (nextSibling != null) {
+        contentElement.insertBefore(box, nextSibling)
+        return
+    }
+    contentElement.appendChild(box)
 }
 
 
