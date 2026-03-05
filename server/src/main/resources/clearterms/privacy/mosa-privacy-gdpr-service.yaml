@@ -17,7 +17,7 @@ overrides:
           Ihr Konto läuft nicht auf Ihren echten Namen, sondern auf einen automatisch erzeugten Kontonamen.
 
         data-categories-slot-service: |
-          - Kontodaten: Ihr Kontoname, Anmeldedaten und Angaben zu Ihrer Anmeldung
+          - Kontodaten: Ihr Kontoname (nicht ihr echter Name), Anmeldedaten und Angaben zu Ihrer Anmeldung
           - Inhalte: Ihre veröffentlichten Beiträge und Antworten
           - Zusätzliche Angaben zu Inhalten: welche Antwort zu welchem Beitrag gehört, von welchem Konto ein Inhalt stammt und wann er gespeichert wurde
           - Such- und Abrufdaten: was Sie suchen, welche Zeiträume Sie auswählen und welche Beiträge Sie anfragen
@@ -30,7 +30,7 @@ overrides:
 
           Ein wichtiger Teil von {{string:SERVICE_DISPLAY_NAME}} läuft direkt im Browser auf Ihrem eigenen Gerät.
 
-          Dabei werden Daten auch lokal im Browser gespeichert, zum Beispiel:
+          Dabei werden Daten auch auf Ihrem Gerät gespeichert, zum Beispiel:
 
           - veröffentlichte Beiträge und Antworten, die Sie abrufen
           - die Themenliste
@@ -44,14 +44,14 @@ overrides:
           - damit gesetzliche Pflichten erfüllt werden
 
         recipients-list-slot-service: |
-          - an andere Nutzerinnen und Nutzer: veröffentlichte Beiträge und Antworten sind sichtbar und abrufbar
+          - an andere Nutzerinnen und Nutzer: veröffentlichte Beiträge und Antworten sind für andere Nutzerinnen und Nutzer sichtbar und abrufbar
 
         third-country-transfers-slot-service: |
           - {{string:SERVICE_DISPLAY_NAME}} wird weltweit genutzt. Darum können veröffentlichte Inhalte auch außerhalb der EU gelesen werden.
 
         third-country-transfers-detail-slot-service: |
-          - Eine vollständige, immer aktuelle Liste aller Länder, aus denen veröffentlichte Inhalte aufgerufen werden, ist nicht möglich.
-          - Wenn veröffentlichte Inhalte nur aus dem Ausland aufgerufen werden, ist das keine gezielte Weitergabe durch {{string:SERVICE_DISPLAY_NAME}}. Nur wenn Daten aktiv in Länder außerhalb der EU gesendet werden, wird festgehalten, an wen und warum die Daten gehen und wie sie geschützt werden.
+          - Es ist nicht möglich, eine vollständige, immer aktuelle Liste aller Länder zu nennen, aus denen veröffentlichte Inhalte aufgerufen werden.
+          - Wenn veröffentlichte Inhalte aus dem Ausland nur von anderen Nutzerinnen und Nutzern aufgerufen werden, ist das keine gezielte Weitergabe durch {{string:SERVICE_DISPLAY_NAME}}. Nur wenn Daten aktiv in Länder außerhalb der EU gesendet werden, wird festgehalten, an wen und warum die Daten gehen und wie sie geschützt werden.
 
         retention-slot-service: |
           - Veröffentlichte Inhalte: {{duration:RETENTION_SERVICE_CONTENT}}
@@ -61,16 +61,16 @@ overrides:
 
           - Nach dem Löschen wird der Inhalt auf diesem Pod nicht mehr bereitgestellt und zeitnah entfernt.
           - Eine vollständige Löschung im ganzen Internet kann nicht versprochen werden. Das gilt auch für Ihre eigenen Beiträge und Antworten, wenn andere Nutzerinnen und Nutzer diese bereits auf ihren Geräten gespeichert haben.
-          - Daten, die auf Ihrem eigenen Gerät gespeichert sind, bleiben dort, bis sie entfernt werden (durch Funktionen in {{string:SERVICE_DISPLAY_NAME}}, durch den Browser oder durch Löschen der Browserdaten durch die nutzende Person). Ohne aktives Löschen können Beiträge zeitlich unbegrenzt auf Ihrem Gerät bleiben.
+          - Daten, die auf Ihrem eigenen Gerät gespeichert sind, bleiben dort, bis sie entfernt werden (durch Funktionen in {{string:SERVICE_DISPLAY_NAME}}, durch den Browser oder durch Löschen der Browserdaten). Ohne aktives Löschen können Beiträge zeitlich unbegrenzt auf Ihrem Gerät bleiben.
 
         provision-obligation-slot-service: |
           Damit Sie geschützte Funktionen von {{string:SERVICE_DISPLAY_NAME}} nutzen können, sind einige Angaben erforderlich:
 
-          - ein Konto zur Anmeldung mit einem automatisch vergebenen Kontonamen sowie die nötigen Anmeldedaten
+          - ein Konto zur Anmeldung mit einem automatisch vergebenen Kontonamen (nicht Ihr echter Name) sowie die nötigen Anmeldedaten
           - die Eingaben, die Sie bei der Nutzung selbst machen (zum Beispiel Suchanfragen oder Texte)
 
-        rights-access-action-slot-service: "Eigene Daten herunterladen"
-        rights-portability-action-slot-service: "Eigene Daten herunterladen"
-        rights-rectification-action-slot-service: "Inhalte löschen und richtig neu veröffentlichen"
-        rights-erasure-action-slot-service: "Beiträge und Antworten löschen"
-        rights-restriction-action-slot-service: "Sichtbarkeit eigener Inhalte begrenzen"
+        rights-access-action-slot-service: "Einfach die eigenen Daten in {{string:SERVICE_DISPLAY_NAME}} herunterladen"
+        rights-portability-action-slot-service: "Auch darüber, die eigenen Daten in {{string:SERVICE_DISPLAY_NAME}} herunterzuladen"
+        rights-rectification-action-slot-service: "Inhalte in {{string:SERVICE_DISPLAY_NAME}} löschen und richtig neu veröffentlichen"
+        rights-erasure-action-slot-service: "Beiträge und Antworten selbst in {{string:SERVICE_DISPLAY_NAME}} löschen"
+        rights-restriction-action-slot-service: "Sichtbarkeit eigener Inhalte in {{string:SERVICE_DISPLAY_NAME}} durch die bereitgestellten Funktionen begrenzen"

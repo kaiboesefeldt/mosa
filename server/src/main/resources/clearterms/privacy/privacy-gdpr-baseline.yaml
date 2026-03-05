@@ -59,7 +59,7 @@ texts:
         - Daten für Sicherheit und Betrieb: Ihre Internetadresse (IP-Adresse) und nötige Verbindungsdaten (zum Beispiel Zeitpunkt des Zugriffs, aufgerufene Funktion und technische Fehlermeldungen), damit Missbrauch verhindert wird und {{string:SERVICE_DISPLAY_NAME}} zuverlässig läuft
 
     - id: data-sources-heading
-      text: "Datenquelle:"
+      text: "Woher diese Daten stammen:"
 
     - id: data-sources-list
       text: |
@@ -96,8 +96,8 @@ texts:
 
     - id: legal-basis-list
       text: |
-        - weil die Daten nötig sind, damit der Dienst für Sie läuft
-        - weil der Dienst vor Missbrauch geschützt werden muss
+        - weil die Daten nötig sind, damit {{string:SERVICE_DISPLAY_NAME}} für Sie läuft
+        - weil {{string:SERVICE_DISPLAY_NAME}} vor Missbrauch geschützt werden muss
         - weil manche Daten gesetzlich verarbeitet werden müssen
 
     - id: legal-basis-reference
@@ -170,7 +170,7 @@ texts:
     - id: retention-backups
       text: |
         - Es werden keine extra Langzeit-Backups nur zur Aufbewahrung Ihrer Inhalte angelegt.
-        - Kurzfristige Kopien für den Betrieb können entstehen und werden spätestens nach {{duration:RETENTION_BACKUP_TECHNICAL_COPIES}} automatisch überschrieben oder gelöscht.
+        - Kurzfristige Kopien für den Betrieb können entstehen und werden spätestens nach dieser Zeitspanne automatisch überschrieben oder gelöscht: {{duration:RETENTION_BACKUP_TECHNICAL_COPIES}}
 
     - id: provision-obligation-heading
       text: |
@@ -270,13 +270,17 @@ texts:
         - {{string:AUTHORITY_SUPERVISORY_ADDRESS}}
         - {{string:AUTHORITY_SUPERVISORY_WEBSITE}}
 
-    - id: security-and-changes-heading
+    - id: security-heading
       text: |
-        ## Sicherheit und Änderungen
+        ## Sicherheit
 
     - id: security-measures
       text: |
         Bei {{string:SERVICE_DISPLAY_NAME}} gibt es Maßnahmen, damit Missbrauch erschwert wird und der Dienst zuverlässig läuft.
+
+    - id: policy-changes-heading
+      text: |
+        ## Änderungen
 
     - id: policy-changes
       text: |
