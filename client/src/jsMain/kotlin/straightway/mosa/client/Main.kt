@@ -163,10 +163,10 @@ private val IdentityApp = FC<Props> {
                     ?: translator.translate("legal.comparison.original.missing")
             val groupElement = findComparisonGroupElement(contentElement, selection.groupId) ?: return
             val box = buildComparisonBox(uncriticalText, translator.translate("legal.comparison.original"))
-            groupElement.parentElement?.insertBefore(box, groupElement.nextSibling)
+            mountComparisonBox(contentElement, box)
             val selectionKey = "${selection.groupId}|${selection.blockId}"
             if (lastAutoScrolledComparisonRef.current != selectionKey) {
-                scrollComparisonBoxIntoView(contentElement, box)
+                scrollComparisonGroupIntoView(contentElement, groupElement)
                 lastAutoScrolledComparisonRef.current = selectionKey
             }
         }
@@ -474,24 +474,33 @@ private fun buildComparisonBox(
     return box.unsafeCast<WebElement>()
 }
 
-private fun scrollComparisonBoxIntoView(
+private fun scrollComparisonGroupIntoView(
     contentElement: HTMLDivElement,
-    box: WebElement,
+    groupElement: Element,
 ) {
     val contentRect = contentElement.getBoundingClientRect()
-    val boxRect = box.getBoundingClientRect()
+    val groupRect = groupElement.getBoundingClientRect()
     val margin = 12.0
     when {
-        boxRect.bottom > contentRect.bottom - margin -> {
-            val delta = boxRect.bottom - contentRect.bottom + margin
+        groupRect.bottom > contentRect.bottom - margin -> {
+            val delta = groupRect.bottom - contentRect.bottom + margin
             contentElement.scrollTop += delta
         }
-        boxRect.top < contentRect.top + margin -> {
-            val delta = contentRect.top - boxRect.top + margin
+        groupRect.top < contentRect.top + margin -> {
+            val delta = contentRect.top - groupRect.top + margin
             contentElement.scrollTop -= delta
         }
     }
 }
+
+private fun mountComparisonBox(
+    contentElement: HTMLDivElement,
+    box: WebElement,
+) {
+    val wrapElement = contentElement.parentElement ?: return
+    wrapElement.appendChild(box)
+}
+
 
 private fun resolveClickableMarker(target: dynamic): Element? {
     var node = target
