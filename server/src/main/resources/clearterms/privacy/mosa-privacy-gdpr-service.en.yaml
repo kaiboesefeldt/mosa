@@ -1,0 +1,67 @@
+overrides:
+  texts:
+    en:
+      replace:
+        service-description-slot-service: |
+          {{string:SERVICE_DISPLAY_NAME}} is a text service. You can publish posts there, reply to posts, search posts, retrieve posts, and delete your own posts.
+
+          Your account does not run under your real name, but under an automatically generated account name.
+
+        data-categories-slot-service: |
+          - Account data: your account name (not your real name), login data, and information about your registration
+          - Content: your published posts and replies
+          - Additional content metadata: which reply belongs to which post, which account created a piece of content, and when it was stored
+          - Search and retrieval data: what you search for, which time ranges you select, and which posts you request
+
+        data-sources-hint-slot-service: |
+          Note: You can write freely in posts. However, you should only include information about other people if you are sure you are allowed to do so.
+
+        local-processing-slot-service: |
+          ## Local processing in the browser
+
+          An important part of {{string:SERVICE_DISPLAY_NAME}} runs directly in the browser on your own device.
+
+          Data is also stored on your device, for example:
+
+          - published posts and replies that you retrieve
+          - the topic list
+          - which of your accounts are stored in the browser and which one is currently active
+
+          The reasons are privacy and speed: part of the data stays directly on your device and under your own control, and content can be displayed faster.
+
+        purposes-list-slot-service: |
+          - so that {{string:SERVICE_DISPLAY_NAME}} works (publish, reply, search, retrieve, delete posts)
+          - so that {{string:SERVICE_DISPLAY_NAME}} remains secure and stable
+          - so that legal obligations are fulfilled
+
+        recipients-list-slot-service: |
+          - other users: published posts and replies are visible and retrievable for other users
+
+        third-country-transfers-slot-service: |
+          - {{string:SERVICE_DISPLAY_NAME}} is used worldwide. Therefore, published content may also be read outside the EU.
+
+        third-country-transfers-detail-slot-service: |
+          - It is not possible to provide a complete, always up-to-date list of all countries from which published content is accessed.
+          - If published content is accessed from abroad only by other users, this is not an active transfer by {{string:SERVICE_DISPLAY_NAME}}. Only when data is actively sent to countries outside the EU, it is documented who receives the data, why it is sent, and how it is protected.
+
+        retention-slot-service: |
+          - Published content: {{duration:RETENTION_SERVICE_CONTENT}}
+
+        retention-deletion-details-slot-service: |
+          The following also applies to published content:
+
+          - After deletion, content is no longer provided by this pod and is removed promptly.
+          - Complete deletion across the entire internet cannot be promised. This also applies to your own posts and replies if other users have already stored them on their devices.
+          - Data stored on your own device remains there until it is removed (via functions in {{string:SERVICE_DISPLAY_NAME}}, by the browser, or by deleting browser data). Without active deletion, posts may remain on your device for an unlimited period.
+
+        provision-obligation-slot-service: |
+          To use protected functions of {{string:SERVICE_DISPLAY_NAME}}, some information is required:
+
+          - an account for login with an automatically assigned account name (not your real name) and the required login data
+          - the inputs you make while using the service (for example search queries or text entries)
+
+        rights-access-action-slot-service: "Simply download your own data in {{string:SERVICE_DISPLAY_NAME}}"
+        rights-portability-action-slot-service: "Also by downloading your own data in {{string:SERVICE_DISPLAY_NAME}}"
+        rights-rectification-action-slot-service: "Delete content in {{string:SERVICE_DISPLAY_NAME}} and republish it correctly"
+        rights-erasure-action-slot-service: "Delete posts and replies yourself in {{string:SERVICE_DISPLAY_NAME}}"
+        rights-restriction-action-slot-service: "Limit visibility of your own content in {{string:SERVICE_DISPLAY_NAME}} using the provided functions"

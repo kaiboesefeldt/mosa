@@ -266,6 +266,9 @@ class LegalServiceTest {
                 de:
                   replace:
                     retention-slot-service: "- Veröffentlichte Inhalte: bis auf Widerruf."
+                en:
+                  replace:
+                    retention-slot-service: "- Published content: until revoked."
             """.trimIndent(),
         )
 
@@ -641,6 +644,10 @@ class LegalServiceTest {
               replace:
                 retention-slot-service: |
                   - Veröffentlichte Inhalte: bis auf Widerruf.
+            en:
+              replace:
+                retention-slot-service: |
+                  - Published content: until revoked.
         """.trimIndent()
 
     private fun operatorProfileYamlWithInvalidParentVersion(): String =
@@ -713,6 +720,9 @@ class LegalServiceTest {
             de:
               replace:
                 retention-slot-service: "- Basis-Text"
+            en:
+              replace:
+                retention-slot-service: "- Base text"
         """.trimIndent()
 
     private fun syntheticBaselineWithAllPlaceholderTypesAndUnresolvedEnglishText(): String =
