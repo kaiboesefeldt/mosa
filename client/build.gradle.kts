@@ -53,6 +53,8 @@ kotlin {
         val kotlinWrappersVersion = "2025.11.1-19.2.0"
         val diceBearVersion = "9.2.4"
         val fontAwesomeVersion = "7.1.0"
+        val html2canvasVersion = "1.4.1"
+        val jspdfVersion = "4.2.0"
 
         jsMain {
             resources.srcDir(project(":shared").file("src/commonMain/resources"))
@@ -71,6 +73,8 @@ kotlin {
                 implementation(npm("@dicebear/core", diceBearVersion))
                 implementation(npm("@dicebear/adventurer-neutral", diceBearVersion))
                 implementation(npm("@fortawesome/fontawesome-free", fontAwesomeVersion))
+                implementation(npm("html2canvas", html2canvasVersion))
+                implementation(npm("jspdf", jspdfVersion))
             }
         }
 

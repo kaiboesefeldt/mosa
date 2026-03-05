@@ -26,8 +26,10 @@ import react.useMemo
 import react.useRef
 import react.useState
 import straightway.mosa.client.assets.FontAwesomeResources
+import straightway.mosa.client.assets.LogoResources
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.legal.LegalPrivacyPolicyService
+import straightway.mosa.client.legal.downloadLegalPdf
 import straightway.mosa.client.legal.LegalRailMarker
 import straightway.mosa.client.legal.LegalMarkerSeverity
 import straightway.mosa.client.legal.LegalViewportIndicator
@@ -69,6 +71,7 @@ private val IdentityApp = FC<Props> {
     var isLegalMenuVisible by useState(false)
     var activeLegalDocument by useState<String?>(null)
     var privacyDocumentState by useState<PrivacyDocumentState>(PrivacyDocumentState.Idle)
+    var isPrivacyPdfDownloading by useState(false)
     var activeComparison by useState<LegalComparisonSelection?>(null)
     var legalDiffMarkers by useState<List<LegalRailMarker>>(emptyList())
     var legalViewportIndicator by useState(LegalViewportIndicator(topPercent = 0.0, heightPercent = 100.0))
@@ -91,6 +94,7 @@ private val IdentityApp = FC<Props> {
     useEffect(arrayOf(activeLegalDocument)) {
         if (activeLegalDocument != LEGAL_DOCUMENT_PRIVACY) {
             privacyDocumentState = PrivacyDocumentState.Idle
+            isPrivacyPdfDownloading = false
             legalDocumentContentRef.current?.asDynamic()?.innerHTML = ""
             lastRenderedLegalHtmlRef.current = ""
             activeComparison = null
@@ -269,6 +273,47 @@ private val IdentityApp = FC<Props> {
                     h2 {
                         className = ClassName("legal-dialog__title")
                         +(legalDialogTitle ?: "")
+                    }
+                    if (activeLegalDocument == LEGAL_DOCUMENT_PRIVACY) {
+                        if (isPrivacyPdfDownloading) {
+                            span {
+                                className = ClassName("legal-dialog__download-status")
+                                this.asDynamic()["ariaLive"] = "polite"
+                                i {
+                                    className = ClassName("fa fa-solid fa-spinner fa-spin")
+                                }
+                                span {
+                                    +translator.translate("legal.privacy.downloadPdf.inProgress")
+                                }
+                            }
+                        }
+                        button {
+                            type = "button".unsafeCast<ButtonType>()
+                            className = ClassName("legal-dialog__download")
+                            ariaLabel = translator.translate("legal.privacy.downloadPdf.label")
+                            title = translator.translate("legal.privacy.downloadPdf.label")
+                            disabled = privacyDocumentState !is PrivacyDocumentState.Ready || isPrivacyPdfDownloading
+                            onClick = clickHandler@{
+                                val contentElement = legalDocumentContentRef.current
+                                if (contentElement == null) return@clickHandler
+                                isPrivacyPdfDownloading = true
+                                scope.launch {
+                                    runCatching {
+                                        downloadLegalPdf(
+                                            source = contentElement.unsafeCast<org.w3c.dom.HTMLDivElement>(),
+                                            logoUrl = LogoResources.dataUrl,
+                                            fileName = translator.translate("legal.privacy.downloadPdf.filename"),
+                                        )
+                                    }.onFailure {
+                                        console.error("Failed to download privacy PDF", it)
+                                    }
+                                    isPrivacyPdfDownloading = false
+                                }
+                            }
+                            i {
+                                className = ClassName("fa fa-solid fa-download")
+                            }
+                        }
                     }
                     button {
                         type = "button".unsafeCast<ButtonType>()
