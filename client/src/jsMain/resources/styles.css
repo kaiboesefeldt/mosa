@@ -1,8 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap");
-
 :root {
     --font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
-    --font-family-brand: "Playfair Display", "Inter", "Helvetica Neue", Arial, sans-serif;
+    --font-family-brand: Georgia, "Times New Roman", serif;
     --color-background: radial-gradient(circle at 20% 18%, #eef2ff, #ffffff 72%);
     --color-surface: rgba(255, 255, 255, 0.9);
     --color-border: rgba(148, 163, 184, 0.32);
