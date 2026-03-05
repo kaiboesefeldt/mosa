@@ -20,7 +20,14 @@
 5. Refactor test code without changing production behavior.
 6. Repeat.
 
-### 2.2 Final quality gate
+### 2.2 Mandatory sequence for bug fixes
+1. Try to reproduce the bug first with an automated test through public behavior.
+2. Make the test fail first (red) to confirm reproduction.
+3. Implement the minimal production fix.
+4. Verify the same test passes after the fix (green).
+5. Refactor without changing behavior if needed.
+
+### 2.3 Final quality gate
 - Always run `./gradlew check` before finishing.
 
 ## 3. Code Design Rules
