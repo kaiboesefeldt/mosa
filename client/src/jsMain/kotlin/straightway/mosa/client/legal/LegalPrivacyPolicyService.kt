@@ -14,6 +14,8 @@ import straightway.mosa.legal.clearterms.ClearTermsRenderResult
 import straightway.mosa.legal.clearterms.ClearTermsRenderedBlock
 import straightway.mosa.legal.clearterms.ClearTermsTextBlock
 import straightway.mosa.legal.clearterms.ClearTermsTextOverrideSeverity
+import straightway.mosa.legal.clearterms.ClearTermsTimeTextRenderer
+import straightway.mosa.legal.clearterms.ClearTermsTimeZoneDisplayConverter
 import straightway.mosa.legal.clearterms.ClearTermsValueRenderer
 import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
 import straightway.mosa.legal.clearterms.JsClearTermsResourceReader
@@ -25,12 +27,18 @@ class LegalPrivacyPolicyService(
     private val clearTermsContentProvider: PrivacyClearTermsContentProvider,
     private val markdownToHtmlRenderer: MarkdownToHtmlRenderer = MarkdownToHtmlRenderer(),
     private val clearTermsLocaleProvider: ClearTermsLocaleProvider = ClearTermsLocaleRepository(JsClearTermsResourceReader()),
+    private val timeZoneDisplayConverter: ClearTermsTimeZoneDisplayConverter = ClearTermsTimeZoneDisplayConverter.NoOp,
 ) {
     private val clearTermsJsonParser = ClearTermsJsonParser()
     private val clearTermsDocumentReader = ClearTermsDocumentReader()
     private val clearTermsPlaceholderParser = ClearTermsPlaceholderParser()
     private val clearTermsProfileValidator = ClearTermsProfileValidator(clearTermsPlaceholderParser)
-    private val clearTermsValueRenderer = ClearTermsValueRenderer(clearTermsPlaceholderParser, clearTermsLocaleProvider)
+    private val clearTermsValueRenderer =
+        ClearTermsValueRenderer(
+            clearTermsPlaceholderParser,
+            clearTermsLocaleProvider,
+            timeTextRenderer = ClearTermsTimeTextRenderer(timeZoneDisplayConverter = timeZoneDisplayConverter),
+        )
 
     suspend fun loadPrivacyPolicyHtml(): String {
         return loadPrivacyPolicyDocument().html

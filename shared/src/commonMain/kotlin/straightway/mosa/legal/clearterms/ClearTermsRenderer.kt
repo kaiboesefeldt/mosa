@@ -9,7 +9,13 @@ class ClearTermsRenderer(
     private val reader: ClearTermsDocumentReader = ClearTermsDocumentReader(),
     private val localeProvider: ClearTermsLocaleProvider,
     private val profileValidator: ClearTermsProfileValidator = ClearTermsProfileValidator(placeholderParser),
-    private val valueRenderer: ClearTermsValueRenderer = ClearTermsValueRenderer(placeholderParser, localeProvider),
+    private val timeZoneDisplayConverter: ClearTermsTimeZoneDisplayConverter = ClearTermsTimeZoneDisplayConverter.NoOp,
+    private val valueRenderer: ClearTermsValueRenderer =
+        ClearTermsValueRenderer(
+            placeholderParser,
+            localeProvider,
+            timeTextRenderer = ClearTermsTimeTextRenderer(timeZoneDisplayConverter = timeZoneDisplayConverter),
+        ),
 ) {
     suspend fun renderAll(
         baselineJson: String,

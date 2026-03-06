@@ -3,13 +3,27 @@ package straightway.mosa.legal.clearterms
 class ClearTermsTimeTextRenderer(
     private val scalarStringNormalizer: ClearTermsScalarStringNormalizer = ClearTermsScalarStringNormalizer(),
     private val timeValueParser: ClearTermsTimeValueParser = ClearTermsTimeValueParser(),
+    private val timeZoneDisplayConverter: ClearTermsTimeZoneDisplayConverter = ClearTermsTimeZoneDisplayConverter.NoOp,
 ) {
     fun renderTimeValue(
         value: String,
         locale: ClearTermsLocale,
     ): String {
         val normalized = scalarStringNormalizer.normalize(value)
-        val parts = timeValueParser.parse(normalized)
+        val parsed = timeValueParser.parse(normalized)
+        val display = timeZoneDisplayConverter.convert(normalized, parsed)
+        val parts =
+            if (display == null) {
+                parsed
+            } else {
+                parsed.copy(
+                    year = display.year,
+                    month = display.month,
+                    day = display.day,
+                    time = display.time,
+                    isOverflow = false,
+                )
+            }
         val hasTime = parts.time != null
         val dateText = renderDatePattern(parts, locale)
         return if (hasTime) {

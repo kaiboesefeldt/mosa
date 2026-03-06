@@ -67,6 +67,7 @@ import straightway.mosa.client.ui.IdentitySessionStore
 import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.legal.clearterms.ClearTermsBrowserHashProvider
 import straightway.mosa.legal.clearterms.ClearTermsBrowserTextEncoder
+import straightway.mosa.legal.clearterms.ClearTermsBrowserTimeZoneDisplayConverter
 import straightway.mosa.legal.clearterms.ClearTermsHashProvider
 import straightway.mosa.legal.clearterms.ClearTermsJsonParser
 import straightway.mosa.legal.clearterms.ClearTermsLocaleProvider
@@ -74,6 +75,7 @@ import straightway.mosa.legal.clearterms.ClearTermsLocaleRepository
 import straightway.mosa.legal.clearterms.ClearTermsRenderer
 import straightway.mosa.legal.clearterms.ClearTermsResourceReader
 import straightway.mosa.legal.clearterms.ClearTermsTextEncoder
+import straightway.mosa.legal.clearterms.ClearTermsTimeZoneDisplayConverter
 import straightway.mosa.legal.clearterms.JsClearTermsResourceReader
 import web.idb.IDBFactory
 import web.idb.indexedDB
@@ -172,12 +174,14 @@ object AppModule : KoinComponent {
                         single { ClearTermsJsonParser() }
                         single<ClearTermsHashProvider> { ClearTermsBrowserHashProvider(get()) }
                         single<ClearTermsTextEncoder> { ClearTermsBrowserTextEncoder() }
+                        single<ClearTermsTimeZoneDisplayConverter> { ClearTermsBrowserTimeZoneDisplayConverter() }
                         single {
                             ClearTermsRenderer(
                                 parser = get(),
                                 hashProvider = get(),
                                 textEncoder = get(),
                                 localeProvider = get(),
+                                timeZoneDisplayConverter = get(),
                             )
                         }
                         single<PrivacyClearTermsContentProvider> { ClearTermsPrivacyContentProvider(get()) }
@@ -189,6 +193,7 @@ object AppModule : KoinComponent {
                                     get<BrowserPrefs>().languages.map { locale -> locale.toString() }
                                 },
                                 clearTermsContentProvider = get(),
+                                timeZoneDisplayConverter = get(),
                             )
                         }
                     },
