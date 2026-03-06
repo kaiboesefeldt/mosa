@@ -1,12 +1,64 @@
 package straightway.mosa.client.legal
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.browser.document
 import org.w3c.dom.HTMLDivElement
 
 class LegalPdfExporterTest {
+    @Test
+    fun `page break chooses low ink row near target instead of cutting through dense rows`() {
+        val rowInk =
+            IntArray(160) { index ->
+                when (index) {
+                    in 80..95 -> 220
+                    103 -> 0
+                    else -> 8
+                }
+            }
+
+        val endExclusive =
+            choosePageSliceEndExclusive(
+                rowInk = rowInk,
+                startInclusive = 0,
+                idealEndExclusive = 100,
+                minSliceHeightPx = 60,
+                searchWindowPx = 10,
+            )
+
+        assertEquals(101, endExclusive)
+    }
+
+    @Test
+    fun `page break avoids isolated low row when neighboring rows are dense`() {
+        val rowInk =
+            IntArray(180) { 8 }.also {
+                for (index in 80..95) {
+                    it[index] = 220
+                }
+                it[102] = 220
+                it[103] = 0
+                it[104] = 220
+                it[105] = 220
+                for (index in 108..112) {
+                    it[index] = 1
+                }
+            }
+
+        val endExclusive =
+            choosePageSliceEndExclusive(
+                rowInk = rowInk,
+                startInclusive = 0,
+                idealEndExclusive = 100,
+                minSliceHeightPx = 60,
+                searchWindowPx = 20,
+            )
+
+        assertEquals(110, endExclusive)
+    }
+
     @Test
     fun `clone for pdf removes comparison boxes and dotted underline class`() {
         val content = document.createElement("div") as HTMLDivElement

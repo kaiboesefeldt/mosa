@@ -4,11 +4,13 @@ import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.await
 import kotlin.js.Promise
+import kotlin.math.abs
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLImageElement
 import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.CanvasRenderingContext2D
 
 @JsModule("html2canvas")
 @JsNonModule
@@ -168,10 +170,26 @@ private fun saveCanvasAsPdf(
     val targetWidth = pageWidth - (margin * 2.0)
     val pixelsPerPoint = canvas.width.toDouble() / targetWidth
     val pageSlicePx = ((pageHeight - (margin * 2.0)) * pixelsPerPoint).toInt().coerceAtLeast(1)
+    val rowInk = calculateRowInkPerRow(canvas)
+    val minSliceHeightPx = (pageSlicePx * 0.75).toInt().coerceAtLeast(1)
+    val searchWindowPx = 48
     var offsetPx = 0
     var isFirstPage = true
     while (offsetPx < canvas.height) {
-        val currentSlicePx = minOf(pageSlicePx, canvas.height - offsetPx)
+        val idealEndExclusive = minOf(offsetPx + pageSlicePx, canvas.height)
+        val endExclusive =
+            if (idealEndExclusive < canvas.height) {
+                choosePageSliceEndExclusive(
+                    rowInk = rowInk,
+                    startInclusive = offsetPx,
+                    idealEndExclusive = idealEndExclusive,
+                    minSliceHeightPx = minSliceHeightPx,
+                    searchWindowPx = searchWindowPx,
+                )
+            } else {
+                canvas.height
+            }
+        val currentSlicePx = (endExclusive - offsetPx).coerceAtLeast(1)
         val sliceCanvas = document.createElement("canvas") as HTMLCanvasElement
         sliceCanvas.width = canvas.width
         sliceCanvas.height = currentSlicePx
@@ -193,9 +211,86 @@ private fun saveCanvasAsPdf(
             pdf.addPage()
         }
         pdf.addImage(imageData, "PNG", margin, margin, targetWidth, sliceHeightPt, "", "FAST")
-        offsetPx += currentSlicePx
+        offsetPx = endExclusive
         isFirstPage = false
     }
     val targetFile = if (fileName.endsWith(".pdf")) fileName else "$fileName.pdf"
     pdf.save(targetFile)
+}
+
+internal fun choosePageSliceEndExclusive(
+    rowInk: IntArray,
+    startInclusive: Int,
+    idealEndExclusive: Int,
+    minSliceHeightPx: Int,
+    searchWindowPx: Int,
+): Int {
+    if (rowInk.isEmpty()) return 0
+    val maxEndExclusive = rowInk.size
+    val minEndExclusive = (startInclusive + minSliceHeightPx).coerceAtMost(maxEndExclusive)
+    val normalizedIdealEndExclusive = idealEndExclusive.coerceIn(minEndExclusive, maxEndExclusive)
+    val searchStart = (normalizedIdealEndExclusive - searchWindowPx).coerceAtLeast(minEndExclusive)
+    val searchEnd = (normalizedIdealEndExclusive + searchWindowPx).coerceAtMost(maxEndExclusive)
+    var bestEndExclusive = normalizedIdealEndExclusive
+    var bestBoundaryInk = Int.MAX_VALUE
+    var bestDistance = Int.MAX_VALUE
+    for (candidateEndExclusive in searchStart..searchEnd) {
+        val candidateBoundaryInk = calculateBoundaryInkScore(rowInk, candidateEndExclusive)
+        val candidateDistance = abs(candidateEndExclusive - normalizedIdealEndExclusive)
+        val isBetterInk = candidateBoundaryInk < bestBoundaryInk
+        val isSameInkAndNearer = candidateBoundaryInk == bestBoundaryInk && candidateDistance < bestDistance
+        val isSameInkAndDistanceButLater =
+            candidateBoundaryInk == bestBoundaryInk &&
+                candidateDistance == bestDistance &&
+                candidateEndExclusive > bestEndExclusive
+        if (isBetterInk || isSameInkAndNearer || isSameInkAndDistanceButLater) {
+            bestEndExclusive = candidateEndExclusive
+            bestBoundaryInk = candidateBoundaryInk
+            bestDistance = candidateDistance
+        }
+    }
+    return bestEndExclusive.coerceIn(minEndExclusive, maxEndExclusive)
+}
+
+private fun calculateBoundaryInkScore(
+    rowInk: IntArray,
+    endExclusive: Int,
+): Int {
+    val startRow = (endExclusive - 3).coerceAtLeast(0)
+    val endRow = (endExclusive + 2).coerceAtMost(rowInk.lastIndex)
+    var sum = 0
+    for (rowIndex in startRow..endRow) {
+        sum += rowInk[rowIndex]
+    }
+    return sum
+}
+
+private fun calculateRowInkPerRow(canvas: HTMLCanvasElement): IntArray {
+    val context =
+        canvas.getContext("2d")
+            ?.unsafeCast<CanvasRenderingContext2D>()
+            ?: return IntArray(canvas.height)
+    val imageData = context.getImageData(0.0, 0.0, canvas.width.toDouble(), canvas.height.toDouble())
+    val pixels = imageData.data.asDynamic()
+    val rowInk = IntArray(canvas.height)
+    val width = canvas.width
+    var pixelOffset = 0
+    for (rowIndex in 0 until canvas.height) {
+        var totalInk = 0
+        for (columnIndex in 0 until width) {
+            val red = (pixels[pixelOffset] as Number).toInt()
+            val green = (pixels[pixelOffset + 1] as Number).toInt()
+            val blue = (pixels[pixelOffset + 2] as Number).toInt()
+            val alpha = (pixels[pixelOffset + 3] as Number).toInt()
+            if (alpha >= 16) {
+                val darkness = 765 - red - green - blue
+                if (darkness > 24) {
+                    totalInk += darkness
+                }
+            }
+            pixelOffset += 4
+        }
+        rowInk[rowIndex] = totalInk
+    }
+    return rowInk
 }
