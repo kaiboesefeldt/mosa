@@ -9,6 +9,44 @@ import org.w3c.dom.HTMLDivElement
 
 class LegalPdfExporterTest {
     @Test
+    fun `continuation header logo size keeps image aspect ratio`() {
+        assertEquals(
+            PdfImageSize(width = 26.0, height = 13.0),
+            calculateLogoSizeForHeader(maxHeight = 13.0, aspectRatio = 2.0),
+        )
+    }
+
+    @Test
+    fun `right aligned footer text x keeps right margin`() {
+        assertEquals(
+            402.0,
+            calculateRightAlignedTextX(
+                pageWidth = 500.0,
+                margin = 28.0,
+                textWidth = 70.0,
+            ),
+        )
+    }
+
+    @Test
+    fun `footer page counter includes current and total page`() {
+        assertEquals(
+            "Seite 2 von 5",
+            buildPdfPageCounterText(pageNumber = 2, totalPages = 5),
+        )
+    }
+
+    @Test
+    fun `footer export label prefixes date`() {
+        assertEquals("Export: 2026-03-06", buildPdfExportDateLabel("2026-03-06"))
+    }
+
+    @Test
+    fun `continuation page header text prefixes document name with mosa`() {
+        assertEquals("Mosa - Datenschutzerklaerung", buildContinuationPageHeaderText("Datenschutzerklaerung"))
+    }
+
+    @Test
     fun `page break chooses low ink row near target instead of cutting through dense rows`() {
         val rowInk =
             IntArray(160) { index ->
@@ -92,15 +130,24 @@ class LegalPdfExporterTest {
             <ul><li>Punkt 1</li><li>Punkt 2</li></ul>
             """.trimIndent()
 
-        val exportRoot = buildLegalPdfExportRoot(content, "data:image/png;base64,ZmFrZQ==")
+        val exportRoot =
+            buildLegalPdfExportRoot(
+                source = content,
+                logoUrl = "data:image/png;base64,ZmFrZQ==",
+                firstPageTitle = "Mosa",
+            )
 
         val logo = exportRoot.querySelector(".legal-pdf-export__logo")
         val title = exportRoot.querySelector(".legal-pdf-export__title")
+        val titleText = exportRoot.querySelector(".legal-pdf-export__title-text")
         val heading = exportRoot.querySelector("h1")
         val listItems = exportRoot.querySelectorAll("li")
 
         assertTrue(logo != null)
         assertTrue(title != null)
+        assertTrue(titleText != null)
+        assertEquals("Mosa", titleText?.textContent)
+        assertEquals("flex-start", title.asDynamic().style.justifyContent as String)
         assertTrue((logo.asDynamic().getAttribute("src") as String).contains("data:image/png;base64,ZmFrZQ=="))
         assertTrue(heading != null)
         assertTrue(listItems.length == 2)

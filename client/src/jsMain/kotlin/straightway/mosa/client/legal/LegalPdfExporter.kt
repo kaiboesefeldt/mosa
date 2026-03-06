@@ -5,6 +5,7 @@ import kotlinx.browser.window
 import kotlinx.coroutines.await
 import kotlin.js.Promise
 import kotlin.math.abs
+import kotlin.js.Date
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import org.w3c.dom.HTMLDivElement
@@ -29,7 +30,14 @@ suspend fun downloadLegalPdf(
     fileName: String,
 ) {
     val body = document.body ?: return
-    val exportRoot = buildLegalPdfExportRoot(source, logoUrl)
+    val documentName = resolvePdfDocumentName(source)
+    val exportDateText = resolvePdfExportDateText()
+    val exportRoot =
+        buildLegalPdfExportRoot(
+            source = source,
+            logoUrl = logoUrl,
+            firstPageTitle = "Mosa",
+        )
     exportRoot.style.position = "absolute"
     exportRoot.style.left = "0"
     exportRoot.style.top = "${window.scrollY + window.innerHeight + 200}px"
@@ -43,6 +51,7 @@ suspend fun downloadLegalPdf(
         awaitNextFrame()
         awaitNextFrame()
         awaitImagesLoaded(exportRoot)
+        val logoAspectRatio = resolveLogoAspectRatio(exportRoot)
         val canvasOptions: dynamic = js("({})")
         canvasOptions.scale = 2
         canvasOptions.useCORS = true
@@ -53,7 +62,14 @@ suspend fun downloadLegalPdf(
         canvasOptions.scrollY = 0
         canvasOptions.windowWidth = exportRoot.scrollWidth
         val canvas = html2canvas(exportRoot, canvasOptions).await()
-        saveCanvasAsPdf(canvas, fileName)
+        saveCanvasAsPdf(
+            canvas = canvas,
+            fileName = fileName,
+            logoUrl = logoUrl,
+            documentName = documentName,
+            exportDateText = exportDateText,
+            logoAspectRatio = logoAspectRatio,
+        )
     } finally {
         exportRoot.remove()
     }
@@ -62,6 +78,7 @@ suspend fun downloadLegalPdf(
 internal fun buildLegalPdfExportRoot(
     source: HTMLDivElement,
     logoUrl: String,
+    firstPageTitle: String,
 ): HTMLDivElement {
     val root = document.createElement("div") as HTMLDivElement
     root.className = "legal-pdf-export"
@@ -72,17 +89,26 @@ internal fun buildLegalPdfExportRoot(
     val title = document.createElement("div") as HTMLDivElement
     title.className = "legal-pdf-export__title"
     title.style.display = "flex"
-    title.style.justifyContent = "center"
+    title.style.alignItems = "center"
+    title.style.justifyContent = "flex-start"
+    title.style.setProperty("column-gap", "12px")
     title.style.margin = "0 0 18px 0"
 
     val logo = document.createElement("img") as HTMLImageElement
     logo.className = "legal-pdf-export__logo"
     logo.src = logoUrl
     logo.alt = "Mosa"
-    logo.style.width = "140px"
+    logo.style.width = "120px"
     logo.style.height = "auto"
     logo.style.display = "block"
     title.appendChild(logo)
+    val text = document.createElement("div") as HTMLDivElement
+    text.className = "legal-pdf-export__title-text"
+    text.textContent = firstPageTitle
+    text.style.fontSize = "32px"
+    text.style.fontWeight = "700"
+    text.style.lineHeight = "1.1"
+    title.appendChild(text)
     root.appendChild(title)
     root.appendChild(cloneLegalContentForPdf(source))
     return root
@@ -158,6 +184,10 @@ private suspend fun awaitImagesLoaded(root: HTMLDivElement) {
 private fun saveCanvasAsPdf(
     canvas: HTMLCanvasElement,
     fileName: String,
+    logoUrl: String,
+    documentName: String,
+    exportDateText: String,
+    logoAspectRatio: Double,
 ) {
     val pdfConfig: dynamic = js("({})")
     pdfConfig.orientation = "portrait"
@@ -167,16 +197,27 @@ private fun saveCanvasAsPdf(
     val pageWidth = pdf.internal.pageSize.getWidth() as Double
     val pageHeight = pdf.internal.pageSize.getHeight() as Double
     val margin = 28.0
+    val continuationHeaderHeight = 22.0
+    val continuationHeaderGap = 10.0
+    val footerBandHeight = 22.0
     val targetWidth = pageWidth - (margin * 2.0)
     val pixelsPerPoint = canvas.width.toDouble() / targetWidth
-    val pageSlicePx = ((pageHeight - (margin * 2.0)) * pixelsPerPoint).toInt().coerceAtLeast(1)
+    val firstPageTop = margin
+    val continuationTop = margin + continuationHeaderHeight + continuationHeaderGap
+    val contentBottom = margin + footerBandHeight
+    val firstPageSlicePxTarget =
+        ((pageHeight - firstPageTop - contentBottom) * pixelsPerPoint).toInt().coerceAtLeast(1)
+    val continuationSlicePxTarget =
+        ((pageHeight - continuationTop - contentBottom) * pixelsPerPoint).toInt().coerceAtLeast(1)
     val rowInk = calculateRowInkPerRow(canvas)
-    val minSliceHeightPx = (pageSlicePx * 0.75).toInt().coerceAtLeast(1)
     val searchWindowPx = 48
+    val slices = mutableListOf<PdfCanvasSlice>()
     var offsetPx = 0
     var isFirstPage = true
     while (offsetPx < canvas.height) {
-        val idealEndExclusive = minOf(offsetPx + pageSlicePx, canvas.height)
+        val targetSlicePx = if (isFirstPage) firstPageSlicePxTarget else continuationSlicePxTarget
+        val minSliceHeightPx = (targetSlicePx * 0.75).toInt().coerceAtLeast(1)
+        val idealEndExclusive = minOf(offsetPx + targetSlicePx, canvas.height)
         val endExclusive =
             if (idealEndExclusive < canvas.height) {
                 choosePageSliceEndExclusive(
@@ -190,32 +231,163 @@ private fun saveCanvasAsPdf(
                 canvas.height
             }
         val currentSlicePx = (endExclusive - offsetPx).coerceAtLeast(1)
+        slices += PdfCanvasSlice(startPx = offsetPx, heightPx = currentSlicePx, isFirstPage = isFirstPage)
+        offsetPx = endExclusive
+        isFirstPage = false
+    }
+    val totalPages = slices.size.coerceAtLeast(1)
+    for ((index, slice) in slices.withIndex()) {
+        if (index > 0) {
+            pdf.addPage()
+        }
+        if (!slice.isFirstPage) {
+            drawContinuationPageHeader(
+                pdf = pdf,
+                logoUrl = logoUrl,
+                documentName = documentName,
+                margin = margin,
+                pageWidth = pageWidth,
+                logoAspectRatio = logoAspectRatio,
+            )
+        }
+        val contentTop =
+            if (slice.isFirstPage) {
+                margin
+            } else {
+                continuationTop
+            }
         val sliceCanvas = document.createElement("canvas") as HTMLCanvasElement
         sliceCanvas.width = canvas.width
-        sliceCanvas.height = currentSlicePx
+        sliceCanvas.height = slice.heightPx
         val context = sliceCanvas.getContext("2d").unsafeCast<dynamic>()
         context.drawImage(
             canvas,
             0,
-            offsetPx,
+            slice.startPx,
             canvas.width,
-            currentSlicePx,
+            slice.heightPx,
             0,
             0,
             canvas.width,
-            currentSlicePx,
+            slice.heightPx,
         )
         val imageData = sliceCanvas.toDataURL("image/png")
-        val sliceHeightPt = currentSlicePx.toDouble() / pixelsPerPoint
-        if (!isFirstPage) {
-            pdf.addPage()
-        }
-        pdf.addImage(imageData, "PNG", margin, margin, targetWidth, sliceHeightPt, "", "FAST")
-        offsetPx = endExclusive
-        isFirstPage = false
+        val sliceHeightPt = slice.heightPx.toDouble() / pixelsPerPoint
+        pdf.addImage(imageData, "PNG", margin, contentTop, targetWidth, sliceHeightPt, "", "FAST")
+        drawPageFooter(
+            pdf = pdf,
+            exportDateLabel = buildPdfExportDateLabel(exportDateText),
+            pageCounterText = buildPdfPageCounterText(pageNumber = index + 1, totalPages = totalPages),
+            margin = margin,
+            pageHeight = pageHeight,
+            pageWidth = pageWidth,
+        )
     }
     val targetFile = if (fileName.endsWith(".pdf")) fileName else "$fileName.pdf"
     pdf.save(targetFile)
+}
+
+private fun drawContinuationPageHeader(
+    pdf: dynamic,
+    logoUrl: String,
+    documentName: String,
+    margin: Double,
+    pageWidth: Double,
+    logoAspectRatio: Double,
+) {
+    val logoSize = calculateLogoSizeForHeader(maxHeight = 13.0, aspectRatio = logoAspectRatio)
+    val logoHeight = logoSize.height
+    val logoWidth = logoSize.width
+    val logoY = margin + 1.0
+    pdf.addImage(logoUrl, "PNG", margin, logoY, logoWidth, logoHeight, "", "FAST")
+    pdf.setTextColor(17, 24, 39)
+    pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(11)
+    val text = buildContinuationPageHeaderText(documentName)
+    val textY = margin + 11.0
+    pdf.text(text, margin + logoWidth + 8.0, textY)
+    pdf.setDrawColor(229, 231, 235)
+    pdf.setLineWidth(0.6)
+    val lineY = margin + 18.0
+    pdf.line(margin, lineY, pageWidth - margin, lineY)
+}
+
+internal fun buildContinuationPageHeaderText(documentName: String): String = "Mosa - $documentName"
+
+internal fun buildPdfPageCounterText(
+    pageNumber: Int,
+    totalPages: Int,
+): String = "Seite $pageNumber von $totalPages"
+
+internal fun buildPdfExportDateLabel(exportDateText: String): String = "Export: $exportDateText"
+
+internal fun calculateLogoSizeForHeader(
+    maxHeight: Double,
+    aspectRatio: Double,
+): PdfImageSize {
+    val safeAspectRatio = if (aspectRatio > 0.0) aspectRatio else 1.0
+    return PdfImageSize(width = maxHeight * safeAspectRatio, height = maxHeight)
+}
+
+private fun resolvePdfDocumentName(source: HTMLDivElement): String {
+    val headingText = source.querySelector("h1")?.textContent?.trim().orEmpty()
+    return headingText.ifBlank { "Dokument" }
+}
+
+private fun resolvePdfExportDateText(): String {
+    val now = Date()
+    val year = now.getUTCFullYear().toString()
+    val month = (now.getUTCMonth() + 1).toInt().toString().padStart(2, '0')
+    val day = now.getUTCDate().toInt().toString().padStart(2, '0')
+    return "$year-$month-$day"
+}
+
+private fun drawPageFooter(
+    pdf: dynamic,
+    exportDateLabel: String,
+    pageCounterText: String,
+    margin: Double,
+    pageHeight: Double,
+    pageWidth: Double,
+) {
+    val footerBandHeight = 22.0
+    pdf.setDrawColor(229, 231, 235)
+    pdf.setLineWidth(0.6)
+    val lineY = pageHeight - margin - footerBandHeight + 6.0
+    pdf.line(margin, lineY, pageWidth - margin, lineY)
+    pdf.setTextColor(55, 65, 81)
+    pdf.setFont("helvetica", "normal")
+    pdf.setFontSize(9)
+    val textY = pageHeight - margin - 3.0
+    pdf.text(exportDateLabel, margin, textY)
+    val counterWidth = (pdf.getTextWidth(pageCounterText) as Number).toDouble()
+    val counterX = calculateRightAlignedTextX(pageWidth, margin, counterWidth)
+    pdf.text(pageCounterText, counterX, textY)
+}
+
+private data class PdfCanvasSlice(
+    val startPx: Int,
+    val heightPx: Int,
+    val isFirstPage: Boolean,
+)
+
+internal data class PdfImageSize(
+    val width: Double,
+    val height: Double,
+)
+
+internal fun calculateRightAlignedTextX(
+    pageWidth: Double,
+    margin: Double,
+    textWidth: Double,
+): Double = (pageWidth - margin - textWidth).coerceAtLeast(margin)
+
+private fun resolveLogoAspectRatio(exportRoot: HTMLDivElement): Double {
+    val logo = exportRoot.querySelector(".legal-pdf-export__logo") as? HTMLImageElement ?: return 1.0
+    val naturalWidth = logo.naturalWidth.toDouble()
+    val naturalHeight = logo.naturalHeight.toDouble()
+    if (naturalWidth <= 0.0 || naturalHeight <= 0.0) return 1.0
+    return naturalWidth / naturalHeight
 }
 
 internal fun choosePageSliceEndExclusive(
