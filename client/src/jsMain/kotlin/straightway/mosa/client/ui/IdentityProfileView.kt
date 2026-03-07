@@ -27,9 +27,11 @@ external interface IdentityProfileViewProps : Props {
     var identityAvatar: String?
     var isBusy: Boolean
     var errorText: String?
+    var statusText: String?
     var isPersisted: Boolean
     var canDelete: Boolean
     var canDeletePosts: Boolean
+    var canExportPosts: Boolean
     var canNavigatePrevious: Boolean
     var canNavigateNext: Boolean
     var isShowingLastIdentity: Boolean
@@ -45,6 +47,7 @@ external interface IdentityProfileViewProps : Props {
     var onNext: () -> Unit
     var onDelete: () -> Unit
     var onDeletePosts: () -> Unit
+    var onExportPosts: () -> Unit
     var onSelect: (Int) -> Unit
     var onDownload: () -> Unit
     var onCopy: () -> Unit
@@ -204,6 +207,12 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                     +message
                 }
             }
+            props.statusText?.let { message ->
+                div {
+                    className = ClassName("profile-dialog__toast")
+                    +message
+                }
+            }
             if (isCopyFeedbackVisible) {
                 div {
                     className = ClassName("profile-dialog__toast")
@@ -262,12 +271,14 @@ private fun IdentityProfileViewProps.toIdentityToolsCapabilities(): IdentityTool
     IdentityToolsCapabilities(
         canDelete = canDelete,
         canDeletePosts = canDeletePosts,
+        canExportPosts = canExportPosts,
         canDownload = canDownload,
         canCopy = canCopy,
         canUpload = canUpload,
         canPaste = canPaste,
         onDelete = onDelete,
         onDeletePosts = onDeletePosts,
+        onExportPosts = onExportPosts,
         onDownload = onDownload,
         onCopy = onCopy,
         onUpload = onUpload,
@@ -279,9 +290,11 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
     identityAvatar = screen.identityAvatar
     isBusy = screen.isBusy
     errorText = screen.errorText
+    statusText = screen.statusText
     isPersisted = screen.isPersisted
     canDelete = screen.canDelete
     canDeletePosts = screen.canDeletePosts
+    canExportPosts = screen.canExportPosts
     canNavigatePrevious = screen.canNavigatePrevious
     canNavigateNext = screen.canNavigateNext
     isShowingLastIdentity = screen.isShowingLastIdentity
@@ -297,6 +310,7 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
     onNext = screen.onNext
     onDelete = screen.onDelete
     onDeletePosts = screen.onDeletePosts
+    onExportPosts = screen.onExportPosts
     onSelect = screen.onSelect
     onDownload = screen.onDownload
     onCopy = screen.onCopy

@@ -60,8 +60,8 @@ overrides:
           - an account for login with an automatically assigned account name (not your real name) and the required login data
           - the inputs you make while using the service (for example search queries or text entries)
 
-        rights-access-action-slot-service: "Simply download your own data in {{string:SERVICE_DISPLAY_NAME}}"
-        rights-portability-action-slot-service: "Also by downloading your own data in {{string:SERVICE_DISPLAY_NAME}}"
+        rights-access-action-slot-service: "Via \"Export posts (CSV)\" in {{string:SERVICE_DISPLAY_NAME}}"
+        rights-portability-action-slot-service: "Also via \"Export posts (CSV)\" in {{string:SERVICE_DISPLAY_NAME}}"
         rights-rectification-action-slot-service: "Delete content in {{string:SERVICE_DISPLAY_NAME}} and republish it correctly"
         rights-erasure-action-slot-service: "Delete posts and replies yourself in {{string:SERVICE_DISPLAY_NAME}}"
         rights-restriction-action-slot-service: "Limit visibility of your own content in {{string:SERVICE_DISPLAY_NAME}} using the provided functions"

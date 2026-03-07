@@ -6,6 +6,8 @@ interface IdentitySessionTextProvider {
     val loading: String
     val unknownError: String
     val invalidIdentity: String
+    val exportInProgress: String
+    val exportError: String
     fun failedToPrepare(message: String): String
 }
 
@@ -15,6 +17,8 @@ class TranslatorIdentitySessionTextProvider(
     override val loading: String = translator.translate("identity.loading")
     override val unknownError: String = translator.translate("identity.unknownError")
     override val invalidIdentity: String = translator.translate("identity.invalidIdentity")
+    override val exportInProgress: String = translator.translate("identity.export.inProgress")
+    override val exportError: String = translator.translate("identity.export.error")
 
     override fun failedToPrepare(message: String): String =
         translator.translate("identity.failedToPrepare", mapOf("message" to message))

@@ -664,8 +664,10 @@ private fun placeholderProfile(): IdentityScreen.Profile =
         identityAvatar = null,
         isBusy = false,
         errorText = null,
+        statusText = null,
         canDelete = false,
         canDeletePosts = false,
+        canExportPosts = false,
         canNavigatePrevious = false,
         canNavigateNext = false,
         isShowingLastIdentity = false,
@@ -677,6 +679,7 @@ private fun placeholderProfile(): IdentityScreen.Profile =
         onNext = {},
         onDelete = {},
         onDeletePosts = {},
+        onExportPosts = {},
         onSelect = {},
         canDownload = false,
         onDownload = {},
@@ -771,6 +774,10 @@ private class RecordingPodAccess(
     }
 
     override suspend fun deletePost(postId: String, jwt: String): DeletePostsResult {
+        error("Not implemented")
+    }
+
+    override suspend fun exportPostsCsv(jwt: String): ByteArray {
         error("Not implemented")
     }
 

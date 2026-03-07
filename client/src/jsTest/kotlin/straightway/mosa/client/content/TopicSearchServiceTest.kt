@@ -350,6 +350,10 @@ private class FakePodAccess(
         error("Not implemented")
     }
 
+    override suspend fun exportPostsCsv(jwt: String): ByteArray {
+        error("Not implemented")
+    }
+
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult {
         searchInvocations += request
         val topic = request.topic ?: error("topic missing")

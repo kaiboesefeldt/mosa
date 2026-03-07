@@ -19,6 +19,7 @@ internal fun renderIdentityProfileView(
             identityAvatar = null
             isBusy = false
             errorText = null
+            statusText = null
             canDelete = true
             canConnect = true
             isPersisted = false
@@ -28,12 +29,14 @@ internal fun renderIdentityProfileView(
             identityIndex = 0
             identityTotal = 1
             canDeletePosts = false
+            canExportPosts = false
             onConnect = {}
             canDownload = true
             onPrevious = {}
             onNext = {}
             onDelete = {}
             onDeletePosts = {}
+            onExportPosts = {}
             onDownload = {}
             canUpload = true
             onUpload = {}

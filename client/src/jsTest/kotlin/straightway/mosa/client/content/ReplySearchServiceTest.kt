@@ -282,6 +282,10 @@ private class RecordingPodAccess(
         error("Not implemented")
     }
 
+    override suspend fun exportPostsCsv(jwt: String): ByteArray {
+        error("Not implemented")
+    }
+
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult {
         searchInvocations += request
         val root = request.threadRootId ?: error("missing thread root id")

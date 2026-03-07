@@ -49,6 +49,9 @@ import straightway.mosa.client.content.PostCache
 import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.AllPostsDeletionService
+import straightway.mosa.client.content.PostsCsvDownloader
+import straightway.mosa.client.content.PostsExportPort
+import straightway.mosa.client.content.PostsExportService
 import straightway.mosa.client.content.ReplyCache
 import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.TopicEntryStore
@@ -151,6 +154,8 @@ object AppModule : KoinComponent {
                         }
                         single<ObjectUrlFactory> { WindowObjectUrlFactory() }
                         single<IdentityTransferPort> { IdentityTransferService(get()) }
+                        single { PostsCsvDownloader(get()) }
+                        single<PostsExportPort> { PostsExportService(get(), get()) }
                         single { FictionalNameGenerator() }
                         single<TopicStore> { IndexedDbTopicStore(get(), get(), get()) }
                         single { TopicEntryStore(get(), get(), maxEntries = 10_000) }

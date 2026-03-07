@@ -12,12 +12,14 @@ class IdentityToolsPresenterTest {
             IdentityToolsCapabilities(
                 canDelete = true,
                 canDeletePosts = true,
+                canExportPosts = true,
                 canDownload = true,
                 canCopy = true,
                 canUpload = true,
                 canPaste = true,
                 onDelete = {},
                 onDeletePosts = {},
+                onExportPosts = {},
                 onDownload = {},
                 onCopy = {},
                 onUpload = {},
@@ -25,25 +27,28 @@ class IdentityToolsPresenterTest {
             ),
         )
 
-        assertEquals(6, actions.size)
+        assertEquals(7, actions.size)
         assertEquals("button.identity.delete.aria", actions[0].ariaKey)
         assertEquals("button.identity.delete.aria", actions[0].titleKey)
         assertEquals("fa fa-solid fa-trash-can", actions[0].iconClass)
         assertEquals("button.identity.delete-posts.aria", actions[1].ariaKey)
         assertEquals("button.identity.delete-posts.title", actions[1].titleKey)
         assertEquals("fa fa-solid fa-broom", actions[1].iconClass)
-        assertEquals("button.identity.copy.aria", actions[2].ariaKey)
-        assertEquals("button.identity.copy.label", actions[2].titleKey)
-        assertEquals("fa fa-solid fa-copy", actions[2].iconClass)
-        assertEquals("button.identity.paste.aria", actions[3].ariaKey)
-        assertEquals("button.identity.paste.label", actions[3].titleKey)
-        assertEquals("fa fa-solid fa-paste", actions[3].iconClass)
-        assertEquals("button.identity.download.aria", actions[4].ariaKey)
-        assertEquals("button.identity.download.label", actions[4].titleKey)
-        assertEquals("fa fa-solid fa-download", actions[4].iconClass)
-        assertEquals("button.identity.upload.aria", actions[5].ariaKey)
-        assertEquals("button.identity.upload.label", actions[5].titleKey)
-        assertEquals("fa fa-solid fa-upload", actions[5].iconClass)
+        assertEquals("button.identity.export-posts.aria", actions[2].ariaKey)
+        assertEquals("button.identity.export-posts.label", actions[2].titleKey)
+        assertEquals("fa fa-solid fa-file-csv", actions[2].iconClass)
+        assertEquals("button.identity.copy.aria", actions[3].ariaKey)
+        assertEquals("button.identity.copy.label", actions[3].titleKey)
+        assertEquals("fa fa-solid fa-copy", actions[3].iconClass)
+        assertEquals("button.identity.paste.aria", actions[4].ariaKey)
+        assertEquals("button.identity.paste.label", actions[4].titleKey)
+        assertEquals("fa fa-solid fa-paste", actions[4].iconClass)
+        assertEquals("button.identity.download.aria", actions[5].ariaKey)
+        assertEquals("button.identity.download.label", actions[5].titleKey)
+        assertEquals("fa fa-solid fa-download", actions[5].iconClass)
+        assertEquals("button.identity.upload.aria", actions[6].ariaKey)
+        assertEquals("button.identity.upload.label", actions[6].titleKey)
+        assertEquals("fa fa-solid fa-upload", actions[6].iconClass)
     }
 
     @Test
@@ -52,12 +57,14 @@ class IdentityToolsPresenterTest {
             IdentityToolsCapabilities(
                 canDelete = false,
                 canDeletePosts = true,
+                canExportPosts = false,
                 canDownload = true,
                 canCopy = false,
                 canUpload = false,
                 canPaste = false,
                 onDelete = {},
                 onDeletePosts = {},
+                onExportPosts = {},
                 onDownload = {},
                 onCopy = {},
                 onUpload = {},
@@ -69,8 +76,9 @@ class IdentityToolsPresenterTest {
         assertTrue(actions[1].isEnabled)
         assertFalse(actions[2].isEnabled)
         assertFalse(actions[3].isEnabled)
-        assertTrue(actions[4].isEnabled)
-        assertFalse(actions[5].isEnabled)
+        assertFalse(actions[4].isEnabled)
+        assertTrue(actions[5].isEnabled)
+        assertFalse(actions[6].isEnabled)
     }
 
     @Test
@@ -80,12 +88,14 @@ class IdentityToolsPresenterTest {
             IdentityToolsCapabilities(
                 canDelete = true,
                 canDeletePosts = true,
+                canExportPosts = true,
                 canDownload = true,
                 canCopy = true,
                 canUpload = true,
                 canPaste = true,
                 onDelete = { deleteTriggered = true },
                 onDeletePosts = {},
+                onExportPosts = {},
                 onDownload = {},
                 onCopy = {},
                 onUpload = {},

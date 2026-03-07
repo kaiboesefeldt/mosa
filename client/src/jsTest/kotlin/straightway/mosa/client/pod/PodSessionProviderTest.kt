@@ -213,6 +213,10 @@ private class FakeSessionPodAccess(
         error("not expected")
     }
 
+    override suspend fun exportPostsCsv(jwt: String): ByteArray {
+        error("not expected")
+    }
+
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult {
         error("not expected")
     }

@@ -29,6 +29,7 @@ interface PodAccess {
     suspend fun reply(request: ReplyRequest, jwt: String)
     suspend fun deletePosts(jwt: String): DeletePostsResult
     suspend fun deletePost(postId: String, jwt: String): DeletePostsResult
+    suspend fun exportPostsCsv(jwt: String): ByteArray
     suspend fun search(request: QueryRequest, jwt: String): SearchResult
     suspend fun searchOn(request: QueryOnRequest, jwt: String): SearchResult
     suspend fun fetch(request: FetchRequest, jwt: String): FetchResult
@@ -75,6 +76,11 @@ class PodAccessImpl(
         val path = "/v1/posts/$postId"
         return delete(path, jwt).ensureSuccess(path, postId).body()
     }
+
+    override suspend fun exportPostsCsv(jwt: String): ByteArray =
+        get("/v1/posts/export.csv", jwt)
+            .ensureSuccess("/v1/posts/export.csv", Unit)
+            .body()
 
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult =
         post("/v1/search", request, jwt)
@@ -131,9 +137,13 @@ class PodAccessImpl(
             header(HttpHeaders.Authorization, "Bearer $jwt")
         }
 
-    private suspend fun get(path: String): HttpResponse =
+    private suspend fun get(path: String, jwt: String? = null): HttpResponse =
         httpClient.get("$podBase$path") {
-            contentType(ContentType.Application.Json)
+            if (jwt != null) {
+                header(HttpHeaders.Authorization, "Bearer $jwt")
+            } else {
+                contentType(ContentType.Application.Json)
+            }
         }
 
     private fun HttpResponse.ensureSuccess(path: String, payload: Any): HttpResponse =

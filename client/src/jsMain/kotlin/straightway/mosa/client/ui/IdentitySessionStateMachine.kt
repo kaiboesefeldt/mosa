@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import straightway.mosa.client.content.PostsExportPort
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
@@ -18,6 +19,7 @@ import straightway.mosa.client.logging.Logger
 class IdentitySessionStateMachine(
     private val repository: IdentitySelectionRepository,
     private val transfer: IdentityTransferPort,
+    private val postsExport: PostsExportPort,
     private val protector: IdentityProtector,
     private val passwordPrompter: PasswordPrompter,
     private val textProvider: IdentitySessionTextProvider,
@@ -31,6 +33,7 @@ class IdentitySessionStateMachine(
     private var identityAvatar: String? = null
     private var isBusy = false
     private var errorText: String? = null
+    private var statusText: String? = null
     private var isConnected = false
     private var isRestoring = true
 
@@ -106,6 +109,30 @@ class IdentitySessionStateMachine(
             }.onFailure {
                 logger.error("Identity copy failed", it)
             }
+        }
+    }
+
+    fun exportPostsCsv() {
+        if (!isConnected) return
+        val fileBaseName = identityNameParts.toIdentityDownloadFileName()
+        runExclusive(
+            failureMessage = "Posts export failed",
+            beforeRun = {
+                errorText = null
+                statusText = textProvider.exportInProgress
+                publishState()
+            },
+            onFailure = {
+                statusText = null
+                errorText = textProvider.exportError
+                finishRestoring()
+                publishState()
+            },
+        ) {
+            postsExport.export(fileBaseName)
+            statusText = null
+            errorText = null
+            publishState()
         }
     }
 
@@ -207,8 +234,10 @@ class IdentitySessionStateMachine(
             identityAvatar = identityAvatar,
             isBusy = isBusy,
             errorText = errorText,
+            statusText = statusText,
             canDelete = currentSelection != null,
             canDeletePosts = isConnected,
+            canExportPosts = isConnected,
             canNavigatePrevious = currentSelection?.hasPrevious ?: false,
             canNavigateNext = currentSelection != null,
             isShowingLastIdentity = currentSelection?.let { !it.hasNext } ?: false,

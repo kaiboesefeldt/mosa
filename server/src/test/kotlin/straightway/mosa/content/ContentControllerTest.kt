@@ -3,7 +3,9 @@ package straightway.mosa.content
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.delete
+import io.ktor.client.request.get
 import io.ktor.client.request.post
+import io.ktor.http.ContentDisposition
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.createApplicationPlugin
@@ -303,6 +305,67 @@ class ContentControllerTest {
 
                     assertEquals(HttpStatusCode.Unauthorized, response.status)
                     coVerify(exactly = 0) { contentService.deleteAllForUser(any()) }
+                }
+            }
+    }
+
+    @Nested
+    inner class ExportCsvEndpoint {
+        @Test
+        fun `should return 200 OK with csv attachment on success`() =
+            with(test) {
+                env {
+                    val csvBody =
+                        """
+                        id,type,root_id,stored_at_epoch,stored_at_iso8601,author_gid,text
+                        entry-1,post,,100,1970-01-01T00:01:40Z,${env.gid},"Hello"
+                        """.trimIndent()
+                    coEvery { contentService.exportCsvForUser(env.gid) } returns csvBody
+
+                    val response =
+                        client.get("/v1/posts/export.csv") {
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.OK, response.status)
+                    assertEquals("text/csv; charset=utf-8", response.headers["Content-Type"])
+                    assertEquals(
+                        ContentDisposition.Attachment
+                            .withParameter(
+                                ContentDisposition.Parameters.FileName,
+                                "mosa-export-1975-05-22.csv",
+                            ).toString(),
+                        response.headers["Content-Disposition"],
+                    )
+                    assertEquals(csvBody, response.body<String>())
+                    coVerify(exactly = 1) { contentService.exportCsvForUser(env.gid) }
+                }
+            }
+
+        @Test
+        fun `should return 401 Unauthorized when no bearer token is specified`() =
+            with(test) {
+                env {
+                    val response = client.get("/v1/posts/export.csv")
+
+                    assertEquals(HttpStatusCode.Unauthorized, response.status)
+                    coVerify(exactly = 0) { contentService.exportCsvForUser(any()) }
+                }
+            }
+
+        @Test
+        fun `should return 500 InternalServerError when export fails unexpectedly`() =
+            with(test) {
+                env {
+                    coEvery { contentService.exportCsvForUser(env.gid) } throws IllegalStateException("boom")
+
+                    val response =
+                        client.get("/v1/posts/export.csv") {
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.InternalServerError, response.status)
+                    coVerify(exactly = 1) { contentService.exportCsvForUser(env.gid) }
                 }
             }
     }

@@ -27,6 +27,7 @@ import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.SearchResult
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
@@ -187,6 +188,28 @@ class PodAccessTest {
         val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
 
         assertRestError("/v1/posts/id-1", HttpStatusCode.BadRequest) { podAccess.deletePost("id-1", "jwt-token") }
+    }
+
+    @Test
+    fun `exportPostsCsv sends get with auth and returns bytes`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, "id,text\n1,Hello")
+
+        val result = podAccess.exportPostsCsv("jwt-token")
+
+        assertContentEquals("id,text\n1,Hello".encodeToByteArray(), result)
+        assertAuthenticatedGetRequest(
+            request = capturedRequests.single(),
+            route = "v1/posts/export.csv",
+            bearerToken = "jwt-token",
+        )
+    }
+
+    @Test
+    fun `exportPostsCsv throws when backend returns error`() = runTest {
+        val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
+
+        assertRestError("/v1/posts/export.csv", HttpStatusCode.BadRequest) { podAccess.exportPostsCsv("jwt-token") }
     }
 
     @Test
@@ -433,6 +456,16 @@ class PodAccessTest {
         assertEquals(HttpMethod.Get, request.method)
         assertEquals("https://pod.example/$route", request.url.toString())
         assertNull(request.headers[HttpHeaders.Authorization])
+    }
+
+    private fun assertAuthenticatedGetRequest(
+        request: HttpRequestData,
+        route: String,
+        bearerToken: String,
+    ) {
+        assertEquals(HttpMethod.Get, request.method)
+        assertEquals("https://pod.example/$route", request.url.toString())
+        assertEquals("Bearer $bearerToken", request.headers[HttpHeaders.Authorization])
     }
 
     private suspend fun assertRestError(path: String, status: HttpStatusCode, call: suspend () -> Unit) {

@@ -1,14 +1,20 @@
 package straightway.mosa.content
 
+import io.ktor.http.ContentDisposition
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.request.receive
+import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.util.reflect.typeInfo
 import straightway.mosa.base.BaseController
 import java.time.Clock
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 class ContentController(
     private val contentService: ContentService,
@@ -44,6 +50,18 @@ class ContentController(
                 val id = call.parameters["id"] ?: throw BadRequestException("id is required")
                 val deletedIds = contentService.delete(gid, id)
                 call.respond(HttpStatusCode.OK, DeletePostsResult(deletedIds), typeInfo<DeletePostsResult>())
+            }
+            getRoute("/posts/export.csv") {
+                val gid = userGidOrRespondUnauthorized() ?: return@getRoute
+                val csv = contentService.exportCsvForUser(gid)
+                val fileName = "mosa-export-${DateTimeFormatter.ISO_LOCAL_DATE.format(clock.instant().atZone(ZoneOffset.UTC))}.csv"
+                call.response.header(
+                    "Content-Disposition",
+                    ContentDisposition.Attachment
+                        .withParameter(ContentDisposition.Parameters.FileName, fileName)
+                        .toString(),
+                )
+                call.respondText(csv, ContentType.parse("text/csv; charset=utf-8"), HttpStatusCode.OK)
             }
             postRoute("/query") {
                 userGidOrRespondUnauthorized() ?: return@postRoute

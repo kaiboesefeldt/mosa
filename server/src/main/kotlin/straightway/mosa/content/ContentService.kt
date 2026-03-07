@@ -2,6 +2,7 @@ package straightway.mosa.content
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.plugins.BadRequestException
+import kotlinx.coroutines.flow.toList
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
@@ -128,6 +129,23 @@ class ContentService(
         return FetchResult(entries)
     }
 
+    suspend fun exportCsvForUser(userGID: String): String {
+        val lines =
+            vectorStore
+                .dumpAll()
+                .toList()
+                .asSequence()
+                .filter { it.fields.requireMetadata(it.id, AUTHOR_GID_KEY) == userGID }
+                .map { it.toCsvExportEntry() }
+                .sortedWith(compareBy<CsvExportEntry> { it.storedAtEpoch }.thenBy { it.id })
+                .map { it.toCsvRow() }
+                .toList()
+        return buildString {
+            appendLine(CSV_HEADER)
+            lines.forEach { appendLine(it) }
+        }.trimEnd()
+    }
+
     private fun QueryResult.toSearchResult(): SearchResult =
         SearchResult(
             queryOnId = queryOnId,
@@ -179,6 +197,19 @@ class ContentService(
             rootId = fields[ROOT_ID_KEY],
         )
 
+    private fun VectorStore.PostDump.toCsvExportEntry(): CsvExportEntry {
+        val storedAtEpoch = fields.requireMetadata(id, RECEIVED_AT_KEY).toLong()
+        return CsvExportEntry(
+            id = id,
+            type = if (fields[ROOT_ID_KEY] == null) "post" else "reply",
+            rootId = fields[ROOT_ID_KEY].orEmpty(),
+            storedAtEpoch = storedAtEpoch,
+            storedAtIso8601 = Instant.ofEpochSecond(storedAtEpoch).toString(),
+            authorGid = fields.requireMetadata(id, AUTHOR_GID_KEY),
+            text = text,
+        )
+    }
+
     private fun VectorStore.QueryResults.toQueryResult(): QueryResult =
         QueryResult(
             queryOnId = queryOnId?.toString() ?: "",
@@ -193,6 +224,7 @@ class ContentService(
     private companion object {
         private val log = KotlinLogging.logger { }
         private const val MAX_POST_LENGTH = 1800
+        private const val CSV_HEADER = "id,type,root_id,stored_at_epoch,stored_at_iso8601,author_gid,text"
         private val nilQueryRequest = QueryRequest()
 
         private fun Map<String, String>.requireMetadata(
@@ -213,6 +245,36 @@ class ContentService(
                 throw BadRequestException("text must be at most $MAX_POST_LENGTH characters")
             }
         }
+
+        private fun String.toCsvField(alwaysQuote: Boolean = false): String {
+            val escaped = replace("\"", "\"\"")
+            return if (alwaysQuote || escaped != this || contains(',') || contains('\n') || contains('\r')) {
+                "\"$escaped\""
+            } else {
+                escaped
+            }
+        }
+    }
+
+    private data class CsvExportEntry(
+        val id: String,
+        val type: String,
+        val rootId: String,
+        val storedAtEpoch: Long,
+        val storedAtIso8601: String,
+        val authorGid: String,
+        val text: String,
+    ) {
+        fun toCsvRow(): String =
+            listOf(
+                id.toCsvField(),
+                type.toCsvField(),
+                rootId.toCsvField(),
+                storedAtEpoch.toString().toCsvField(),
+                storedAtIso8601.toCsvField(),
+                authorGid.toCsvField(),
+                text.toCsvField(alwaysQuote = true),
+            ).joinToString(",")
     }
 
     private suspend fun deleteRepliesForRoot(

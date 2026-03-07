@@ -21,6 +21,7 @@ import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class ContentServiceTest {
     private val embeddingService = mockk<EmbeddingService>()
@@ -75,6 +76,152 @@ class ContentServiceTest {
             ),
         queryOnId = null,
     )
+
+    @Nested
+    inner class ExportCsvForUser {
+        @Test
+        fun `exports only posts of the requested user in deterministic order`() =
+            runTest {
+                coEvery {
+                    vectorStore.dumpAll()
+                } returns
+                    kotlinx.coroutines.flow.flowOf(
+                        VectorStore.PostDump(
+                            id = "reply-2",
+                            text = "Reply text",
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to testUserGID,
+                                    RECEIVED_AT_KEY to "200",
+                                    ROOT_ID_KEY to "root-1",
+                                ),
+                        ),
+                        VectorStore.PostDump(
+                            id = "foreign",
+                            text = "Should not appear",
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to "other-user",
+                                    RECEIVED_AT_KEY to "150",
+                                ),
+                        ),
+                        VectorStore.PostDump(
+                            id = "root-2",
+                            text = "Second root",
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to testUserGID,
+                                    RECEIVED_AT_KEY to "200",
+                                ),
+                        ),
+                        VectorStore.PostDump(
+                            id = "root-1",
+                            text = "First root",
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to testUserGID,
+                                    RECEIVED_AT_KEY to "100",
+                                ),
+                        ),
+                    )
+
+                val csv = sut.exportCsvForUser(testUserGID)
+
+                assertEquals(
+                    """
+                    id,type,root_id,stored_at_epoch,stored_at_iso8601,author_gid,text
+                    root-1,post,,100,1970-01-01T00:01:40Z,test-user-gid,"First root"
+                    reply-2,reply,root-1,200,1970-01-01T00:03:20Z,test-user-gid,"Reply text"
+                    root-2,post,,200,1970-01-01T00:03:20Z,test-user-gid,"Second root"
+                    """.trimIndent(),
+                    csv,
+                )
+            }
+
+        @Test
+        fun `escapes csv fields according to rfc 4180`() =
+            runTest {
+                coEvery {
+                    vectorStore.dumpAll()
+                } returns
+                    kotlinx.coroutines.flow.flowOf(
+                        VectorStore.PostDump(
+                            id = "entry-1",
+                            text = "Hello,\n\"MOSA\"",
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to testUserGID,
+                                    RECEIVED_AT_KEY to "100",
+                                ),
+                        ),
+                    )
+
+                val csv = sut.exportCsvForUser(testUserGID)
+
+                assertTrue(csv.contains("\"Hello,\n\"\"MOSA\"\"\""))
+            }
+
+        @Test
+        fun `returns only the header when user has no posts`() =
+            runTest {
+                coEvery {
+                    vectorStore.dumpAll()
+                } returns
+                    kotlinx.coroutines.flow.flowOf(
+                        VectorStore.PostDump(
+                            id = "foreign",
+                            text = "Should not appear",
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to "other-user",
+                                    RECEIVED_AT_KEY to "150",
+                                ),
+                        ),
+                    )
+
+                val csv = sut.exportCsvForUser(testUserGID)
+
+                assertEquals("id,type,root_id,stored_at_epoch,stored_at_iso8601,author_gid,text", csv)
+            }
+
+        @Test
+        fun `throws when export entry is missing author metadata`() =
+            runTest {
+                coEvery {
+                    vectorStore.dumpAll()
+                } returns
+                    kotlinx.coroutines.flow.flowOf(
+                        VectorStore.PostDump(
+                            id = "entry-1",
+                            text = "Hello",
+                            fields = mapOf(RECEIVED_AT_KEY to "100"),
+                        ),
+                    )
+
+                assertFailsWith<MissingVectorMetadataException> {
+                    sut.exportCsvForUser(testUserGID)
+                }
+            }
+
+        @Test
+        fun `throws when export entry is missing timestamp metadata`() =
+            runTest {
+                coEvery {
+                    vectorStore.dumpAll()
+                } returns
+                    kotlinx.coroutines.flow.flowOf(
+                        VectorStore.PostDump(
+                            id = "entry-1",
+                            text = "Hello",
+                            fields = mapOf(AUTHOR_GID_KEY to testUserGID),
+                        ),
+                    )
+
+                assertFailsWith<MissingVectorMetadataException> {
+                    sut.exportCsvForUser(testUserGID)
+                }
+            }
+    }
 
     @Nested
     inner class Query {

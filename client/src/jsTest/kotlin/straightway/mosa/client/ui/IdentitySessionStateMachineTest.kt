@@ -7,6 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -14,6 +15,7 @@ import kotlin.js.js
 import straightway.mosa.client.browser.CryptoKey
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.browser.SubtleCrypto
+import straightway.mosa.client.content.PostsExportPort
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
@@ -183,18 +185,102 @@ class IdentitySessionStateMachineTest {
         assertTrue(state is IdentitySessionViewState.Profile)
         assertEquals(TestIdentitySessionTextProvider.invalidIdentity, state.errorText)
     }
+
+    @Test
+    fun `exports posts csv when identity is connected`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore()
+        val export = RecordingPostsExportPort()
+        val machine = createMachine(repository, store, postsExport = export)
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        machine.exportPostsCsv()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Gida"), export.fileBaseNames)
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Connected)
+        assertEquals(null, state.profile.statusText)
+    }
+
+    @Test
+    fun `shows export progress while csv export is running`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore()
+        val blocker = CompletableDeferred<Unit>()
+        val export =
+            object : PostsExportPort {
+                override suspend fun export(fileBaseName: String) {
+                    blocker.await()
+                }
+            }
+        val machine = createMachine(repository, store, postsExport = export)
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        machine.exportPostsCsv()
+
+        val duringExport = machine.state.value
+        assertTrue(duringExport is IdentitySessionViewState.Connected)
+        assertEquals(TestIdentitySessionTextProvider.exportInProgress, duringExport.profile.statusText)
+
+        blocker.complete(Unit)
+        advanceUntilIdle()
+
+        val afterExport = machine.state.value
+        assertTrue(afterExport is IdentitySessionViewState.Connected)
+        assertEquals(null, afterExport.profile.statusText)
+    }
+
+    @Test
+    fun `shows export error when csv export fails`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore()
+        val export =
+            object : PostsExportPort {
+                override suspend fun export(fileBaseName: String) {
+                    throw IllegalStateException("boom")
+                }
+            }
+        val machine = createMachine(repository, store, postsExport = export)
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        machine.exportPostsCsv()
+        advanceUntilIdle()
+
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Connected)
+        assertEquals(TestIdentitySessionTextProvider.exportError, state.profile.errorText)
+        assertEquals(null, state.profile.statusText)
+    }
 }
 
 private fun TestScope.createMachine(
     repository: IdentitySelectionRepository,
     store: IdentitySessionStore,
     transfer: IdentityTransferPort = NoopIdentityTransferPort,
+    postsExport: PostsExportPort = NoopPostsExportPort,
     protector: IdentityProtector = StubProtector(identity("imported")),
     passwordPrompter: PasswordPrompter = StaticPasswordPrompter("pw"),
 ): IdentitySessionStateMachine =
     IdentitySessionStateMachine(
         repository = repository,
         transfer = transfer,
+        postsExport = postsExport,
         protector = protector,
         passwordPrompter = passwordPrompter,
         textProvider = TestIdentitySessionTextProvider,
@@ -279,6 +365,8 @@ private object TestIdentitySessionTextProvider : IdentitySessionTextProvider {
     override val loading: String = "loading"
     override val unknownError: String = "error"
     override val invalidIdentity: String = "invalid"
+    override val exportInProgress: String = "exporting"
+    override val exportError: String = "export error"
 
     override fun failedToPrepare(message: String): String = message
 }
@@ -298,6 +386,18 @@ private object NoopIdentityTransferPort : IdentityTransferPort {
 
     override suspend fun pasteFromClipboard(): String =
         throw UnsupportedOperationException("Not used in test")
+}
+
+private object NoopPostsExportPort : PostsExportPort {
+    override suspend fun export(fileBaseName: String) = Unit
+}
+
+private class RecordingPostsExportPort : PostsExportPort {
+    val fileBaseNames = mutableListOf<String>()
+
+    override suspend fun export(fileBaseName: String) {
+        fileBaseNames += fileBaseName
+    }
 }
 
 private class StaticPasswordPrompter(

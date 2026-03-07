@@ -60,8 +60,8 @@ overrides:
           - ein Konto zur Anmeldung mit einem automatisch vergebenen Kontonamen (nicht Ihr echter Name) sowie die nötigen Anmeldedaten
           - die Eingaben, die Sie bei der Nutzung selbst machen (zum Beispiel Suchanfragen oder Texte)
 
-        rights-access-action-slot-service: "Einfach die eigenen Daten in {{string:SERVICE_DISPLAY_NAME}} herunterladen"
-        rights-portability-action-slot-service: "Auch darüber, die eigenen Daten in {{string:SERVICE_DISPLAY_NAME}} herunterzuladen"
+        rights-access-action-slot-service: "Über „Beiträge exportieren (CSV)” in {{string:SERVICE_DISPLAY_NAME}}"
+        rights-portability-action-slot-service: "Ebenfalls über „Beiträge exportieren (CSV)” in {{string:SERVICE_DISPLAY_NAME}}"
         rights-rectification-action-slot-service: "Inhalte in {{string:SERVICE_DISPLAY_NAME}} löschen und richtig neu veröffentlichen"
         rights-erasure-action-slot-service: "Beiträge und Antworten selbst in {{string:SERVICE_DISPLAY_NAME}} löschen"
         rights-restriction-action-slot-service: "Sichtbarkeit eigener Inhalte in {{string:SERVICE_DISPLAY_NAME}} durch die bereitgestellten Funktionen begrenzen"

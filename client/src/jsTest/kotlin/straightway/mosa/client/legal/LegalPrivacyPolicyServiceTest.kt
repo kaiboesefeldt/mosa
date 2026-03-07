@@ -869,6 +869,10 @@ private class RecordingPrivacyPodAccess(
         error("not used")
     }
 
+    override suspend fun exportPostsCsv(jwt: String): ByteArray {
+        error("not used")
+    }
+
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult {
         error("not used")
     }
