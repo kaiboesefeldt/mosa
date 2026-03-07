@@ -1,86 +1,154 @@
-# Next Task: Inline-Vergleich für markierte Textstellen in ClearTerms
+# Umsetzungskonzept: Self-Service Datenexport (CSV) per GET
 
 ## Ziel
-Für markierte Textstellen (gelb/rot) soll der Nutzer direkt im Dokument sehen, wie sich der aktuelle Text gegenüber der ursprünglichen Version unterscheidet.
+- Eine gemeinsame Funktion für:
+  - Auskunft (Art. 15 DSGVO)
+  - Datenübertragbarkeit (Art. 20 DSGVO)
+- Auslösung im Client über einen Button.
+- Technisch: Download über einen authentifizierten `GET`-Request an den Server.
 
-Der Vergleich wird inline unterhalb der betroffenen Stelle eingeblendet. Es wird kein weiteres Popover geöffnet.
+## UX/Produktverhalten
+- Neuer Tool-Button im Identity-Profil: `Meine Daten exportieren (CSV)`.
+- Button ist nur aktiv, wenn eine verbundene Identität vorhanden ist (analog zu anderen pod-gebundenen Aktionen).
+- Klick startet Export direkt (MVP ohne Dialog).
+- Während Export läuft:
+  - Button disabled
+  - kurzer Statushinweis: `CSV wird erstellt...`
+- Bei Erfolg:
+  - Browser-Download startet automatisch.
+- Bei Fehler:
+  - Fehlermeldung wie bei anderen Identity-Aktionen (kurz, retry durch erneuten Klick).
 
-## Scope und Constraints
-1. Verglichen werden genau zwei Versionen:
-- unkritischer Text (siehe Begriffsdefinition unten)
-- aktueller Text (effektiv gerenderter Text)
+## API-Design (Backend)
 
-2. Es gibt keine zusätzlichen Begründungsdaten und keine juristischen Erklärungen.
+### Endpoint
+- `GET /v1/posts/export.csv`
+- Authentifizierung: Bearer JWT (wie bestehende geschützte `/v1/*`-Routen).
+- Request-Parameter (MVP):
+  - keine Pflichtparameter
 
-3. Die Datenschutzansicht läuft bereits in einem Dialog/Overlay. Es gibt keine Dialog-in-Dialog- oder Popover-in-Popover-Lösung.
+### Response
+- `200 OK`
+- `Content-Type: text/csv; charset=utf-8`
+- `Content-Disposition: attachment; filename="mosa-export-<yyyy-MM-dd>.csv"`
+- Body: CSV mit Headerzeile.
 
-4. Fokus sind kurze Textblöcke. Lange Blöcke müssen funktional korrekt bleiben.
+### Fehlerfälle
+- `401 Unauthorized`: JWT fehlt/ungültig
+- `500 Internal Server Error`: unerwarteter Fehler
 
-5. Diese Aufgabe gilt generell für ClearTerms-Dokumente und wird anhand des Privacy-Dokuments umgesetzt.
+## CSV-Format
 
-## Begriffe
-- Markierte Stelle: Text mit Severity gelb oder rot.
-- Betroffener Block: `ClearTermsRenderedBlock` mit `id`.
-- Unkritischer Text eines Blocks: Blockzustand entlang der Profilkette, bis einschließlich des letzten Zustands ohne gelbe/rote Markierung dieses Blocks.
-- Sobald der Block in der Kette erstmals gelb oder rot markiert ist, wird der unmittelbar davor liegende Zustand als unkritischer Text verwendet.
-- Vergleichsbox: Inline-Bereich direkt unter dem betroffenen Block mit unkritischen Text des Blocks.
+### Header
+- `id,type,root_id,stored_at_epoch,stored_at_iso8601,author_gid,text`
 
-## Daten- und Mapping-Regeln
-1. Klick/Tap-Ziel ist ein markiertes Segment. Der Vergleich bezieht sich immer auf den gesamten betroffenen Block.
+### Feldregeln
+- `type`: `post` oder `reply` (`reply`, wenn `root_id` gesetzt ist, sonst `post`)
+- `root_id`: leer bei Root-Post
+- `stored_at_iso8601`: UTC, z. B. `2026-03-07T14:22:05Z`
+- `text`: RFC-4180-kompatibel escapen (Anführungszeichen verdoppeln, Feld immer quoten)
+- Reihenfolge: deterministisch nach `stored_at_epoch` aufsteigend, bei Gleichstand nach `id`
 
-2. Jeder interaktive Marker im DOM muss den Block eindeutig referenzieren:
-- Pflicht: `data-ct-block-id="<blockId>"`
+## Backend-Implementierung
 
-3. Der Text der Vergleichsbox ist der gerenderte unkritische Text desselben `blockId` in derselben Sprache.
+### Routing
+- In `ContentController` neue Route im `authenticate`-Block:
+  - `getRoute("/posts/export.csv")`
+  - ruft `contentService.exportCsvForUser(gid)` auf
+  - antwortet als Datei-Download mit den o. g. Headern
 
-4. Wenn für einen markierten Block der unkritische Text unaufgelöste Platzhalter enthält, so werden diese mit "..." gerendert.
+### Service
+- Neue Service-Funktion:
+  - `suspend fun exportCsvForUser(userGID: String): String` (MVP)
+  - liest alle Einträge der Identität
+  - mappt auf Exportzeilen
+  - serialisiert zu CSV
+- Wiederverwendung vorhandener Metadaten:
+  - `AUTHOR_GID_KEY`
+  - `RECEIVED_AT_KEY`
+  - `ROOT_ID_KEY`
 
-## Interaktionsregeln
-1. Klick/Tap auf markierte Stelle:
-- aktueller Text bleibt unverändert sichtbar
-- Vergleichsbox wird direkt unter diesem Block ein-/ausgeblendet
-- Für Blöcke mit `inlineWithNext = true` wird das Inline-Paar als ein gemeinsamer Interaktionsblock behandelt.
-- Die Vergleichsbox wird unterhalb des gesamten Inline-Paares angezeigt.
+### Datenzugriff
+- Query über vorhandene VectorStore-Suche nach `AUTHOR_GID_KEY = userGID`.
+- Für große Datenmengen:
+  - paginiert über bestehendes `queryOn`-Konzept iterieren
+  - keine harte Größenbegrenzung im MVP, aber implementiert als iterativer Abruf statt einmaliger Vollmaterialisierung im Query-Schritt.
 
-2. Es darf maximal eine Vergleichsbox gleichzeitig geöffnet sein.
-- Öffnen einer neuen Vergleichsbox schließt die vorher geöffnete.
-- Klick auf dieselbe Stelle schließt die aktuell geöffnete Vergleichsbox.
+### CSV-Serializer
+- Eigenes kleines Utility im Server-Modul (keine neue Dependency):
+  - Header schreiben
+  - pro Eintrag eine Zeile
+  - sauberes Escaping nach RFC-4180
 
-3. Verhalten ist auf Desktop und Mobile identisch.
+## Frontend-Implementierung
 
-4. Die Vergleichsbox zeigt:
-- Label `Original` als lokalisierten UI-Text (mindestens `de` und `en`).
-- Unkritischen Text des betroffenen Blocks
-- kein Token-/Wortdiff
+### PodAccess
+- Interface + Impl erweitern:
+  - `suspend fun exportPostsCsv(jwt: String): ByteArray`
+  - GET auf `/v1/posts/export.csv`
+  - `Authorization: Bearer <jwt>`
+  - Response als Bytes lesen
 
-## Rail-Regeln (Mobile)
-1. Mobile hat eine dauerhaft sichtbare vertikale Rail innerhalb des Legal-Dialogs.
-- Mobile ist definiert als Viewport `max-width: 900px`.
+### Service
+- Neuer Client-Service `PostsExportService`:
+  - holt JWT via bestehendem Pod-Session-Flow
+  - ruft `podAccess.exportPostsCsv(jwt)`
+  - triggert Browser-Download über `Blob(type = "text/csv;charset=utf-8")` + temporären `<a download>`
 
-2. Die Rail ist rein visuell. Kein Tap, kein Jump-to-Position.
+### UI-State
+- `IdentitySessionStateMachine`:
+  - neue Action `exportPostsCsv()`
+  - Busy/Fehlerbehandlung analog zu `downloadIdentity()`
+- `IdentityToolsPresenter`:
+  - neuer Eintrag mit eigenem Icon (z. B. `fa-file-csv`) und i18n-Key
+- i18n ergänzen:
+  - `button.identity.export-posts.aria`
+  - `button.identity.export-posts.label`
+  - `identity.export.inProgress`
+  - `identity.export.error`
 
-3. Markerpositionen sind proportional zur Scrollhöhe des Dokument-Contents.
+## Datenschutztext-Anpassung (separater Schritt)
+- In `mosa-privacy-gdpr-service.de.yaml` die Rechte-Texte für Auskunft und Datenübertragbarkeit auf dieselbe Funktion referenzieren:
+  - `Über „Meine Daten exportieren (CSV)” in {{string:SERVICE_DISPLAY_NAME}}`
+- Optional auch EN-Profil analog nachziehen.
 
-4. Kollisionsregel:
-- Marker werden auf Rail-Pixelposition quantisiert (`round(topPercent * railHeightPx / 100)`).
-- Fallen gelb und rot in denselben quantisierten Pixel-Bucket, wird nur rot dargestellt.
+## Testkonzept
 
-5. Die Rail zeigt zusätzlich einen dezenten Viewport-Indikator:
-- Position entspricht aktueller `scrollTop / (scrollHeight - clientHeight)`.
-- Größe entspricht `clientHeight / scrollHeight` (mit sinnvoller Mindesthöhe für Sichtbarkeit).
-- Randfall: Wenn `scrollHeight <= clientHeight`, ist der Indikator auf voller Rail-Höhe mit Position `top = 0`.
+### Backend Unit-Tests
+- CSV-Serializer:
+  - escaped Komma, Zeilenumbruch, Anführungszeichen korrekt
+  - Header exakt
+- `ContentService.exportCsvForUser`:
+  - enthält nur Daten des anfragenden `userGID`
+  - `type`-Ableitung korrekt (`post`/`reply`)
+  - deterministische Sortierung
 
-## Nicht Teil dieser Aufgabe
-- Filter/Übersichten wie `nur rote`, `x von y`, Clustering
-- Komplexe Diff-Visualisierung mit granularer Token-Hervorhebung
-- Fachliche `Warum`-Begründungen über den reinen Textvergleich hinaus
-- Interaktive Rail-Navigation
+### Backend Endpoint-Tests
+- `GET /v1/posts/export.csv`:
+  - `401` ohne Auth
+  - `200` mit Auth
+  - korrekte Download-Header
+  - Body beginnt mit CSV-Header
 
-## Akzeptanzkriterien (testbar)
-1. Nutzer kann auf gelb/rot markierten Text klicken/tappen und sieht inline darunter den unkritischen Text des betroffenen Blocks.
-2. Beim Vergleich wird kein zusätzliches Popover/kein zusätzlicher Dialog geöffnet.
-3. Der aktuelle Text bleibt stets sichtbar.
-4. Zu jedem Zeitpunkt ist höchstens eine Vergleichsbox geöffnet.
-5. Desktop und Mobile zeigen dasselbe Expand/Collapse-Verhalten.
-6. Auf Mobile ist die Rail dauerhaft sichtbar, inklusive Marker und Viewport-Indikator.
-7. Bei Marker-Kollision in derselben Rail-Position wird rot dargestellt.
+### Frontend-Tests
+- `PodAccess`:
+  - korrekter Pfad + Auth-Header
+- `PostsExportService`:
+  - Download wird mit CSV-MIME ausgelöst
+  - Fehlerfall propagiert
+- `IdentityToolsPresenter`:
+  - Export-Action vorhanden und korrekt enabled/disabled
+
+## Umsetzungsschritte (empfohlen)
+1. Backend CSV-Serializer + Service-Methode inkl. Tests (rot/grün/refactor).
+2. Endpoint in `ContentController` + Endpoint-Tests.
+3. Client `PodAccess` + `PostsExportService` + Tests.
+4. UI-Action + i18n + UI-Tests.
+5. Datenschutztext-Update.
+6. Final: `./gradlew check`.
+
+## Akzeptanzkriterien
+- Nutzer kann mit einem Klick eine CSV seiner eigenen Inhalte herunterladen.
+- Export läuft über `GET` gegen den Server und verwendet normale Authentifizierung.
+- CSV ist in Excel lesbar und technisch robust importierbar.
+- Dieselbe Funktion ist in der Datenschutzerklärung für Art. 15 und Art. 20 referenzierbar.
