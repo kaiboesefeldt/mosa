@@ -1,154 +1,244 @@
-# Umsetzungskonzept: Self-Service Datenexport (CSV) per GET
+# Snapshot Freeze/Restore Minimal Design
 
-## Ziel
-- Eine gemeinsame Funktion für:
-  - Auskunft (Art. 15 DSGVO)
-  - Datenübertragbarkeit (Art. 20 DSGVO)
-- Auslösung im Client über einen Button.
-- Technisch: Download über einen authentifizierten `GET`-Request an den Server.
+## Goal
 
-## UX/Produktverhalten
-- Neuer Tool-Button im Identity-Profil: `Meine Daten exportieren (CSV)`.
-- Button ist nur aktiv, wenn eine verbundene Identität vorhanden ist (analog zu anderen pod-gebundenen Aktionen).
-- Klick startet Export direkt (MVP ohne Dialog).
-- Während Export läuft:
-  - Button disabled
-  - kurzer Statushinweis: `CSV wird erstellt...`
-- Bei Erfolg:
-  - Browser-Download startet automatisch.
-- Bei Fehler:
-  - Fehlermeldung wie bei anderen Identity-Aktionen (kurz, retry durch erneuten Klick).
+Implement a simple decentralized processing restriction workflow:
 
-## API-Design (Backend)
+1. A user can freeze processing of their content on a pod.
+2. The pod exports the relevant content into an encrypted snapshot file.
+3. The user downloads and stores that file.
+4. The exported content is deleted from the pod.
+5. The user can later upload the snapshot to the same pod to restore the content.
 
-### Endpoint
-- `GET /v1/posts/export.csv`
-- Authentifizierung: Bearer JWT (wie bestehende geschützte `/v1/*`-Routen).
-- Request-Parameter (MVP):
-  - keine Pflichtparameter
+This first version intentionally optimizes for simplicity over maximal recoverability.
 
-### Response
-- `200 OK`
-- `Content-Type: text/csv; charset=utf-8`
-- `Content-Disposition: attachment; filename="mosa-export-<yyyy-MM-dd>.csv"`
-- Body: CSV mit Headerzeile.
+## Scope
 
-### Fehlerfälle
-- `401 Unauthorized`: JWT fehlt/ungültig
-- `500 Internal Server Error`: unerwarteter Fehler
+The snapshot must contain:
 
-## CSV-Format
+- all root posts authored by the user
+- all replies authored by the user
+- all replies authored by other users on root posts authored by the user
 
-### Header
-- `id,type,root_id,stored_at_epoch,stored_at_iso8601,author_gid,text`
+The snapshot must not contain unrelated third-party content.
 
-### Feldregeln
-- `type`: `post` oder `reply` (`reply`, wenn `root_id` gesetzt ist, sonst `post`)
-- `root_id`: leer bei Root-Post
-- `stored_at_iso8601`: UTC, z. B. `2026-03-07T14:22:05Z`
-- `text`: RFC-4180-kompatibel escapen (Anführungszeichen verdoppeln, Feld immer quoten)
-- Reihenfolge: deterministisch nach `stored_at_epoch` aufsteigend, bei Gleichstand nach `id`
+## Product Rules
 
-## Backend-Implementierung
+- A snapshot is restorable only on the same pod that created it.
+- A snapshot is restorable only for a limited time.
+- After the snapshot has expired, restore must fail.
+- After successful freeze, the exported content is deleted from the pod.
+- If the user loses the snapshot file, the data is lost.
+- If the pod loses the required archive key, restore is impossible.
 
-### Routing
-- In `ContentController` neue Route im `authenticate`-Block:
-  - `getRoute("/posts/export.csv")`
-  - ruft `contentService.exportCsvForUser(gid)` auf
-  - antwortet als Datei-Download mit den o. g. Headern
+## Security Model
 
-### Service
-- Neue Service-Funktion:
-  - `suspend fun exportCsvForUser(userGID: String): String` (MVP)
-  - liest alle Einträge der Identität
-  - mappt auf Exportzeilen
-  - serialisiert zu CSV
-- Wiederverwendung vorhandener Metadaten:
-  - `AUTHOR_GID_KEY`
-  - `RECEIVED_AT_KEY`
-  - `ROOT_ID_KEY`
+Use a dedicated persistent pod archive key for snapshot encryption.
 
-### Datenzugriff
-- Query über vorhandene VectorStore-Suche nach `AUTHOR_GID_KEY = userGID`.
-- Für große Datenmengen:
-  - paginiert über bestehendes `queryOn`-Konzept iterieren
-  - keine harte Größenbegrenzung im MVP, aber implementiert als iterativer Abruf statt einmaliger Vollmaterialisierung im Query-Schritt.
+- Do not reuse JWT signing keys or other existing pod keys.
+- Use AEAD encryption so encryption and integrity protection are handled together.
+- Do not add a separate signature in v1.
 
-### CSV-Serializer
-- Eigenes kleines Utility im Server-Modul (keine neue Dependency):
-  - Header schreiben
-  - pro Eintrag eine Zeile
-  - sauberes Escaping nach RFC-4180
+Recommended primitive:
 
-## Frontend-Implementierung
+- `AES-GCM`
 
-### PodAccess
-- Interface + Impl erweitern:
-  - `suspend fun exportPostsCsv(jwt: String): ByteArray`
-  - GET auf `/v1/posts/export.csv`
-  - `Authorization: Bearer <jwt>`
-  - Response als Bytes lesen
+Meaning:
 
-### Service
-- Neuer Client-Service `PostsExportService`:
-  - holt JWT via bestehendem Pod-Session-Flow
-  - ruft `podAccess.exportPostsCsv(jwt)`
-  - triggert Browser-Download über `Blob(type = "text/csv;charset=utf-8")` + temporären `<a download>`
+- the user cannot read the snapshot contents
+- the user cannot modify the snapshot without restore failing
+- if the archive key is compromised, old snapshots encrypted with that key can be read and forged
 
-### UI-State
-- `IdentitySessionStateMachine`:
-  - neue Action `exportPostsCsv()`
-  - Busy/Fehlerbehandlung analog zu `downloadIdentity()`
-- `IdentityToolsPresenter`:
-  - neuer Eintrag mit eigenem Icon (z. B. `fa-file-csv`) und i18n-Key
-- i18n ergänzen:
-  - `button.identity.export-posts.aria`
-  - `button.identity.export-posts.label`
-  - `identity.export.inProgress`
-  - `identity.export.error`
+## Key Management
 
-## Datenschutztext-Anpassung (separater Schritt)
-- In `mosa-privacy-gdpr-service.de.yaml` die Rechte-Texte für Auskunft und Datenübertragbarkeit auf dieselbe Funktion referenzieren:
-  - `Über „Meine Daten exportieren (CSV)” in {{string:SERVICE_DISPLAY_NAME}}`
-- Optional auch EN-Profil analog nachziehen.
+Keep the key lifecycle intentionally small and explicit.
 
-## Testkonzept
+- At most two archive keys are stored on the pod at the same time.
+- Each key has a stable `keyId`, for example `archive-2026`.
+- New snapshots are always encrypted with the current active key.
+- A snapshot carries its `keyId`.
+- A snapshot also carries an explicit `expiresAt`.
+- Restore must fail if `now > expiresAt`.
+- Old keys may be deleted once no non-expired snapshot should still depend on them.
 
-### Backend Unit-Tests
-- CSV-Serializer:
-  - escaped Komma, Zeilenumbruch, Anführungszeichen korrekt
-  - Header exakt
-- `ContentService.exportCsvForUser`:
-  - enthält nur Daten des anfragenden `userGID`
-  - `type`-Ableitung korrekt (`post`/`reply`)
-  - deterministische Sortierung
+Practical policy for v1:
 
-### Backend Endpoint-Tests
-- `GET /v1/posts/export.csv`:
-  - `401` ohne Auth
-  - `200` mit Auth
-  - korrekte Download-Header
-  - Body beginnt mit CSV-Header
+- target restore validity: one year after snapshot creation
+- keep current and previous archive key
+- if a key is compromised, remove it immediately and generate a new active key
+- snapshots depending on a removed key become unrestorable
 
-### Frontend-Tests
-- `PodAccess`:
-  - korrekter Pfad + Auth-Header
-- `PostsExportService`:
-  - Download wird mit CSV-MIME ausgelöst
-  - Fehlerfall propagiert
-- `IdentityToolsPresenter`:
-  - Export-Action vorhanden und korrekt enabled/disabled
+## Snapshot File Format
 
-## Umsetzungsschritte (empfohlen)
-1. Backend CSV-Serializer + Service-Methode inkl. Tests (rot/grün/refactor).
-2. Endpoint in `ContentController` + Endpoint-Tests.
-3. Client `PodAccess` + `PostsExportService` + Tests.
-4. UI-Action + i18n + UI-Tests.
-5. Datenschutztext-Update.
-6. Final: `./gradlew check`.
+Use one binary snapshot file, for example:
 
-## Akzeptanzkriterien
-- Nutzer kann mit einem Klick eine CSV seiner eigenen Inhalte herunterladen.
-- Export läuft über `GET` gegen den Server und verwendet normale Authentifizierung.
-- CSV ist in Excel lesbar und technisch robust importierbar.
-- Dieselbe Funktion ist in der Datenschutzerklärung für Art. 15 und Art. 20 referenzierbar.
+- `mosa-snapshot-YYYY-MM-DD.bin`
+
+Structure:
+
+1. unencrypted header
+2. encrypted payload
+
+### Unencrypted Header
+
+The header should be minimal and machine-readable:
+
+- `formatVersion`
+- `podId`
+- `keyId`
+- `createdAt`
+- `expiresAt`
+- `nonce`
+
+The header must be included as AEAD associated data so it cannot be modified undetected.
+
+### Encrypted Payload
+
+The payload contains:
+
+- `manifest.json`
+- content records
+
+`manifest.json` should contain:
+
+- `ownerGid`
+- `recordCount`
+- `archivePolicyVersion`
+
+For content records, prefer `NDJSON` over CSV in v1 because parsing and validation are simpler and less fragile.
+
+Each record should contain:
+
+- `id`
+- `text`
+- `authorGid`
+- `storedAt`
+- `rootId`
+
+## API Proposal
+
+### `POST /v1/privacy/freeze`
+
+Authenticated endpoint.
+
+Behavior:
+
+1. Resolve export set for authenticated user.
+2. Build snapshot payload.
+3. Encrypt payload with active archive key using AEAD.
+4. Return snapshot bytes as file download.
+5. Delete all exported records from the pod only after the snapshot has been successfully created in memory.
+
+Response:
+
+- binary file download
+
+Notes:
+
+- v1 may keep this endpoint synchronous.
+- If export set is empty, return an empty but valid snapshot or reject explicitly. This must be decided once and documented.
+
+### `POST /v1/privacy/restore`
+
+Authenticated endpoint.
+
+Behavior:
+
+1. Accept uploaded snapshot file.
+2. Parse unencrypted header.
+3. Verify `podId` matches this pod.
+4. Verify `expiresAt` has not passed.
+5. Resolve key by `keyId`.
+6. AEAD-decrypt payload.
+7. Validate manifest and all content records.
+8. Restore records.
+
+Response:
+
+- summary object with restored ids and counts
+
+## Restore Validation Rules
+
+Restore must reject the snapshot if:
+
+- `formatVersion` is unknown
+- `podId` does not match
+- `keyId` is unknown
+- `expiresAt` is in the past
+- AEAD authentication fails
+- record count exceeds configured limits
+- required fields are missing
+- a reply references a missing root
+- duplicate ids appear inside the snapshot
+
+Even though the snapshot is encrypted, restore must still enforce normal size and content validation.
+
+## Deletion Semantics
+
+Freeze deletes exactly the records that were exported.
+
+This includes:
+
+- the user's root posts
+- the user's replies
+- replies by others on the user's root posts
+
+This behavior must be communicated clearly because it removes third-party replies from the pod as part of freezing the user's thread context.
+
+## Failure Semantics
+
+`freeze` must not delete anything if:
+
+- export set resolution fails
+- snapshot serialization fails
+- encryption fails
+
+`restore` must not partially import content unless the implementation can guarantee a clearly defined transactional behavior.
+
+Preferred v1 behavior:
+
+- validate whole snapshot first
+- restore only after validation succeeds
+
+## TDD Delivery Plan
+
+### Increment 1
+
+- add domain-level logic for selecting the freeze export set
+- cover exact inclusion rules with unit tests
+
+### Increment 2
+
+- add snapshot header and payload model
+- add serialization tests
+
+### Increment 3
+
+- add AEAD encryption/decryption service
+- test successful decrypt and tamper failure
+
+### Increment 4
+
+- add freeze application service
+- test: snapshot produced and matching records deleted
+
+### Increment 5
+
+- add restore application service
+- test: valid snapshot restores records
+
+### Increment 6
+
+- add failure tests
+- expired snapshot
+- wrong pod id
+- unknown key id
+- modified ciphertext
+- invalid reply/root relationships
+
+## Decisions
+
+- freeze with zero matching records should succeed and yield NO_CONTENT.
+- maximum allowed snapshot size: unconstrained
+- whether restore should be blocked if the user already has active content on the pod: No. If content is duplicated by the snapshot (e.g. because the snapshot is restored twice), the content from the snapshot 
+- exact binary framing for header plus ciphertext
