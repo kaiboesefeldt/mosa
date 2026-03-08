@@ -1,0 +1,30 @@
+package straightway.mosa.content
+
+import straightway.mosa.VectorStore
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
+
+class FreezeSnapshotSelectionService(
+    private val vectorStore: VectorStore,
+) {
+    suspend fun resolveFor(ownerGid: String): List<FreezeSnapshotRecord> {
+        val ownRecords = vectorStore.fetchByFieldValues(AUTHOR_GID_KEY, setOf(ownerGid)).map { it.toFreezeSnapshotRecord() }
+        val ownedRootIds = ownRecords.filter { it.isOwnedRoot() }.mapTo(linkedSetOf()) { it.id }
+        val repliesOnOwnedRoots =
+            vectorStore.fetchByFieldValues(ROOT_ID_KEY, ownedRootIds).map { it.toFreezeSnapshotRecord() }
+        return (ownRecords + repliesOnOwnedRoots)
+            .distinctBy { it.id }
+            .sortedWith(compareBy<FreezeSnapshotRecord> { it.storedAt }.thenBy { it.id })
+    }
+
+    private fun FreezeSnapshotRecord.isOwnedRoot(): Boolean = rootId == null
+
+    private fun VectorStore.PostDump.toFreezeSnapshotRecord() =
+        FreezeSnapshotRecord(
+            id = id,
+            text = text,
+            authorGid = fields.requireContentMetadata(id, ContentMetadataField.AuthorGid),
+            storedAt = fields.requireContentMetadata(id, ContentMetadataField.ReceivedAt).toLong(),
+            rootId = fields[ContentMetadataField.RootId.key],
+        )
+}

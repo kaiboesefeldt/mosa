@@ -163,6 +163,27 @@ class LuceneLocalVectorStore private constructor(
         }.getOrDefault(emptyList())
     }
 
+    override suspend fun fetchByFieldValues(
+        fieldName: String,
+        values: Set<String>,
+    ): List<PostDump> {
+        checkClosed()
+        if (values.isEmpty()) return emptyList()
+
+        return runCatching {
+            indexAccess.read {
+                collectPostDumps(
+                    TermInSetQuery(
+                        fieldName,
+                        values.map(::BytesRef),
+                    ),
+                )
+            }
+        }.onFailure {
+            if (it !is IndexNotFoundException) throw it
+        }.getOrDefault(emptyList())
+    }
+
     override fun dumpAll(): Flow<PostDump> {
         checkClosed()
 
@@ -195,6 +216,20 @@ class LuceneLocalVectorStore private constructor(
     }
 
     private val pageSize = paginationRegistry.pageSize
+
+    private fun DirectoryReader.collectPostDumps(query: Query): List<PostDump> {
+        val searcher = IndexSearcher(this)
+        val results = mutableListOf<PostDump>()
+        var after: ScoreDoc? = null
+        while (true) {
+            val topDocs = searcher.searchAfter(after, query, pageSize, SORT_BY_TIME_ADDED)
+            val page = topDocs.scoreDocs.map { it.toPostDump(this) }
+            if (page.isEmpty()) return results
+            results.addAll(page)
+            if (page.size < pageSize) return results
+            after = topDocs.scoreDocs.last()
+        }
+    }
 
     private fun TopDocs.isFullPage(): Boolean = pageSize <= scoreDocs.size
 

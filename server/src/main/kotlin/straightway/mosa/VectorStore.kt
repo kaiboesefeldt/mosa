@@ -82,5 +82,10 @@ interface VectorStore : AutoCloseable {
 
     suspend fun fetch(ids: List<String>): List<PostDump>
 
+    suspend fun fetchByFieldValues(
+        fieldName: String,
+        values: Set<String>,
+    ): List<PostDump>
+
     fun dumpAll(): Flow<PostDump>
 }

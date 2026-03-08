@@ -1,6 +1,5 @@
 package straightway.mosa.content
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.plugins.BadRequestException
 import kotlinx.coroutines.flow.toList
 import straightway.mosa.EmbeddingService
@@ -62,7 +61,7 @@ class ContentService(
     ): List<String> {
         if (id.isBlank()) throw BadRequestException("id must not be blank")
         val post = vectorStore.fetch(listOf(id)).singleOrNull() ?: throw ContentNotFoundException()
-        val author = post.fields.requireMetadata(post.id, AUTHOR_GID_KEY)
+        val author = post.fields.requireContentMetadata(post.id, ContentMetadataField.AuthorGid)
         if (author != userGID) throw ContentForbiddenException()
         val deletedIds = linkedSetOf<String>()
         vectorStore.writeAccess {
@@ -135,7 +134,7 @@ class ContentService(
                 .dumpAll()
                 .toList()
                 .asSequence()
-                .filter { it.fields.requireMetadata(it.id, AUTHOR_GID_KEY) == userGID }
+                .filter { it.fields.requireContentMetadata(it.id, ContentMetadataField.AuthorGid) == userGID }
                 .map { it.toCsvExportEntry() }
                 .sortedWith(compareBy<CsvExportEntry> { it.storedAtEpoch }.thenBy { it.id })
                 .map { it.toCsvRow() }
@@ -183,29 +182,29 @@ class ContentService(
             content = text,
             similarity = similarity,
             rootId = fields[ROOT_ID_KEY],
-            authorGID = fields.requireMetadata(id, AUTHOR_GID_KEY),
+            authorGID = fields.requireContentMetadata(id, ContentMetadataField.AuthorGid),
             storedAt =
-                fields.requireMetadata(id, RECEIVED_AT_KEY).toLong(),
+                fields.requireContentMetadata(id, ContentMetadataField.ReceivedAt).toLong(),
         )
 
     private fun VectorStore.PostDump.toFetchEntry(): FetchResult.Entry =
         FetchResult.Entry(
             id,
             text,
-            authorGID = fields.requireMetadata(id, AUTHOR_GID_KEY),
-            storedAt = fields.requireMetadata(id, RECEIVED_AT_KEY).toLong(),
+            authorGID = fields.requireContentMetadata(id, ContentMetadataField.AuthorGid),
+            storedAt = fields.requireContentMetadata(id, ContentMetadataField.ReceivedAt).toLong(),
             rootId = fields[ROOT_ID_KEY],
         )
 
     private fun VectorStore.PostDump.toCsvExportEntry(): CsvExportEntry {
-        val storedAtEpoch = fields.requireMetadata(id, RECEIVED_AT_KEY).toLong()
+        val storedAtEpoch = fields.requireContentMetadata(id, ContentMetadataField.ReceivedAt).toLong()
         return CsvExportEntry(
             id = id,
             type = if (fields[ROOT_ID_KEY] == null) "post" else "reply",
             rootId = fields[ROOT_ID_KEY].orEmpty(),
             storedAtEpoch = storedAtEpoch,
             storedAtIso8601 = Instant.ofEpochSecond(storedAtEpoch).toString(),
-            authorGid = fields.requireMetadata(id, AUTHOR_GID_KEY),
+            authorGid = fields.requireContentMetadata(id, ContentMetadataField.AuthorGid),
             text = text,
         )
     }
@@ -222,23 +221,9 @@ class ContentService(
         )
 
     private companion object {
-        private val log = KotlinLogging.logger { }
         private const val MAX_POST_LENGTH = 1800
         private const val CSV_HEADER = "id,type,root_id,stored_at_epoch,stored_at_iso8601,author_gid,text"
         private val nilQueryRequest = QueryRequest()
-
-        private fun Map<String, String>.requireMetadata(
-            entryId: String,
-            fieldName: String,
-        ): String = get(fieldName) ?: missingMetadata(entryId, fieldName)
-
-        private fun missingMetadata(
-            entryId: String,
-            fieldName: String,
-        ): Nothing {
-            log.error { "Vector store entry $entryId is missing metadata field $fieldName" }
-            throw MissingVectorMetadataException(entryId, fieldName)
-        }
 
         private fun validateLength(text: String) {
             if (text.length > MAX_POST_LENGTH) {

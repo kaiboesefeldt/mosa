@@ -443,6 +443,25 @@ class LuceneLocalVectorStoreTest {
         }
 
     @Test
+    fun `dumpAll stops after incomplete final page`() =
+        runTest {
+            newFixture(pageSize = 2).use { fixture ->
+                fixture.store.addDocument("first-id", "first", emptyMap(), floatArrayOf(1f, 0f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("second-id", "second", emptyMap(), floatArrayOf(0f, 1f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("third-id", "third", emptyMap(), floatArrayOf(1f, 1f))
+
+                val results =
+                    withTimeout(2_000) {
+                        fixture.store.dumpAll().toList()
+                    }
+
+                assertEquals(listOf("third-id", "second-id", "first-id"), results.map { it.id })
+            }
+        }
+
+    @Test
     fun `dumpAll re-throws exceptions other than IndexNotFoundException`() =
         runTest {
             val exception = RuntimeException("Test")
@@ -512,6 +531,63 @@ class LuceneLocalVectorStoreTest {
         }
 
     @Test
+    fun `fetchByFieldValues returns matching posts in deterministic order`() =
+        runTest {
+            newFixture(pageSize = 1).use { fixture ->
+                fixture.store.addDocument("doc-1", "first", mapOf("tag" to "a"), floatArrayOf(1f, 0f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("doc-2", "second", mapOf("tag" to "b"), floatArrayOf(1f, 0f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("doc-3", "third", mapOf("tag" to "a"), floatArrayOf(1f, 0f))
+
+                val result = fixture.store.fetchByFieldValues("tag", setOf("a", "c"))
+
+                assertEquals(
+                    listOf(
+                        VectorStore.PostDump("doc-3", "third", mapOf("tag" to "a")),
+                        VectorStore.PostDump("doc-1", "first", mapOf("tag" to "a")),
+                    ),
+                    result,
+                )
+            }
+        }
+
+    @Test
+    fun `fetchByFieldValues stops after incomplete final page`() =
+        runTest {
+            newFixture(pageSize = 2).use { fixture ->
+                fixture.store.addDocument("doc-1", "first", mapOf("tag" to "a"), floatArrayOf(1f, 0f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("doc-2", "second", mapOf("tag" to "a"), floatArrayOf(1f, 0f))
+                fixture.clock.advance(1.seconds)
+                fixture.store.addDocument("doc-3", "third", mapOf("tag" to "a"), floatArrayOf(1f, 0f))
+
+                val result = fixture.store.fetchByFieldValues("tag", setOf("a"))
+
+                assertEquals(
+                    listOf(
+                        VectorStore.PostDump("doc-3", "third", mapOf("tag" to "a")),
+                        VectorStore.PostDump("doc-2", "second", mapOf("tag" to "a")),
+                        VectorStore.PostDump("doc-1", "first", mapOf("tag" to "a")),
+                    ),
+                    result,
+                )
+            }
+        }
+
+    @Test
+    fun `fetchByFieldValues returns empty list for empty values`() =
+        runTest {
+            newFixture(pageSize = 4).use { fixture ->
+                fixture.store.addDocument("doc-1", "first", mapOf("tag" to "a"), floatArrayOf(1f, 0f))
+
+                val result = fixture.store.fetchByFieldValues("tag", emptySet())
+
+                assertEquals(emptyList(), result)
+            }
+        }
+
+    @Test
     fun `fetch ignores IndexNotFoundException`() =
         runTest {
             val exception = IndexNotFoundException("Test")
@@ -522,6 +598,22 @@ class LuceneLocalVectorStoreTest {
 
             newFixture(pageSize = 1, indexAccess = indexAccess).use { fixture ->
                 val result = fixture.store.fetch(listOf("id-1"))
+
+                assertEquals(emptyList(), result)
+            }
+        }
+
+    @Test
+    fun `fetchByFieldValues ignores IndexNotFoundException`() =
+        runTest {
+            val exception = IndexNotFoundException("Test")
+            val indexAccess =
+                mockk<LuceneIndexAccess>(relaxUnitFun = true) {
+                    coEvery { read<List<VectorStore.PostDump>>(any()) } throws exception
+                }
+
+            newFixture(pageSize = 1, indexAccess = indexAccess).use { fixture ->
+                val result = fixture.store.fetchByFieldValues("tag", setOf("id-1"))
 
                 assertEquals(emptyList(), result)
             }
@@ -540,6 +632,25 @@ class LuceneLocalVectorStoreTest {
                 val ex =
                     assertFails {
                         fixture.store.fetch(listOf("id-1"))
+                    }
+
+                assertSame(exception, ex)
+            }
+        }
+
+    @Test
+    fun `fetchByFieldValues re-throws exceptions other than IndexNotFoundException`() =
+        runTest {
+            val exception = RuntimeException("Test")
+            val indexAccess =
+                mockk<LuceneIndexAccess>(relaxUnitFun = true) {
+                    coEvery { read<List<VectorStore.PostDump>>(any()) } throws exception
+                }
+
+            newFixture(pageSize = 1, indexAccess = indexAccess).use { fixture ->
+                val ex =
+                    assertFails {
+                        fixture.store.fetchByFieldValues("tag", setOf("id-1"))
                     }
 
                 assertSame(exception, ex)
@@ -715,6 +826,9 @@ class LuceneLocalVectorStoreTest {
             }
             assertFailsWith<RuntimeException> {
                 fixture.store.fetch(emptyList())
+            }
+            assertFailsWith<RuntimeException> {
+                fixture.store.fetchByFieldValues("tag", setOf("value"))
             }
             fixture.close()
         }
