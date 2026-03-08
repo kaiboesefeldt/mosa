@@ -38,6 +38,31 @@ class ContentAppModuleTest {
         }
     }
 
+    @Test
+    fun `provides freeze snapshot format as singleton`() {
+        val vectorStore = mockk<VectorStore>()
+        val koinApplication =
+            koinApplication {
+                modules(
+                    dependenciesModule(
+                        vectorStore = vectorStore,
+                    ),
+                    module {
+                        configureContentAppModule()
+                    },
+                )
+            }
+
+        try {
+            val first = koinApplication.koin.get<FreezeSnapshotFormat>()
+            val second = koinApplication.koin.get<FreezeSnapshotFormat>()
+
+            assertSame(first, second)
+        } finally {
+            koinApplication.close()
+        }
+    }
+
     private fun dependenciesModule(vectorStore: VectorStore): Module =
         module {
             single<CommandLineArgumentStore> { CommandLineArgumentStore.from { null } }

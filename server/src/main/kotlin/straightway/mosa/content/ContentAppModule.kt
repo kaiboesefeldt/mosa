@@ -8,6 +8,7 @@ import straightway.mosa.content.ContentCommandLineOptions.Companion.MAX_FETCH_IT
 
 fun Module.configureContentAppModule() {
     single { FreezeSnapshotSelectionService(get()) }
+    single { FreezeSnapshotFormat() }
     single {
         val cliArguments: CommandLineArgumentStore = get()
         val maxFetchItems = cliArguments.getInt(MAX_FETCH_ITEMS) ?: 100

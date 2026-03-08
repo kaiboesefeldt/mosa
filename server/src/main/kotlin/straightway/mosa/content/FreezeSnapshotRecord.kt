@@ -1,5 +1,8 @@
 package straightway.mosa.content
 
+import com.fasterxml.jackson.annotation.JsonPropertyOrder
+
+@JsonPropertyOrder("id", "text", "authorGid", "storedAt", "rootId")
 data class FreezeSnapshotRecord(
     val id: String,
     val text: String,
