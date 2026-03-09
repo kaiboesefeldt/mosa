@@ -124,10 +124,13 @@ Authenticated endpoint.
 Behavior:
 
 1. Resolve export set for authenticated user.
-2. Build snapshot payload.
-3. Encrypt payload with active archive key using AEAD.
-4. Return snapshot bytes as file download.
-5. Delete all exported records from the pod only after the snapshot has been successfully created in memory.
+2. Resolve the current active archive key.
+3. Generate a fresh random nonce on the server.
+4. Derive `createdAt` and `expiresAt` from server-side policy.
+5. Build snapshot payload.
+6. Encrypt payload with the active archive key using AEAD.
+7. Return snapshot bytes as file download.
+8. Delete all exported records from the pod only after the snapshot has been successfully created in memory.
 
 Response:
 
@@ -146,12 +149,14 @@ Behavior:
 
 1. Accept uploaded snapshot file.
 2. Parse unencrypted header.
-3. Verify `podId` matches this pod.
-4. Verify `expiresAt` has not passed.
-5. Resolve key by `keyId`.
-6. AEAD-decrypt payload.
-7. Validate manifest and all content records.
-8. Restore records.
+3. Verify `formatVersion` is supported.
+4. Verify `podId` matches this pod.
+5. Verify `expiresAt` has not passed.
+6. Enforce configured snapshot size limits.
+7. Resolve key by `keyId`.
+8. AEAD-decrypt payload.
+9. Validate manifest and all content records.
+10. Restore records.
 
 Response:
 
@@ -165,6 +170,7 @@ Restore must reject the snapshot if:
 - `podId` does not match
 - `keyId` is unknown
 - `expiresAt` is in the past
+- snapshot size exceeds configured limits
 - AEAD authentication fails
 - record count exceeds configured limits
 - required fields are missing
@@ -190,6 +196,8 @@ This behavior must be communicated clearly because it removes third-party replie
 `freeze` must not delete anything if:
 
 - export set resolution fails
+- active archive key resolution fails
+- nonce generation fails
 - snapshot serialization fails
 - encryption fails
 
@@ -220,11 +228,13 @@ Preferred v1 behavior:
 ### Increment 4
 
 - add freeze application service
+- add server-side nonce generation and active archive key resolution
 - test: snapshot produced and matching records deleted
 
 ### Increment 5
 
 - add restore application service
+- add header-first validation and size limits
 - test: valid snapshot restores records
 
 ### Increment 6
@@ -232,13 +242,15 @@ Preferred v1 behavior:
 - add failure tests
 - expired snapshot
 - wrong pod id
+- unsupported format version
 - unknown key id
+- oversized snapshot
 - modified ciphertext
 - invalid reply/root relationships
 
 ## Decisions
 
 - freeze with zero matching records should succeed and yield NO_CONTENT.
-- maximum allowed snapshot size: unconstrained
+- maximum allowed snapshot size: constrained by configuration and enforced before decrypt
 - whether restore should be blocked if the user already has active content on the pod: No. If content is duplicated by the snapshot (e.g. because the snapshot is restored twice), the content from the snapshot 
 - exact binary framing for header plus ciphertext

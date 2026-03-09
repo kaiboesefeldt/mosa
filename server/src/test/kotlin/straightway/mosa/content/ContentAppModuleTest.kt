@@ -63,11 +63,41 @@ class ContentAppModuleTest {
         }
     }
 
+    @Test
+    fun `provides freeze snapshot crypto service as singleton`() {
+        val vectorStore = mockk<VectorStore>()
+        val koinApplication =
+            koinApplication {
+                modules(
+                    dependenciesModule(
+                        vectorStore = vectorStore,
+                    ),
+                    module {
+                        configureContentAppModule()
+                    },
+                )
+            }
+
+        try {
+            val first = koinApplication.koin.get<FreezeSnapshotCryptoService>()
+            val second = koinApplication.koin.get<FreezeSnapshotCryptoService>()
+
+            assertSame(first, second)
+        } finally {
+            koinApplication.close()
+        }
+    }
+
     private fun dependenciesModule(vectorStore: VectorStore): Module =
         module {
             single<CommandLineArgumentStore> { CommandLineArgumentStore.from { null } }
             single<VectorStore> { vectorStore }
             single<EmbeddingService> { throw UnsupportedOperationException() }
             single<HasherFactory> { { MessageDigest.getInstance("SHA-256") } }
+            single<FreezeSnapshotArchiveKeyStore> {
+                object : FreezeSnapshotArchiveKeyStore {
+                    override fun findByKeyId(keyId: String): FreezeSnapshotArchiveKey? = null
+                }
+            }
         }
 }
