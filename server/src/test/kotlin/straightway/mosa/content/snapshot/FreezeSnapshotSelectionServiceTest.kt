@@ -1,10 +1,11 @@
-package straightway.mosa.content
+package straightway.mosa.content.snapshot
 
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import straightway.mosa.VectorStore
+import straightway.mosa.content.MissingVectorMetadataException
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY

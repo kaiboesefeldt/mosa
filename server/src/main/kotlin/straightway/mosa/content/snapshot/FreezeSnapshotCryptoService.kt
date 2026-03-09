@@ -1,4 +1,4 @@
-package straightway.mosa.content
+package straightway.mosa.content.snapshot
 
 import java.security.GeneralSecurityException
 import javax.crypto.Cipher

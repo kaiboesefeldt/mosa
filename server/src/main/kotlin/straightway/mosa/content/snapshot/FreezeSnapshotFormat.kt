@@ -1,4 +1,4 @@
-package straightway.mosa.content
+package straightway.mosa.content.snapshot
 
 import java.nio.ByteBuffer
 import kotlin.math.min
@@ -7,25 +7,38 @@ class FreezeSnapshotFormat(
     private val json: FreezeSnapshotJson = FreezeSnapshotJson(),
 ) {
     fun serialize(snapshot: FreezeSnapshot): ByteArray {
-        val headerBytes = serializeHeader(snapshot.header).encodeToByteArray()
         val payloadBytes = serializePayload(snapshot.manifest, snapshot.records)
-        return ByteBuffer
-            .allocate(MAGIC_BYTES.size + Int.SIZE_BYTES + headerBytes.size + Int.SIZE_BYTES + payloadBytes.size)
-            .put(MAGIC_BYTES)
-            .putInt(headerBytes.size)
-            .put(headerBytes)
-            .putInt(payloadBytes.size)
-            .put(payloadBytes)
-            .array()
+        return serializeFramed(snapshot.header, payloadBytes)
     }
 
     fun parse(bytes: ByteArray): FreezeSnapshot {
+        val (header, payload) = parseFramed(bytes)
+        val (manifest, records) = parsePayload(payload)
+        return FreezeSnapshot(header, manifest, records)
+    }
+
+    fun serializeFramed(
+        header: FreezeSnapshotHeader,
+        payload: ByteArray,
+    ): ByteArray {
+        val headerBytes = serializeHeader(header).encodeToByteArray()
+        return ByteBuffer
+            .allocate(MAGIC_BYTES.size + Int.SIZE_BYTES + headerBytes.size + Int.SIZE_BYTES + payload.size)
+            .put(MAGIC_BYTES)
+            .putInt(headerBytes.size)
+            .put(headerBytes)
+            .putInt(payload.size)
+            .put(payload)
+            .array()
+    }
+
+    fun parseFramed(bytes: ByteArray): Pair<FreezeSnapshotHeader, ByteArray> {
         val buffer = ByteBuffer.wrap(bytes)
         requireMagic(buffer)
         val header = parseHeader(readFramePart(buffer, "header").decodeToString())
-        val (manifest, records) = parsePayload(readFramePart(buffer, "payload"))
+        val payload = readFramePart(buffer, "payload")
         ensureNoTrailingBytes(buffer)
-        return FreezeSnapshot(header, manifest, records)
+        return header to payload
     }
 
     fun serializeHeader(header: FreezeSnapshotHeader): String {

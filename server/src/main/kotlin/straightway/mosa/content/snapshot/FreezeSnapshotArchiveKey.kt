@@ -1,4 +1,4 @@
-package straightway.mosa.content
+package straightway.mosa.content.snapshot
 
 data class FreezeSnapshotArchiveKey(
     val keyId: String,

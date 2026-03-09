@@ -1,4 +1,4 @@
-package straightway.mosa.content
+package straightway.mosa.content.snapshot
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder
 import java.time.Instant

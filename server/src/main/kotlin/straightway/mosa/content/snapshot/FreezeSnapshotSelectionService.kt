@@ -1,6 +1,8 @@
-package straightway.mosa.content
+package straightway.mosa.content.snapshot
 
 import straightway.mosa.VectorStore
+import straightway.mosa.content.ContentMetadataField
+import straightway.mosa.content.requireContentMetadata
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 
