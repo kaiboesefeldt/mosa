@@ -221,7 +221,6 @@ class ContentService(
         )
 
     private companion object {
-        private const val MAX_POST_LENGTH = 1800
         private const val CSV_HEADER = "id,type,root_id,stored_at_epoch,stored_at_iso8601,author_gid,text"
         private val nilQueryRequest = QueryRequest()
 

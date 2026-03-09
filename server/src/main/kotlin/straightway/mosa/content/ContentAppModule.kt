@@ -12,8 +12,11 @@ import straightway.mosa.content.snapshot.FreezeSnapshotCryptoService
 import straightway.mosa.content.snapshot.FreezeSnapshotFormat
 import straightway.mosa.content.snapshot.FreezeSnapshotNonceGenerator
 import straightway.mosa.content.snapshot.FreezeSnapshotPolicy
+import straightway.mosa.content.snapshot.FreezeSnapshotRestoreService
+import straightway.mosa.content.snapshot.FreezeSnapshotRestoreValidator
 import straightway.mosa.content.snapshot.FreezeSnapshotSelectionService
 import straightway.mosa.content.snapshot.FreezeSnapshotService
+import straightway.mosa.content.snapshot.FreezeSnapshotSizePolicy
 import straightway.mosa.content.snapshot.SecureRandomFreezeSnapshotNonceGenerator
 import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.days
@@ -23,6 +26,8 @@ fun Module.configureContentAppModule() {
     single { FreezeSnapshotFormat() }
     single { FreezeSnapshotCryptoService(get(), get()) }
     single<FreezeSnapshotNonceGenerator> { SecureRandomFreezeSnapshotNonceGenerator() }
+    single { FreezeSnapshotSizePolicy() }
+    single { FreezeSnapshotRestoreValidator(get()) }
     single {
         FreezeSnapshotPolicy(
             podId = defaultFreezeSnapshotPodId(get(), get()),
@@ -36,6 +41,17 @@ fun Module.configureContentAppModule() {
             nonceGenerator = get(),
             format = get(),
             cryptoService = get(),
+            vectorStore = get(),
+            clock = get(),
+            policy = get(),
+        )
+    }
+    single {
+        FreezeSnapshotRestoreService(
+            format = get(),
+            cryptoService = get(),
+            validator = get(),
+            embeddingService = get(),
             vectorStore = get(),
             clock = get(),
             policy = get(),

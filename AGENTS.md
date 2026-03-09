@@ -91,6 +91,7 @@
 - Server: Ktor + Koin, auth via MIS-JWT bearer tokens.
 - Routes: `/v1/approvegid` is open; `/v1/publish`, `/v1/reply`, `/v1/query`, `/v1/queryon` require auth.
 - Embeddings/vector storage: ONNX local embeddings + Lucene local vector store.
+- Snapshot workflow: freeze export and restore application services live in `server/src/main/kotlin/straightway/mosa/content/snapshot`.
 - Client assets are copied into server static resources for packaging.
 - ClearTerms YAML loading supports optional language fragment files:
   - Baseline: `<name>.<lang>.yaml` fragments contribute to root `texts`.

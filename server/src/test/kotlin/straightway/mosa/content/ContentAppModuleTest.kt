@@ -16,8 +16,11 @@ import straightway.mosa.content.snapshot.FreezeSnapshotArchiveKey
 import straightway.mosa.content.snapshot.FreezeSnapshotArchiveKeyStore
 import straightway.mosa.content.snapshot.FreezeSnapshotCryptoService
 import straightway.mosa.content.snapshot.FreezeSnapshotFormat
+import straightway.mosa.content.snapshot.FreezeSnapshotRestoreService
+import straightway.mosa.content.snapshot.FreezeSnapshotRestoreValidator
 import straightway.mosa.content.snapshot.FreezeSnapshotSelectionService
 import straightway.mosa.content.snapshot.FreezeSnapshotService
+import straightway.mosa.content.snapshot.FreezeSnapshotSizePolicy
 import java.security.MessageDigest
 import java.security.PublicKey
 import java.time.Clock
@@ -124,16 +127,92 @@ class ContentAppModuleTest {
         }
     }
 
+    @Test
+    fun `provides freeze snapshot restore service as singleton`() {
+        val vectorStore = mockk<VectorStore>()
+        val koinApplication =
+            koinApplication {
+                modules(
+                    dependenciesModule(
+                        vectorStore = vectorStore,
+                    ),
+                    module {
+                        configureContentAppModule()
+                    },
+                )
+            }
+
+        try {
+            val first = koinApplication.koin.get<FreezeSnapshotRestoreService>()
+            val second = koinApplication.koin.get<FreezeSnapshotRestoreService>()
+
+            assertSame(first, second)
+        } finally {
+            koinApplication.close()
+        }
+    }
+
+    @Test
+    fun `provides freeze snapshot restore validator as singleton`() {
+        val vectorStore = mockk<VectorStore>()
+        val koinApplication =
+            koinApplication {
+                modules(
+                    dependenciesModule(
+                        vectorStore = vectorStore,
+                    ),
+                    module {
+                        configureContentAppModule()
+                    },
+                )
+            }
+
+        try {
+            val first = koinApplication.koin.get<FreezeSnapshotRestoreValidator>()
+            val second = koinApplication.koin.get<FreezeSnapshotRestoreValidator>()
+
+            assertSame(first, second)
+        } finally {
+            koinApplication.close()
+        }
+    }
+
+    @Test
+    fun `provides freeze snapshot size policy as singleton`() {
+        val vectorStore = mockk<VectorStore>()
+        val koinApplication =
+            koinApplication {
+                modules(
+                    dependenciesModule(
+                        vectorStore = vectorStore,
+                    ),
+                    module {
+                        configureContentAppModule()
+                    },
+                )
+            }
+
+        try {
+            val first = koinApplication.koin.get<FreezeSnapshotSizePolicy>()
+            val second = koinApplication.koin.get<FreezeSnapshotSizePolicy>()
+
+            assertSame(first, second)
+        } finally {
+            koinApplication.close()
+        }
+    }
+
     private fun dependenciesModule(vectorStore: VectorStore): Module =
         module {
             val publicKey = mockk<PublicKey>()
+            val embeddingService = mockk<EmbeddingService>()
             val signatureFactory = mockk<SignatureFactory>()
             every { publicKey.encoded } returns byteArrayOf(1, 2, 3)
             every { signatureFactory.publicKey } returns publicKey
             single<CommandLineArgumentStore> { CommandLineArgumentStore.from { null } }
             single { Clock.systemUTC() }
             single<VectorStore> { vectorStore }
-            single<EmbeddingService> { throw UnsupportedOperationException() }
+            single<EmbeddingService> { embeddingService }
             single<HasherFactory> { { MessageDigest.getInstance("SHA-256") } }
             single<SignatureFactory> { signatureFactory }
             single<FreezeSnapshotArchiveKeyStore> {
