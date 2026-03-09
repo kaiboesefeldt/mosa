@@ -20,6 +20,7 @@ import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.DeletePostsResult
+import straightway.mosa.content.FreezeSnapshotRestoreResult
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.SearchResult
@@ -135,6 +136,17 @@ private class RecordingPublishPodAccess : PodAccess {
     }
 
     override suspend fun exportPostsCsv(jwt: String): ByteArray {
+        error("not used")
+    }
+
+    override suspend fun freezePrivacySnapshot(jwt: String): ByteArray {
+        error("not used")
+    }
+
+    override suspend fun restorePrivacySnapshot(
+        snapshot: ByteArray,
+        jwt: String,
+    ): FreezeSnapshotRestoreResult {
         error("not used")
     }
 

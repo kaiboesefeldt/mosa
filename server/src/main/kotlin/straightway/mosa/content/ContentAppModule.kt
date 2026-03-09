@@ -7,7 +7,9 @@ import straightway.mosa.HasherFactory
 import straightway.mosa.SignatureFactory
 import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentCommandLineOptions.Companion.MAX_FETCH_ITEMS
+import straightway.mosa.content.snapshot.FileBackedFreezeSnapshotArchiveKeyStore
 import straightway.mosa.content.snapshot.FreezeSnapshotActiveArchiveKeyProvider
+import straightway.mosa.content.snapshot.FreezeSnapshotArchiveKeyStore
 import straightway.mosa.content.snapshot.FreezeSnapshotCryptoService
 import straightway.mosa.content.snapshot.FreezeSnapshotFormat
 import straightway.mosa.content.snapshot.FreezeSnapshotNonceGenerator
@@ -18,10 +20,14 @@ import straightway.mosa.content.snapshot.FreezeSnapshotSelectionService
 import straightway.mosa.content.snapshot.FreezeSnapshotService
 import straightway.mosa.content.snapshot.FreezeSnapshotSizePolicy
 import straightway.mosa.content.snapshot.SecureRandomFreezeSnapshotNonceGenerator
+import java.nio.file.Path
 import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.days
 
 fun Module.configureContentAppModule() {
+    single { FileBackedFreezeSnapshotArchiveKeyStore(defaultFreezeSnapshotArchiveKeyPath(), get()) }
+    single<FreezeSnapshotArchiveKeyStore> { get<FileBackedFreezeSnapshotArchiveKeyStore>() }
+    single<FreezeSnapshotActiveArchiveKeyProvider> { get<FileBackedFreezeSnapshotArchiveKeyStore>() }
     single { FreezeSnapshotSelectionService(get()) }
     single { FreezeSnapshotFormat() }
     single { FreezeSnapshotCryptoService(get(), get()) }
@@ -63,6 +69,7 @@ fun Module.configureContentAppModule() {
         ContentService(get(), get(), get(), maxFetchItems)
     }
     single { ContentController(get(), get()) } bind BaseController::class
+    single { PrivacySnapshotController(get(), get(), get()) } bind BaseController::class
 }
 
 private fun defaultFreezeSnapshotPodId(
@@ -72,3 +79,5 @@ private fun defaultFreezeSnapshotPodId(
     Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(
         hasherFactory().digest(signatureFactory.publicKey.encoded),
     )
+
+private fun defaultFreezeSnapshotArchiveKeyPath(): Path = Path.of(System.getProperty("user.dir"), "mosa_snapshot_archive_key.txt")

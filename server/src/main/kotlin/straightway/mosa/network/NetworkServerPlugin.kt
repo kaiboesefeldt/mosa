@@ -24,6 +24,7 @@ import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.base.findPayloadTooLarge
 import straightway.mosa.content.ContentService.ContentForbiddenException
 import straightway.mosa.content.ContentService.ContentNotFoundException
+import straightway.mosa.content.snapshot.InvalidFreezeSnapshotException
 import straightway.mosa.jackson.InstantJacksonSerializers
 import java.util.TimeZone
 
@@ -45,6 +46,9 @@ fun Application.installNetworkServerPlugins() {
         }
         exception<ContentForbiddenException> { call, cause ->
             call.respond(HttpStatusCode.Forbidden, mapOf("message" to cause.message))
+        }
+        exception<InvalidFreezeSnapshotException> { call, cause ->
+            call.respond(HttpStatusCode.BadRequest, mapOf("message" to cause.message))
         }
         exception<BadRequestException> { call, cause ->
             val findPayloadTooLargeException = cause.findPayloadTooLarge()

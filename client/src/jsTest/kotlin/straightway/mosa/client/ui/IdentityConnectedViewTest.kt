@@ -64,6 +64,7 @@ import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.SearchResult
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.DeletePostsResult
+import straightway.mosa.content.FreezeSnapshotRestoreResult
 import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
 
@@ -778,6 +779,17 @@ private class RecordingPodAccess(
     }
 
     override suspend fun exportPostsCsv(jwt: String): ByteArray {
+        error("Not implemented")
+    }
+
+    override suspend fun freezePrivacySnapshot(jwt: String): ByteArray {
+        error("Not implemented")
+    }
+
+    override suspend fun restorePrivacySnapshot(
+        snapshot: ByteArray,
+        jwt: String,
+    ): FreezeSnapshotRestoreResult {
         error("Not implemented")
     }
 

@@ -20,6 +20,7 @@ import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.DeletePostsResult
+import straightway.mosa.content.FreezeSnapshotRestoreResult
 import straightway.mosa.content.SearchResult
 
 interface PodAccess {
@@ -30,6 +31,8 @@ interface PodAccess {
     suspend fun deletePosts(jwt: String): DeletePostsResult
     suspend fun deletePost(postId: String, jwt: String): DeletePostsResult
     suspend fun exportPostsCsv(jwt: String): ByteArray
+    suspend fun freezePrivacySnapshot(jwt: String): ByteArray
+    suspend fun restorePrivacySnapshot(snapshot: ByteArray, jwt: String): FreezeSnapshotRestoreResult
     suspend fun search(request: QueryRequest, jwt: String): SearchResult
     suspend fun searchOn(request: QueryOnRequest, jwt: String): SearchResult
     suspend fun fetch(request: FetchRequest, jwt: String): FetchResult
@@ -82,6 +85,19 @@ class PodAccessImpl(
             .ensureSuccess("/v1/posts/export.csv", Unit)
             .body()
 
+    override suspend fun freezePrivacySnapshot(jwt: String): ByteArray =
+        post("/v1/privacy/freeze", jwt)
+            .ensureSuccess("/v1/privacy/freeze", Unit)
+            .body()
+
+    override suspend fun restorePrivacySnapshot(
+        snapshot: ByteArray,
+        jwt: String,
+    ): FreezeSnapshotRestoreResult =
+        post("/v1/privacy/restore", snapshot, ContentType.Application.OctetStream, jwt)
+            .ensureSuccess("/v1/privacy/restore", Unit)
+            .body()
+
     override suspend fun search(request: QueryRequest, jwt: String): SearchResult =
         post("/v1/search", request, jwt)
             .ensureSuccess("/v1/search", request)
@@ -117,13 +133,21 @@ class PodAccessImpl(
             .ensureSuccess("/v1/legal/privacy/operator", Unit)
             .body()
 
-    private suspend fun post(path: String, payload: Any, jwt: String? = null): HttpResponse =
+    private suspend fun post(
+        path: String,
+        payload: Any,
+        contentType: ContentType,
+        jwt: String? = null,
+    ): HttpResponse =
         httpClient.post("$podBase$path") {
-            contentType(ContentType.Application.Json)
+            contentType(contentType)
             setBody(payload)
             if (jwt != null)
                 header(HttpHeaders.Authorization, "Bearer $jwt")
         }
+
+    private suspend fun post(path: String, payload: Any, jwt: String? = null): HttpResponse =
+        post(path, payload, ContentType.Application.Json, jwt)
 
     private suspend fun post(path: String, jwt: String): HttpResponse =
         httpClient.post("$podBase$path") {

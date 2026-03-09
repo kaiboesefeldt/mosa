@@ -24,6 +24,7 @@ import straightway.mosa.auth.PodCertificateService
 import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
+import straightway.mosa.content.PrivacySnapshotController
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.legal.LegalController
@@ -70,6 +71,7 @@ class AppModuleTest {
         OnnxLocalEmbeddingService.embeddingServiceFactory = null
         unmockkObject(LuceneLocalVectorStore.Companion)
         testWorkingDir?.resolve("mosa_pod_keypair.pem")?.let { Files.deleteIfExists(it) }
+        testWorkingDir?.resolve("mosa_snapshot_archive_key.txt")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.let { Files.deleteIfExists(it) }
         originalUserDir?.let { System.setProperty("user.dir", it) }
     }
@@ -155,6 +157,7 @@ class AppModuleTest {
         assertEquals(
             setOf(
                 ContentController::class,
+                PrivacySnapshotController::class,
                 AuthenticationController::class,
                 LegalController::class,
                 WebClientController::class,

@@ -11,9 +11,6 @@ import straightway.mosa.EmbeddingService
 import straightway.mosa.HasherFactory
 import straightway.mosa.SignatureFactory
 import straightway.mosa.VectorStore
-import straightway.mosa.content.snapshot.FreezeSnapshotActiveArchiveKeyProvider
-import straightway.mosa.content.snapshot.FreezeSnapshotArchiveKey
-import straightway.mosa.content.snapshot.FreezeSnapshotArchiveKeyStore
 import straightway.mosa.content.snapshot.FreezeSnapshotCryptoService
 import straightway.mosa.content.snapshot.FreezeSnapshotFormat
 import straightway.mosa.content.snapshot.FreezeSnapshotRestoreService
@@ -215,15 +212,5 @@ class ContentAppModuleTest {
             single<EmbeddingService> { embeddingService }
             single<HasherFactory> { { MessageDigest.getInstance("SHA-256") } }
             single<SignatureFactory> { signatureFactory }
-            single<FreezeSnapshotArchiveKeyStore> {
-                object : FreezeSnapshotArchiveKeyStore {
-                    override fun findByKeyId(keyId: String): FreezeSnapshotArchiveKey? = null
-                }
-            }
-            single<FreezeSnapshotActiveArchiveKeyProvider> {
-                FreezeSnapshotActiveArchiveKeyProvider {
-                    FreezeSnapshotArchiveKey("archive-2026", ByteArray(16) { (it + 1).toByte() })
-                }
-            }
         }
 }

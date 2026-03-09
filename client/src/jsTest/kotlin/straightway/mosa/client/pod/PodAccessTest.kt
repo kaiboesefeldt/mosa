@@ -10,6 +10,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
@@ -21,6 +22,7 @@ import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.DeletePostsResult
+import straightway.mosa.content.FreezeSnapshotRestoreResult
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryOnRequest
@@ -210,6 +212,54 @@ class PodAccessTest {
         val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
 
         assertRestError("/v1/posts/export.csv", HttpStatusCode.BadRequest) { podAccess.exportPostsCsv("jwt-token") }
+    }
+
+    @Test
+    fun `freezePrivacySnapshot sends post with auth and returns bytes`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, byteArrayOf(1, 2, 3))
+
+        val result = podAccess.freezePrivacySnapshot("jwt-token")
+
+        assertContentEquals(byteArrayOf(1, 2, 3), result)
+        assertAuthenticatedPostRequest(
+            request = capturedRequests.single(),
+            route = "v1/privacy/freeze",
+            bearerToken = "jwt-token",
+        )
+    }
+
+    @Test
+    fun `freezePrivacySnapshot throws when backend returns error`() = runTest {
+        val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
+
+        assertRestError("/v1/privacy/freeze", HttpStatusCode.BadRequest) { podAccess.freezePrivacySnapshot("jwt-token") }
+    }
+
+    @Test
+    fun `restorePrivacySnapshot sends bytes and returns summary`() = runTest {
+        val expectedResult = FreezeSnapshotRestoreResult(listOf("post-1"), 1)
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
+
+        val result = podAccess.restorePrivacySnapshot(byteArrayOf(4, 5, 6), "jwt-token")
+
+        assertEquals(expectedResult, result)
+        assertAuthenticatedBinaryPostRequest(
+            request = capturedRequests.single(),
+            route = "v1/privacy/restore",
+            bearerToken = "jwt-token",
+            expectedPayload = byteArrayOf(4, 5, 6),
+        )
+    }
+
+    @Test
+    fun `restorePrivacySnapshot throws when backend returns error`() = runTest {
+        val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
+
+        assertRestError("/v1/privacy/restore", HttpStatusCode.BadRequest) {
+            podAccess.restorePrivacySnapshot(byteArrayOf(1), "jwt-token")
+        }
     }
 
     @Test
@@ -409,6 +459,20 @@ class PodAccessTest {
             )
         }
 
+    private fun podAccessResponding(
+        status: HttpStatusCode,
+        capturedRequests: MutableList<HttpRequestData>,
+        payload: ByteArray,
+    ): PodAccess =
+        podAccess { request ->
+            capturedRequests += request
+            respond(
+                content = payload,
+                status = status,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.OctetStream.toString()),
+            )
+        }
+
     private inline fun <reified T> assertRequest(
         request: HttpRequestData,
         method: HttpMethod,
@@ -464,6 +528,30 @@ class PodAccessTest {
         bearerToken: String,
     ) {
         assertEquals(HttpMethod.Get, request.method)
+        assertEquals("https://pod.example/$route", request.url.toString())
+        assertEquals("Bearer $bearerToken", request.headers[HttpHeaders.Authorization])
+    }
+
+    private fun assertAuthenticatedBinaryPostRequest(
+        request: HttpRequestData,
+        route: String,
+        bearerToken: String,
+        expectedPayload: ByteArray? = null,
+    ) {
+        assertEquals(HttpMethod.Post, request.method)
+        assertEquals("https://pod.example/$route", request.url.toString())
+        assertEquals("Bearer $bearerToken", request.headers[HttpHeaders.Authorization])
+        val body = request.body as? OutgoingContent.ByteArrayContent
+        assertEquals(ContentType.Application.OctetStream, body?.contentType)
+        expectedPayload?.let { assertContentEquals(it, requireNotNull(body).bytes()) }
+    }
+
+    private fun assertAuthenticatedPostRequest(
+        request: HttpRequestData,
+        route: String,
+        bearerToken: String,
+    ) {
+        assertEquals(HttpMethod.Post, request.method)
         assertEquals("https://pod.example/$route", request.url.toString())
         assertEquals("Bearer $bearerToken", request.headers[HttpHeaders.Authorization])
     }
