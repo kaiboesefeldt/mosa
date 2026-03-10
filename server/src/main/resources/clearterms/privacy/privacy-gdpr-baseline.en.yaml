@@ -253,7 +253,7 @@ texts:
 
     - id: rights-other-requests
       text: |
-        For functions that cannot be completed directly in {{string:SERVICE_DISPLAY_NAME}} and for other privacy requests: {{string:CONTACT_PRIVACY_EMAIL}}
+        For privacy requests that cannot be completed directly in {{string:SERVICE_DISPLAY_NAME}} and for other privacy requests: {{string:CONTACT_PRIVACY_EMAIL}}
 
     - id: complaint-right
       text: |

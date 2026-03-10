@@ -67,4 +67,4 @@ overrides:
         rights-portability-action-slot-service: "Ebenfalls über „Beiträge exportieren (CSV)” in {{string:SERVICE_DISPLAY_NAME}}"
         rights-rectification-action-slot-service: "Inhalte in {{string:SERVICE_DISPLAY_NAME}} löschen und richtig neu veröffentlichen"
         rights-erasure-action-slot-service: "Beiträge und Antworten selbst in {{string:SERVICE_DISPLAY_NAME}} löschen"
-        rights-restriction-action-slot-service: "Sichtbarkeit eigener Inhalte in {{string:SERVICE_DISPLAY_NAME}} durch die bereitgestellten Funktionen begrenzen, einschließlich des Snapshot-Einfrierens"
+        rights-restriction-action-slot-service: "Beiträge und Antworten über den Freeze-Mechanismus in {{string:SERVICE_DISPLAY_NAME}} einfrieren. Danach werden sie auf diesem Pod bis zur Wiederherstellung nicht weiter verarbeitet"

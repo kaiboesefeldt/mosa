@@ -253,7 +253,7 @@ texts:
 
     - id: rights-other-requests
       text: |
-        Für Funktionen, die nicht selbst in {{string:SERVICE_DISPLAY_NAME}} erledigt werden können, und für andere Datenschutzanfragen: {{string:CONTACT_PRIVACY_EMAIL}}
+        Für Datenschutzanfragen, die nicht selbst in {{string:SERVICE_DISPLAY_NAME}} erledigt werden können, und für sonstige Datenschutzanfragen: {{string:CONTACT_PRIVACY_EMAIL}}
 
     - id: complaint-right
       text: |

@@ -67,4 +67,4 @@ overrides:
         rights-portability-action-slot-service: "Also via \"Export posts (CSV)\" in {{string:SERVICE_DISPLAY_NAME}}"
         rights-rectification-action-slot-service: "Delete content in {{string:SERVICE_DISPLAY_NAME}} and republish it correctly"
         rights-erasure-action-slot-service: "Delete posts and replies yourself in {{string:SERVICE_DISPLAY_NAME}}"
-        rights-restriction-action-slot-service: "Limit visibility of your own content in {{string:SERVICE_DISPLAY_NAME}} using the provided functions, including the freeze snapshot workflow"
+        rights-restriction-action-slot-service: "Freeze your own posts and replies in {{string:SERVICE_DISPLAY_NAME}}. After that they are no longer processed on this pod until restored"
