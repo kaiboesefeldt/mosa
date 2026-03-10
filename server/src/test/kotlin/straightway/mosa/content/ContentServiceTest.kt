@@ -30,7 +30,7 @@ class ContentServiceTest {
     private val hasherFactory = mockk<() -> MessageDigest>()
     private val transaction = mockk<VectorStore.Transaction>(relaxed = true)
     private val maxFetchItems = 100
-    private val sut = ContentService(embeddingService, vectorStore, hasherFactory, maxFetchItems)
+    private val sut = ContentService(embeddingService, vectorStore, hasherFactory, maxFetchItems) { "reply-nonce" }
 
     private val testUserGID = "test-user-gid"
     private val testEmbedding = floatArrayOf(0.1f, 0.2f, 0.3f)
@@ -159,6 +159,100 @@ class ContentServiceTest {
                 val csv = sut.exportCsvForUser(testUserGID)
 
                 assertTrue(csv.contains("\"Hello,\n\"\"MOSA\"\"\""))
+            }
+
+        @Test
+        fun `quotes id field when it contains double quotes`() =
+            runTest {
+                coEvery {
+                    vectorStore.dumpAll()
+                } returns
+                    kotlinx.coroutines.flow.flowOf(
+                        VectorStore.PostDump(
+                            id = "entry-\"1\"",
+                            text = "Hello",
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to testUserGID,
+                                    RECEIVED_AT_KEY to "100",
+                                ),
+                        ),
+                    )
+
+                val csv = sut.exportCsvForUser(testUserGID)
+
+                assertTrue(csv.contains("\"entry-\"\"1\"\"\""))
+            }
+
+        @Test
+        fun `quotes author field when it contains a comma`() =
+            runTest {
+                val authorGid = "user,1"
+                coEvery {
+                    vectorStore.dumpAll()
+                } returns
+                    kotlinx.coroutines.flow.flowOf(
+                        VectorStore.PostDump(
+                            id = "entry-1",
+                            text = "Hello",
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to authorGid,
+                                    RECEIVED_AT_KEY to "100",
+                                ),
+                        ),
+                    )
+
+                val csv = sut.exportCsvForUser(authorGid)
+
+                assertTrue(csv.contains("\"user,1\""))
+            }
+
+        @Test
+        fun `quotes rootId field when it contains a newline`() =
+            runTest {
+                coEvery {
+                    vectorStore.dumpAll()
+                } returns
+                    kotlinx.coroutines.flow.flowOf(
+                        VectorStore.PostDump(
+                            id = "entry-1",
+                            text = "Hello",
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to testUserGID,
+                                    RECEIVED_AT_KEY to "100",
+                                    ROOT_ID_KEY to "root\n1",
+                                ),
+                        ),
+                    )
+
+                val csv = sut.exportCsvForUser(testUserGID)
+
+                assertTrue(csv.contains("\"root\n1\""))
+            }
+
+        @Test
+        fun `quotes id field when it contains a carriage return`() =
+            runTest {
+                coEvery {
+                    vectorStore.dumpAll()
+                } returns
+                    kotlinx.coroutines.flow.flowOf(
+                        VectorStore.PostDump(
+                            id = "entry-\r1",
+                            text = "Hello",
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to testUserGID,
+                                    RECEIVED_AT_KEY to "100",
+                                ),
+                        ),
+                    )
+
+                val csv = sut.exportCsvForUser(testUserGID)
+
+                assertTrue(csv.contains("\"entry-\r1\""))
             }
 
         @Test
@@ -1301,6 +1395,32 @@ class ContentServiceTest {
                         vector = testEmbedding,
                     )
                 }
+            }
+
+        @Test
+        fun `allows identical reply text more than once by generating different ids`() =
+            runTest {
+                val content = "Ja"
+                val replyNonces = ArrayDeque(listOf("nonce-1", "nonce-2"))
+                val service =
+                    ContentService(
+                        embeddingService = embeddingService,
+                        vectorStore = vectorStore,
+                        hasherFactory = { MessageDigest.getInstance("SHA-256") },
+                        maxFetchItems = maxFetchItems,
+                        replyNonceFactory = { replyNonces.removeFirst() },
+                    )
+                setupEmbedding(content)
+                setupWriteAccess()
+                coEvery { vectorStore.query(Query(id = "root-123")) } returns
+                    createParentQueryResult("root-123", null)
+
+                val firstId = service.reply(testUserGID, ReplyRequest(PublishRequest(content), "root-123"), TEST_TIME)
+                val secondId = service.reply(testUserGID, ReplyRequest(PublishRequest(content), "root-123"), TEST_TIME)
+
+                assertTrue(firstId.isNotBlank())
+                assertTrue(secondId.isNotBlank())
+                assertTrue(firstId != secondId)
             }
 
         @Test

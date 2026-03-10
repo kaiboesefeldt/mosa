@@ -18,12 +18,16 @@ class ContentService(
     private val vectorStore: VectorStore,
     private val hasherFactory: () -> MessageDigest,
     private val maxFetchItems: Int,
+    private val replyNonceFactory: () -> String = { UUID.randomUUID().toString() },
 ) {
     suspend fun publish(
         userGID: String,
         request: PublishRequest,
         receiveTimestamp: Long,
-    ): String = writeContent(userGID, request, emptyMap(), receiveTimestamp)
+    ): String =
+        writeContent(userGID, request, emptyMap(), receiveTimestamp) {
+            request.text.hashId()
+        }
 
     class RootNotFoundException : BadRequestException("Root not found")
 
@@ -52,7 +56,9 @@ class ContentService(
                 ROOT_ID_KEY to request.rootId,
             ),
             receiveTimestamp,
-        )
+        ) {
+            request.content.replyHashId(request.rootId, replyNonceFactory())
+        }
     }
 
     suspend fun delete(
@@ -157,10 +163,11 @@ class ContentService(
         request: PublishRequest,
         additionalFields: Map<String, String>,
         receiveTimestamp: Long,
+        idProvider: () -> String,
     ): String {
         validateLength(request.text)
         val embeddingVector = embeddingService.embed(request.text)
-        val id = request.text.hashId()
+        val id = idProvider()
         vectorStore.writeAccess {
             add(
                 id = id,
@@ -211,7 +218,12 @@ class ContentService(
 
     private fun VectorStore.QueryResults.toQueryResult(): QueryResult =
         QueryResult(
-            queryOnId = queryOnId?.toString() ?: "",
+            queryOnId =
+                if (queryOnId == null) {
+                    ""
+                } else {
+                    queryOnId.toString()
+                },
             entries = resultsPage.map { it.toQueryResultEntry() },
         )
 
@@ -219,6 +231,11 @@ class ContentService(
         Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(
             hasherFactory().digest(toByteArray(Charsets.UTF_8)),
         )
+
+    private fun PublishRequest.replyHashId(
+        rootId: String,
+        nonce: String,
+    ): String = "${text}\n$rootId\n$nonce".hashId()
 
     private companion object {
         private const val CSV_HEADER = "id,type,root_id,stored_at_epoch,stored_at_iso8601,author_gid,text"
