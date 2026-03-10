@@ -6,4 +6,5 @@ interface PostCache {
     suspend fun resolve(ids: Collection<String>): CachedPostResolution
     suspend fun evict(postId: String)
     suspend fun clear(topic: String)
+    suspend fun clearAll()
 }

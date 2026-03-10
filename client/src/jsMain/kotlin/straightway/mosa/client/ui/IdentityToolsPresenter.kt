@@ -50,7 +50,7 @@ internal object IdentityToolsPresenter {
                 isEnabled = capabilities.canFreezePosts,
                 ariaKey = "button.identity.freeze-posts.aria",
                 titleKey = "button.identity.freeze-posts.label",
-                iconClass = "fa fa-solid fa-box-archive",
+                iconClass = "fa fa-solid fa-snowflake",
                 onTrigger = capabilities.onFreezePosts,
                 closeOnTrigger = false,
             ),
@@ -58,7 +58,7 @@ internal object IdentityToolsPresenter {
                 isEnabled = capabilities.canRestorePosts,
                 ariaKey = "button.identity.restore-posts.aria",
                 titleKey = "button.identity.restore-posts.label",
-                iconClass = "fa fa-solid fa-box-open",
+                iconClass = "fa fa-solid fa-rotate-left",
                 onTrigger = capabilities.onRestorePosts,
             ),
             IdentityToolAction(
@@ -90,7 +90,51 @@ internal object IdentityToolsPresenter {
                 onTrigger = capabilities.onUpload,
             ),
         )
+
+    fun presentGroups(actions: List<IdentityToolAction>): List<IdentityToolGroup> {
+        val actionsByAriaKey = actions.associateBy { it.ariaKey }
+        return listOf(
+            IdentityToolGroup(
+                titleKey = "profile.identity.tools.group.keys",
+                actions =
+                    listOfNotNull(
+                        actionsByAriaKey["button.identity.copy.aria"],
+                        actionsByAriaKey["button.identity.paste.aria"],
+                        actionsByAriaKey["button.identity.download.aria"],
+                        actionsByAriaKey["button.identity.upload.aria"],
+                    ),
+            ),
+            IdentityToolGroup(
+                titleKey = "profile.identity.tools.group.content",
+                actions =
+                    listOfNotNull(
+                        actionsByAriaKey["button.identity.export-posts.aria"],
+                        actionsByAriaKey["button.identity.delete-posts.aria"],
+                    ),
+            ),
+            IdentityToolGroup(
+                titleKey = "profile.identity.tools.group.freeze",
+                actions =
+                    listOfNotNull(
+                        actionsByAriaKey["button.identity.freeze-posts.aria"],
+                        actionsByAriaKey["button.identity.restore-posts.aria"],
+                    ),
+            ),
+            IdentityToolGroup(
+                titleKey = "profile.identity.tools.group.identity",
+                actions =
+                    listOfNotNull(
+                        actionsByAriaKey["button.identity.delete.aria"],
+                    ),
+            ),
+        ).filter { it.actions.isNotEmpty() }
+    }
 }
+
+internal data class IdentityToolGroup(
+    val titleKey: String,
+    val actions: List<IdentityToolAction>,
+)
 
 internal data class IdentityToolAction(
     val isEnabled: Boolean,

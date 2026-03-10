@@ -392,6 +392,10 @@ private class FakeReplyCache : ReplyCache {
         snapshots.remove(rootId)
     }
 
+    override suspend fun clearAll() {
+        snapshots.clear()
+    }
+
     fun prime(
         rootId: String,
         snapshot: ReplyCacheSnapshot,

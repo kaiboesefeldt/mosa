@@ -234,6 +234,8 @@ private class DeleteRecordingPostCache : PostCache {
     }
 
     override suspend fun clear(topic: String) = Unit
+
+    override suspend fun clearAll() = Unit
 }
 
 private class DeleteRecordingReplyCache : ReplyCache {
@@ -252,4 +254,6 @@ private class DeleteRecordingReplyCache : ReplyCache {
     }
 
     override suspend fun clear(rootId: String) = Unit
+
+    override suspend fun clearAll() = Unit
 }

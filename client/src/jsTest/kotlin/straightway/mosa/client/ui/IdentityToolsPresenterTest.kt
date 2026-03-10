@@ -43,10 +43,10 @@ class IdentityToolsPresenterTest {
         assertEquals("fa fa-solid fa-file-csv", actions[2].iconClass)
         assertEquals("button.identity.freeze-posts.aria", actions[3].ariaKey)
         assertEquals("button.identity.freeze-posts.label", actions[3].titleKey)
-        assertEquals("fa fa-solid fa-box-archive", actions[3].iconClass)
+        assertEquals("fa fa-solid fa-snowflake", actions[3].iconClass)
         assertEquals("button.identity.restore-posts.aria", actions[4].ariaKey)
         assertEquals("button.identity.restore-posts.label", actions[4].titleKey)
-        assertEquals("fa fa-solid fa-box-open", actions[4].iconClass)
+        assertEquals("fa fa-solid fa-rotate-left", actions[4].iconClass)
         assertEquals("button.identity.copy.aria", actions[5].ariaKey)
         assertEquals("button.identity.copy.label", actions[5].titleKey)
         assertEquals("fa fa-solid fa-copy", actions[5].iconClass)
@@ -59,6 +59,64 @@ class IdentityToolsPresenterTest {
         assertEquals("button.identity.upload.aria", actions[8].ariaKey)
         assertEquals("button.identity.upload.label", actions[8].titleKey)
         assertEquals("fa fa-solid fa-upload", actions[8].iconClass)
+    }
+
+    @Test
+    fun `groups actions by workflow`() {
+        val groups = IdentityToolsPresenter.presentGroups(
+            IdentityToolsPresenter.present(
+                IdentityToolsCapabilities(
+                    canDelete = true,
+                    canDeletePosts = true,
+                    canExportPosts = true,
+                    canFreezePosts = true,
+                    canRestorePosts = true,
+                    canDownload = true,
+                    canCopy = true,
+                    canUpload = true,
+                    canPaste = true,
+                    onDelete = {},
+                    onDeletePosts = {},
+                    onExportPosts = {},
+                    onFreezePosts = {},
+                    onRestorePosts = {},
+                    onDownload = {},
+                    onCopy = {},
+                    onUpload = {},
+                    onPaste = {},
+                ),
+            ),
+        )
+
+        assertEquals(4, groups.size)
+        assertEquals("profile.identity.tools.group.keys", groups[0].titleKey)
+        assertEquals(
+            listOf(
+                "button.identity.copy.aria",
+                "button.identity.paste.aria",
+                "button.identity.download.aria",
+                "button.identity.upload.aria",
+            ),
+            groups[0].actions.map { it.ariaKey },
+        )
+        assertEquals("profile.identity.tools.group.content", groups[1].titleKey)
+        assertEquals(
+            listOf(
+                "button.identity.export-posts.aria",
+                "button.identity.delete-posts.aria",
+            ),
+            groups[1].actions.map { it.ariaKey },
+        )
+        assertEquals("profile.identity.tools.group.freeze", groups[2].titleKey)
+        assertEquals(
+            listOf(
+                "button.identity.freeze-posts.aria",
+                "button.identity.restore-posts.aria",
+            ),
+            groups[2].actions.map { it.ariaKey },
+        )
+        assertEquals("profile.identity.tools.group.identity", groups[3].titleKey)
+        assertEquals(listOf("button.identity.delete.aria"), groups[3].actions.map { it.ariaKey })
     }
 
     @Test

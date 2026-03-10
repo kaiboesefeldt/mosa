@@ -289,6 +289,7 @@ class IdentitySessionStateMachineTest {
         val state = machine.state.value
         assertTrue(state is IdentitySessionViewState.Connected)
         assertEquals(TestIdentitySessionTextProvider.freezeSuccess, state.profile.statusText)
+        assertEquals(1, state.profile.snapshotRefreshVersion)
     }
 
     @Test
@@ -340,6 +341,7 @@ class IdentitySessionStateMachineTest {
         val state = machine.state.value
         assertTrue(state is IdentitySessionViewState.Connected)
         assertEquals("restored 2", state.profile.statusText)
+        assertEquals(1, state.profile.snapshotRefreshVersion)
     }
 
     @Test
@@ -362,6 +364,7 @@ class IdentitySessionStateMachineTest {
         assertTrue(state is IdentitySessionViewState.Connected)
         assertEquals(null, state.profile.statusText)
         assertEquals(null, state.profile.errorText)
+        assertEquals(0, state.profile.snapshotRefreshVersion)
     }
 }
 

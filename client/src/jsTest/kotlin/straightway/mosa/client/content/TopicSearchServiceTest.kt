@@ -484,6 +484,10 @@ private class FakePostCache : PostCache {
         snapshots.remove(topic)
     }
 
+    override suspend fun clearAll() {
+        snapshots.clear()
+    }
+
     fun prime(
         topic: String,
         snapshot: PostCacheSnapshot,

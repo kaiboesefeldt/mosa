@@ -19,7 +19,7 @@ import web.html.HTMLDivElement
 internal fun ChildrenBuilder.identityCarousel(
     translator: Translator,
     props: IdentityProfileViewProps,
-    toolActions: List<IdentityToolAction>,
+    toolGroups: List<IdentityToolGroup>,
     areToolsVisible: Boolean,
     onToggleTools: () -> Unit,
     onCloseTools: () -> Unit,
@@ -36,7 +36,7 @@ internal fun ChildrenBuilder.identityCarousel(
         className = identityContainerClass(props.isPersisted)
         identityToolsMenu(
             translator = translator,
-            toolActions = toolActions,
+            toolGroups = toolGroups,
             isBusy = props.isBusy,
             areToolsVisible = areToolsVisible,
             onToggleTools = onToggleTools,

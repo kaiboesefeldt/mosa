@@ -38,6 +38,7 @@ class IdentitySessionStateMachine(
     private var statusText: String? = null
     private var isConnected = false
     private var isRestoring = true
+    private var snapshotRefreshVersion = 0
 
     private val _state = MutableStateFlow<IdentitySessionViewState>(IdentitySessionViewState.Loading)
     val state: StateFlow<IdentitySessionViewState> = _state
@@ -266,6 +267,7 @@ class IdentitySessionStateMachine(
                 publishState()
                 return@runExclusive
             }
+            snapshotRefreshVersion += 1
             this.statusText = successText ?: successTextProvider?.invoke(checkNotNull(restoredCount))
             this.errorText = null
             publishState()
@@ -294,6 +296,7 @@ class IdentitySessionStateMachine(
             isBusy = isBusy,
             errorText = errorText,
             statusText = statusText,
+            snapshotRefreshVersion = snapshotRefreshVersion,
             canDelete = currentSelection != null,
             canDeletePosts = isConnected,
             canExportPosts = isConnected,

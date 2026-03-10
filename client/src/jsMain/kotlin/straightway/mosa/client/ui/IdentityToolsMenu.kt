@@ -9,7 +9,7 @@ import web.cssom.ClassName
 
 internal fun ChildrenBuilder.identityToolsMenu(
     translator: Translator,
-    toolActions: List<IdentityToolAction>,
+    toolGroups: List<IdentityToolGroup>,
     isBusy: Boolean,
     areToolsVisible: Boolean,
     onToggleTools: () -> Unit,
@@ -31,16 +31,28 @@ internal fun ChildrenBuilder.identityToolsMenu(
         if (areToolsVisible) {
             div {
                 className = ClassName("profile-dialog__identity-tools-menu")
-                toolActions.forEach { action ->
-                    identityToolButton(
-                        action = action,
-                        translator = translator,
-                        isBusy = isBusy,
-                    ) {
-                        if (action.closeOnTrigger) {
-                            onCloseTools()
+                toolGroups.forEach { group ->
+                    div {
+                        className = ClassName("profile-dialog__identity-tools-group")
+                        div {
+                            className = ClassName("profile-dialog__identity-tools-group-title")
+                            +translator.translate(group.titleKey)
                         }
-                        action.onTrigger()
+                        div {
+                            className = ClassName("profile-dialog__identity-tools-group-actions")
+                            group.actions.forEach { action ->
+                                identityToolButton(
+                                    action = action,
+                                    translator = translator,
+                                    isBusy = isBusy,
+                                ) {
+                                    if (action.closeOnTrigger) {
+                                        onCloseTools()
+                                    }
+                                    action.onTrigger()
+                                }
+                            }
+                        }
                     }
                 }
             }

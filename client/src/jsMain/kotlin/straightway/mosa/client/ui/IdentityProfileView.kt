@@ -107,6 +107,7 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                 action
             }
         }
+    val toolGroups = IdentityToolsPresenter.presentGroups(toolActionsWithFeedback)
 
     useEffect(arrayOf(areToolsVisible)) {
         if (!areToolsVisible) return@useEffect
@@ -205,7 +206,7 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
             identityCarousel(
                 translator = translator,
                 props = props,
-                toolActions = toolActionsWithFeedback,
+                toolGroups = toolGroups,
                 areToolsVisible = areToolsVisible,
                 onToggleTools = { setToolsVisible { current -> !current } },
                 onCloseTools = { setToolsVisible(false) },

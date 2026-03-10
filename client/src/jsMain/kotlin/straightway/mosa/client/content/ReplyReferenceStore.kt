@@ -49,4 +49,8 @@ class ReplyReferenceStore {
     fun clear(rootId: String) {
         replies.remove(rootId)
     }
+
+    fun clearAll() {
+        replies.clear()
+    }
 }

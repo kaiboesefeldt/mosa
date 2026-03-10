@@ -184,4 +184,6 @@ private class RecordingPostCache : PostCache {
     override suspend fun clear(topic: String) {
         clearInvocations += topic
     }
+
+    override suspend fun clearAll() = Unit
 }

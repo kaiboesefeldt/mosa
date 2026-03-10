@@ -45,4 +45,8 @@ class TopicReferenceStore {
     fun clear(topic: String) {
         topics.remove(topic)
     }
+
+    fun clearAll() {
+        topics.clear()
+    }
 }

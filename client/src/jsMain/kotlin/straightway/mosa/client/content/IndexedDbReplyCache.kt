@@ -58,6 +58,14 @@ class IndexedDbReplyCache(
             )
     }
 
+    override suspend fun clearAll() {
+        runCatching { referenceStore.clearAll() }
+            .onFailureLogOrThrowCancellation(
+                logger,
+                "IndexedDB reply cache clear-all failed",
+            )
+    }
+
     private suspend fun snapshotInternal(rootId: String): ReplyCacheSnapshot {
         val record = referenceStore.load(rootId) ?: return ReplyCacheSnapshot(emptyList(), null)
         val resolution = entryStore.resolve(record.entries.map { TopicEntryRef(it.id, 0f) })

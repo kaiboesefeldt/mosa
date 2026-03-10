@@ -57,6 +57,14 @@ class IndexedDbPostCache(
             )
     }
 
+    override suspend fun clearAll() {
+        runCatching { topicStore.clearAll() }
+            .onFailureLogOrThrowCancellation(
+                logger,
+                "IndexedDB topic cache clear-all failed",
+            )
+    }
+
     private suspend fun snapshotInternal(topic: String): PostCacheSnapshot {
         val record = topicStore.load(topic) ?: return PostCacheSnapshot(emptyList(), null)
         val resolution = entryStore.resolve(record.entries)

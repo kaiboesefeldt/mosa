@@ -42,6 +42,7 @@ import straightway.mosa.client.content.TopicRepository
 import straightway.mosa.client.content.TopicPosts
 import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.PostCache
+import straightway.mosa.client.content.ReplyCache
 import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.AllPostsDeletionService
@@ -95,6 +96,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val sessionStore = ConnectedViewInjector.get<IdentitySessionStore>()
     val searchService = ConnectedViewInjector.get<TopicSearchService>()
     val postCache = ConnectedViewInjector.get<PostCache>()
+    val replyCache = ConnectedViewInjector.get<ReplyCache>()
     val replySearchService = ConnectedViewInjector.get<ReplySearchService>()
     val nameGenerator = ConnectedViewInjector.get<FictionalNameGenerator>()
     val avatarGenerator = ConnectedViewInjector.get<DiceBearAvatarGenerator>()
@@ -153,6 +155,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val swipeTargetsRef = useRef(SwipeTargets(null, null))
     val (swipeOffsetPercent, setSwipeOffsetPercent) = useState(0.0)
     val (connectedGid, setConnectedGid) = useState<String?>(null)
+    val snapshotRefreshVersionRef = useRef(props.profile.snapshotRefreshVersion)
 
     useEffect(sessionStore) {
         scope.launch {
@@ -376,6 +379,22 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         setPosts(results)
         setLoadingPosts(false)
         return true
+    }
+
+    useEffect(props.profile.snapshotRefreshVersion) {
+        val nextVersion = props.profile.snapshotRefreshVersion
+        if (nextVersion == snapshotRefreshVersionRef.current) return@useEffect
+        snapshotRefreshVersionRef.current = nextVersion
+        val topicForRefresh = selectedTopic
+        clearReplies()
+        scope.launch {
+            postCache.clearAll()
+            replyCache.clearAll()
+            val refreshed = refreshPosts(topicForRefresh)
+            if (!refreshed && selectedTopic?.title == topicForRefresh?.title) {
+                showToast(translator.translate("connected.composer.refresh.error"))
+            }
+        }
     }
 
     fun persistFilters(updated: Map<String, Float>) {

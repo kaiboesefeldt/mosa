@@ -19,6 +19,8 @@ import org.w3c.dom.Element
 import react.FC
 import react.Props
 import react.create
+import react.dom.html.ReactHTML.button
+import react.useState
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
@@ -183,6 +185,31 @@ class IdentityConnectedViewTest {
         waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
         val postContent = view.container.querySelector(".post-card__content")?.textContent?.trim()
         assertEquals("content-p2", postContent)
+    }
+
+    @Test
+    fun `reloads posts after snapshot refresh version changes`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                additionalResponses = mapOf("Alpha" to listOf(queryResult("p2"))),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderRefreshableConnectedView()
+
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+        assertEquals("content-p1", view.container.querySelector(".post-card__content")?.textContent?.trim())
+
+        user.click(snapshotRefreshButton(view.container)).await()
+
+        waitForCondition { podAccess.queryInvocations.size == 2 }
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+        assertEquals("content-p2", view.container.querySelector(".post-card__content")?.textContent?.trim())
     }
 
     @Test
@@ -563,6 +590,11 @@ private fun scrollPostsToEnd(container: Element) {
             ConnectedViewHarness.create(),
         )
 
+    private fun renderRefreshableConnectedView(): RenderResult =
+        render(
+            RefreshableConnectedViewHarness.create(),
+        )
+
     private fun topicCard(container: Element, title: String): Element {
         val nodes = container.querySelectorAll(".topic-card")
         repeat(nodes.length) { index ->
@@ -648,6 +680,9 @@ private fun scrollPostsToEnd(container: Element) {
 
     private fun sendComposerButton(container: Element): Element =
         container.querySelector(".composer-dialog__send") ?: error("Composer send button missing")
+
+    private fun snapshotRefreshButton(container: Element): Element =
+        container.querySelector(".snapshot-refresh-trigger") ?: error("Snapshot refresh trigger missing")
 }
 
 private val ConnectedViewHarness = FC<Props> {
@@ -657,15 +692,28 @@ private val ConnectedViewHarness = FC<Props> {
     }
 }
 
+private val RefreshableConnectedViewHarness = FC<Props> {
+    val (snapshotRefreshVersion, setSnapshotRefreshVersion) = useState(0)
+    button {
+        className = web.cssom.ClassName("snapshot-refresh-trigger")
+        onClick = { setSnapshotRefreshVersion { current -> current + 1 } }
+    }
+    IdentityConnectedView {
+        identityName = "Tester"
+        profile = placeholderProfile(snapshotRefreshVersion = snapshotRefreshVersion)
+    }
+}
+
 private object ConnectedViewTestInjector : KoinComponent
 
-private fun placeholderProfile(): IdentityScreen.Profile =
+private fun placeholderProfile(snapshotRefreshVersion: Int = 0): IdentityScreen.Profile =
     IdentityScreen.Profile(
         identityNameParts = FictionalName(emptyList(), ""),
         identityAvatar = null,
         isBusy = false,
         errorText = null,
         statusText = null,
+        snapshotRefreshVersion = snapshotRefreshVersion,
         canDelete = false,
         canDeletePosts = false,
         canExportPosts = false,
@@ -917,6 +965,10 @@ private class InMemoryPostCache : PostCache {
     override suspend fun clear(topic: String) {
         snapshots.remove(topic)
     }
+
+    override suspend fun clearAll() {
+        snapshots.clear()
+    }
 }
 
 private class InMemoryReplyCache : ReplyCache {
@@ -963,6 +1015,10 @@ private class InMemoryReplyCache : ReplyCache {
 
     override suspend fun clear(rootId: String) {
         snapshots.remove(rootId)
+    }
+
+    override suspend fun clearAll() {
+        snapshots.clear()
     }
 }
 

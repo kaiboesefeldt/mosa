@@ -6,4 +6,5 @@ interface ReplyCache {
     suspend fun resolve(ids: Collection<String>): CachedPostResolution
     suspend fun evict(postId: String)
     suspend fun clear(rootId: String)
+    suspend fun clearAll()
 }
