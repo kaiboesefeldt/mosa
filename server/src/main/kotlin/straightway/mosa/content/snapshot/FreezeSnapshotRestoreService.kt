@@ -26,10 +26,26 @@ class FreezeSnapshotRestoreService(
         val payload = cryptoService.decrypt(header, encryptedPayload)
         validator.validatePayloadSize(payload.size)
         val (manifest, records) = format.parsePayload(payload)
-        validator.validateRecords(ownerGid, manifest, records)
+        validator.validateRecords(ownerGid, manifest, records, resolveExistingRootIds(records))
         val preparedRecords = prepareRecords(records)
         restoreRecords(preparedRecords)
         return FreezeSnapshotRestoreResult(records.map { it.id }, records.size)
+    }
+
+    private suspend fun resolveExistingRootIds(records: List<FreezeSnapshotRecord>): Set<String> {
+        val snapshotRootIds = records.filter { it.rootId == null }.mapTo(linkedSetOf()) { it.id }
+        val missingRootIds =
+            records
+                .mapNotNullTo(linkedSetOf()) { it.rootId }
+                .filterNotTo(linkedSetOf()) { it in snapshotRootIds }
+        if (missingRootIds.isEmpty()) {
+            return emptySet()
+        }
+        return vectorStore
+            .fetch(missingRootIds.toList())
+            .asSequence()
+            .filter { it.fields[ROOT_ID_KEY] == null }
+            .mapTo(linkedSetOf()) { it.id }
     }
 
     private suspend fun prepareRecords(records: List<FreezeSnapshotRecord>): List<PreparedRestoreRecord> =

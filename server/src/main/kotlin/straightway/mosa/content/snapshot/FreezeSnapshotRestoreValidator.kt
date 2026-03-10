@@ -29,12 +29,13 @@ class FreezeSnapshotRestoreValidator(
         ownerGid: String,
         manifest: FreezeSnapshotManifest,
         records: List<FreezeSnapshotRecord>,
+        existingRootIds: Set<String> = emptySet(),
     ) {
         requireOwner(ownerGid, manifest)
         requireRecordCount(manifest.recordCount)
         requireDistinctIds(records)
         records.forEach(::requireRecord)
-        requireReplyRoots(records)
+        requireReplyRoots(records, existingRootIds)
     }
 
     private fun requirePodId(
@@ -103,8 +104,11 @@ class FreezeSnapshotRestoreValidator(
         }
     }
 
-    private fun requireReplyRoots(records: List<FreezeSnapshotRecord>) {
-        val rootIds = records.filter { it.rootId == null }.map { it.id }.toSet()
+    private fun requireReplyRoots(
+        records: List<FreezeSnapshotRecord>,
+        existingRootIds: Set<String>,
+    ) {
+        val rootIds = records.filter { it.rootId == null }.map { it.id }.toSet() + existingRootIds
         records
             .filter { it.rootId != null }
             .forEach { record ->

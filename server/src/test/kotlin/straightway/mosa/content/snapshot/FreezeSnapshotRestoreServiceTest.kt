@@ -209,6 +209,25 @@ class FreezeSnapshotRestoreServiceTest {
         }
 
     @Test
+    fun `reply on existing pod root is restored`() =
+        runTest {
+            vectorStore.seed(StoredEntry("existing-root", "Existing root", "gid-existing", 7, null))
+            val snapshot = snapshot(records = listOf(replyRecord(id = "reply-1", rootId = "existing-root")))
+
+            val result = createSut().restore("gid-owner", snapshot)
+
+            assertEquals(1, result.restoredCount)
+            assertEquals(listOf("reply-1"), result.restoredIds)
+            assertEquals(
+                listOf(
+                    StoredEntry("existing-root", "Existing root", "gid-existing", 7, null),
+                    StoredEntry("reply-1", "Reply", "gid-owner", 101, "existing-root"),
+                ),
+                vectorStore.entries(),
+            )
+        }
+
+    @Test
     fun `validation failure leaves pod data unchanged`() =
         runTest {
             val existing = StoredEntry("existing", "Existing", "gid-existing", 7, null)
