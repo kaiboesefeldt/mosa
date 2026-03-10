@@ -12,6 +12,7 @@ import react.useMemo
 import react.useState
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.content.PostsExportPort
+import straightway.mosa.client.content.PrivacySnapshotPort
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.identity.IdentityTransferPort
@@ -33,6 +34,8 @@ sealed interface IdentityScreen {
         val canDelete: Boolean,
         val canDeletePosts: Boolean,
         val canExportPosts: Boolean,
+        val canFreezePosts: Boolean,
+        val canRestorePosts: Boolean,
         val canNavigatePrevious: Boolean,
         val canNavigateNext: Boolean,
         val isShowingLastIdentity: Boolean,
@@ -46,6 +49,8 @@ sealed interface IdentityScreen {
         val onDelete: () -> Unit,
         val onDeletePosts: () -> Unit,
         val onExportPosts: () -> Unit,
+        val onFreezePosts: () -> Unit,
+        val onRestorePosts: () -> Unit,
         val onSelect: (Int) -> Unit,
         val canDownload: Boolean,
         val onDownload: () -> Unit,
@@ -69,6 +74,7 @@ fun useIdentitySession(): IdentityScreen {
     val repository = ClientInjector.get<IdentitySelectionRepository>()
     val transfer = ClientInjector.get<IdentityTransferPort>()
     val postsExport = ClientInjector.get<PostsExportPort>()
+    val privacySnapshots = ClientInjector.get<PrivacySnapshotPort>()
     val protector = ClientInjector.get<IdentityProtector>()
     val passwordPrompter = ClientInjector.get<PasswordPrompter>()
     val avatarGenerator = ClientInjector.get<DiceBearAvatarGenerator>()
@@ -85,12 +91,13 @@ fun useIdentitySession(): IdentityScreen {
     val logger = useMemo(*noDependencies) { ClientInjector.get<Logger>() }
     val sessionStore = useMemo(*noDependencies) { ClientInjector.get<IdentitySessionStore>() }
     val machine =
-        useMemo(repository, transfer, postsExport, protector, passwordPrompter, visualsFactory, logger, textProvider, sessionStore) {
+        useMemo(repository, transfer, postsExport, privacySnapshots, protector, passwordPrompter, visualsFactory, logger, textProvider, sessionStore) {
             identitySessionStateMachineFactory(
                 IdentitySessionMachineConfig(
                     repository = repository,
                     transfer = transfer,
                     postsExport = postsExport,
+                    privacySnapshots = privacySnapshots,
                     protector = protector,
                     passwordPrompter = passwordPrompter,
                     textProvider = textProvider,
@@ -126,6 +133,8 @@ fun useIdentitySession(): IdentityScreen {
             canDelete = canDelete,
             canDeletePosts = canDeletePosts,
             canExportPosts = canExportPosts,
+            canFreezePosts = canFreezePosts,
+            canRestorePosts = canRestorePosts,
             canNavigatePrevious = canNavigatePrevious,
             canNavigateNext = canNavigateNext,
             isShowingLastIdentity = isShowingLastIdentity,
@@ -139,6 +148,8 @@ fun useIdentitySession(): IdentityScreen {
             onDelete = { machine.deleteIdentity() },
             onDeletePosts = {},
             onExportPosts = { machine.exportPostsCsv() },
+            onFreezePosts = { machine.freezePosts() },
+            onRestorePosts = { machine.restorePosts() },
             onSelect = { index -> machine.select(index) },
             canDownload = canDownload,
             onDownload = { machine.downloadIdentity() },
@@ -172,6 +183,7 @@ internal data class IdentitySessionMachineConfig(
     val repository: IdentitySelectionRepository,
     val transfer: IdentityTransferPort,
     val postsExport: PostsExportPort,
+    val privacySnapshots: PrivacySnapshotPort,
     val protector: IdentityProtector,
     val passwordPrompter: PasswordPrompter,
     val textProvider: IdentitySessionTextProvider,
@@ -189,6 +201,7 @@ internal var identitySessionStateMachineFactory: IdentitySessionStateMachineFact
             repository = config.repository,
             transfer = config.transfer,
             postsExport = config.postsExport,
+            privacySnapshots = config.privacySnapshots,
             protector = config.protector,
             passwordPrompter = config.passwordPrompter,
             textProvider = config.textProvider,

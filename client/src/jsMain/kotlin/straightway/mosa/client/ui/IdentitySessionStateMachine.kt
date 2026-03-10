@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import straightway.mosa.client.content.PostsExportPort
+import straightway.mosa.client.content.PrivacySnapshotPort
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
@@ -20,6 +21,7 @@ class IdentitySessionStateMachine(
     private val repository: IdentitySelectionRepository,
     private val transfer: IdentityTransferPort,
     private val postsExport: PostsExportPort,
+    private val privacySnapshots: PrivacySnapshotPort,
     private val protector: IdentityProtector,
     private val passwordPrompter: PasswordPrompter,
     private val textProvider: IdentitySessionTextProvider,
@@ -136,6 +138,29 @@ class IdentitySessionStateMachine(
         }
     }
 
+    fun freezePosts() {
+        if (!isConnected) return
+        runSnapshotAction(
+            statusText = textProvider.freezeInProgress,
+            errorText = textProvider.freezeError,
+            successText = textProvider.freezeSuccess,
+        ) {
+            privacySnapshots.freeze("mosa-snapshot")
+            null
+        }
+    }
+
+    fun restorePosts() {
+        if (!isConnected) return
+        runSnapshotAction(
+            statusText = textProvider.restoreInProgress,
+            errorText = textProvider.restoreError,
+            successTextProvider = { textProvider.restoreSuccess(it) },
+        ) {
+            privacySnapshots.restore()?.restoredCount
+        }
+    }
+
     fun uploadIdentity() {
         runExclusive(
             failureMessage = "Identity upload failed",
@@ -213,6 +238,40 @@ class IdentitySessionStateMachine(
         persistSession(profileVisibleOverride = profileVisibleOverride)
     }
 
+    private fun runSnapshotAction(
+        statusText: String,
+        errorText: String,
+        successText: String? = null,
+        successTextProvider: ((Int) -> String)? = null,
+        action: suspend () -> Int?,
+    ) {
+        runExclusive(
+            failureMessage = "Privacy snapshot action failed",
+            beforeRun = {
+                this.errorText = null
+                this.statusText = statusText
+                publishState()
+            },
+            onFailure = {
+                this.statusText = null
+                this.errorText = errorText
+                finishRestoring()
+                publishState()
+            },
+        ) {
+            val restoredCount = action()
+            if (restoredCount == null && successTextProvider != null) {
+                this.statusText = null
+                this.errorText = null
+                publishState()
+                return@runExclusive
+            }
+            this.statusText = successText ?: successTextProvider?.invoke(checkNotNull(restoredCount))
+            this.errorText = null
+            publishState()
+        }
+    }
+
     private fun setBusy(value: Boolean) {
         isBusy = value
         publishState()
@@ -238,6 +297,8 @@ class IdentitySessionStateMachine(
             canDelete = currentSelection != null,
             canDeletePosts = isConnected,
             canExportPosts = isConnected,
+            canFreezePosts = isConnected,
+            canRestorePosts = isConnected,
             canNavigatePrevious = currentSelection?.hasPrevious ?: false,
             canNavigateNext = currentSelection != null,
             isShowingLastIdentity = currentSelection?.let { !it.hasNext } ?: false,

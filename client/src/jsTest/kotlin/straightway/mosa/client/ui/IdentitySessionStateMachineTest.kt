@@ -16,6 +16,7 @@ import straightway.mosa.client.browser.CryptoKey
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.browser.SubtleCrypto
 import straightway.mosa.client.content.PostsExportPort
+import straightway.mosa.client.content.PrivacySnapshotPort
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
@@ -267,6 +268,101 @@ class IdentitySessionStateMachineTest {
         assertEquals(TestIdentitySessionTextProvider.exportError, state.profile.errorText)
         assertEquals(null, state.profile.statusText)
     }
+
+    @Test
+    fun `freezes posts after confirmation when identity is connected`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore()
+        val snapshots = RecordingPrivacySnapshotPort()
+        val machine = createMachine(repository, store, privacySnapshots = snapshots)
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        machine.freezePosts()
+        advanceUntilIdle()
+
+        assertEquals(listOf("mosa-snapshot"), snapshots.freezeFileBaseNames)
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Connected)
+        assertEquals(TestIdentitySessionTextProvider.freezeSuccess, state.profile.statusText)
+    }
+
+    @Test
+    fun `shows freeze error when snapshot freeze fails`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore()
+        val snapshots =
+            object : PrivacySnapshotPort {
+                override suspend fun freeze(fileBaseName: String) {
+                    throw IllegalStateException("boom")
+                }
+
+                override suspend fun restore() = null
+            }
+        val machine = createMachine(repository, store, privacySnapshots = snapshots)
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        machine.freezePosts()
+        advanceUntilIdle()
+
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Connected)
+        assertEquals(TestIdentitySessionTextProvider.freezeError, state.profile.errorText)
+        assertEquals(null, state.profile.statusText)
+    }
+
+    @Test
+    fun `restores posts snapshot when identity is connected`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore()
+        val snapshots = RecordingPrivacySnapshotPort(restoreResult = straightway.mosa.content.FreezeSnapshotRestoreResult(listOf("a", "b"), 2))
+        val machine = createMachine(repository, store, privacySnapshots = snapshots)
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        machine.restorePosts()
+        advanceUntilIdle()
+
+        assertEquals(1, snapshots.restoreCalls)
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Connected)
+        assertEquals("restored 2", state.profile.statusText)
+    }
+
+    @Test
+    fun `keeps state unchanged when restore is cancelled`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore()
+        val snapshots = RecordingPrivacySnapshotPort(restoreResult = null)
+        val machine = createMachine(repository, store, privacySnapshots = snapshots)
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        machine.restorePosts()
+        advanceUntilIdle()
+
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Connected)
+        assertEquals(null, state.profile.statusText)
+        assertEquals(null, state.profile.errorText)
+    }
 }
 
 private fun TestScope.createMachine(
@@ -274,6 +370,7 @@ private fun TestScope.createMachine(
     store: IdentitySessionStore,
     transfer: IdentityTransferPort = NoopIdentityTransferPort,
     postsExport: PostsExportPort = NoopPostsExportPort,
+    privacySnapshots: PrivacySnapshotPort = NoopPrivacySnapshotPort,
     protector: IdentityProtector = StubProtector(identity("imported")),
     passwordPrompter: PasswordPrompter = StaticPasswordPrompter("pw"),
 ): IdentitySessionStateMachine =
@@ -281,6 +378,7 @@ private fun TestScope.createMachine(
         repository = repository,
         transfer = transfer,
         postsExport = postsExport,
+        privacySnapshots = privacySnapshots,
         protector = protector,
         passwordPrompter = passwordPrompter,
         textProvider = TestIdentitySessionTextProvider,
@@ -367,8 +465,15 @@ private object TestIdentitySessionTextProvider : IdentitySessionTextProvider {
     override val invalidIdentity: String = "invalid"
     override val exportInProgress: String = "exporting"
     override val exportError: String = "export error"
+    override val freezeInProgress: String = "freezing"
+    override val freezeSuccess: String = "freeze success"
+    override val freezeError: String = "freeze error"
+    override val restoreInProgress: String = "restoring"
+    override val restoreError: String = "restore error"
 
     override fun failedToPrepare(message: String): String = message
+
+    override fun restoreSuccess(restoredCount: Int): String = "restored $restoredCount"
 }
 
 private object TestLogger : Logger {
@@ -392,11 +497,33 @@ private object NoopPostsExportPort : PostsExportPort {
     override suspend fun export(fileBaseName: String) = Unit
 }
 
+private object NoopPrivacySnapshotPort : PrivacySnapshotPort {
+    override suspend fun freeze(fileBaseName: String) = Unit
+
+    override suspend fun restore() = null
+}
+
 private class RecordingPostsExportPort : PostsExportPort {
     val fileBaseNames = mutableListOf<String>()
 
     override suspend fun export(fileBaseName: String) {
         fileBaseNames += fileBaseName
+    }
+}
+
+private class RecordingPrivacySnapshotPort(
+    private val restoreResult: straightway.mosa.content.FreezeSnapshotRestoreResult? = null,
+) : PrivacySnapshotPort {
+    val freezeFileBaseNames = mutableListOf<String>()
+    var restoreCalls = 0
+
+    override suspend fun freeze(fileBaseName: String) {
+        freezeFileBaseNames += fileBaseName
+    }
+
+    override suspend fun restore(): straightway.mosa.content.FreezeSnapshotRestoreResult? {
+        restoreCalls += 1
+        return restoreResult
     }
 }
 

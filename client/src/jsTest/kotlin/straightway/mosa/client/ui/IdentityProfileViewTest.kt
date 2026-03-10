@@ -127,5 +127,44 @@ class IdentityProfileViewTest {
         assertTrue(handled)
     }
 
+    @Test
+    fun `shows freeze confirmation before freezing posts`() = runTest {
+        var handled = false
+        renderIdentityProfileView {
+            canFreezePosts = true
+            onFreezePosts = { handled = true }
+        }
+
+        val user = userEvent.setup()
+        val toolsButton = screen.getByRole("button", json("name" to text("button.identity.tools.aria")))
+        user.click(toolsButton).await()
+        val freezeButton = screen.getByRole("button", json("name" to text("button.identity.freeze-posts.aria")))
+        user.click(freezeButton).await()
+
+        val sheetText = screen.getByRole("button", json("name" to text("identity.snapshot.freeze.confirm"))).parentElement?.parentElement?.textContent.orEmpty()
+        assertTrue(sheetText.contains(text("identity.snapshot.freeze.title")))
+        assertTrue(sheetText.contains(text("identity.snapshot.freeze.body")))
+        assertFalse(handled)
+    }
+
+    @Test
+    fun `invokes freeze handler after confirmation`() = runTest {
+        var handled = false
+        renderIdentityProfileView {
+            canFreezePosts = true
+            onFreezePosts = { handled = true }
+        }
+
+        val user = userEvent.setup()
+        val toolsButton = screen.getByRole("button", json("name" to text("button.identity.tools.aria")))
+        user.click(toolsButton).await()
+        val freezeButton = screen.getByRole("button", json("name" to text("button.identity.freeze-posts.aria")))
+        user.click(freezeButton).await()
+        val confirmButton = screen.getByRole("button", json("name" to text("identity.snapshot.freeze.confirm")))
+        user.click(confirmButton).await()
+
+        assertTrue(handled)
+    }
+
     private fun text(key: String): String = AppModule.get<Translator>().translate(key)
 }

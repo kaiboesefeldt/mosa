@@ -9,6 +9,7 @@ import org.koin.core.component.get
 import org.w3c.dom.events.Event
 import org.w3c.dom.events.EventListener
 import org.w3c.dom.events.KeyboardEvent
+import react.ChildrenBuilder
 import react.FC
 import react.Props
 import react.dom.events.MouseEvent
@@ -32,6 +33,8 @@ external interface IdentityProfileViewProps : Props {
     var canDelete: Boolean
     var canDeletePosts: Boolean
     var canExportPosts: Boolean
+    var canFreezePosts: Boolean
+    var canRestorePosts: Boolean
     var canNavigatePrevious: Boolean
     var canNavigateNext: Boolean
     var isShowingLastIdentity: Boolean
@@ -48,6 +51,8 @@ external interface IdentityProfileViewProps : Props {
     var onDelete: () -> Unit
     var onDeletePosts: () -> Unit
     var onExportPosts: () -> Unit
+    var onFreezePosts: () -> Unit
+    var onRestorePosts: () -> Unit
     var onSelect: (Int) -> Unit
     var onDownload: () -> Unit
     var onCopy: () -> Unit
@@ -77,6 +82,7 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
     val (areToolsVisible, setToolsVisible) = useState(false)
     val (isCopyFeedbackVisible, setCopyFeedbackVisible) = useState(false)
     val (isDeletePostsVisible, setDeletePostsVisible) = useState(false)
+    val (isFreezePostsVisible, setFreezePostsVisible) = useState(false)
     val toolActions = IdentityToolsPresenter.present(props.toIdentityToolsCapabilities())
     val toolActionsWithFeedback =
         toolActions.map { action ->
@@ -89,6 +95,11 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                 action.copy(onTrigger = {
                     setToolsVisible(false)
                     setDeletePostsVisible(true)
+                })
+            } else if (action.ariaKey == "button.identity.freeze-posts.aria") {
+                action.copy(onTrigger = {
+                    setToolsVisible(false)
+                    setFreezePostsVisible(true)
                 })
             } else if (action.ariaKey == "button.identity.paste.aria") {
                 action.copy(onTrigger = action.onTrigger)
@@ -223,43 +234,35 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                 val isDeleteDisabled = props.isBusy || !props.canDeletePosts
                 val cancelLabel = translator.translate("identity.posts.delete.cancel")
                 val confirmLabel = translator.translate("identity.posts.delete.confirm")
-                div {
-                    className = ClassName("profile-dialog__sheet-backdrop")
-                    onClick = { setDeletePostsVisible(false) }
-                    div {
-                        className = ClassName("profile-dialog__sheet")
-                        onClick = { event: MouseEvent<*, *> -> event.stopPropagation() }
-                        div {
-                            className = ClassName("profile-dialog__sheet-title")
-                            +translator.translate("identity.posts.delete.title")
-                        }
-                        div {
-                            className = ClassName("profile-dialog__sheet-content")
-                            +translator.translate("identity.posts.delete.body")
-                        }
-                        div {
-                            className = ClassName("profile-dialog__sheet-actions")
-                            ReactHTML.button {
-                                className = ClassName("button button--secondary")
-                                type = "button".unsafeCast<ButtonType>()
-                                onClick = { setDeletePostsVisible(false) }
-                                +cancelLabel
-                            }
-                            ReactHTML.button {
-                                className = ClassName("button button--danger")
-                                type = "button".unsafeCast<ButtonType>()
-                                disabled = isDeleteDisabled
-                                onClick = {
-                                    if (!isDeleteDisabled) {
-                                        setDeletePostsVisible(false)
-                                        props.onDeletePosts()
-                                    }
-                                }
-                                +confirmLabel
-                            }
-                        }
-                    }
-                }
+                confirmationSheet(
+                    title = translator.translate("identity.posts.delete.title"),
+                    body = translator.translate("identity.posts.delete.body"),
+                    cancelLabel = cancelLabel,
+                    confirmLabel = confirmLabel,
+                    isConfirmDisabled = isDeleteDisabled,
+                    confirmButtonClass = "button button--danger",
+                    onCancel = { setDeletePostsVisible(false) },
+                    onConfirm = {
+                        setDeletePostsVisible(false)
+                        props.onDeletePosts()
+                    },
+                )
+            }
+            if (isFreezePostsVisible) {
+                val isFreezeDisabled = props.isBusy || !props.canFreezePosts
+                confirmationSheet(
+                    title = translator.translate("identity.snapshot.freeze.title"),
+                    body = translator.translate("identity.snapshot.freeze.body"),
+                    cancelLabel = translator.translate("identity.snapshot.freeze.cancel"),
+                    confirmLabel = translator.translate("identity.snapshot.freeze.confirm"),
+                    isConfirmDisabled = isFreezeDisabled,
+                    confirmButtonClass = "button button--danger",
+                    onCancel = { setFreezePostsVisible(false) },
+                    onConfirm = {
+                        setFreezePostsVisible(false)
+                        props.onFreezePosts()
+                    },
+                )
             }
         }
     }
@@ -272,6 +275,8 @@ private fun IdentityProfileViewProps.toIdentityToolsCapabilities(): IdentityTool
         canDelete = canDelete,
         canDeletePosts = canDeletePosts,
         canExportPosts = canExportPosts,
+        canFreezePosts = canFreezePosts,
+        canRestorePosts = canRestorePosts,
         canDownload = canDownload,
         canCopy = canCopy,
         canUpload = canUpload,
@@ -279,6 +284,8 @@ private fun IdentityProfileViewProps.toIdentityToolsCapabilities(): IdentityTool
         onDelete = onDelete,
         onDeletePosts = onDeletePosts,
         onExportPosts = onExportPosts,
+        onFreezePosts = onFreezePosts,
+        onRestorePosts = onRestorePosts,
         onDownload = onDownload,
         onCopy = onCopy,
         onUpload = onUpload,
@@ -295,6 +302,8 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
     canDelete = screen.canDelete
     canDeletePosts = screen.canDeletePosts
     canExportPosts = screen.canExportPosts
+    canFreezePosts = screen.canFreezePosts
+    canRestorePosts = screen.canRestorePosts
     canNavigatePrevious = screen.canNavigatePrevious
     canNavigateNext = screen.canNavigateNext
     isShowingLastIdentity = screen.isShowingLastIdentity
@@ -311,6 +320,8 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
     onDelete = screen.onDelete
     onDeletePosts = screen.onDeletePosts
     onExportPosts = screen.onExportPosts
+    onFreezePosts = screen.onFreezePosts
+    onRestorePosts = screen.onRestorePosts
     onSelect = screen.onSelect
     onDownload = screen.onDownload
     onCopy = screen.onCopy
@@ -329,3 +340,51 @@ private fun Event.asKeyboardEvent(): KeyboardEvent? =
 
 private fun KeyboardEvent.isSystemCopyShortcut(): Boolean =
     (ctrlKey || metaKey) && !altKey && key.lowercase() == "c"
+
+private fun ChildrenBuilder.confirmationSheet(
+    title: String,
+    body: String,
+    cancelLabel: String,
+    confirmLabel: String,
+    isConfirmDisabled: Boolean,
+    confirmButtonClass: String,
+    onCancel: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    div {
+        className = ClassName("profile-dialog__sheet-backdrop")
+        onClick = { onCancel() }
+        div {
+            className = ClassName("profile-dialog__sheet")
+            onClick = { event: MouseEvent<*, *> -> event.stopPropagation() }
+            div {
+                className = ClassName("profile-dialog__sheet-title")
+                +title
+            }
+            div {
+                className = ClassName("profile-dialog__sheet-content")
+                +body
+            }
+            div {
+                className = ClassName("profile-dialog__sheet-actions")
+                ReactHTML.button {
+                    className = ClassName("button button--secondary")
+                    type = "button".unsafeCast<ButtonType>()
+                    onClick = { onCancel() }
+                    +cancelLabel
+                }
+                ReactHTML.button {
+                    className = ClassName(confirmButtonClass)
+                    type = "button".unsafeCast<ButtonType>()
+                    disabled = isConfirmDisabled
+                    onClick = {
+                        if (!isConfirmDisabled) {
+                            onConfirm()
+                        }
+                    }
+                    +confirmLabel
+                }
+            }
+        }
+    }
+}

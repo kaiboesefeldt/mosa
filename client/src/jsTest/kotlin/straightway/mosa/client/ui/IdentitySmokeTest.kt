@@ -57,6 +57,7 @@ class IdentitySmokeTest : KoinComponent {
                     repository = repository,
                     transfer = config.transfer,
                     postsExport = config.postsExport,
+                    privacySnapshots = config.privacySnapshots,
                     protector = config.protector,
                     passwordPrompter = config.passwordPrompter,
                     textProvider = config.textProvider,

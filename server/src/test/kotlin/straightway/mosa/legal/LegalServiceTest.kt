@@ -168,6 +168,17 @@ class LegalServiceTest {
         }
 
     @Test
+    fun `mosa privacy profile mentions snapshot freeze and restore workflow`() {
+        val service = createLegalService()
+
+        val mosaJson = service.privacyMosaCanonicalJson()
+
+        assertTrue(mosaJson.contains("same pod", ignoreCase = true))
+        assertTrue(mosaJson.contains("expires", ignoreCase = true))
+        assertTrue(mosaJson.contains("data is lost", ignoreCase = true))
+    }
+
+    @Test
     fun `falls back when operator profile removes placeholder from final text`() {
         val path = Files.createTempDirectory("legal-service-invalid-unknown-placeholder").resolve("mosa_privacy.yaml")
         Files.writeString(path, operatorProfileYamlWithoutRetentionPlaceholder())

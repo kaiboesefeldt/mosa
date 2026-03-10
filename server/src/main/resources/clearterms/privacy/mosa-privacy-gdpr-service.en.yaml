@@ -53,6 +53,9 @@ overrides:
           - After deletion, content is no longer provided by this pod and is removed promptly.
           - Complete deletion across the entire internet cannot be promised. This also applies to your own posts and replies if other users have already stored them on their devices.
           - Data stored on your own device remains there until it is removed (via functions in {{string:SERVICE_DISPLAY_NAME}}, by the browser, or by deleting browser data). Without active deletion, posts may remain on your device for an unlimited period.
+          - You can freeze your own content into an encrypted snapshot file. After a successful freeze, the exported data is deleted from this pod.
+          - You must store the snapshot file yourself. If you lose it, the frozen data is lost.
+          - A snapshot can only be restored on the same pod that created it and only until the snapshot expires.
 
         provision-obligation-slot-service: |
           To use protected functions of {{string:SERVICE_DISPLAY_NAME}}, some information is required:
@@ -64,4 +67,4 @@ overrides:
         rights-portability-action-slot-service: "Also via \"Export posts (CSV)\" in {{string:SERVICE_DISPLAY_NAME}}"
         rights-rectification-action-slot-service: "Delete content in {{string:SERVICE_DISPLAY_NAME}} and republish it correctly"
         rights-erasure-action-slot-service: "Delete posts and replies yourself in {{string:SERVICE_DISPLAY_NAME}}"
-        rights-restriction-action-slot-service: "Limit visibility of your own content in {{string:SERVICE_DISPLAY_NAME}} using the provided functions"
+        rights-restriction-action-slot-service: "Limit visibility of your own content in {{string:SERVICE_DISPLAY_NAME}} using the provided functions, including the freeze snapshot workflow"

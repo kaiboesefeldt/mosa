@@ -13,6 +13,10 @@ class IdentitySessionTextProviderTest {
     fun `exposes static translations`() {
         assertEquals("...", provider.loading)
         assertEquals("Unknown error", provider.unknownError)
+        assertEquals("Generating snapshot...", provider.freezeInProgress)
+        assertEquals("Snapshot downloaded. It is the only restorable copy.", provider.freezeSuccess)
+        assertEquals("Restoring snapshot...", provider.restoreInProgress)
+        assertEquals("Could not restore snapshot. Please try again.", provider.restoreError)
     }
 
     @Test
@@ -20,5 +24,12 @@ class IdentitySessionTextProviderTest {
         val message = provider.failedToPrepare("offline")
 
         assertEquals("Failed to prepare identity: offline", message)
+    }
+
+    @Test
+    fun `includes restored count in restore success text`() {
+        val message = provider.restoreSuccess(3)
+
+        assertEquals("Snapshot restored: 3 posts and replies.", message)
     }
 }

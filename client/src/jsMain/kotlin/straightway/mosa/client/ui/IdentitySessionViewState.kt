@@ -14,6 +14,8 @@ sealed interface IdentitySessionViewState {
         val canDelete: Boolean,
         val canDeletePosts: Boolean,
         val canExportPosts: Boolean,
+        val canFreezePosts: Boolean,
+        val canRestorePosts: Boolean,
         val canNavigatePrevious: Boolean,
         val canNavigateNext: Boolean,
         val isShowingLastIdentity: Boolean,

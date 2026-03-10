@@ -30,6 +30,8 @@ internal fun renderIdentityProfileView(
             identityTotal = 1
             canDeletePosts = false
             canExportPosts = false
+            canFreezePosts = false
+            canRestorePosts = false
             onConnect = {}
             canDownload = true
             onPrevious = {}
@@ -37,6 +39,8 @@ internal fun renderIdentityProfileView(
             onDelete = {}
             onDeletePosts = {}
             onExportPosts = {}
+            onFreezePosts = {}
+            onRestorePosts = {}
             onDownload = {}
             canUpload = true
             onUpload = {}
