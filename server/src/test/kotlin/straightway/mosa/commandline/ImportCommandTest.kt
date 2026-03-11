@@ -15,8 +15,10 @@ import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import straightway.mosa.VectorStore
 import straightway.mosa.content.ContentService
+import straightway.mosa.content.ContentSignaturePayload
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.ReplyRequest
+import straightway.mosa.crypto.toBase64
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
@@ -24,7 +26,10 @@ import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
 import java.io.ByteArrayInputStream
+import java.security.KeyPair
+import java.security.KeyPairGenerator
 import java.security.MessageDigest
+import java.security.Signature
 import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -36,7 +41,8 @@ class ImportCommandTest {
     private val koin = mockk<Koin>()
     private val koinApplication = mockk<KoinApplication>(relaxed = true)
     private val hasherFactory = { MessageDigest.getInstance("SHA-256") }
-    private val authorPublicKey = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(ByteArray(32) { it.toByte() })
+    private val authorKeyPair: KeyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
+    private val authorPublicKey = authorKeyPair.public.toBase64()
     val authorBase64 =
         Base64.UrlSafe
             .withPadding(Base64.PaddingOption.ABSENT)
@@ -53,8 +59,8 @@ class ImportCommandTest {
             mapOf(
                 AUTHOR_GID_KEY to authorBase64,
                 AUTHOR_PUBLIC_KEY_KEY to authorPublicKey,
-                AUTHOR_SIGNATURE_KEY to "signature",
-                SIGNATURE_VERSION_KEY to "7",
+                AUTHOR_SIGNATURE_KEY to sign(authorKeyPair, ContentSignaturePayload.forPost("root").toCanonicalBytes()),
+                SIGNATURE_VERSION_KEY to "1",
                 RECEIVED_AT_KEY to "12345",
             ),
         )
@@ -65,8 +71,8 @@ class ImportCommandTest {
             mapOf(
                 AUTHOR_GID_KEY to authorBase64,
                 AUTHOR_PUBLIC_KEY_KEY to authorPublicKey,
-                AUTHOR_SIGNATURE_KEY to "signature",
-                SIGNATURE_VERSION_KEY to "7",
+                AUTHOR_SIGNATURE_KEY to sign(authorKeyPair, ContentSignaturePayload.forReply("reply", "rootId").toCanonicalBytes()),
+                SIGNATURE_VERSION_KEY to "1",
                 ROOT_ID_KEY to "rootId",
                 RECEIVED_AT_KEY to "12345",
             ),
@@ -100,7 +106,12 @@ class ImportCommandTest {
 
         assertEquals(0, exit.code)
         coVerify(exactly = 1) {
-            contentService.publish(authorBase64, PublishRequest("root", "signature", 7), 12345L, authorPublicKey)
+            contentService.publish(
+                authorBase64,
+                PublishRequest(rootPost.text, rootPost.fields.getValue(AUTHOR_SIGNATURE_KEY), 1),
+                12345L,
+                authorPublicKey,
+            )
         }
         coVerify(exactly = 0) { contentService.reply(any(), any(), any(), any()) }
         verify(exactly = 1) { streamIO.readerFrom(any()) }
@@ -119,14 +130,14 @@ class ImportCommandTest {
     }
 
     @Test
-    fun `accepts empty base64 gids unchanged`() {
+    fun `fails early when author gid is blank`() {
         setupStreamReader(rootPost.copy(fields = rootPost.fields - AUTHOR_GID_KEY + (AUTHOR_GID_KEY to "")))
         val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
-        val exit = assertFailsWith<ExitSignal> { command.execute() }
+        val ex = assertFailsWith<RuntimeException> { command.execute() }
 
-        assertEquals(0, exit.code)
-        coVerify(exactly = 1) { contentService.publish("", PublishRequest("root", "signature", 7), 12345L, authorPublicKey) }
+        assertEquals("Authenticated public key does not match certificate gid", ex.message)
+        coVerify(exactly = 0) { contentService.publish(any(), any(), any(), any()) }
     }
 
     @Test
@@ -138,7 +149,12 @@ class ImportCommandTest {
 
         assertEquals(0, exit.code)
         coVerify(exactly = 1) {
-            contentService.publish(authorBase64, PublishRequest("root", "signature", 7), 12345L, authorPublicKey)
+            contentService.publish(
+                authorBase64,
+                PublishRequest("root", rootPost.fields.getValue(AUTHOR_SIGNATURE_KEY), 1),
+                12345L,
+                authorPublicKey,
+            )
         }
     }
 
@@ -149,7 +165,14 @@ class ImportCommandTest {
 
         assertFailsWith<ExitSignal> { command.execute() }
 
-        coVerify(exactly = 1) { contentService.publish(authorBase64, PublishRequest("root", "signature", 7), 0L, authorPublicKey) }
+        coVerify(exactly = 1) {
+            contentService.publish(
+                authorBase64,
+                PublishRequest("root", rootPost.fields.getValue(AUTHOR_SIGNATURE_KEY), 1),
+                0L,
+                authorPublicKey,
+            )
+        }
     }
 
     @Test
@@ -157,7 +180,12 @@ class ImportCommandTest {
         val postDump = rootPost.copy(id = "storedPostId")
         setupStreamReader(postDump)
         coEvery {
-            contentService.publish(authorBase64, PublishRequest("root", "signature", 7), 12345L, authorPublicKey)
+            contentService.publish(
+                authorBase64,
+                PublishRequest("root", postDump.fields.getValue(AUTHOR_SIGNATURE_KEY), 1),
+                12345L,
+                authorPublicKey,
+            )
         } returns "storedPostId"
         val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
@@ -165,7 +193,12 @@ class ImportCommandTest {
 
         assertEquals(0, exit.code)
         coVerify(exactly = 1) {
-            contentService.publish(authorBase64, PublishRequest("root", "signature", 7), 12345L, authorPublicKey)
+            contentService.publish(
+                authorBase64,
+                PublishRequest("root", postDump.fields.getValue(AUTHOR_SIGNATURE_KEY), 1),
+                12345L,
+                authorPublicKey,
+            )
         }
         coVerify(exactly = 0) { contentService.reply(any(), any(), any(), any()) }
     }
@@ -181,7 +214,7 @@ class ImportCommandTest {
         coVerify(exactly = 1) {
             contentService.reply(
                 authorBase64,
-                ReplyRequest(PublishRequest("reply", "signature", 7), "rootId"),
+                ReplyRequest(PublishRequest("reply", replyPost.fields.getValue(AUTHOR_SIGNATURE_KEY), 1), "rootId"),
                 12345L,
                 authorPublicKey,
             )
@@ -199,7 +232,7 @@ class ImportCommandTest {
         coVerify(exactly = 1) {
             contentService.reply(
                 authorBase64,
-                ReplyRequest(PublishRequest("reply", "signature", 7), "rootId"),
+                ReplyRequest(PublishRequest("reply", replyPost.fields.getValue(AUTHOR_SIGNATURE_KEY), 1), "rootId"),
                 0L,
                 authorPublicKey,
             )
@@ -210,21 +243,27 @@ class ImportCommandTest {
     fun `retries posting failed posts with recoverable exceptions`() {
         setupStreamReader(replyPost)
         coEvery {
-            contentService.reply(authorBase64, ReplyRequest(PublishRequest("reply", "signature", 7), "rootId"), any(), authorPublicKey)
+            contentService.reply(
+                authorBase64,
+                ReplyRequest(PublishRequest("reply", replyPost.fields.getValue(AUTHOR_SIGNATURE_KEY), 1), "rootId"),
+                any(),
+                authorPublicKey,
+            )
         } throws ContentService.RootNotFoundException()
         val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
         val ex = assertFailsWith<IllegalStateException> { command.execute() }
+        val expectedReplySignature = replyPost.fields.getValue(AUTHOR_SIGNATURE_KEY)
 
         assertEquals(
-            "Could not import these posts: [PostDump(id=replyId, text=reply, fields={authorGID=$authorBase64, authorPublicKey=$authorPublicKey, authorSignature=signature, signatureVersion=7, rootId=rootId, receivedAt=12345})]",
+            "Could not import these posts: [PostDump(id=replyId, text=reply, fields={authorGID=$authorBase64, authorPublicKey=$authorPublicKey, authorSignature=$expectedReplySignature, signatureVersion=1, rootId=rootId, receivedAt=12345})]",
             ex.message,
         )
         coVerify(exactly = 0) { contentService.publish(any(), any(), any(), any()) }
         coVerify(exactly = 2) {
             contentService.reply(
                 authorBase64,
-                ReplyRequest(PublishRequest("reply", "signature", 7), "rootId"),
+                ReplyRequest(PublishRequest("reply", replyPost.fields.getValue(AUTHOR_SIGNATURE_KEY), 1), "rootId"),
                 12345L,
                 authorPublicKey,
             )
@@ -236,7 +275,12 @@ class ImportCommandTest {
     fun `aborts import if the error is not recoverable`() {
         setupStreamReader(replyPost)
         coEvery {
-            contentService.reply(authorBase64, ReplyRequest(PublishRequest("reply", "signature", 7), "rootId"), any(), authorPublicKey)
+            contentService.reply(
+                authorBase64,
+                ReplyRequest(PublishRequest("reply", replyPost.fields.getValue(AUTHOR_SIGNATURE_KEY), 1), "rootId"),
+                any(),
+                authorPublicKey,
+            )
         } throws UnsupportedOperationException("Test Error")
         val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
@@ -250,7 +294,7 @@ class ImportCommandTest {
         coVerify(exactly = 1) {
             contentService.reply(
                 authorBase64,
-                ReplyRequest(PublishRequest("reply", "signature", 7), "rootId"),
+                ReplyRequest(PublishRequest("reply", replyPost.fields.getValue(AUTHOR_SIGNATURE_KEY), 1), "rootId"),
                 12345L,
                 authorPublicKey,
             )
@@ -260,23 +304,57 @@ class ImportCommandTest {
 
     @Test
     fun `replies for posts with symbolic root id`() {
-        setupStreamReader(rootPost, replyPost)
+        val remappedReply =
+            replyPost.copy(
+                fields =
+                    replyPost.fields -
+                        AUTHOR_SIGNATURE_KEY +
+                        (
+                            AUTHOR_SIGNATURE_KEY to
+                                sign(authorKeyPair, ContentSignaturePayload.forReply(replyPost.text, "storedPostId").toCanonicalBytes())
+                        ),
+            )
+        setupStreamReader(rootPost, remappedReply)
         val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
 
         assertFailsWith<ExitSignal> { command.execute() }
 
         coVerify(exactly = 1) {
-            contentService.publish(authorBase64, PublishRequest("root", "signature", 7), 12345L, authorPublicKey)
+            contentService.publish(
+                authorBase64,
+                PublishRequest("root", rootPost.fields.getValue(AUTHOR_SIGNATURE_KEY), 1),
+                12345L,
+                authorPublicKey,
+            )
         }
         coVerify(exactly = 1) {
             contentService.reply(
                 authorBase64,
-                ReplyRequest(PublishRequest("reply", "signature", 7), "storedPostId"),
+                ReplyRequest(PublishRequest("reply", remappedReply.fields.getValue(AUTHOR_SIGNATURE_KEY), 1), "storedPostId"),
                 12345L,
                 authorPublicKey,
             )
         }
         verify(exactly = 1) { koinApplication.close() }
+    }
+
+    @Test
+    fun `fails early when reply signature does not match resolved root id`() {
+        setupStreamReader(rootPost, replyPost)
+        val command = ImportCommand(streamIO, ByteArrayInputStream(ByteArray(0)), ExitSignal::exit, hasherFactory)
+
+        val ex = assertFailsWith<RuntimeException> { command.execute() }
+
+        assertEquals("Content signature is invalid", ex.message)
+        coVerify(exactly = 1) {
+            contentService.publish(
+                authorBase64,
+                PublishRequest("root", rootPost.fields.getValue(AUTHOR_SIGNATURE_KEY), 1),
+                12345L,
+                authorPublicKey,
+            )
+        }
+        coVerify(exactly = 0) { contentService.reply(any(), any(), any(), any()) }
     }
 
     @Test
@@ -334,6 +412,18 @@ class ImportCommandTest {
         val reader = FakeStreamReader(posts.toList())
         every { streamIO.readerFrom(any()) } returns reader
     }
+
+    private fun sign(
+        keyPair: KeyPair,
+        payload: ByteArray,
+    ): String =
+        Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(
+            Signature.getInstance("Ed25519").run {
+                initSign(keyPair.private)
+                update(payload)
+                sign()
+            },
+        )
 
     private class FakeStreamReader(
         posts: List<VectorStore.PostDump>,

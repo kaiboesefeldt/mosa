@@ -9,11 +9,15 @@ import org.koin.dsl.module
 import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.HasherFactory
 import straightway.mosa.VectorStore
+import straightway.mosa.auth.PodCertificate
+import straightway.mosa.auth.PodPrincipal
 import straightway.mosa.configureMosaAppModule
 import straightway.mosa.content.ContentService
 import straightway.mosa.content.ContentService.RootNotFoundException
+import straightway.mosa.content.ContentSignatureVerifier
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.ReplyRequest
+import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
@@ -21,6 +25,7 @@ import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
 import java.io.InputStream
+import java.security.Signature
 import kotlin.io.encoding.Base64
 import kotlin.system.exitProcess
 
@@ -31,6 +36,13 @@ internal class ImportCommand(
     private val exit: (Int) -> Nothing = ::exitProcess,
     private val hasherFactory: HasherFactory,
 ) : Subcommand("import", "Import the mosa posts and replies from stdin") {
+    private val contentSignatureVerifier =
+        ContentSignatureVerifier(
+            crypto = CryptoEd25519(),
+            hasherFactory = hasherFactory,
+            signatureVerifierProvider = { Signature.getInstance("Ed25519") },
+        )
+
     override fun execute() {
         val koinApplication =
             startKoin {
@@ -90,16 +102,21 @@ internal class ImportCommand(
         val receiveTimestamp = post.fields[RECEIVED_AT_KEY]?.toLong() ?: 0L
         val id =
             try {
+                val principal = authorPrincipal(authorGid, authorPublicKey)
                 if (rootId == null) {
+                    contentSignatureVerifier.verifyPublish(principal, publishRequest)
                     publish(authorGid, publishRequest, receiveTimestamp, authorPublicKey)
                 } else {
                     val realRootId = idTable.getOrDefault(rootId, rootId)
-                    reply(
-                        authorGid,
+                    val replyRequest =
                         ReplyRequest(
                             publishRequest,
                             realRootId,
-                        ),
+                        )
+                    contentSignatureVerifier.verifyReply(principal, replyRequest)
+                    reply(
+                        authorGid,
+                        replyRequest,
                         receiveTimestamp,
                         authorPublicKey,
                     )
@@ -151,6 +168,14 @@ internal class ImportCommand(
         Base64.UrlSafe
             .withPadding(Base64.PaddingOption.ABSENT)
             .encode(value)
+
+    private fun authorPrincipal(
+        authorGid: String,
+        authorPublicKey: String,
+    ) = PodPrincipal(
+        certificate = PodCertificate(gid = authorGid, exp = Long.MAX_VALUE, sig = ""),
+        publicKeyBase64 = authorPublicKey,
+    )
 
     private companion object {
         val logger = KotlinLogging.logger {}
