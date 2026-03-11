@@ -18,7 +18,7 @@ class ContentService(
     private val vectorStore: VectorStore,
     private val hasherFactory: () -> MessageDigest,
     private val maxFetchItems: Int,
-    private val replyNonceFactory: () -> String = { UUID.randomUUID().toString() },
+    private val replyIdFactory: () -> String = { UUID.randomUUID().toString() },
 ) {
     suspend fun publish(
         userGID: String,
@@ -57,7 +57,7 @@ class ContentService(
             ),
             receiveTimestamp,
         ) {
-            request.content.replyHashId(request.rootId, replyNonceFactory())
+            replyIdFactory()
         }
     }
 
@@ -231,11 +231,6 @@ class ContentService(
         Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(
             hasherFactory().digest(toByteArray(Charsets.UTF_8)),
         )
-
-    private fun PublishRequest.replyHashId(
-        rootId: String,
-        nonce: String,
-    ): String = "${text}\n$rootId\n$nonce".hashId()
 
     private companion object {
         private const val CSV_HEADER = "id,type,root_id,stored_at_epoch,stored_at_iso8601,author_gid,text"

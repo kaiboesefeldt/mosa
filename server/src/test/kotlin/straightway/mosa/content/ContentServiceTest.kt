@@ -30,7 +30,7 @@ class ContentServiceTest {
     private val hasherFactory = mockk<() -> MessageDigest>()
     private val transaction = mockk<VectorStore.Transaction>(relaxed = true)
     private val maxFetchItems = 100
-    private val sut = ContentService(embeddingService, vectorStore, hasherFactory, maxFetchItems) { "reply-nonce" }
+    private val sut = ContentService(embeddingService, vectorStore, hasherFactory, maxFetchItems) { "reply-id" }
 
     private val testUserGID = "test-user-gid"
     private val testEmbedding = floatArrayOf(0.1f, 0.2f, 0.3f)
@@ -1380,11 +1380,11 @@ class ContentServiceTest {
                 val contentId =
                     sut.reply(testUserGID, ReplyRequest(PublishRequest(content), "root-123"), TEST_TIME)
 
-                assertEquals("BQYHCA", contentId)
+                assertEquals("reply-id", contentId)
                 coVerify { embeddingService.embed(content) }
                 coVerify {
                     transaction.add(
-                        id = "BQYHCA",
+                        id = "reply-id",
                         text = content,
                         fields =
                             mapOf(
@@ -1401,14 +1401,14 @@ class ContentServiceTest {
         fun `allows identical reply text more than once by generating different ids`() =
             runTest {
                 val content = "Ja"
-                val replyNonces = ArrayDeque(listOf("nonce-1", "nonce-2"))
+                val replyIds = ArrayDeque(listOf("reply-id-1", "reply-id-2"))
                 val service =
                     ContentService(
                         embeddingService = embeddingService,
                         vectorStore = vectorStore,
                         hasherFactory = { MessageDigest.getInstance("SHA-256") },
                         maxFetchItems = maxFetchItems,
-                        replyNonceFactory = { replyNonces.removeFirst() },
+                        replyIdFactory = { replyIds.removeFirst() },
                     )
                 setupEmbedding(content)
                 setupWriteAccess()
