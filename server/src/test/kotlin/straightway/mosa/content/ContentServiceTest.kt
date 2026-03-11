@@ -14,8 +14,11 @@ import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import straightway.mosa.VectorStore.Query
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
@@ -37,6 +40,8 @@ class ContentServiceTest {
     private val testQueryOnId = UUID.randomUUID()
     private val testLaterThan = 1234567890L
     private val testEarlierThan = 2234567890L
+    private val testPublicKey = "test-public-key"
+    private val testSignature = "test-signature"
 
     private fun setupEmbedding(text: String) {
         coEvery { embeddingService.embed(text) } returns testEmbedding
@@ -509,13 +514,28 @@ class ContentServiceTest {
                             id = "entry-1",
                             text = "First entry",
                             similarity = 0.95f,
-                            fields = mapOf(AUTHOR_GID_KEY to "author-1", RECEIVED_AT_KEY to "1609459200", ROOT_ID_KEY to "root-1"),
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to "author-1",
+                                    AUTHOR_PUBLIC_KEY_KEY to "public-key-1",
+                                    AUTHOR_SIGNATURE_KEY to "signature-1",
+                                    SIGNATURE_VERSION_KEY to "11",
+                                    RECEIVED_AT_KEY to "1609459200",
+                                    ROOT_ID_KEY to "root-1",
+                                ),
                         ),
                         VectorStore.QueryResult(
                             id = "entry-2",
                             text = "Second entry",
                             similarity = 0.80f,
-                            fields = mapOf(AUTHOR_GID_KEY to "author-2", RECEIVED_AT_KEY to "1609459300"),
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to "author-2",
+                                    AUTHOR_PUBLIC_KEY_KEY to "public-key-2",
+                                    AUTHOR_SIGNATURE_KEY to "signature-2",
+                                    SIGNATURE_VERSION_KEY to "13",
+                                    RECEIVED_AT_KEY to "1609459300",
+                                ),
                         ),
                     )
                 setupEmbedding("test topic")
@@ -534,6 +554,9 @@ class ContentServiceTest {
                                     authorGID = "author-1",
                                     storedAt = 1609459200L,
                                     rootId = "root-1",
+                                    authorPublicKey = "public-key-1",
+                                    authorSignature = "signature-1",
+                                    signatureVersion = 11,
                                 ),
                                 defaultQueryResultEntry(
                                     id = "entry-2",
@@ -541,6 +564,9 @@ class ContentServiceTest {
                                     similarity = 0.80f,
                                     authorGID = "author-2",
                                     storedAt = 1609459300L,
+                                    authorPublicKey = "public-key-2",
+                                    authorSignature = "signature-2",
+                                    signatureVersion = 13,
                                 ),
                             ),
                     ),
@@ -578,7 +604,13 @@ class ContentServiceTest {
                         id = "missing-received-at-id",
                         text = "entry without receivedAt",
                         similarity = 0.6f,
-                        fields = mapOf(AUTHOR_GID_KEY to "author-without-received-at"),
+                        fields =
+                            mapOf(
+                                AUTHOR_GID_KEY to "author-without-received-at",
+                                AUTHOR_PUBLIC_KEY_KEY to "public-key-without-received-at",
+                                AUTHOR_SIGNATURE_KEY to "signature-without-received-at",
+                                SIGNATURE_VERSION_KEY to "1",
+                            ),
                     )
                 setupVectorStore(createVectorStoreResults(entries = listOf(entryMissingReceivedAt)))
 
@@ -588,6 +620,33 @@ class ContentServiceTest {
                     }
                 assertEquals("missing-received-at-id", exception.entryId)
                 assertEquals(RECEIVED_AT_KEY, exception.fieldName)
+            }
+
+        @Test
+        fun `throws failure when authorPublicKey field is missing`() =
+            runTest {
+                setupEmbedding("missing public key topic")
+                val entryMissingAuthorPublicKey =
+                    VectorStore.QueryResult(
+                        id = "missing-public-key-id",
+                        text = "entry without public key",
+                        similarity = 0.7f,
+                        fields =
+                            mapOf(
+                                AUTHOR_GID_KEY to "author-1",
+                                AUTHOR_SIGNATURE_KEY to "signature-1",
+                                SIGNATURE_VERSION_KEY to "1",
+                                RECEIVED_AT_KEY to "1609459200",
+                            ),
+                    )
+                setupVectorStore(createVectorStoreResults(entries = listOf(entryMissingAuthorPublicKey)))
+
+                val exception =
+                    assertThrows<MissingVectorMetadataException> {
+                        sut.query(QueryRequest(topic = "missing public key topic"))
+                    }
+                assertEquals("missing-public-key-id", exception.entryId)
+                assertEquals(AUTHOR_PUBLIC_KEY_KEY, exception.fieldName)
             }
     }
 
@@ -645,6 +704,9 @@ class ContentServiceTest {
                         fields =
                             mapOf(
                                 AUTHOR_GID_KEY to "query-on-author",
+                                AUTHOR_PUBLIC_KEY_KEY to "query-on-public-key",
+                                AUTHOR_SIGNATURE_KEY to "query-on-signature",
+                                SIGNATURE_VERSION_KEY to "17",
                                 RECEIVED_AT_KEY to "1609459400",
                                 ROOT_ID_KEY to "query-on-root",
                             ),
@@ -664,6 +726,9 @@ class ContentServiceTest {
                                     authorGID = "query-on-author",
                                     storedAt = 1609459400L,
                                     rootId = "query-on-root",
+                                    authorPublicKey = "query-on-public-key",
+                                    authorSignature = "query-on-signature",
+                                    signatureVersion = 17,
                                 ),
                             ),
                     ),
@@ -864,13 +929,28 @@ class ContentServiceTest {
                             id = "entry-1",
                             text = "First entry",
                             similarity = 0.95f,
-                            fields = mapOf(AUTHOR_GID_KEY to "author-1", RECEIVED_AT_KEY to "1609459200", ROOT_ID_KEY to "root-1"),
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to "author-1",
+                                    AUTHOR_PUBLIC_KEY_KEY to "public-key-1",
+                                    AUTHOR_SIGNATURE_KEY to "signature-1",
+                                    SIGNATURE_VERSION_KEY to "1",
+                                    RECEIVED_AT_KEY to "1609459200",
+                                    ROOT_ID_KEY to "root-1",
+                                ),
                         ),
                         VectorStore.QueryResult(
                             id = "entry-2",
                             text = "Second entry",
                             similarity = 0.80f,
-                            fields = mapOf(AUTHOR_GID_KEY to "author-2", RECEIVED_AT_KEY to "1609459300"),
+                            fields =
+                                mapOf(
+                                    AUTHOR_GID_KEY to "author-2",
+                                    AUTHOR_PUBLIC_KEY_KEY to "public-key-2",
+                                    AUTHOR_SIGNATURE_KEY to "signature-2",
+                                    SIGNATURE_VERSION_KEY to "1",
+                                    RECEIVED_AT_KEY to "1609459300",
+                                ),
                         ),
                     )
                 setupEmbedding("test topic")
@@ -920,7 +1000,13 @@ class ContentServiceTest {
                         id = "missing-received-at-id",
                         text = "entry without receivedAt",
                         similarity = 0.6f,
-                        fields = mapOf(AUTHOR_GID_KEY to "author-without-received-at"),
+                        fields =
+                            mapOf(
+                                AUTHOR_GID_KEY to "author-without-received-at",
+                                AUTHOR_PUBLIC_KEY_KEY to "public-key-without-received-at",
+                                AUTHOR_SIGNATURE_KEY to "signature-without-received-at",
+                                SIGNATURE_VERSION_KEY to "1",
+                            ),
                     )
                 setupVectorStore(createVectorStoreResults(entries = listOf(entryMissingReceivedAt)))
 
@@ -987,6 +1073,9 @@ class ContentServiceTest {
                         fields =
                             mapOf(
                                 AUTHOR_GID_KEY to "query-on-author",
+                                AUTHOR_PUBLIC_KEY_KEY to "query-on-public-key",
+                                AUTHOR_SIGNATURE_KEY to "query-on-signature",
+                                SIGNATURE_VERSION_KEY to "1",
                                 RECEIVED_AT_KEY to "1609459400",
                                 ROOT_ID_KEY to "query-on-root",
                             ),
@@ -1029,6 +1118,9 @@ class ContentServiceTest {
                             "content1",
                             mapOf(
                                 AUTHOR_GID_KEY to "author1",
+                                AUTHOR_PUBLIC_KEY_KEY to "public-key-1",
+                                AUTHOR_SIGNATURE_KEY to "signature-1",
+                                SIGNATURE_VERSION_KEY to "3",
                                 RECEIVED_AT_KEY to "12345",
                             ),
                         ),
@@ -1037,6 +1129,9 @@ class ContentServiceTest {
                             "content2",
                             mapOf(
                                 AUTHOR_GID_KEY to "author2",
+                                AUTHOR_PUBLIC_KEY_KEY to "public-key-2",
+                                AUTHOR_SIGNATURE_KEY to "signature-2",
+                                SIGNATURE_VERSION_KEY to "5",
                                 RECEIVED_AT_KEY to "23456",
                                 ROOT_ID_KEY to "root2",
                             ),
@@ -1057,6 +1152,9 @@ class ContentServiceTest {
                                     authorGID = it.fields[AUTHOR_GID_KEY]!!,
                                     storedAt = it.fields[RECEIVED_AT_KEY]!!.toLong(),
                                     rootId = it.fields[ROOT_ID_KEY],
+                                    authorPublicKey = it.fields[AUTHOR_PUBLIC_KEY_KEY]!!,
+                                    authorSignature = it.fields[AUTHOR_SIGNATURE_KEY]!!,
+                                    signatureVersion = it.fields[SIGNATURE_VERSION_KEY]!!.toInt(),
                                 )
                             },
                     )
@@ -1066,7 +1164,13 @@ class ContentServiceTest {
         @Test
         fun `missing mandatory fields raises exception`() =
             runTest {
-                listOf(AUTHOR_GID_KEY, RECEIVED_AT_KEY).forEach { missingField ->
+                listOf(
+                    AUTHOR_GID_KEY,
+                    AUTHOR_PUBLIC_KEY_KEY,
+                    AUTHOR_SIGNATURE_KEY,
+                    SIGNATURE_VERSION_KEY,
+                    RECEIVED_AT_KEY,
+                ).forEach { missingField ->
                     val fetchResult =
                         listOf(
                             VectorStore.PostDump(
@@ -1074,6 +1178,9 @@ class ContentServiceTest {
                                 "content1",
                                 mapOf(
                                     AUTHOR_GID_KEY to "author1",
+                                    AUTHOR_PUBLIC_KEY_KEY to "public-key-1",
+                                    AUTHOR_SIGNATURE_KEY to "signature-1",
+                                    SIGNATURE_VERSION_KEY to "1",
                                     RECEIVED_AT_KEY to "12345",
                                 ) - missingField,
                             ),
@@ -1315,7 +1422,7 @@ class ContentServiceTest {
                 val tooLongText = "a".repeat(1801)
 
                 assertThrows<BadRequestException> {
-                    sut.publish(testUserGID, PublishRequest(tooLongText), TEST_TIME)
+                    sut.publish(testUserGID, PublishRequest(tooLongText), TEST_TIME, testPublicKey)
                 }
 
                 coVerify(exactly = 0) { embeddingService.embed(any()) }
@@ -1330,7 +1437,7 @@ class ContentServiceTest {
                 setupHasher(testHash)
                 setupWriteAccess()
 
-                val contentId = sut.publish(testUserGID, PublishRequest(content), TEST_TIME)
+                val contentId = sut.publish(testUserGID, PublishRequest(content), TEST_TIME, "")
 
                 assertEquals("AQIDBA", contentId)
                 coVerify { embeddingService.embed(content) }
@@ -1343,9 +1450,45 @@ class ContentServiceTest {
                         fields =
                             match { fields ->
                                 fields[AUTHOR_GID_KEY] == testUserGID &&
+                                    fields[AUTHOR_PUBLIC_KEY_KEY] == "" &&
+                                    fields[AUTHOR_SIGNATURE_KEY] == "" &&
+                                    fields[SIGNATURE_VERSION_KEY] == "1" &&
                                     fields.containsKey(RECEIVED_AT_KEY) &&
                                     fields[RECEIVED_AT_KEY]?.toLongOrNull() != null
                             },
+                        vector = testEmbedding,
+                    )
+                }
+            }
+
+        @Test
+        fun `publishes content with signature metadata`() =
+            runTest {
+                val content = "Hello world"
+                val testHash = byteArrayOf(1, 2, 3, 4)
+                setupEmbedding(content)
+                setupHasher(testHash)
+                setupWriteAccess()
+
+                sut.publish(
+                    testUserGID,
+                    PublishRequest(content, signature = testSignature, signatureVersion = 7),
+                    TEST_TIME,
+                    testPublicKey,
+                )
+
+                coVerify {
+                    transaction.add(
+                        id = "AQIDBA",
+                        text = content,
+                        fields =
+                            mapOf(
+                                AUTHOR_GID_KEY to testUserGID,
+                                AUTHOR_PUBLIC_KEY_KEY to testPublicKey,
+                                AUTHOR_SIGNATURE_KEY to testSignature,
+                                SIGNATURE_VERSION_KEY to "7",
+                                RECEIVED_AT_KEY to TEST_TIME.toString(),
+                            ),
                         vector = testEmbedding,
                     )
                 }
@@ -1360,7 +1503,7 @@ class ContentServiceTest {
                 val tooLongText = "a".repeat(1801)
 
                 assertThrows<BadRequestException> {
-                    sut.reply(testUserGID, ReplyRequest(PublishRequest(tooLongText), "root-123"), TEST_TIME)
+                    sut.reply(testUserGID, ReplyRequest(PublishRequest(tooLongText), "root-123"), TEST_TIME, testPublicKey)
                 }
 
                 coVerify(exactly = 0) { embeddingService.embed(any()) }
@@ -1378,7 +1521,7 @@ class ContentServiceTest {
                     createParentQueryResult("root-123", null)
 
                 val contentId =
-                    sut.reply(testUserGID, ReplyRequest(PublishRequest(content), "root-123"), TEST_TIME)
+                    sut.reply(testUserGID, ReplyRequest(PublishRequest(content), "root-123"), TEST_TIME, testPublicKey)
 
                 assertEquals("reply-id", contentId)
                 coVerify { embeddingService.embed(content) }
@@ -1389,6 +1532,9 @@ class ContentServiceTest {
                         fields =
                             mapOf(
                                 AUTHOR_GID_KEY to testUserGID,
+                                AUTHOR_PUBLIC_KEY_KEY to testPublicKey,
+                                AUTHOR_SIGNATURE_KEY to "",
+                                SIGNATURE_VERSION_KEY to "1",
                                 RECEIVED_AT_KEY to "170000000",
                                 ROOT_ID_KEY to "root-123",
                             ),
@@ -1415,8 +1561,8 @@ class ContentServiceTest {
                 coEvery { vectorStore.query(Query(id = "root-123")) } returns
                     createParentQueryResult("root-123", null)
 
-                val firstId = service.reply(testUserGID, ReplyRequest(PublishRequest(content), "root-123"), TEST_TIME)
-                val secondId = service.reply(testUserGID, ReplyRequest(PublishRequest(content), "root-123"), TEST_TIME)
+                val firstId = service.reply(testUserGID, ReplyRequest(PublishRequest(content), "root-123"), TEST_TIME, testPublicKey)
+                val secondId = service.reply(testUserGID, ReplyRequest(PublishRequest(content), "root-123"), TEST_TIME, testPublicKey)
 
                 assertTrue(firstId.isNotBlank())
                 assertTrue(secondId.isNotBlank())
@@ -1431,7 +1577,7 @@ class ContentServiceTest {
                     VectorStore.QueryResults(resultsPage = emptyList(), queryOnId = null)
 
                 assertThrows<BadRequestException> {
-                    sut.reply(testUserGID, ReplyRequest(PublishRequest("ignored"), unknownRootId), TEST_TIME)
+                    sut.reply(testUserGID, ReplyRequest(PublishRequest("ignored"), unknownRootId), TEST_TIME, testPublicKey)
                 }
             }
 
@@ -1445,7 +1591,14 @@ class ContentServiceTest {
                 coEvery { vectorStore.query(Query(id = "child-123")) } returns
                     createParentQueryResult("child-123", "root-123")
 
-                assertThrows<BadRequestException> { sut.reply(testUserGID, ReplyRequest(PublishRequest(content), "child-123"), TEST_TIME) }
+                assertThrows<BadRequestException> {
+                    sut.reply(
+                        testUserGID,
+                        ReplyRequest(PublishRequest(content), "child-123"),
+                        TEST_TIME,
+                        testPublicKey,
+                    )
+                }
             }
     }
 
@@ -1489,6 +1642,9 @@ class ContentServiceTest {
         authorGID: String = "test-author",
         storedAt: Long = 1609459200L,
         rootId: String? = null,
+        authorPublicKey: String = "test-public-key",
+        authorSignature: String = "test-signature",
+        signatureVersion: Int = 1,
     ) = QueryResult.Entry(
         id = id,
         content = content,
@@ -1496,6 +1652,9 @@ class ContentServiceTest {
         authorGID = authorGID,
         storedAt = storedAt,
         rootId = rootId,
+        authorPublicKey = authorPublicKey,
+        authorSignature = authorSignature,
+        signatureVersion = signatureVersion,
     )
 
     private fun defaultSearchResultEntry(
@@ -1517,6 +1676,9 @@ class ContentServiceTest {
                     fields =
                         mapOf(
                             AUTHOR_GID_KEY to "test-author",
+                            AUTHOR_PUBLIC_KEY_KEY to "test-public-key",
+                            AUTHOR_SIGNATURE_KEY to "test-signature",
+                            SIGNATURE_VERSION_KEY to "1",
                             RECEIVED_AT_KEY to "1609459200",
                         ),
                 ),

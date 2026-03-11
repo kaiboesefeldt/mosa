@@ -68,7 +68,7 @@ class ContentControllerTest {
                 env = it.env
                 serviceVerification = {
                     coVerify(exactly = 0) {
-                        it.contentService.publish(any(), any(), any())
+                        it.contentService.publish(any(), any(), any(), any())
                     }
                 }
             }
@@ -84,7 +84,7 @@ class ContentControllerTest {
                             signature = signPost(env.clientKeyPair, "Text to publish"),
                         )
                     coEvery {
-                        contentService.publish(env.gid, request, any())
+                        contentService.publish(env.gid, request, any(), env.clientKeyPair.public.toBase64())
                     } returns ""
 
                     val response =
@@ -95,7 +95,7 @@ class ContentControllerTest {
 
                     assertEquals(HttpStatusCode.Created, response.status)
                     coVerify(exactly = 1) {
-                        contentService.publish(env.gid, request, any())
+                        contentService.publish(env.gid, request, any(), env.clientKeyPair.public.toBase64())
                     }
                 }
             }
@@ -130,7 +130,7 @@ class ContentControllerTest {
 
                     assertEquals(HttpStatusCode.Unauthorized, response.status)
                     coVerify(exactly = 0) {
-                        contentService.publish(any(), any(), any())
+                        contentService.publish(any(), any(), any(), any())
                     }
                 }
             }
@@ -153,7 +153,7 @@ class ContentControllerTest {
 
                     assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
                     coVerify(exactly = 0) {
-                        contentService.publish(any(), any(), any())
+                        contentService.publish(any(), any(), any(), any())
                     }
                 }
             }
@@ -177,7 +177,7 @@ class ContentControllerTest {
 
                     assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
                     coVerify(exactly = 0) {
-                        contentService.publish(any(), any(), any())
+                        contentService.publish(any(), any(), any(), any())
                     }
                 }
             }
@@ -214,7 +214,7 @@ class ContentControllerTest {
 
                     assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
                     coVerify(exactly = 0) {
-                        contentService.publish(any(), any(), any())
+                        contentService.publish(any(), any(), any(), any())
                     }
                 }
             }
@@ -226,7 +226,7 @@ class ContentControllerTest {
             test.also {
                 env = it.env
                 serviceVerification = {
-                    coVerify(exactly = 0) { it.contentService.reply(any(), any(), any()) }
+                    coVerify(exactly = 0) { it.contentService.reply(any(), any(), any(), any()) }
                 }
             }
         }
@@ -244,7 +244,9 @@ class ContentControllerTest {
                                 ),
                             rootId = "01234567",
                         )
-                    coEvery { contentService.reply(env.gid, request, any()) } returns ""
+                    coEvery {
+                        contentService.reply(env.gid, request, any(), env.clientKeyPair.public.toBase64())
+                    } returns ""
 
                     val response =
                         client.post("/v1/reply") {
@@ -253,7 +255,9 @@ class ContentControllerTest {
                         }
 
                     assertEquals(HttpStatusCode.Created, response.status)
-                    coVerify(exactly = 1) { contentService.reply(env.gid, request, any()) }
+                    coVerify(exactly = 1) {
+                        contentService.reply(env.gid, request, any(), env.clientKeyPair.public.toBase64())
+                    }
                 }
             }
 
@@ -278,7 +282,7 @@ class ContentControllerTest {
                         }
 
                     assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-                    coVerify(exactly = 0) { contentService.reply(any(), any(), any()) }
+                    coVerify(exactly = 0) { contentService.reply(any(), any(), any(), any()) }
                 }
             }
     }

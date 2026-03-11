@@ -63,7 +63,7 @@ class QualityTest {
                 print(".")
                 System.out.flush()
                 published.values.forEach {
-                    contentService.publish(gid, PublishRequest(it.text), 0L)
+                    contentService.publish(gid, PublishRequest(it.text), 0L, "")
                 }
             }
         }.also {

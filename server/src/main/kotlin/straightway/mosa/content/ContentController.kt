@@ -31,6 +31,7 @@ class ContentController(
                     principal.gid,
                     request,
                     clock.instant().epochSecond,
+                    principal.publicKeyBase64,
                 )
                 call.respond(HttpStatusCode.Created, null)
             }
@@ -42,6 +43,7 @@ class ContentController(
                     principal.gid,
                     request,
                     clock.instant().epochSecond,
+                    principal.publicKeyBase64,
                 )
                 call.respond(HttpStatusCode.Created, null)
             }

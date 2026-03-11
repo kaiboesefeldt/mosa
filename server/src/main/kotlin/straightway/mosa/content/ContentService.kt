@@ -5,8 +5,11 @@ import kotlinx.coroutines.flow.toList
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
@@ -24,8 +27,9 @@ class ContentService(
         userGID: String,
         request: PublishRequest,
         receiveTimestamp: Long,
+        authorPublicKey: String,
     ): String =
-        writeContent(userGID, request, emptyMap(), receiveTimestamp) {
+        writeContent(userGID, authorPublicKey, request, emptyMap(), receiveTimestamp) {
             request.text.hashId()
         }
 
@@ -41,6 +45,7 @@ class ContentService(
         userGID: String,
         request: ReplyRequest,
         receiveTimestamp: Long,
+        authorPublicKey: String,
     ): String {
         validateLength(request.content.text)
         val root =
@@ -51,6 +56,7 @@ class ContentService(
         if (root.fields[ROOT_ID_KEY] != null) throw MissingRootIdInReplyException()
         return writeContent(
             userGID,
+            authorPublicKey,
             request.content,
             mapOf(
                 ROOT_ID_KEY to request.rootId,
@@ -160,6 +166,7 @@ class ContentService(
     @OptIn(ExperimentalTime::class)
     private suspend fun writeContent(
         userGID: String,
+        authorPublicKey: String,
         request: PublishRequest,
         additionalFields: Map<String, String>,
         receiveTimestamp: Long,
@@ -175,6 +182,9 @@ class ContentService(
                 fields =
                     mapOf(
                         AUTHOR_GID_KEY to userGID,
+                        AUTHOR_PUBLIC_KEY_KEY to authorPublicKey,
+                        AUTHOR_SIGNATURE_KEY to request.signature,
+                        SIGNATURE_VERSION_KEY to request.signatureVersion.toString(),
                         RECEIVED_AT_KEY to receiveTimestamp.toString(),
                     ) + additionalFields,
                 vector = embeddingVector,
@@ -190,6 +200,9 @@ class ContentService(
             similarity = similarity,
             rootId = fields[ROOT_ID_KEY],
             authorGID = fields.requireContentMetadata(id, ContentMetadataField.AuthorGid),
+            authorPublicKey = fields.requireContentMetadata(id, ContentMetadataField.AuthorPublicKey),
+            authorSignature = fields.requireContentMetadata(id, ContentMetadataField.AuthorSignature),
+            signatureVersion = fields.requireContentMetadata(id, ContentMetadataField.SignatureVersion).toInt(),
             storedAt =
                 fields.requireContentMetadata(id, ContentMetadataField.ReceivedAt).toLong(),
         )
@@ -201,6 +214,9 @@ class ContentService(
             authorGID = fields.requireContentMetadata(id, ContentMetadataField.AuthorGid),
             storedAt = fields.requireContentMetadata(id, ContentMetadataField.ReceivedAt).toLong(),
             rootId = fields[ROOT_ID_KEY],
+            authorPublicKey = fields.requireContentMetadata(id, ContentMetadataField.AuthorPublicKey),
+            authorSignature = fields.requireContentMetadata(id, ContentMetadataField.AuthorSignature),
+            signatureVersion = fields.requireContentMetadata(id, ContentMetadataField.SignatureVersion).toInt(),
         )
 
     private fun VectorStore.PostDump.toCsvExportEntry(): CsvExportEntry {

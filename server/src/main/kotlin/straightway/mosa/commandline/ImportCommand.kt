@@ -77,7 +77,7 @@ internal class ImportCommand(
         val id =
             try {
                 if (rootId == null) {
-                    publish(authorGid, PublishRequest(post.text), receiveTimestamp)
+                    publish(authorGid, PublishRequest(post.text), receiveTimestamp, "")
                 } else {
                     val realRootId = idTable.getOrDefault(rootId, rootId)
                     reply(
@@ -87,6 +87,7 @@ internal class ImportCommand(
                             realRootId,
                         ),
                         receiveTimestamp,
+                        "",
                     )
                 }
             } catch (_: RootNotFoundException) {
@@ -97,16 +98,22 @@ internal class ImportCommand(
         return ImportState.Success
     }
 
-    private fun VectorStore.PostDump.getAuthorGid(): String =
-        fields[AUTHOR_GID_KEY]
-            ?.let { authorGid: String ->
-                runCatching {
-                    Base64.UrlSafe.decode(authorGid)
-                    authorGid
-                }.getOrElse {
-                    val hasher = hasherFactory()
-                    val hash = hasher.digest(authorGid.toByteArray())
-                    Base64.UrlSafe.encode(hash)
-                }
-            } ?: throw RuntimeException("user without field value for `${AUTHOR_GID_KEY}`")
+    private fun VectorStore.PostDump.getAuthorGid(): String {
+        val authorGid = fields[AUTHOR_GID_KEY] ?: throw RuntimeException("user without field value for `${AUTHOR_GID_KEY}`")
+        return normalizeAuthorGid(authorGid)
+    }
+
+    private fun normalizeAuthorGid(authorGid: String): String =
+        if (isBase64Url(authorGid)) {
+            authorGid
+        } else {
+            val hasher = hasherFactory()
+            val hash = hasher.digest(authorGid.toByteArray())
+            Base64.UrlSafe.encode(hash)
+        }
+
+    private fun isBase64Url(value: String): Boolean =
+        runCatching {
+            Base64.UrlSafe.decode(value)
+        }.isSuccess
 }
