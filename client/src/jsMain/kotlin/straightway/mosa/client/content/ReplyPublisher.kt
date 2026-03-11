@@ -1,11 +1,11 @@
 package straightway.mosa.client.content
 
 import straightway.mosa.client.pod.PodSessionProvider
-import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.ReplyRequest
 
 class ReplyPublisher(
     private val podSessionProvider: PodSessionProvider,
+    private val contentSigner: ContentSigner,
 ) {
     suspend fun publish(rawText: String, rootId: String): Boolean {
         val text = rawText.trim()
@@ -14,7 +14,7 @@ class ReplyPublisher(
             podSessionProvider.execute("reply") { session ->
                 session.podAccess.reply(
                     ReplyRequest(
-                        content = PublishRequest(text),
+                        content = contentSigner.signReply(session.identity, text, rootId),
                         rootId = rootId,
                     ),
                     session.jwt,

@@ -2,10 +2,15 @@ package straightway.mosa.client.content
 
 import kotlinx.browser.window
 import kotlinx.coroutines.test.runTest
+import org.khronos.webgl.ArrayBuffer
+import org.khronos.webgl.Int8Array
 import kotlin.js.unsafeCast
+import kotlin.js.Promise
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.auth.PodCertificateResponse
+import straightway.mosa.client.browser.CryptoKey
 import straightway.mosa.client.browser.CryptoKeyPair
+import straightway.mosa.client.browser.SubtleCrypto
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
@@ -15,11 +20,14 @@ import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.client.pod.PodCertificateCache
 import straightway.mosa.client.pod.InMemoryPodCertificateStore
 import straightway.mosa.client.pod.PodSessionProvider
+import straightway.mosa.client.util.Base64.toBase64Url
+import straightway.mosa.content.ContentSignaturePayload
+import straightway.mosa.content.ContentSignatureVersion
+import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
-import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
@@ -47,6 +55,7 @@ class PostPublisherTest {
     private lateinit var logger: PublishRecordingLogger
     private lateinit var jwtBuilder: RecordingJwtBuilder
     private lateinit var certificateCache: PodCertificateCache
+    private lateinit var subtleCrypto: RecordingPublishSubtleCrypto
     private lateinit var timeService: TestTimeService
 
     @BeforeTest
@@ -54,6 +63,7 @@ class PostPublisherTest {
         podAccess = RecordingPublishPodAccess()
         logger = PublishRecordingLogger()
         jwtBuilder = RecordingJwtBuilder()
+        subtleCrypto = RecordingPublishSubtleCrypto()
         timeService = TestTimeService(0)
         certificateCache = PodCertificateCache(timeService, InMemoryPodCertificateStore())
     }
@@ -72,7 +82,21 @@ class PostPublisherTest {
 
         assertTrue(success)
         assertEquals(listOf(identity.gid), podAccess.approveInvocations)
-        assertEquals(listOf(PublishRequest("Hallo Welt")), podAccess.publishRequests)
+        val canonicalPayload = ContentSignaturePayload.forPost("Hallo Welt").toCanonicalBytes()
+        assertEquals(
+            listOf(
+                PublishRequest(
+                    text = "Hallo Welt",
+                    signature = canonicalPayload.toBase64Url(),
+                    signatureVersion = ContentSignatureVersion.V1,
+                ),
+            ),
+            podAccess.publishRequests,
+        )
+        val signCall = subtleCrypto.signCalls.single()
+        assertEquals("Ed25519", signCall.algorithm)
+        assertEquals(canonicalPayload.toList(), signCall.bytes.toList())
+        assertEquals(identity.keyPair.privateKey, signCall.privateKey)
         val jwtInvocation = jwtBuilder.invocations.single()
         assertEquals(identity.gid, jwtInvocation.first.gid)
         assertEquals(identity.gid, jwtInvocation.second.gid)
@@ -91,16 +115,40 @@ class PostPublisherTest {
 
     private fun createPublisher(): PostPublisher =
         PostPublisher(
-            PodSessionProvider(
-                identityRepository = PublishStaticIdentityRepository(identity),
-                podBaseProvider = PodBaseProvider(),
-                podAccessFactory = { podAccess },
-                jwtBuilder = { identity, certificate -> jwtBuilder.build(identity, certificate) },
-                certificateCache = certificateCache,
-                timeService = timeService,
-                logger = logger,
-            )
+            podSessionProvider =
+                PodSessionProvider(
+                    identityRepository = PublishStaticIdentityRepository(identity),
+                    podBaseProvider = PodBaseProvider(),
+                    podAccessFactory = { podAccess },
+                    jwtBuilder = { identity, certificate -> jwtBuilder.build(identity, certificate) },
+                    certificateCache = certificateCache,
+                    timeService = timeService,
+                    logger = logger,
+                ),
+            contentSigner = ContentSigner(SubtleCrypto(subtleCrypto.wrapped)),
         )
+}
+
+private class RecordingPublishSubtleCrypto {
+    data class SignCall(
+        val algorithm: String,
+        val privateKey: CryptoKey,
+        val bytes: ByteArray,
+    )
+
+    val signCalls = mutableListOf<SignCall>()
+    val wrapped =
+        run {
+            val subtle = js("{}").unsafeCast<dynamic>()
+            subtle.sign = { algorithm: String, privateKey: CryptoKey, bytes: ByteArray ->
+                signCalls += SignCall(algorithm, privateKey, bytes)
+                Promise.resolve(bytes.toArrayBuffer())
+            }
+            subtle
+        }
+
+    private fun ByteArray.toArrayBuffer(): ArrayBuffer =
+        ArrayBuffer(size).also { Int8Array(it).set(unsafeCast<Int8Array>()) }
 }
 
 private class RecordingPublishPodAccess : PodAccess {

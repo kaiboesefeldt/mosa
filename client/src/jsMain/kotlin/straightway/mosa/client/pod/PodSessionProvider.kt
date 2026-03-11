@@ -65,7 +65,7 @@ class PodSessionProvider(
     ): PodSession? {
         val response = certificate(podBase, identity, podAccess) ?: return null
         val jwt = jwt(identity, response.certificate) ?: return null
-        return PodSession(podAccess, jwt)
+        return PodSession(identity, podAccess, jwt)
     }
 
     private suspend fun certificate(
@@ -141,6 +141,7 @@ class PodSessionProvider(
 }
 
 data class PodSession(
+    val identity: Identity,
     val podAccess: PodAccess,
     val jwt: String,
 )

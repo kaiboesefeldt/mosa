@@ -9,6 +9,8 @@ import kotlinx.browser.window
 import kotlinx.coroutines.await
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
+import org.khronos.webgl.ArrayBuffer
+import org.khronos.webgl.Int8Array
 import kotlin.js.unsafeCast
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
@@ -25,6 +27,7 @@ import straightway.mosa.auth.PodCertificate
 import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.browser.CryptoKeyPair
+import straightway.mosa.client.browser.SubtleCrypto
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
@@ -55,6 +58,7 @@ import straightway.mosa.client.content.TopicStore
 import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.AllPostsDeletionService
+import straightway.mosa.client.content.ContentSigner
 import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.ReplyCache
 import straightway.mosa.client.content.ReplyCacheSnapshot
@@ -642,6 +646,14 @@ private fun scrollPostsToEnd(container: Element) {
                 single { PodBaseProvider() }
                 single<PodAccessFactory> { { podAccess } }
                 single<JwtBuilder> { { _, _ -> "jwt" } }
+                single {
+                    val subtle = js("{}").unsafeCast<dynamic>()
+                    subtle.sign = { _: String, _: dynamic, bytes: ByteArray ->
+                        kotlin.js.Promise.resolve(bytes.toArrayBuffer())
+                    }
+                    SubtleCrypto(subtle)
+                }
+                single { ContentSigner(get()) }
                 single<Logger> { RecordingLogger() }
                 single<PodCertificateStore> { InMemoryPodCertificateStore() }
                 single { PodCertificateCache(get(), get()) }
@@ -656,10 +668,10 @@ private fun scrollPostsToEnd(container: Element) {
                         get(),
                     )
                 }
-                single { PostPublisher(get()) }
+                single { PostPublisher(get(), get()) }
                 single { PostDeletionService(get(), get(), get()) }
                 single { AllPostsDeletionService(get(), get(), get()) }
-                single { ReplyPublisher(get()) }
+                single { ReplyPublisher(get(), get()) }
                 single { TopicSearchService(get(), get(), get()) }
                 single { ReplySearchService(get(), get(), get()) }
             }
@@ -684,6 +696,9 @@ private fun scrollPostsToEnd(container: Element) {
     private fun snapshotRefreshButton(container: Element): Element =
         container.querySelector(".snapshot-refresh-trigger") ?: error("Snapshot refresh trigger missing")
 }
+
+private fun ByteArray.toArrayBuffer(): ArrayBuffer =
+    ArrayBuffer(size).also { Int8Array(it).set(unsafeCast<Int8Array>()) }
 
 private val ConnectedViewHarness = FC<Props> {
     IdentityConnectedView {

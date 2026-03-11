@@ -49,6 +49,7 @@ import straightway.mosa.client.content.PostCache
 import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.AllPostsDeletionService
+import straightway.mosa.client.content.ContentSigner
 import straightway.mosa.client.content.PostsCsvDownloader
 import straightway.mosa.client.content.PostsExportPort
 import straightway.mosa.client.content.PostsExportService
@@ -151,6 +152,7 @@ object AppModule : KoinComponent {
                             )
                         }
                         single { CryptoExport(get()) }
+                        single { ContentSigner(get()) }
                         single<JwtBuilder> {
                             { identity, certificate ->
                                 get<MisJwtService>().buildMisJwt(identity, certificate)
@@ -170,10 +172,10 @@ object AppModule : KoinComponent {
                         single<PostCache> { IndexedDbPostCache(get(), get(), get()) }
                         single<ReplyCache> { IndexedDbReplyCache(get(), get(), get()) }
                         single { TopicRepository(get(), get()) }
-                        single { PostPublisher(get()) }
+                        single { PostPublisher(get(), get()) }
                         single { PostDeletionService(get(), get(), get()) }
                         single { AllPostsDeletionService(get(), get(), get()) }
-                        single { ReplyPublisher(get()) }
+                        single { ReplyPublisher(get(), get()) }
                         single { TopicSearchService(get(), get(), get()) }
                         single { ReplySearchService(get(), get(), get()) }
                         single { BrowserPrefs() }
