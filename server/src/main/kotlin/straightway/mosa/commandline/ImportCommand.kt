@@ -1,5 +1,6 @@
 package straightway.mosa.commandline
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.coroutines.runBlocking
@@ -40,11 +41,16 @@ internal class ImportCommand(
             runBlocking {
                 val idTable = mutableMapOf<String, String>()
                 val postponed = mutableListOf<VectorStore.PostDump>()
+                var importCount = 0
+                var overallCount = 0
                 input.bufferedReader().use { stdin ->
                     val reader = streamIO.readerFrom(stdin)
                     reader.asFlow().collect { postDump ->
+                        ++overallCount
                         if (contentService.import(postDump, idTable) == ImportState.Failure) {
                             postponed.add(postDump)
+                        } else {
+                            importCount++
                         }
                     }
                 }
@@ -56,9 +62,12 @@ internal class ImportCommand(
                     p.forEach { postDump ->
                         if (contentService.import(postDump, idTable) == ImportState.Failure) {
                             postponed.add(postDump)
+                        } else {
+                            ++importCount
                         }
                     }
                 }
+                logger.info { "Imported $importCount of $overallCount posts and replies." }
                 check(postponed.isEmpty()) { "Could not import these posts: $postponed" }
             }
         } finally {
@@ -73,8 +82,9 @@ internal class ImportCommand(
         post: VectorStore.PostDump,
         idTable: MutableMap<String, String>,
     ): ImportState {
-        val authorGid = post.getAuthorGid()
+        val rawAuthorGid = post.requireField(AUTHOR_GID_KEY)
         val authorPublicKey = post.requireField(AUTHOR_PUBLIC_KEY_KEY)
+        val authorGid = normalizeAuthorGid(rawAuthorGid, authorPublicKey)
         val publishRequest = post.toPublishRequest()
         val rootId = post.fields[ROOT_ID_KEY]
         val receiveTimestamp = post.fields[RECEIVED_AT_KEY]?.toLong() ?: 0L
@@ -102,11 +112,6 @@ internal class ImportCommand(
         return ImportState.Success
     }
 
-    private fun VectorStore.PostDump.getAuthorGid(): String {
-        val authorGid = fields[AUTHOR_GID_KEY] ?: throw RuntimeException("user without field value for `${AUTHOR_GID_KEY}`")
-        return normalizeAuthorGid(authorGid)
-    }
-
     private fun VectorStore.PostDump.toPublishRequest(): PublishRequest =
         PublishRequest(
             text = text,
@@ -117,17 +122,37 @@ internal class ImportCommand(
     private fun VectorStore.PostDump.requireField(fieldName: String): String =
         fields[fieldName] ?: throw RuntimeException("user without field value for `$fieldName`")
 
-    private fun normalizeAuthorGid(authorGid: String): String =
-        if (isBase64Url(authorGid)) {
-            authorGid
-        } else {
-            val hasher = hasherFactory()
-            val hash = hasher.digest(authorGid.toByteArray())
-            Base64.UrlSafe.encode(hash)
+    private fun normalizeAuthorGid(
+        authorGid: String,
+        authorPublicKey: String,
+    ): String {
+        val authorPublicKeyBytes = decodeBase64Url(authorPublicKey) ?: throw RuntimeException("authorPublicKey is not valid base64url")
+        val normalizedAuthorGid =
+            decodeBase64Url(authorGid)?.let(::encodeBase64Url) ?: run {
+                val hasher = hasherFactory()
+                val hash = hasher.digest(authorGid.toByteArray())
+                encodeBase64Url(hash)
+            }
+        val expectedAuthorGid = encodeBase64Url(hasherFactory().digest(authorPublicKeyBytes))
+        if (normalizedAuthorGid.isNotEmpty() && normalizedAuthorGid != expectedAuthorGid) {
+            throw RuntimeException("authorGID does not match authorPublicKey")
         }
+        return normalizedAuthorGid
+    }
 
-    private fun isBase64Url(value: String): Boolean =
+    private fun decodeBase64Url(value: String): ByteArray? =
         runCatching {
-            Base64.UrlSafe.decode(value)
-        }.isSuccess
+            Base64.UrlSafe
+                .withPadding(Base64.PaddingOption.ABSENT)
+                .decode(value)
+        }.getOrNull()
+
+    private fun encodeBase64Url(value: ByteArray): String =
+        Base64.UrlSafe
+            .withPadding(Base64.PaddingOption.ABSENT)
+            .encode(value)
+
+    private companion object {
+        val logger = KotlinLogging.logger {}
+    }
 }
