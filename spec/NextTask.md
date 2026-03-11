@@ -1,256 +1,378 @@
-# Snapshot Freeze/Restore Minimal Design
+# Konzept: Autorensignaturen fuer Posts und Replies
 
-## Goal
+## Ziel
 
-Implement a simple decentralized processing restriction workflow:
+Posts und Replies sollen nicht nur ueber MIS-JWT transport-authentifiziert sein, sondern als Inhalte selbst kryptographisch vom Autor signiert werden.
 
-1. A user can freeze processing of their content on a pod.
-2. The pod exports the relevant content into an encrypted snapshot file.
-3. The user downloads and stores that file.
-4. The exported content is deleted from the pod.
-5. The user can later upload the snapshot to the same pod to restore the content.
+Das System soll drei Dinge erzwingen:
 
-This first version intentionally optimizes for simplicity over maximal recoverability.
+1. Der Client signiert Post oder Reply vor dem Senden mit dem privaten Ed25519-Schluessel der Identitaet.
+2. Der Pod prueft diese Signatur beim Empfang und weist den Request bei Fehlschlag zurueck.
+3. Clients pruefen empfangene Posts und Replies erneut und verarbeiten nur gueltige Inhalte weiter.
 
-## Scope
+## Ausgangslage
 
-The snapshot must contain:
+Derzeit bindet das MIS-JWT den Request an eine Identitaet:
 
-- all root posts authored by the user
-- all replies authored by the user
-- all replies authored by other users on root posts authored by the user
+- Das JWT enthaelt `pub` und ein vom Pod signiertes Zertifikat `cert`.
+- Der Pod validiert JWT-Signatur, Zertifikat und die Bindung `gid = SHA-256(pub)`.
+- Der Content selbst ist aber nicht separat signiert.
 
-The snapshot must not contain unrelated third-party content.
+Konsequenz:
 
-## Product Rules
+- Nach dem Speichern ist fuer spaetere Leser kryptographisch nicht mehr nachweisbar, dass genau dieser Text vom Autor stammt.
+- `FetchResult.Entry` und `QueryResult.Entry` enthalten heute nicht die Daten, die ein Client fuer eine Inhaltspruefung braucht.
 
-- A snapshot is restorable only on the same pod that created it.
-- A snapshot is restorable only for a limited time.
-- After the snapshot has expired, restore must fail.
-- After successful freeze, the exported content is deleted from the pod.
-- If the user loses the snapshot file, the data is lost.
-- If the pod loses the required archive key, restore is impossible.
+## Leitentscheidung
 
-## Security Model
+MIS-JWT bleibt fuer Session- und Transport-Authentifizierung zustaendig.
 
-Use a dedicated persistent pod archive key for snapshot encryption.
+Zusaetzlich bekommt jeder Post und jede Reply eine eigene, persistierte Inhaltssignatur. Der Pod uebernimmt dabei nicht die Rolle des Inhaltssignierers, sondern nur die Rolle des Verifizierers und Speichers.
 
-- Do not reuse JWT signing keys or other existing pod keys.
-- Use AEAD encryption so encryption and integrity protection are handled together.
-- Do not add a separate signature in v1.
+## Empfohlenes Signaturmodell
 
-Recommended primitive:
+### 1. Signiert wird ein kanonischer Inhalts-Payload
 
-- `AES-GCM`
+Der Autor signiert nicht den kompletten HTTP-Request und auch nicht serverseitige Felder wie `id` oder `storedAt`, weil diese beim Signieren noch nicht feststehen.
 
-Meaning:
+Empfohlen wird ein eigener kanonischer Payload `ContentSignaturePayloadV1`:
 
-- the user cannot read the snapshot contents
-- the user cannot modify the snapshot without restore failing
-- if the archive key is compromised, old snapshots encrypted with that key can be read and forged
+```json
+{
+  "v": 1,
+  "kind": "post",
+  "text": "Hello",
+  "rootId": ""
+}
+```
 
-## Key Management
+Fuer Replies:
 
-Keep the key lifecycle intentionally small and explicit.
+```json
+{
+  "v": 1,
+  "kind": "reply",
+  "text": "I agree",
+  "rootId": "root-123"
+}
+```
 
-- At most two archive keys are stored on the pod at the same time.
-- Each key has a stable `keyId`, for example `archive-2026`.
-- New snapshots are always encrypted with the current active key.
-- A snapshot carries its `keyId`.
-- A snapshot also carries an explicit `expiresAt`.
-- Restore must fail if `now > expiresAt`.
-- Old keys may be deleted once no non-expired snapshot should still depend on them.
+Regeln:
 
-Practical policy for v1:
+- UTF-8 kodieren.
+- Feste Feldreihenfolge verwenden.
+- `rootId` fuer Root-Posts immer als leerer String serialisieren, nicht als fehlendes Feld.
+- Die Payload-Erzeugung in gemeinsamen Shared-Code kapseln, nicht per ad-hoc String-Konkatenation an mehreren Stellen.
 
-- target restore validity: one year after snapshot creation
-- keep current and previous archive key
-- if a key is compromised, remove it immediately and generate a new active key
-- snapshots depending on a removed key become unrestorable
+Der Pod und alle Clients muessen exakt dieselbe Bytefolge erzeugen.
 
-## Snapshot File Format
+### 2. Die Signatur verwendet den gleichen Autorenschluessel wie das MIS-JWT
 
-Use one binary snapshot file, for example:
+Der sendende Client signiert mit demselben privaten Ed25519-Schluessel, dessen oeffentlicher Schluessel bereits im MIS-JWT als `pub` transportiert wird.
 
-- `mosa-snapshot-YYYY-MM-DD.bin`
+Vorteile:
 
-Structure:
+- Kein zweites Schluesselpaar.
+- Der Pod kann die Inhaltssignatur mit dem bereits authentifizierten `pub` pruefen.
+- Die Bindung Autor <-> Schluessel bleibt konsistent.
 
-1. unencrypted header
-2. encrypted payload
+### 3. Der Pod speichert die fuer spaetere Verifikation noetigen Nachweise
 
-### Unencrypted Header
+Damit spaetere Leser die Signatur selbst pruefen koennen, muss der Pod bei jedem gespeicherten Inhalt mindestens diese Felder persistieren:
 
-The header should be minimal and machine-readable:
+- `authorPublicKey`
+- `authorSignature`
+- `signatureVersion`
+- `rootId` fuer Replies
+- `receivedAt`
 
-- `formatVersion`
-- `podId`
-- `keyId`
-- `createdAt`
-- `expiresAt`
-- `nonce`
+`authorGID` kann weiterhin als abgeleitete, redundante Information gespeichert oder in Responses mitgegeben werden, sollte aber nicht mehr die primaere Vertrauensbasis sein. Die primaere Vertrauensbasis ist der oeffentliche Schluessel des Autors plus die daraus deterministisch abgeleitete GID.
 
-The header must be included as AEAD associated data so it cannot be modified undetected.
+Die Signatur wird nicht nur transient beim Request geprueft, sondern als Teil der Content-Metadaten gespeichert.
 
-### Encrypted Payload
+## API-Aenderungen
 
-The payload contains:
+### Schreibende Requests
 
-- `manifest.json`
-- content records
+`PublishRequest` sollte um eine Inhaltssignatur erweitert werden:
 
-`manifest.json` should contain:
+```kotlin
+@Serializable
+data class PublishRequest(
+    val text: String,
+    val signature: String,
+    val signatureVersion: Int = 1,
+)
+```
 
-- `ownerGid`
-- `recordCount`
-- `archivePolicyVersion`
+`ReplyRequest` bleibt strukturell gleich, weil es bereits `PublishRequest` verschachtelt:
 
-For content records, prefer `NDJSON` over CSV in v1 because parsing and validation are simpler and less fragile.
+```kotlin
+@Serializable
+data class ReplyRequest(
+    val content: PublishRequest,
+    val rootId: String,
+)
+```
 
-Each record should contain:
+Empfehlung:
 
-- `id`
-- `text`
-- `authorGid`
-- `storedAt`
-- `rootId`
+- `authorPublicKey` nicht im Request mitsenden, sondern aus dem validierten MIS-JWT beziehen.
+- `authorGID` ebenfalls nicht im Request mitsenden, sondern serverseitig aus `authorPublicKey` ableiten.
+- Dadurch gibt es keine Redundanz und keine Inkonsistenz zwischen Body und Authorization-Header.
 
-## API Proposal
+### Lesende Responses
 
-### `POST /v1/privacy/freeze`
+Alle DTOs, die kompletten Inhalt transportieren, muessen die Verifikationsdaten mitliefern:
 
-Authenticated endpoint.
+- `FetchResult.Entry`
+- `QueryResult.Entry`
 
-Behavior:
+Empfohlene Felder:
 
-1. Resolve export set for authenticated user.
-2. Resolve the current active archive key.
-3. Generate a fresh random nonce on the server.
-4. Derive `createdAt` and `expiresAt` from server-side policy.
-5. Build snapshot payload.
-6. Encrypt payload with the active archive key using AEAD.
-7. Return snapshot bytes as file download.
-8. Delete all exported records from the pod only after the snapshot has been successfully created in memory.
+```kotlin
+val authorPublicKey: String
+val authorSignature: String
+val signatureVersion: Int
+```
 
-Response:
+`authorGID` kann in Responses erhalten bleiben, sollte aber vom empfangenden Client immer gegen `SHA-256(authorPublicKeyRaw)` gegengeprueft werden statt isoliert vertraut zu werden.
 
-- binary file download
+`SearchResult` braucht keine Erweiterung, weil dort nur IDs und Scores transportiert werden.
 
-Notes:
+## Server-Verhalten beim Empfang
 
-- v1 may keep this endpoint synchronous.
-- If export set is empty, return an empty but valid snapshot or reject explicitly. This must be decided once and documented.
+### Auth-Schicht erweitern
 
-### `POST /v1/privacy/restore`
+Heute liefert `PodPrincipal` nur das Zertifikat bzw. die `gid`.
 
-Authenticated endpoint.
+Empfehlung:
 
-Behavior:
+- `PodPrincipal` um den authentifizierten oeffentlichen Schluessel aus dem JWT erweitern.
+- Die JWT-Pruefung bleibt in `Auth0TokenUtil`.
+- `ContentController` oder `ContentService` bekommt damit direkten Zugriff auf `gid` und `authorPublicKey`.
 
-1. Accept uploaded snapshot file.
-2. Parse unencrypted header.
-3. Verify `formatVersion` is supported.
-4. Verify `podId` matches this pod.
-5. Verify `expiresAt` has not passed.
-6. Enforce configured snapshot size limits.
-7. Resolve key by `keyId`.
-8. AEAD-decrypt payload.
-9. Validate manifest and all content records.
-10. Restore records.
+Beispiel:
 
-Response:
+```kotlin
+data class PodPrincipal(
+    val certificate: PodCertificate,
+    val publicKeyBase64: String,
+)
+```
 
-- summary object with restored ids and counts
+### Verifikation bei `/publish` und `/reply`
 
-## Restore Validation Rules
+Pruefablauf:
 
-Restore must reject the snapshot if:
+1. MIS-JWT wie bisher validieren.
+2. Kanonischen Payload fuer Post oder Reply bilden.
+3. `signatureVersion` pruefen.
+4. `signature` base64url-dekodieren.
+5. Mit `publicKeyBase64` aus dem authentifizierten Principal die Ed25519-Signatur pruefen.
+6. `gid` serverseitig aus `publicKeyBase64` ableiten.
+7. Zusaetzlich pruefen, dass dieses abgeleitete `gid` exakt `certificate.gid` entspricht.
+7. Nur bei Erfolg speichern.
 
-- `formatVersion` is unknown
-- `podId` does not match
-- `keyId` is unknown
-- `expiresAt` is in the past
-- snapshot size exceeds configured limits
-- AEAD authentication fails
-- record count exceeds configured limits
-- required fields are missing
-- a reply references a missing root
-- duplicate ids appear inside the snapshot
+Fehlschlaege:
 
-Even though the snapshot is encrypted, restore must still enforce normal size and content validation.
+- Ungueltiges JWT: `401 Unauthorized` wie bisher.
+- Unbekannte `signatureVersion`: `422 Unprocessable Entity`.
+- Ungueltige base64url-Signatur oder ungueltiges Format: `400 Bad Request`.
+- Kryptographische Signatur prueft nicht gegen Payload und Author-Key: `422 Unprocessable Entity`.
 
-## Deletion Semantics
+Wichtig:
 
-Freeze deletes exactly the records that were exported.
+- Keine stillschweigende Akzeptanz unsignierter Inhalte.
+- Keine serverseitige Ersatzsignatur.
 
-This includes:
+## Persistenz im Pod
 
-- the user's root posts
-- the user's replies
-- replies by others on the user's root posts
+`ContentMetadataKeys` sollte erweitert werden um:
 
-This behavior must be communicated clearly because it removes third-party replies from the pod as part of freezing the user's thread context.
+- `AUTHOR_PUBLIC_KEY_KEY = "authorPublicKey"`
+- `AUTHOR_SIGNATURE_KEY = "authorSignature"`
+- `SIGNATURE_VERSION_KEY = "signatureVersion"`
 
-## Failure Semantics
+`ContentMetadataField` muss diese Felder ebenfalls kennen, damit fehlende Pflichtmetadaten sauber erkannt werden.
 
-`freeze` must not delete anything if:
+`ContentService.writeContent(...)` speichert dann zusaetzlich:
 
-- export set resolution fails
-- active archive key resolution fails
-- nonce generation fails
-- snapshot serialization fails
-- encryption fails
+- `AUTHOR_PUBLIC_KEY_KEY`
+- `AUTHOR_SIGNATURE_KEY`
+- `SIGNATURE_VERSION_KEY`
+- `RECEIVED_AT_KEY`
+- optional `ROOT_ID_KEY`
 
-`restore` must not partially import content unless the implementation can guarantee a clearly defined transactional behavior.
+`AUTHOR_GID_KEY` kann entweder:
 
-Preferred v1 behavior:
+- weiterhin explizit gespeichert werden, aber nur als vom Server aus `AUTHOR_PUBLIC_KEY_KEY` abgeleitete Redundanz, oder
+- perspektivisch ganz aus dem persistierten Content entfallen, falls keine Query- oder Exportpfade davon abhaengen.
 
-- validate whole snapshot first
-- restore only after validation succeeds
+Fuer die Einfuehrung ist die pragmatischere Variante, `AUTHOR_GID_KEY` vorerst beizubehalten, aber niemals aus dem Request zu uebernehmen.
 
-## TDD Delivery Plan
+## Client-Verhalten beim Senden
 
-### Increment 1
+### Browser-Client
 
-- add domain-level logic for selecting the freeze export set
-- cover exact inclusion rules with unit tests
+Beim Publizieren:
 
-### Increment 2
+1. Text trimmen wie bisher.
+2. Signatur-Payload `ContentSignaturePayloadV1(kind = "post", text = text, rootId = "")` bauen.
+3. Payload mit `subtleCrypto.sign("Ed25519", identity.keyPair.privateKey, payloadBytes)` signieren.
+4. `PublishRequest(text, signature, 1)` senden.
 
-- add snapshot header and payload model
-- add serialization tests
+Beim Reply:
 
-### Increment 3
+1. Payload `ContentSignaturePayloadV1(kind = "reply", text = text, rootId = rootId)` bauen.
+2. Signieren.
+3. `ReplyRequest(PublishRequest(text, signature, 1), rootId)` senden.
 
-- add AEAD encryption/decryption service
-- test successful decrypt and tamper failure
+### Client-Scope
 
-### Increment 4
+Die CLI wird hier ignoriert und gehoert nicht mehr zum Scope dieser Aufgabe.
 
-- add freeze application service
-- add server-side nonce generation and active archive key resolution
-- test: snapshot produced and matching records deleted
+Die Umsetzung betrifft nur:
 
-### Increment 5
+- Browser-Client
+- Pod
+- geteilte DTOs und gemeinsames Signaturmodell in `shared`
 
-- add restore application service
-- add header-first validation and size limits
-- test: valid snapshot restores records
+## Client-Verhalten beim Empfang
 
-### Increment 6
+### Was verifiziert werden muss
 
-- add failure tests
-- expired snapshot
-- wrong pod id
-- unsupported format version
-- unknown key id
-- oversized snapshot
-- modified ciphertext
-- invalid reply/root relationships
+Jeder Client muss alle empfangenen Posts und Replies verifizieren, bevor sie in Cache, UI oder weitere Verarbeitung gelangen.
 
-## Decisions
+Das betrifft mindestens:
 
-- freeze with zero matching records should succeed and yield NO_CONTENT.
-- maximum allowed snapshot size: constrained by configuration and enforced before decrypt
-- whether restore should be blocked if the user already has active content on the pod: No. If content is duplicated by the snapshot (e.g. because the snapshot is restored twice), the content from the snapshot 
-- exact binary framing for header plus ciphertext
+- `FetchResult.Entry`
+- `QueryResult.Entry`
+
+### Verifikationsregeln
+
+Fuer jeden Eintrag:
+
+1. `authorPublicKey` base64url-dekodieren.
+2. `SHA-256(authorPublicKeyRaw)` berechnen.
+3. Falls `authorGID` im DTO vorhanden ist, muss das Ergebnis exakt `authorGID` ergeben.
+4. Kanonischen Payload aus `content`, `rootId` und `kind` bilden.
+5. `authorSignature` per Ed25519 gegen diesen Payload pruefen.
+
+`kind` wird aus `rootId` abgeleitet:
+
+- `rootId == null` oder leer => Post
+- sonst => Reply
+
+### Verhalten bei Fehlschlag
+
+Empfehlung fuer normale Clients:
+
+- Ungueltige Eintraege nicht cachen.
+- Ungueltige Eintraege nicht rendern.
+- Den Vorfall loggen.
+- In der UI eine knappe Integritaetswarnung anzeigen, wenn durch Verifikation Eintraege weggefiltert wurden.
+
+Das ist bewusst fail-closed. Wenn der Pod bereits bei der Annahme prueft, deutet ein spaeterer Fehlschlag auf Datenkorruption, fehlerhafte Migration oder kompromittierte Daten hin.
+
+## Auswirkungen auf die bestehende Client-Architektur
+
+### Browser-Cache
+
+`CachedPost` sollte um die Verifikationsdaten erweitert werden:
+
+- `authorPublicKey`
+- `authorSignature`
+- `signatureVersion`
+
+`authorGID` kann fuer bestehende UI- und Sortierpfade erhalten bleiben, muss aber als aus dem Public Key abgeleitete Information behandelt werden.
+
+Nur erfolgreich verifizierte Eintraege duerfen in `IndexedDbPostCache` und `IndexedDbReplyCache` landen.
+
+### Search- und Fetch-Flows
+
+Aktuell holen `TopicSearchService` und `ReplySearchService` Inhalte ueber `fetch(...)`.
+
+Dort sollte die Verifikation unmittelbar nach dem Mapping von `FetchResult.Entry` stattfinden, bevor:
+
+- ein `CachedPost` erzeugt wird
+- in den Cache geschrieben wird
+- die UI Daten sieht
+
+Falls spaeter `QueryResult.Entry` direkt fuer UI genutzt wird, gilt dort dieselbe Regel.
+
+## Migration
+
+Migration ist hier nicht relevant, weil noch keine Bestandsdaten im Feld existieren.
+
+Daraus folgt:
+
+- Es gibt keinen Legacy-Modus fuer unsignierte Inhalte.
+- Der Pod akzeptiert ab Einfuehrung nur noch signierte Posts und Replies.
+- Clients verarbeiten ab Einfuehrung nur noch erfolgreich verifizierte Inhalte.
+
+Das System startet damit direkt fail-closed.
+
+## Nebeneffekte auf Export, Import und Snapshots
+
+Die Signaturmetadaten muessen ueberall mitgenommen werden, wo Content serialisiert oder restauriert wird:
+
+- `PostDumpStreamIO`
+- `ImportCommand`
+- CSV-Export, falls er als vollstaendige Wiederherstellungsquelle gedacht ist
+- Privacy-Snapshot-Freeze/Restore
+
+Wenn diese Pfade die neuen Metadaten nicht transportieren, entstehen nach Restore oder Import Inhalte, die Clients spaeter als ungueltig verwerfen.
+
+## Empfohlene Implementierungsreihenfolge
+
+1. Shared Payload-Codec fuer `ContentSignaturePayloadV1` einfuehren und testen.
+2. Browser-Client: Signatur beim Publish/Reply erzeugen.
+3. Server: Empfangsverifikation fuer `/publish` und `/reply` erzwingen.
+4. Persistenz und Response-DTOs um Public Key, Signatur und Version erweitern.
+5. Browser-Client: Empfangsverifikation vor Cache/UI einbauen.
+6. Import/Export/Snapshot-Pfade nachziehen.
+7. RAML-Spezifikation aktualisieren.
+
+## Teststrategie
+
+### Shared
+
+- deterministische Tests fuer den kanonischen Payload
+- Tests fuer `post` vs. `reply`
+- Tests fuer `rootId = ""` vs. gesetzte `rootId`
+
+### Client
+
+- `PostPublisherTest`: signiert Payload und sendet Signatur mit
+- `ReplyPublisherTest`: signiert mit `rootId`
+- `TopicSearchServiceTest` und `ReplySearchServiceTest`: verwerfen ungueltige Eintraege
+- Cache-Tests: nur verifizierte Inhalte werden persistiert
+
+### Server
+
+- `ContentControllerTest` oder HTTP-Tests:
+  - `publish` mit gueltiger Signatur => `201`
+  - `publish` mit falscher Signatur => `422`
+  - `reply` mit falscher Signatur => `422`
+  - `reply` mit gueltiger Signatur und falschem `rootId` im signierten Payload => `422`
+- `ContentServiceTest`:
+  - speichert Signaturmetadaten
+  - liefert Signaturmetadaten ueber `fetch/query` zurueck
+
+### Integration
+
+- Ende-zu-Ende-Test: Client signiert, Pod verifiziert, anderer Client verifiziert beim Lesen erfolgreich.
+
+## Kurzfazit
+
+Die sauberste Loesung ist:
+
+- MIS-JWT weiter fuer Request-Authentifizierung behalten
+- zusaetzlich jeden Post und jede Reply als eigenen Inhalt signieren
+- den Author-Public-Key aus dem authentifizierten JWT fuer die Serverpruefung verwenden
+- die GID nicht als eigenstaendige Vertrauensquelle behandeln, sondern aus dem Public Key ableiten und nur dagegen querpruefen
+- Public Key, Signatur und Signaturversion als Content-Metadaten persistieren und in Responses mitliefern
+- Clients fail-closed nur verifizierte Inhalte anzeigen und cachen
+
+Damit ist kryptographisch nachweisbar, dass der konkrete Inhalt vom behaupteten Autor stammt, auch noch lange nach dem urspruenglichen Request.
