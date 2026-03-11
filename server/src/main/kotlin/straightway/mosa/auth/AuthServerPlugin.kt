@@ -18,7 +18,8 @@ fun Application.installAuthServerPlugins() {
                     val jwt = tokenUtil.decode(credentials.token)
                     if (!tokenUtil.isValidMisJwt(jwt)) return@runCatching null
                     val cert = jwt.claims["cert"]?.asMap()?.toPodCertificate() ?: return@runCatching null
-                    PodPrincipal(cert)
+                    val publicKeyBase64 = jwt.claims["pub"]?.asString() ?: return@runCatching null
+                    PodPrincipal(cert, publicKeyBase64)
                 }.onFailure {
                     val reason = it::class.simpleName ?: "AuthenticationError"
                     logger.debug { "Authentication failed: $reason" }

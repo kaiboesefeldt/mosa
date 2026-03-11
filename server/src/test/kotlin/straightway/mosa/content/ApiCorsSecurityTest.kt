@@ -9,6 +9,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.mockk.justRun
 import io.mockk.mockk
 import straightway.mosa.testutils.setRawJsonBody
 import java.time.Clock
@@ -21,10 +22,12 @@ import kotlin.test.assertTrue
 
 class ApiCorsSecurityTest {
     private val contentService = mockk<ContentService>(relaxed = true)
+    private val contentSignatureVerifier = mockk<ContentSignatureVerifier>()
     private val environment =
         ControllerHttpTestEnvironment(
             ContentController(
                 contentService,
+                contentSignatureVerifier,
                 Clock.fixed(
                     Instant.ofEpochSecond(170000000L),
                     ZoneId.of("UTC"),
@@ -37,6 +40,7 @@ class ApiCorsSecurityTest {
     @Test
     fun `responds to preflight with required headers`() =
         environment {
+            justRun { contentSignatureVerifier.verifyPublish(any(), any()) }
             val response =
                 client.request("/v1/publish") {
                     method = HttpMethod.Options
@@ -62,6 +66,7 @@ class ApiCorsSecurityTest {
     @Test
     fun `unauthorized request still exposes cors headers`() =
         environment {
+            justRun { contentSignatureVerifier.verifyPublish(any(), any()) }
             val response =
                 client.request("/v1/publish") {
                     method = HttpMethod.Post
@@ -79,6 +84,7 @@ class ApiCorsSecurityTest {
     @Test
     fun `rejects insecure api calls`() =
         environment {
+            justRun { contentSignatureVerifier.verifyPublish(any(), any()) }
             val response =
                 client.request("/v1/publish") {
                     method = HttpMethod.Post
@@ -98,6 +104,7 @@ class ApiCorsSecurityTest {
     @Test
     fun `rejects unsupported api methods`() =
         environment {
+            justRun { contentSignatureVerifier.verifyPublish(any(), any()) }
             val response =
                 client.request("/v1/publish") {
                     method = HttpMethod.Put
@@ -114,6 +121,7 @@ class ApiCorsSecurityTest {
     @Test
     fun `accepts secure authorized post request`() =
         environment {
+            justRun { contentSignatureVerifier.verifyPublish(any(), any()) }
             val response =
                 client.request("/v1/publish") {
                     method = HttpMethod.Post

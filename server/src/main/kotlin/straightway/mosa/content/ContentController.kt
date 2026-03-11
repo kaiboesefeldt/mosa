@@ -18,24 +18,29 @@ import java.time.format.DateTimeFormatter
 
 class ContentController(
     private val contentService: ContentService,
+    private val contentSignatureVerifier: ContentSignatureVerifier,
     private val clock: Clock,
 ) : BaseController() {
     override fun Route.register() {
         authenticate {
             postRoute("/publish") {
-                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
+                val principal = userPrincipalOrRespondUnauthorized() ?: return@postRoute
+                val request = call.receive<PublishRequest>()
+                contentSignatureVerifier.verifyPublish(principal, request)
                 contentService.publish(
-                    gid,
-                    call.receive<PublishRequest>(),
+                    principal.gid,
+                    request,
                     clock.instant().epochSecond,
                 )
                 call.respond(HttpStatusCode.Created, null)
             }
             postRoute("/reply") {
-                val gid = userGidOrRespondUnauthorized() ?: return@postRoute
+                val principal = userPrincipalOrRespondUnauthorized() ?: return@postRoute
+                val request = call.receive<ReplyRequest>()
+                contentSignatureVerifier.verifyReply(principal, request)
                 contentService.reply(
-                    gid,
-                    call.receive<ReplyRequest>(),
+                    principal.gid,
+                    request,
                     clock.instant().epochSecond,
                 )
                 call.respond(HttpStatusCode.Created, null)

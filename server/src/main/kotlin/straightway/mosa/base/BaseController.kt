@@ -61,10 +61,10 @@ abstract class BaseController(
         routing.register()
     }
 
-    protected suspend fun RoutingContext.userGidOrRespondUnauthorized(): String? {
+    protected suspend fun RoutingContext.userPrincipalOrRespondUnauthorized(): PodPrincipal? {
         val principal =
             runCatching {
-                call.principal<PodPrincipal>()?.gid
+                call.principal<PodPrincipal>()
                     ?: error("Missing authenticated principal for ${call.request.path()}")
             }.getOrElse {
                 val description = it.message ?: "Missing authenticated principal"
@@ -73,6 +73,8 @@ abstract class BaseController(
             }
         return principal
     }
+
+    protected suspend fun RoutingContext.userGidOrRespondUnauthorized(): String? = userPrincipalOrRespondUnauthorized()?.gid
 
     protected suspend fun RoutingContext.userPodCertificateOrRespondUnauthorized(): PodCertificate? {
         val certificate =

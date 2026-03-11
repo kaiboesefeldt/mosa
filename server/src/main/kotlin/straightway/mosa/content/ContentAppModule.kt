@@ -68,7 +68,8 @@ fun Module.configureContentAppModule() {
         val maxFetchItems = cliArguments.getInt(MAX_FETCH_ITEMS) ?: 100
         ContentService(get(), get(), get(), maxFetchItems)
     }
-    single { ContentController(get(), get()) } bind BaseController::class
+    single { ContentSignatureVerifier(get(), get(), get()) }
+    single { ContentController(get(), get(), get()) } bind BaseController::class
     single { PrivacySnapshotController(get(), get(), get()) } bind BaseController::class
 }
 

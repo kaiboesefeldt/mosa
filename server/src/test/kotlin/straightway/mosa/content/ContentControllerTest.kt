@@ -7,39 +7,50 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.http.ContentDisposition
 import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
-import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.authentication
-import io.ktor.server.auth.bearer
-import io.ktor.server.routing.routing
-import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import straightway.mosa.auth.PodPrincipal
-import straightway.mosa.base.register
+import straightway.mosa.crypto.CryptoEd25519
+import straightway.mosa.crypto.toBase64
 import straightway.mosa.testutils.setJsonBody
+import java.security.KeyPair
+import java.security.Security
+import java.security.Signature
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
+import kotlin.io.encoding.Base64
 import kotlin.test.assertEquals
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
-import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 
 class ContentControllerTest {
+    init {
+        if (Security.getProvider("BC") == null) {
+            Security.addProvider(BouncyCastleProvider())
+        }
+    }
+
     private val test get() =
         object {
             val contentService =
                 mockk<ContentService>()
+            val verifier =
+                ContentSignatureVerifier(
+                    CryptoEd25519(),
+                    { java.security.MessageDigest.getInstance("SHA-256") },
+                    { Signature.getInstance("Ed25519") },
+                )
             val env =
                 ControllerHttpTestEnvironment(
                     ContentController(
                         contentService,
+                        verifier,
                         Clock.fixed(
                             Instant.ofEpochSecond(170000000L),
                             ZoneId.of("UTC"),
@@ -70,6 +81,7 @@ class ContentControllerTest {
                     val request =
                         PublishRequest(
                             text = "Text to publish",
+                            signature = signPost(env.clientKeyPair, "Text to publish"),
                         )
                     coEvery {
                         contentService.publish(env.gid, request, any())
@@ -107,6 +119,7 @@ class ContentControllerTest {
                     val request =
                         PublishRequest(
                             text = "Text to publish",
+                            signature = signPost(env.clientKeyPair, "Text to publish"),
                         )
 
                     val response =
@@ -123,55 +136,86 @@ class ContentControllerTest {
             }
 
         @Test
-        fun `should return 401 Unauthorized when principal gid access fails without message`() =
-            testApplication {
-                val contentService = mockk<ContentService>()
-                val principal = mockk<PodPrincipal>()
-                every { principal.gid } throws RuntimeException()
-
-                application {
-                    install(Authentication) {
-                        bearer {
-                            authenticate { principal }
-                        }
-                    }
-                    install(ServerContentNegotiation) {
-                        jackson()
-                    }
-                    routing {
-                        register(
-                            ContentController(
-                                contentService,
-                                Clock.fixed(
-                                    Instant.ofEpochSecond(170000000L),
-                                    ZoneId.of("UTC"),
-                                ),
-                            ),
+        fun `should return 422 when signature is cryptographically invalid`() =
+            with(test) {
+                env {
+                    val request =
+                        PublishRequest(
+                            text = "Text to publish",
+                            signature = signPost(env.clientKeyPair, "Different text"),
                         )
+
+                    val response =
+                        client.post("/v1/publish") {
+                            setJsonBody(request)
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+                    coVerify(exactly = 0) {
+                        contentService.publish(any(), any(), any())
                     }
                 }
+            }
 
-                client =
-                    createClient {
-                        install(ClientContentNegotiation) {
-                            jackson()
-                        }
-                    }
-
-                val response =
-                    client.post("/v1/publish") {
-                        setJsonBody(
-                            PublishRequest(
-                                text = "Text to publish",
-                            ),
+        @Test
+        fun `should return 422 when signature version is unsupported`() =
+            with(test) {
+                env {
+                    val request =
+                        PublishRequest(
+                            text = "Text to publish",
+                            signature = signPost(env.clientKeyPair, "Text to publish"),
+                            signatureVersion = 2,
                         )
-                        bearerAuth("token")
-                    }
 
-                assertEquals(HttpStatusCode.Unauthorized, response.status)
-                assertEquals(mapOf("message" to "Missing authenticated principal"), response.body())
-                coVerify(exactly = 0) {
-                    contentService.publish(any(), any(), any())
+                    val response =
+                        client.post("/v1/publish") {
+                            setJsonBody(request)
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+                    coVerify(exactly = 0) {
+                        contentService.publish(any(), any(), any())
+                    }
+                }
+            }
+
+        @Test
+        fun `should return 422 when principal gid does not match public key`() =
+            with(test) {
+                env {
+                    application {
+                        install(
+                            createApplicationPlugin("SwapPrincipal") {
+                                onCall { call ->
+                                    call.authentication.principal(
+                                        PodPrincipal(
+                                            certificate = env.podCertificate.copy(gid = "other-gid"),
+                                            publicKeyBase64 = env.clientKeyPair.public.toBase64(),
+                                        ),
+                                    )
+                                }
+                            },
+                        )
+                    }
+                    val request =
+                        PublishRequest(
+                            text = "Text to publish",
+                            signature = signPost(env.clientKeyPair, "Text to publish"),
+                        )
+
+                    val response =
+                        client.post("/v1/publish") {
+                            setJsonBody(request)
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+                    coVerify(exactly = 0) {
+                        contentService.publish(any(), any(), any())
+                    }
                 }
             }
     }
@@ -196,6 +240,7 @@ class ContentControllerTest {
                             content =
                                 PublishRequest(
                                     text = "Text to publish",
+                                    signature = signReply(env.clientKeyPair, "Text to publish", "01234567"),
                                 ),
                             rootId = "01234567",
                         )
@@ -209,6 +254,31 @@ class ContentControllerTest {
 
                     assertEquals(HttpStatusCode.Created, response.status)
                     coVerify(exactly = 1) { contentService.reply(env.gid, request, any()) }
+                }
+            }
+
+        @Test
+        fun `should return 422 when reply signature uses different root id`() =
+            with(test) {
+                env {
+                    val request =
+                        ReplyRequest(
+                            content =
+                                PublishRequest(
+                                    text = "Text to publish",
+                                    signature = signReply(env.clientKeyPair, "Text to publish", "other-root"),
+                                ),
+                            rootId = "01234567",
+                        )
+
+                    val response =
+                        client.post("/v1/reply") {
+                            setJsonBody(request)
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+                    coVerify(exactly = 0) { contentService.reply(any(), any(), any()) }
                 }
             }
     }
@@ -587,4 +657,27 @@ class ContentControllerTest {
                     ),
             )
     }
+
+    private fun signPost(
+        keyPair: KeyPair,
+        text: String,
+    ): String = sign(keyPair, ContentSignaturePayload.forPost(text).toCanonicalBytes())
+
+    private fun signReply(
+        keyPair: KeyPair,
+        text: String,
+        rootId: String,
+    ): String = sign(keyPair, ContentSignaturePayload.forReply(text, rootId).toCanonicalBytes())
+
+    private fun sign(
+        keyPair: KeyPair,
+        payload: ByteArray,
+    ): String =
+        Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(
+            Signature.getInstance("Ed25519").run {
+                initSign(keyPair.private)
+                update(payload)
+                sign()
+            },
+        )
 }

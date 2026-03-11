@@ -40,11 +40,13 @@ class ServerConfigAuthenticationTest {
         val tokenUtil = mockk<TokenUtil>()
         val decodedJwt = mockk<DecodedJWT>()
         val certClaim = mockk<Claim>()
+        val pubClaim = mockk<Claim>()
 
         every { tokenUtil.decode("valid") } returns decodedJwt
         every { tokenUtil.isValidMisJwt(decodedJwt) } returns true
-        every { decodedJwt.claims } returns mapOf("cert" to certClaim)
+        every { decodedJwt.claims } returns mapOf("cert" to certClaim, "pub" to pubClaim)
         every { certClaim.asMap() } returns mapOf("gid" to "user-123", "exp" to 1, "sig" to "sig")
+        every { pubClaim.asString() } returns "public-key"
 
         testApplication {
             application {
@@ -75,12 +77,14 @@ class ServerConfigAuthenticationTest {
         val tokenUtil = mockk<TokenUtil>()
         val decodedJwt = mockk<DecodedJWT>()
         val certClaim = mockk<Claim>()
+        val pubClaim = mockk<Claim>()
         val rateLimiter = RateLimiter({ 0L }, RateLimitConfig(permitsPerMinute = 60, burst = 1))
 
         every { tokenUtil.decode("valid") } returns decodedJwt
         every { tokenUtil.isValidMisJwt(decodedJwt) } returns true
-        every { decodedJwt.claims } returns mapOf("cert" to certClaim)
+        every { decodedJwt.claims } returns mapOf("cert" to certClaim, "pub" to pubClaim)
         every { certClaim.asMap() } returns mapOf("gid" to "user-123", "exp" to 1, "sig" to "sig")
+        every { pubClaim.asString() } returns "public-key"
 
         testApplication {
             application {
@@ -119,12 +123,14 @@ class ServerConfigAuthenticationTest {
         val tokenUtil = mockk<TokenUtil>()
         val decodedJwt = mockk<DecodedJWT>()
         val certClaim = mockk<Claim>()
+        val pubClaim = mockk<Claim>()
         val blockedGid = "blocked-user"
 
         every { tokenUtil.decode("valid") } returns decodedJwt
         every { tokenUtil.isValidMisJwt(decodedJwt) } returns true
-        every { decodedJwt.claims } returns mapOf("cert" to certClaim)
+        every { decodedJwt.claims } returns mapOf("cert" to certClaim, "pub" to pubClaim)
         every { certClaim.asMap() } returns mapOf("gid" to blockedGid, "exp" to 1, "sig" to "sig")
+        every { pubClaim.asString() } returns "public-key"
 
         val identityBlockList =
             identityBlockListFromYaml(

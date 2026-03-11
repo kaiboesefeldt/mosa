@@ -7,9 +7,11 @@ import org.koin.core.module.Module
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import straightway.mosa.CommandLineArgumentStore
+import straightway.mosa.Crypto
 import straightway.mosa.EmbeddingService
 import straightway.mosa.HasherFactory
 import straightway.mosa.SignatureFactory
+import straightway.mosa.SignatureVerifierProvider
 import straightway.mosa.VectorStore
 import straightway.mosa.content.snapshot.FreezeSnapshotCryptoService
 import straightway.mosa.content.snapshot.FreezeSnapshotFormat
@@ -18,8 +20,10 @@ import straightway.mosa.content.snapshot.FreezeSnapshotRestoreValidator
 import straightway.mosa.content.snapshot.FreezeSnapshotSelectionService
 import straightway.mosa.content.snapshot.FreezeSnapshotService
 import straightway.mosa.content.snapshot.FreezeSnapshotSizePolicy
+import straightway.mosa.crypto.CryptoEd25519
 import java.security.MessageDigest
 import java.security.PublicKey
+import java.security.Signature
 import java.time.Clock
 import kotlin.test.assertSame
 
@@ -199,6 +203,31 @@ class ContentAppModuleTest {
         }
     }
 
+    @Test
+    fun `provides content signature verifier as singleton`() {
+        val vectorStore = mockk<VectorStore>()
+        val koinApplication =
+            koinApplication {
+                modules(
+                    dependenciesModule(
+                        vectorStore = vectorStore,
+                    ),
+                    module {
+                        configureContentAppModule()
+                    },
+                )
+            }
+
+        try {
+            val first = koinApplication.koin.get<ContentSignatureVerifier>()
+            val second = koinApplication.koin.get<ContentSignatureVerifier>()
+
+            assertSame(first, second)
+        } finally {
+            koinApplication.close()
+        }
+    }
+
     private fun dependenciesModule(vectorStore: VectorStore): Module =
         module {
             val publicKey = mockk<PublicKey>()
@@ -212,5 +241,7 @@ class ContentAppModuleTest {
             single<EmbeddingService> { embeddingService }
             single<HasherFactory> { { MessageDigest.getInstance("SHA-256") } }
             single<SignatureFactory> { signatureFactory }
+            single<Crypto> { CryptoEd25519() }
+            single<SignatureVerifierProvider> { SignatureVerifierProvider { Signature.getInstance("Ed25519") } }
         }
 }
