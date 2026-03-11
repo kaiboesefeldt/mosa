@@ -14,5 +14,8 @@ data class FetchResult(
         // epoch seconds; aligns with server JSON
         val storedAt: Long,
         val rootId: String? = null,
+        val authorPublicKey: String = "",
+        val authorSignature: String = "",
+        val signatureVersion: Int = ContentSignatureVersion.V1,
     )
 }
