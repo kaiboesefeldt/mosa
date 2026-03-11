@@ -50,6 +50,9 @@ class IndexedDbReplyCacheTest {
                 authorGID = "author",
                 storedAt = storedAt,
                 rootId = "root",
+                authorPublicKey = "pub-$id",
+                authorSignature = "sig-$id",
+                signatureVersion = 1,
             ),
         )
 

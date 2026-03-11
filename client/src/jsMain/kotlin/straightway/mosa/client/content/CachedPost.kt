@@ -6,4 +6,7 @@ data class CachedPost(
     val authorGID: String,
     val storedAt: Long,
     val rootId: String? = null,
+    val authorPublicKey: String,
+    val authorSignature: String,
+    val signatureVersion: Int,
 )

@@ -10,6 +10,7 @@ import straightway.mosa.content.SearchResult
 class ReplySearchService(
     private val podSessionProvider: PodSessionProvider,
     private val replyCache: ReplyCache,
+    private val contentSignatureVerifier: ContentSignatureVerifier,
     private val logger: Logger,
 ) {
     private val paginationBounds = mutableMapOf<String, Long>()
@@ -19,7 +20,7 @@ class ReplySearchService(
         reset(rootId)
         val snapshot = replyCache.snapshot(rootId)
         val searchResult = searchReplies(rootId, null) ?: return snapshot.toThreadReplies(rootId)
-        val resolved = resolveReplies(searchResult)
+        val resolved = resolveReplies(rootId, searchResult)
         val updated = replyCache.append(rootId, resolved)
         updatePagination(rootId, updated.entries, searchResult.entries.isNotEmpty())
         return updated.toThreadReplies(rootId)
@@ -29,7 +30,7 @@ class ReplySearchService(
         if (exhaustedRoots.contains(rootId)) return null
         val timeTo = paginationBounds[rootId] ?: return null
         val result = searchReplies(rootId, timeTo) ?: return null
-        val resolved = resolveReplies(result)
+        val resolved = resolveReplies(rootId, result)
         val updated =
             if (resolved.isEmpty()) {
                 replyCache.snapshot(rootId)
@@ -64,30 +65,36 @@ class ReplySearchService(
                 null
             }
 
-    private suspend fun resolveReplies(result: SearchResult): List<ThreadScopedReply> {
+    private suspend fun resolveReplies(
+        rootId: String,
+        result: SearchResult,
+    ): List<ThreadScopedReply> {
         if (result.entries.isEmpty()) return emptyList()
         val ids = result.entries.map { it.id }
         val cacheResolution = replyCache.resolve(ids)
-        val fetched = fetchPosts(cacheResolution.missingIds)
+        val fetched = fetchPosts(cacheResolution.missingIds, rootId)
         val postsById = cacheResolution.postsById + fetched.associateBy { it.id }
         return result.entries.mapNotNull { entry ->
             postsById[entry.id]?.let { post -> ThreadScopedReply(post) }
         }
     }
 
-    private suspend fun fetchPosts(ids: List<String>): List<CachedPost> {
+    private suspend fun fetchPosts(
+        ids: List<String>,
+        rootId: String?,
+    ): List<CachedPost> {
         if (ids.isEmpty()) return emptyList()
-        return podSessionProvider.execute("fetch") { session ->
-            session.podAccess.fetch(FetchRequest(ids), session.jwt)
-        }
-            ?.entries
-            ?.map { it.toCachedPost() }
-            .orEmpty()
-            .also {
-                if (it.isEmpty()) {
-                    logger.warn("Reply fetch failed for ${ids.size} ids", null)
-                }
+        val response =
+            podSessionProvider.execute("fetch") { session ->
+                session.podAccess.fetch(FetchRequest(ids), session.jwt)
             }
+                ?: run {
+                    logger.warn("Reply fetch failed for ${ids.size} ids", null)
+                    return emptyList()
+                }
+        return response.entries.mapNotNull { entry ->
+            entry.toVerifiedCachedPostOrNull(rootId)
+        }
     }
 
     private fun FetchResult.Entry.toCachedPost(): CachedPost =
@@ -97,7 +104,23 @@ class ReplySearchService(
             authorGID = authorGID,
             storedAt = storedAt,
             rootId = rootId,
+            authorPublicKey = authorPublicKey,
+            authorSignature = authorSignature,
+            signatureVersion = signatureVersion,
         )
+
+    private suspend fun FetchResult.Entry.toVerifiedCachedPostOrNull(expectedRootId: String?): CachedPost? {
+        if (rootId != expectedRootId) {
+            logger.warn("Discarded invalid fetched reply $id: reply root mismatch", null)
+            return null
+        }
+        val result = contentSignatureVerifier.verify(this)
+        if (result is ContentVerificationResult.Invalid) {
+            logger.warn("Discarded invalid fetched reply $id: ${result.reason}", null)
+            return null
+        }
+        return toCachedPost()
+    }
 
     private fun updatePagination(
         rootId: String,

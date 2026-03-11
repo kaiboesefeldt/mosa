@@ -35,6 +35,7 @@ class TopicSearchServiceTest {
     private lateinit var podAccess: FakePodAccess
     private lateinit var logger: RecordingLogger
     private lateinit var cache: FakePostCache
+    private lateinit var subtleCrypto: FakeVerifierSubtleCrypto
     private lateinit var certificateCache: PodCertificateCache
     private lateinit var timeService: TestTimeService
     private val jwtInvocations = mutableListOf<Pair<Identity, PodCertificate>>()
@@ -54,6 +55,7 @@ class TopicSearchServiceTest {
     fun setup() {
         logger = RecordingLogger()
         cache = FakePostCache()
+        subtleCrypto = FakeVerifierSubtleCrypto()
         timeService = TestTimeService(0)
         certificateCache = PodCertificateCache(timeService, InMemoryPodCertificateStore())
         clearBase()
@@ -137,6 +139,42 @@ class TopicSearchServiceTest {
 
         assertEquals(1, results.size)
         assertTrue(logger.warnMessages.any { it.contains("Beta") })
+    }
+
+    @Test
+    fun `discards invalid fetched posts and keeps valid results usable`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        podAccess =
+            FakePodAccess(
+                searchResponses =
+                    mapOf(
+                        "Alpha" to
+                            listOf(
+                                searchResult(
+                                    listOf(
+                                        SearchResult.Entry("valid", 0.8f),
+                                        SearchResult.Entry("invalid", 0.7f),
+                                    ),
+                                    "query-alpha",
+                                ),
+                            ),
+                    ),
+                fetchableEntries =
+                    mapOf(
+                        "valid" to subtleCrypto.validFetchEntry(id = "valid", content = "good", storedAt = 20),
+                        "invalid" to
+                            subtleCrypto.validFetchEntry(id = "invalid", content = "bad", storedAt = 10).copy(
+                                authorSignature = "tampered",
+                            ),
+                    ),
+            )
+        val service = createService()
+
+        val results = service.fetchFor(listOf(Topic("Alpha")))
+
+        assertEquals(listOf("valid"), results.single().entries.map { it.id })
+        assertEquals(listOf("valid"), cache.snapshot("Alpha").entries.map { it.post.id })
+        assertTrue(logger.warnMessages.any { it.contains("invalid") && it.contains("Discarded") })
     }
 
     @Test
@@ -305,8 +343,15 @@ class TopicSearchServiceTest {
                     logger = logger,
                 ),
             postCache = cache,
+            contentSignatureVerifier = ContentSignatureVerifier(subtleCrypto.subtleCrypto),
             logger = logger,
         )
+
+    private fun fetchEntry(
+        id: String,
+        content: String,
+        storedAt: Long = 0,
+    ): FetchResult.Entry = subtleCrypto.validFetchEntry(id = id, content = content, storedAt = storedAt)
 
     private fun clearBase() {
         window.asDynamic().MOSA_POD_BASE = null
@@ -503,18 +548,6 @@ private fun searchResult(id: String, queryOnId: String, similarity: Float = 0.9f
 private fun searchResult(entries: List<SearchResult.Entry>, queryOnId: String): SearchResult =
     SearchResult(entries, queryOnId)
 
-private fun fetchEntry(
-    id: String,
-    content: String,
-    storedAt: Long = 0,
-): FetchResult.Entry =
-    FetchResult.Entry(
-        id = id,
-        content = content,
-        authorGID = "author",
-        storedAt = storedAt,
-    )
-
 private fun cachedPost(
     id: String,
     content: String,
@@ -527,6 +560,9 @@ private fun cachedPost(
             content = content,
             authorGID = "author",
             storedAt = storedAt,
+            authorPublicKey = "",
+            authorSignature = "",
+            signatureVersion = 1,
         ),
         similarity,
     )

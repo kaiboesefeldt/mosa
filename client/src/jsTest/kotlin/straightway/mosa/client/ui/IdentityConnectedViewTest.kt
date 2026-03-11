@@ -33,6 +33,7 @@ import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.logging.Logger
+import straightway.mosa.client.util.Base64.toBase64Url
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.client.pod.PodCertificateCache
@@ -59,6 +60,7 @@ import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.AllPostsDeletionService
 import straightway.mosa.client.content.ContentSigner
+import straightway.mosa.client.content.ContentSignatureVerifier
 import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.ReplyCache
 import straightway.mosa.client.content.ReplyCacheSnapshot
@@ -651,6 +653,17 @@ private fun scrollPostsToEnd(container: Element) {
                     subtle.sign = { _: String, _: dynamic, bytes: ByteArray ->
                         kotlin.js.Promise.resolve(bytes.toArrayBuffer())
                     }
+                    subtle.digest = { _: String, bytes: ByteArray ->
+                        kotlin.js.Promise.resolve(bytes.toArrayBuffer())
+                    }
+                    subtle.importKey = { _: String, keyData: ByteArray, _: dynamic, _: Boolean, _: Array<String> ->
+                        val key = js("{}").unsafeCast<dynamic>()
+                        key.raw = keyData
+                        kotlin.js.Promise.resolve<dynamic>(key)
+                    }
+                    subtle.verify = { _: String, _: dynamic, _: ByteArray, _: ByteArray ->
+                        kotlin.js.Promise.resolve(true)
+                    }
                     SubtleCrypto(subtle)
                 }
                 single { ContentSigner(get()) }
@@ -672,8 +685,9 @@ private fun scrollPostsToEnd(container: Element) {
                 single { PostDeletionService(get(), get(), get()) }
                 single { AllPostsDeletionService(get(), get(), get()) }
                 single { ReplyPublisher(get(), get()) }
-                single { TopicSearchService(get(), get(), get()) }
-                single { ReplySearchService(get(), get(), get()) }
+                single { ContentSignatureVerifier(get()) }
+                single { TopicSearchService(get(), get(), get(), get()) }
+                single { ReplySearchService(get(), get(), get(), get()) }
             }
                 startKoin { modules(module) }
         sessionStore = ConnectedViewTestInjector.get<IdentitySessionStore>() as ConnectedViewIdentitySessionStore
@@ -900,12 +914,16 @@ private class RecordingPodAccess(
         val entries =
             request.itemIds.map { id ->
                 val entry = entriesById[id] ?: error("no entry for $id")
+                val publicKeyBytes = "pub:$id".encodeToByteArray()
                 FetchResult.Entry(
                     id = entry.id,
                     content = entry.content,
-                    authorGID = entry.authorGID,
+                    authorGID = publicKeyBytes.toBase64Url(),
                     storedAt = entry.storedAt,
                     rootId = entry.rootId,
+                    authorPublicKey = publicKeyBytes.toBase64Url(),
+                    authorSignature = "sig:$id".encodeToByteArray().toBase64Url(),
+                    signatureVersion = 1,
                 )
             }
         return FetchResult(entries)

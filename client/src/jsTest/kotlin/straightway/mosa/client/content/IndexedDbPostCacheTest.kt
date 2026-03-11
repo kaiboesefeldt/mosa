@@ -150,6 +150,9 @@ class IndexedDbPostCacheTest {
                 content = "content-$id",
                 authorGID = "author",
                 storedAt = storedAt,
+                authorPublicKey = "pub-$id",
+                authorSignature = "sig-$id",
+                signatureVersion = 1,
             ),
             similarity,
         )

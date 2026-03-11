@@ -11,6 +11,7 @@ import straightway.mosa.content.SearchResult
 class TopicSearchService(
     private val podSessionProvider: PodSessionProvider,
     private val postCache: PostCache,
+    private val contentSignatureVerifier: ContentSignatureVerifier,
     private val logger: Logger,
 ) {
     private val exhaustedTopics = mutableSetOf<String>()
@@ -181,21 +182,37 @@ class TopicSearchService(
 
     private suspend fun fetchPosts(ids: List<String>): List<CachedPost> {
         if (ids.isEmpty()) return emptyList()
-        return executeRequest("fetch") { session ->
-            session.podAccess.fetch(FetchRequest(ids), session.jwt)
-        }
-            ?.entries
-            ?.map { it.toCachedPost() }
-            .orEmpty()
-            .also {
-                if (it.isEmpty()) {
-                    logger.warn("Post fetch failed for ${ids.size} ids", null)
-                }
+        val response =
+            executeRequest("fetch") { session ->
+                session.podAccess.fetch(FetchRequest(ids), session.jwt)
             }
+                ?: run {
+                    logger.warn("Post fetch failed for ${ids.size} ids", null)
+                    return emptyList()
+                }
+        return response.entries.mapNotNull { it.toVerifiedCachedPostOrNull() }
     }
 
     private fun FetchResult.Entry.toCachedPost(): CachedPost =
-        CachedPost(id = id, content = content, authorGID = authorGID, storedAt = storedAt, rootId = rootId)
+        CachedPost(
+            id = id,
+            content = content,
+            authorGID = authorGID,
+            storedAt = storedAt,
+            rootId = rootId,
+            authorPublicKey = authorPublicKey,
+            authorSignature = authorSignature,
+            signatureVersion = signatureVersion,
+        )
+
+    private suspend fun FetchResult.Entry.toVerifiedCachedPostOrNull(): CachedPost? {
+        val result = contentSignatureVerifier.verify(this)
+        if (result is ContentVerificationResult.Invalid) {
+            logger.warn("Discarded invalid fetched post $id: ${result.reason}", null)
+            return null
+        }
+        return toCachedPost()
+    }
 
     private fun updatePaginationBoundary(topic: Topic, entries: List<SearchResult.Entry>) {
         val lowestScore = entries.minOfOrNull { it.similarity }

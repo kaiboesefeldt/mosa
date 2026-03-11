@@ -35,6 +35,7 @@ class ReplySearchServiceTest {
     private lateinit var podAccess: RecordingPodAccess
     private lateinit var cache: FakeReplyCache
     private lateinit var logger: ReplyTestLogger
+    private lateinit var subtleCrypto: FakeVerifierSubtleCrypto
     private lateinit var certificateCache: PodCertificateCache
     private lateinit var timeService: TimeService
     private val jwtInvocations = mutableListOf<Pair<Identity, PodCertificate>>()
@@ -54,6 +55,7 @@ class ReplySearchServiceTest {
     fun setup() {
         cache = FakeReplyCache()
         logger = ReplyTestLogger()
+        subtleCrypto = FakeVerifierSubtleCrypto()
         timeService = FixedTimeService(0)
         certificateCache = PodCertificateCache(timeService, InMemoryPodCertificateStore())
         window.asDynamic().MOSA_POD_BASE = null
@@ -78,6 +80,9 @@ class ReplySearchServiceTest {
                                 authorGID = "author",
                                 storedAt = 5,
                                 rootId = "root-1",
+                                authorPublicKey = "",
+                                authorSignature = "",
+                                signatureVersion = 1,
                             ),
                         ),
                     ),
@@ -185,6 +190,9 @@ class ReplySearchServiceTest {
                                 authorGID = "author",
                                 storedAt = 1,
                                 rootId = "root-1",
+                                authorPublicKey = "",
+                                authorSignature = "",
+                                signatureVersion = 1,
                             ),
                         ),
                     ),
@@ -211,6 +219,85 @@ class ReplySearchServiceTest {
         assertTrue(podAccess.fetchInvocations.isEmpty())
     }
 
+    @Test
+    fun `discards replies whose root id does not match signature payload`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        podAccess =
+            RecordingPodAccess(
+                responses =
+                    mapOf(
+                        "root-1" to
+                            listOf(
+                                SearchResult(
+                                    entries = listOf(SearchResult.Entry("reply-1", 0.9f)),
+                                    queryOnId = "",
+                                ),
+                            ),
+                    ),
+                fetchableEntries =
+                    mapOf(
+                        "reply-1" to
+                            subtleCrypto.validFetchEntry(
+                                id = "reply-1",
+                                content = "Antwort",
+                                storedAt = 20,
+                                rootId = "other-root",
+                            ),
+                    ),
+            )
+        val service = createService()
+
+        val replies = service.fetchFor("root-1")
+
+        assertTrue(replies.entries.isEmpty())
+        assertTrue(logger.warnMessages.any { it.contains("reply-1") && it.contains("Discarded") })
+    }
+
+    @Test
+    fun `keeps valid replies when result list is only partially valid`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        podAccess =
+            RecordingPodAccess(
+                responses =
+                    mapOf(
+                        "root-1" to
+                            listOf(
+                                SearchResult(
+                                    entries =
+                                        listOf(
+                                            SearchResult.Entry("valid", 0.9f),
+                                            SearchResult.Entry("invalid", 0.8f),
+                                        ),
+                                    queryOnId = "",
+                                ),
+                            ),
+                    ),
+                fetchableEntries =
+                    mapOf(
+                        "valid" to
+                            subtleCrypto.validFetchEntry(
+                                id = "valid",
+                                content = "ok",
+                                storedAt = 20,
+                                rootId = "root-1",
+                            ),
+                        "invalid" to
+                            subtleCrypto.validFetchEntry(
+                                id = "invalid",
+                                content = "bad",
+                                storedAt = 10,
+                                rootId = "root-1",
+                            ).copy(authorGID = "wrong-gid"),
+                    ),
+            )
+        val service = createService()
+
+        val replies = service.fetchFor("root-1")
+
+        assertEquals(listOf("valid"), replies.entries.map { it.id })
+        assertEquals(listOf("valid"), cache.snapshot("root-1").entries.map { it.post.id })
+    }
+
     private fun createService(): ReplySearchService =
         ReplySearchService(
             podSessionProvider =
@@ -227,6 +314,7 @@ class ReplySearchServiceTest {
                     logger = logger,
                 ),
             replyCache = cache,
+            contentSignatureVerifier = ContentSignatureVerifier(subtleCrypto.subtleCrypto),
             logger = logger,
         )
 
@@ -234,14 +322,7 @@ class ReplySearchServiceTest {
         id: String,
         content: String,
         storedAt: Long,
-    ): FetchResult.Entry =
-        FetchResult.Entry(
-            id = id,
-            content = content,
-            authorGID = "author-$id",
-            storedAt = storedAt,
-            rootId = "root-1",
-        )
+    ): FetchResult.Entry = subtleCrypto.validFetchEntry(id = id, content = content, storedAt = storedAt, rootId = "root-1")
 }
 
 private class RecordingPodAccess(
@@ -429,9 +510,13 @@ private class ReplyIdentityRepository(
 }
 
 private class ReplyTestLogger : Logger {
+    val warnMessages = mutableListOf<String>()
+
     override fun error(message: String, throwable: Throwable?) {}
 
-    override fun warn(message: String, throwable: Throwable?) {}
+    override fun warn(message: String, throwable: Throwable?) {
+        warnMessages += message
+    }
 }
 
 private class FixedTimeService(

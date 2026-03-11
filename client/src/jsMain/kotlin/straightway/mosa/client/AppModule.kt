@@ -50,6 +50,7 @@ import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.AllPostsDeletionService
 import straightway.mosa.client.content.ContentSigner
+import straightway.mosa.client.content.ContentSignatureVerifier
 import straightway.mosa.client.content.PostsCsvDownloader
 import straightway.mosa.client.content.PostsExportPort
 import straightway.mosa.client.content.PostsExportService
@@ -153,6 +154,7 @@ object AppModule : KoinComponent {
                         }
                         single { CryptoExport(get()) }
                         single { ContentSigner(get()) }
+                        single { ContentSignatureVerifier(get()) }
                         single<JwtBuilder> {
                             { identity, certificate ->
                                 get<MisJwtService>().buildMisJwt(identity, certificate)
@@ -176,8 +178,8 @@ object AppModule : KoinComponent {
                         single { PostDeletionService(get(), get(), get()) }
                         single { AllPostsDeletionService(get(), get(), get()) }
                         single { ReplyPublisher(get(), get()) }
-                        single { TopicSearchService(get(), get(), get()) }
-                        single { ReplySearchService(get(), get(), get()) }
+                        single { TopicSearchService(get(), get(), get(), get()) }
+                        single { ReplySearchService(get(), get(), get(), get()) }
                         single { BrowserPrefs() }
                         single { Translator(get<BrowserPrefs>().languages) }
                         single { DiceBearAvatarGenerator() }

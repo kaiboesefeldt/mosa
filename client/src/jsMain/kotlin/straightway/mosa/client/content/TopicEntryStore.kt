@@ -7,6 +7,7 @@ import kotlin.js.jsTypeOf
 import kotlin.js.unsafeCast
 import kotlin.math.max
 import straightway.mosa.client.identity.IndexedDbAsyncBridge
+import straightway.mosa.content.ContentSignatureVersion
 import web.idb.IDBDatabase
 import web.idb.IDBFactory
 import web.idb.IDBTransactionMode
@@ -162,6 +163,9 @@ class TopicEntryStore(
         payload.authorGID = entry.authorGID
         payload.storedAt = entry.storedAt.toDouble()
         entry.rootId?.let { payload.rootId = it }
+        payload.authorPublicKey = entry.authorPublicKey
+        payload.authorSignature = entry.authorSignature
+        payload.signatureVersion = entry.signatureVersion
         return payload
     }
 
@@ -172,7 +176,10 @@ class TopicEntryStore(
         val author = payload.authorGID as? String ?: return null
         val storedAt = (payload.storedAt as? Number)?.toLong() ?: return null
         val rootId = payload.rootId as? String
-        return CachedPost(id, content, author, storedAt, rootId)
+        val authorPublicKey = payload.authorPublicKey as? String ?: ""
+        val authorSignature = payload.authorSignature as? String ?: ""
+        val signatureVersion = (payload.signatureVersion as? Number)?.toInt() ?: ContentSignatureVersion.V1
+        return CachedPost(id, content, author, storedAt, rootId, authorPublicKey, authorSignature, signatureVersion)
     }
 
     private fun entryKey(value: String): IDBValidKey = value.unsafeCast<IDBValidKey>()

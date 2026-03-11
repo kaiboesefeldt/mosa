@@ -13,5 +13,8 @@ data class ThreadScopedReply(
             authorGID = post.authorGID,
             storedAt = post.storedAt,
             rootId = post.rootId,
+            authorPublicKey = post.authorPublicKey,
+            authorSignature = post.authorSignature,
+            signatureVersion = post.signatureVersion,
         )
 }
