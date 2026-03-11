@@ -96,6 +96,15 @@ class FreezeSnapshotRestoreValidator(
         if (record.authorGid.isBlank()) {
             throw InvalidFreezeSnapshotException("Snapshot record authorGid must not be blank")
         }
+        if (record.authorPublicKey.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot record authorPublicKey must not be blank")
+        }
+        if (record.authorSignature.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot record authorSignature must not be blank")
+        }
+        if (record.signatureVersion <= 0) {
+            throw InvalidFreezeSnapshotException("Snapshot record signatureVersion must be positive")
+        }
         if (record.rootId?.isBlank() == true) {
             throw InvalidFreezeSnapshotException("Snapshot reply rootId must not be blank")
         }

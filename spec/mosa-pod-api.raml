@@ -64,8 +64,16 @@ types:
       text:
         type: string
         maxLength: 1800
+      signature:
+        type: string
+        description: Base64url-encoded Ed25519 signature over the canonical content payload
+      signatureVersion:
+        type: integer
+        description: Version of the canonical content signature payload
     example:
       text: 'Hello Mosa! This is my first post.'
+      signature: 'MEQCIAexampleSignature'
+      signatureVersion: 1
 
   ReplyRequest:
     type: object
@@ -75,6 +83,8 @@ types:
     example:
       content:
         text: 'I agree with your point.'
+        signature: 'MEQCIAexampleSignature'
+        signatureVersion: 1
       rootId: 'R0oTId42'
 
   QueryRequest:
@@ -126,11 +136,18 @@ types:
         type: integer
         format: int64
       rootId?: string
+      authorPublicKey: string
+      authorSignature: string
+      signatureVersion:
+        type: integer
     example:
       id: 'AxY0b1p3...'
       content: 'A concise explanation of vector search.'
       similarity: 0.92
       authorGID: 'mZ0axz0t0z4IQsD4YBq1Hk3mQz0W9r1o'
+      authorPublicKey: 'MCowBQYDK2VwAyEASamplePublicKey'
+      authorSignature: 'MEQCIAexampleSignature'
+      signatureVersion: 1
       storedAt: 1700000000
       rootId: 'R0oTId42'
 
@@ -193,10 +210,17 @@ types:
         type: integer
         format: int64
       rootId?: string
+      authorPublicKey: string
+      authorSignature: string
+      signatureVersion:
+        type: integer
     example:
       id: 'AxY0b1p3...'
       content: 'A concise explanation of vector search.'
       authorGID: 'mZ0axz0t0z4IQsD4YBq1Hk3mQz0W9r1o'
+      authorPublicKey: 'MCowBQYDK2VwAyEASamplePublicKey'
+      authorSignature: 'MEQCIAexampleSignature'
+      signatureVersion: 1
       storedAt: 1700000000
       rootId: 'R0oTId42'
 
@@ -383,11 +407,11 @@ securitySchemes:
         201:
           description: Created
         400:
-          description: Invalid request (e.g., text exceeds 1800 characters)
+          description: Invalid request (e.g., malformed signature encoding or text exceeds 1800 characters)
         401:
           description: Missing or invalid bearer token
         422:
-          description: UNIMPLEMENTED – would indicate off-topic content rejection in a future version
+          description: Unsupported signature version or signature verification failed
         5xx:
           description: Server error
 
@@ -405,11 +429,11 @@ securitySchemes:
         201:
           description: Created
         400:
-          description: Root not found, target is not a root post, or text exceeds 1800 characters
+          description: Root not found, target is not a root post, malformed signature encoding, or text exceeds 1800 characters
         401:
           description: Missing or invalid bearer token
         422:
-          description: UNIMPLEMENTED – would indicate off-topic content rejection in a future version
+          description: Unsupported signature version or signature verification failed
         5xx:
           description: Server error
 

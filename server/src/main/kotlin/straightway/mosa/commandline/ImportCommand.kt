@@ -14,8 +14,11 @@ import straightway.mosa.content.ContentService.RootNotFoundException
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
 import java.io.InputStream
 import kotlin.io.encoding.Base64
 import kotlin.system.exitProcess
@@ -70,24 +73,25 @@ internal class ImportCommand(
         post: VectorStore.PostDump,
         idTable: MutableMap<String, String>,
     ): ImportState {
-        val authorGid =
-            post.getAuthorGid()
+        val authorGid = post.getAuthorGid()
+        val authorPublicKey = post.requireField(AUTHOR_PUBLIC_KEY_KEY)
+        val publishRequest = post.toPublishRequest()
         val rootId = post.fields[ROOT_ID_KEY]
         val receiveTimestamp = post.fields[RECEIVED_AT_KEY]?.toLong() ?: 0L
         val id =
             try {
                 if (rootId == null) {
-                    publish(authorGid, PublishRequest(post.text), receiveTimestamp, "")
+                    publish(authorGid, publishRequest, receiveTimestamp, authorPublicKey)
                 } else {
                     val realRootId = idTable.getOrDefault(rootId, rootId)
                     reply(
                         authorGid,
                         ReplyRequest(
-                            PublishRequest(post.text),
+                            publishRequest,
                             realRootId,
                         ),
                         receiveTimestamp,
-                        "",
+                        authorPublicKey,
                     )
                 }
             } catch (_: RootNotFoundException) {
@@ -102,6 +106,16 @@ internal class ImportCommand(
         val authorGid = fields[AUTHOR_GID_KEY] ?: throw RuntimeException("user without field value for `${AUTHOR_GID_KEY}`")
         return normalizeAuthorGid(authorGid)
     }
+
+    private fun VectorStore.PostDump.toPublishRequest(): PublishRequest =
+        PublishRequest(
+            text = text,
+            signature = requireField(AUTHOR_SIGNATURE_KEY),
+            signatureVersion = requireField(SIGNATURE_VERSION_KEY).toInt(),
+        )
+
+    private fun VectorStore.PostDump.requireField(fieldName: String): String =
+        fields[fieldName] ?: throw RuntimeException("user without field value for `$fieldName`")
 
     private fun normalizeAuthorGid(authorGid: String): String =
         if (isBase64Url(authorGid)) {

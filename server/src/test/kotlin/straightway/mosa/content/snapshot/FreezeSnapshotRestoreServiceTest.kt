@@ -7,8 +7,11 @@ import org.junit.jupiter.api.Test
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
 import java.nio.ByteBuffer
 import java.time.Clock
 import java.time.Instant
@@ -37,9 +40,9 @@ class FreezeSnapshotRestoreServiceTest {
             assertEquals(listOf("root-1", "reply-1", "reply-2"), result.restoredIds)
             assertEquals(
                 listOf(
-                    StoredEntry("root-1", "Root", "gid-owner", 100, null),
-                    StoredEntry("reply-1", "Reply", "gid-owner", 101, "root-1"),
-                    StoredEntry("reply-2", "Other reply", "gid-other", 102, "root-1"),
+                    StoredEntry("root-1", "Root", "gid-owner", "public-key-root", "signature-root", 7, 100, null),
+                    StoredEntry("reply-1", "Reply", "gid-owner", "public-key-reply-1", "signature-reply-1", 11, 101, "root-1"),
+                    StoredEntry("reply-2", "Other reply", "gid-other", "public-key-reply-2", "signature-reply-2", 13, 102, "root-1"),
                 ),
                 vectorStore.entries(),
             )
@@ -175,6 +178,9 @@ class FreezeSnapshotRestoreServiceTest {
                                 id = "root-1",
                                 text = "Root",
                                 authorGid = "",
+                                authorPublicKey = "public-key-root",
+                                authorSignature = "signature-root",
+                                signatureVersion = 7,
                                 storedAt = 100,
                                 rootId = null,
                             ),
@@ -182,6 +188,30 @@ class FreezeSnapshotRestoreServiceTest {
                 )
 
             assertRejected(snapshot, "Snapshot record authorGid must not be blank")
+        }
+
+    @Test
+    fun `blank record author public key is rejected`() =
+        runTest {
+            val snapshot = snapshot(records = listOf(rootRecord().copy(authorPublicKey = "")))
+
+            assertRejected(snapshot, "Snapshot record authorPublicKey must not be blank")
+        }
+
+    @Test
+    fun `blank record author signature is rejected`() =
+        runTest {
+            val snapshot = snapshot(records = listOf(rootRecord().copy(authorSignature = "")))
+
+            assertRejected(snapshot, "Snapshot record authorSignature must not be blank")
+        }
+
+    @Test
+    fun `non positive signature version is rejected`() =
+        runTest {
+            val snapshot = snapshot(records = listOf(rootRecord().copy(signatureVersion = 0)))
+
+            assertRejected(snapshot, "Snapshot record signatureVersion must be positive")
         }
 
     @Test
@@ -211,7 +241,9 @@ class FreezeSnapshotRestoreServiceTest {
     @Test
     fun `reply on existing pod root is restored`() =
         runTest {
-            vectorStore.seed(StoredEntry("existing-root", "Existing root", "gid-existing", 7, null))
+            vectorStore.seed(
+                StoredEntry("existing-root", "Existing root", "gid-existing", "public-existing", "signature-existing", 17, 7, null),
+            )
             val snapshot = snapshot(records = listOf(replyRecord(id = "reply-1", rootId = "existing-root")))
 
             val result = createSut().restore("gid-owner", snapshot)
@@ -220,17 +252,37 @@ class FreezeSnapshotRestoreServiceTest {
             assertEquals(listOf("reply-1"), result.restoredIds)
             assertEquals(
                 listOf(
-                    StoredEntry("existing-root", "Existing root", "gid-existing", 7, null),
-                    StoredEntry("reply-1", "Reply", "gid-owner", 101, "existing-root"),
+                    StoredEntry("existing-root", "Existing root", "gid-existing", "public-existing", "signature-existing", 17, 7, null),
+                    StoredEntry("reply-1", "Reply", "gid-owner", "public-key-reply-1", "signature-reply-1", 11, 101, "existing-root"),
                 ),
                 vectorStore.entries(),
             )
         }
 
     @Test
+    fun `reply on existing pod reply is rejected`() =
+        runTest {
+            val existing =
+                StoredEntry(
+                    "existing-reply",
+                    "Existing reply",
+                    "gid-existing",
+                    "public-existing",
+                    "signature-existing",
+                    17,
+                    7,
+                    "some-root",
+                )
+            vectorStore.seed(existing)
+            val snapshot = snapshot(records = listOf(replyRecord(id = "reply-1", rootId = "existing-reply")))
+
+            assertRejected(snapshot, "Snapshot reply references a missing root", expectedEntries = listOf(existing))
+        }
+
+    @Test
     fun `validation failure leaves pod data unchanged`() =
         runTest {
-            val existing = StoredEntry("existing", "Existing", "gid-existing", 7, null)
+            val existing = StoredEntry("existing", "Existing", "gid-existing", "public-existing", "signature-existing", 17, 7, null)
             vectorStore.seed(existing)
             val snapshot = snapshot(records = listOf(replyRecord(rootId = "missing-root")))
 
@@ -320,6 +372,9 @@ class FreezeSnapshotRestoreServiceTest {
         id = id,
         text = text,
         authorGid = "gid-owner",
+        authorPublicKey = "public-key-root",
+        authorSignature = "signature-root",
+        signatureVersion = 7,
         storedAt = 100,
         rootId = null,
     )
@@ -331,6 +386,9 @@ class FreezeSnapshotRestoreServiceTest {
         id = id,
         text = "Reply",
         authorGid = "gid-owner",
+        authorPublicKey = "public-key-reply-1",
+        authorSignature = "signature-reply-1",
+        signatureVersion = 11,
         storedAt = 101,
         rootId = rootId,
     )
@@ -340,6 +398,9 @@ class FreezeSnapshotRestoreServiceTest {
             id = "reply-2",
             text = "Other reply",
             authorGid = "gid-other",
+            authorPublicKey = "public-key-reply-2",
+            authorSignature = "signature-reply-2",
+            signatureVersion = 13,
             storedAt = 102,
             rootId = "root-1",
         )
@@ -381,6 +442,9 @@ class FreezeSnapshotRestoreServiceTest {
                                 id = id,
                                 text = text,
                                 authorGid = fields.getValue(AUTHOR_GID_KEY),
+                                authorPublicKey = fields.getValue(AUTHOR_PUBLIC_KEY_KEY),
+                                authorSignature = fields.getValue(AUTHOR_SIGNATURE_KEY),
+                                signatureVersion = fields.getValue(SIGNATURE_VERSION_KEY).toInt(),
                                 storedAt = fields.getValue(RECEIVED_AT_KEY).toLong(),
                                 rootId = fields[ROOT_ID_KEY],
                             )
@@ -423,6 +487,9 @@ private data class StoredEntry(
     val id: String,
     val text: String,
     val authorGid: String,
+    val authorPublicKey: String,
+    val authorSignature: String,
+    val signatureVersion: Int,
     val storedAt: Long,
     val rootId: String?,
 ) {
@@ -433,6 +500,9 @@ private data class StoredEntry(
             fields =
                 buildMap {
                     put(AUTHOR_GID_KEY, authorGid)
+                    put(AUTHOR_PUBLIC_KEY_KEY, authorPublicKey)
+                    put(AUTHOR_SIGNATURE_KEY, authorSignature)
+                    put(SIGNATURE_VERSION_KEY, signatureVersion.toString())
                     put(RECEIVED_AT_KEY, storedAt.toString())
                     rootId?.let { put(ROOT_ID_KEY, it) }
                 },

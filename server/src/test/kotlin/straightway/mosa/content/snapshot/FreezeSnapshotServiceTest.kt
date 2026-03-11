@@ -45,6 +45,9 @@ class FreezeSnapshotServiceTest {
             assertEquals("AQIDBAUGBwgJCgsM", header.nonce)
             assertEquals(FreezeSnapshotManifest("gid-owner", 2, 1), manifest)
             assertContentEquals(records.toTypedArray(), payloadRecords.toTypedArray())
+            assertEquals("public-key-root", payloadRecords.first().authorPublicKey)
+            assertEquals("signature-root", payloadRecords.first().authorSignature)
+            assertEquals(7, payloadRecords.first().signatureVersion)
         }
 
     @Test
@@ -219,6 +222,9 @@ class FreezeSnapshotServiceTest {
             id = "root-1",
             text = "Root",
             authorGid = "gid-owner",
+            authorPublicKey = "public-key-root",
+            authorSignature = "signature-root",
+            signatureVersion = 7,
             storedAt = 100,
             rootId = null,
         )
@@ -228,6 +234,9 @@ class FreezeSnapshotServiceTest {
             id = "reply-1",
             text = "Reply",
             authorGid = "gid-owner",
+            authorPublicKey = "public-key-reply-1",
+            authorSignature = "signature-reply-1",
+            signatureVersion = 11,
             storedAt = 101,
             rootId = "root-1",
         )
@@ -237,6 +246,9 @@ class FreezeSnapshotServiceTest {
             id = "reply-2",
             text = "Other",
             authorGid = "gid-other",
+            authorPublicKey = "public-key-reply-2",
+            authorSignature = "signature-reply-2",
+            signatureVersion = 13,
             storedAt = 102,
             rootId = "root-1",
         )

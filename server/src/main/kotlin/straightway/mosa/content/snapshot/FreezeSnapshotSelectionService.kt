@@ -26,6 +26,9 @@ class FreezeSnapshotSelectionService(
             id = id,
             text = text,
             authorGid = fields.requireContentMetadata(id, ContentMetadataField.AuthorGid),
+            authorPublicKey = fields.requireContentMetadata(id, ContentMetadataField.AuthorPublicKey),
+            authorSignature = fields.requireContentMetadata(id, ContentMetadataField.AuthorSignature),
+            signatureVersion = fields.requireContentMetadata(id, ContentMetadataField.SignatureVersion).toInt(),
             storedAt = fields.requireContentMetadata(id, ContentMetadataField.ReceivedAt).toLong(),
             rootId = fields[ContentMetadataField.RootId.key],
         )

@@ -4,8 +4,11 @@ import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import straightway.mosa.content.FreezeSnapshotRestoreResult
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
 import java.time.Clock
 
 class FreezeSnapshotRestoreService(
@@ -56,6 +59,9 @@ class FreezeSnapshotRestoreService(
                 fields =
                     buildMap {
                         put(AUTHOR_GID_KEY, record.authorGid)
+                        put(AUTHOR_PUBLIC_KEY_KEY, record.authorPublicKey)
+                        put(AUTHOR_SIGNATURE_KEY, record.authorSignature)
+                        put(SIGNATURE_VERSION_KEY, record.signatureVersion.toString())
                         put(RECEIVED_AT_KEY, record.storedAt.toString())
                         record.rootId?.let { put(ROOT_ID_KEY, it) }
                     },

@@ -41,9 +41,9 @@ class FreezeSnapshotFormatTest {
     fun `content records parser ignores empty lines`() {
         val serialized =
             """
-            {"id":"root-1","text":"Root post","authorGid":"gid-owner","storedAt":1700000001,"rootId":null}
+            {"id":"root-1","text":"Root post","authorGid":"gid-owner","authorPublicKey":"public-key-root","authorSignature":"signature-root","signatureVersion":7,"storedAt":1700000001,"rootId":null}
 
-            {"id":"reply-1","text":"Reply","authorGid":"gid-other","storedAt":1700000002,"rootId":"root-1"}
+            {"id":"reply-1","text":"Reply","authorGid":"gid-other","authorPublicKey":"public-key-reply","authorSignature":"signature-reply","signatureVersion":11,"storedAt":1700000002,"rootId":"root-1"}
             """.trimIndent().encodeToByteArray()
 
         assertEquals(sampleRecords(), sut.parseRecords(serialized))
@@ -205,6 +205,9 @@ class FreezeSnapshotFormatTest {
                 id = "root-1",
                 text = "Root post",
                 authorGid = "gid-owner",
+                authorPublicKey = "public-key-root",
+                authorSignature = "signature-root",
+                signatureVersion = 7,
                 storedAt = 1_700_000_001,
                 rootId = null,
             ),
@@ -212,6 +215,9 @@ class FreezeSnapshotFormatTest {
                 id = "reply-1",
                 text = "Reply",
                 authorGid = "gid-other",
+                authorPublicKey = "public-key-reply",
+                authorSignature = "signature-reply",
+                signatureVersion = 11,
                 storedAt = 1_700_000_002,
                 rootId = "root-1",
             ),

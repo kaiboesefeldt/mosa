@@ -7,8 +7,11 @@ import org.junit.jupiter.api.Test
 import straightway.mosa.VectorStore
 import straightway.mosa.content.MissingVectorMetadataException
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
@@ -99,6 +102,9 @@ class FreezeSnapshotSelectionServiceTest {
                 listOf("own-root", "own-reply-on-foreign-root", "reply-on-own-root", "own-reply-on-own-root"),
                 selected.map { it.id },
             )
+            assertEquals("public-own-root", selected.first().authorPublicKey)
+            assertEquals("signature-own-root", selected.first().authorSignature)
+            assertEquals(10, selected.first().signatureVersion)
         }
 
     @Test
@@ -135,6 +141,19 @@ class FreezeSnapshotSelectionServiceTest {
             }
         }
 
+    @Test
+    fun `missing author public key metadata fails selection`() =
+        runTest {
+            givenOwnContent(
+                postDump(id = "root-1", authorGid = "owner", storedAt = 10, extraFields = emptyMap()),
+            )
+            givenRepliesOnOwnedRoots()
+
+            assertFailsWith<MissingVectorMetadataException> {
+                sut.resolveFor("owner")
+            }
+        }
+
     private fun givenOwnContent(vararg posts: VectorStore.PostDump) {
         coEvery { vectorStore.fetchByFieldValues(AUTHOR_GID_KEY, setOf("owner")) } returns posts.toList()
     }
@@ -155,6 +174,12 @@ class FreezeSnapshotSelectionServiceTest {
         authorGid: String,
         storedAt: Long,
         rootId: String? = null,
+        extraFields: Map<String, String> =
+            mapOf(
+                AUTHOR_PUBLIC_KEY_KEY to "public-$id",
+                AUTHOR_SIGNATURE_KEY to "signature-$id",
+                SIGNATURE_VERSION_KEY to storedAt.toString(),
+            ),
     ) = VectorStore.PostDump(
         id = id,
         text = "$id text",
@@ -162,6 +187,6 @@ class FreezeSnapshotSelectionServiceTest {
             mapOf(
                 AUTHOR_GID_KEY to authorGid,
                 RECEIVED_AT_KEY to storedAt.toString(),
-            ) + listOfNotNull(rootId?.let { ROOT_ID_KEY to it }),
+            ) + extraFields + listOfNotNull(rootId?.let { ROOT_ID_KEY to it }),
     )
 }

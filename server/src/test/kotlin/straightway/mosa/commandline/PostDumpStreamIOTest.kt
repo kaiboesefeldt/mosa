@@ -5,8 +5,11 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import straightway.mosa.VectorStore
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
+import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
 import java.io.BufferedWriter
 import java.io.ByteArrayOutputStream
 import java.io.Writer
@@ -325,6 +328,9 @@ class PostDumpStreamIOTest {
                     mapOf(
                         ROOT_ID_KEY to "rootId",
                         AUTHOR_GID_KEY to "author",
+                        AUTHOR_PUBLIC_KEY_KEY to "public-key",
+                        AUTHOR_SIGNATURE_KEY to "signature",
+                        SIGNATURE_VERSION_KEY to "7",
                         RECEIVED_AT_KEY to "1234",
                     ),
                 )
@@ -341,10 +347,42 @@ class PostDumpStreamIOTest {
             assertEquals(
                 """
                 ${PostDumpStreamIO.HEADER_LINE}
-                id,1234,author,rootId,Text
+                id,1234,author,public-key,signature,7,rootId,Text
                 """.trimIndent() + "\n",
                 written,
             )
+        }
+
+    @Test
+    fun `writerTo writes dumps readable by readerFrom with signature metadata`() =
+        runTest {
+            val dump =
+                VectorStore.PostDump(
+                    "id",
+                    "Text",
+                    mapOf(
+                        AUTHOR_GID_KEY to "author",
+                        AUTHOR_PUBLIC_KEY_KEY to "public-key",
+                        AUTHOR_SIGNATURE_KEY to "signature",
+                        SIGNATURE_VERSION_KEY to "7",
+                        RECEIVED_AT_KEY to "1234",
+                    ),
+                )
+            val sut = PostDumpStreamIO()
+            val written =
+                ByteArrayOutputStream().use { output ->
+                    output.bufferedWriter().use { writer ->
+                        sut.writerTo(writer).write(dump)
+                    }
+                    output.toByteArray()
+                }
+
+            val parsed =
+                written.inputStream().bufferedReader().use { reader ->
+                    sut.readerFrom(reader).readNext()
+                }
+
+            assertEquals(dump, parsed)
         }
 
     @Test
@@ -356,6 +394,9 @@ class PostDumpStreamIOTest {
                     "First\\\\Line\nSecond,line",
                     mapOf(
                         AUTHOR_GID_KEY to "author",
+                        AUTHOR_PUBLIC_KEY_KEY to "public-key",
+                        AUTHOR_SIGNATURE_KEY to "signature",
+                        SIGNATURE_VERSION_KEY to "7",
                         RECEIVED_AT_KEY to "1234",
                     ),
                 )
@@ -372,7 +413,7 @@ class PostDumpStreamIOTest {
             assertEquals(
                 """
                 ${PostDumpStreamIO.HEADER_LINE}
-                id,1234,author,,First\\\\Line\nSecond,line
+                id,1234,author,public-key,signature,7,,First\\\\Line\nSecond,line
                 """.trimIndent() + "\n",
                 written,
             )
@@ -391,6 +432,9 @@ class PostDumpStreamIOTest {
                     "text",
                     mapOf(
                         AUTHOR_GID_KEY to "author",
+                        AUTHOR_PUBLIC_KEY_KEY to "public-key",
+                        AUTHOR_SIGNATURE_KEY to "signature",
+                        SIGNATURE_VERSION_KEY to "7",
                         RECEIVED_AT_KEY to "1234",
                     ),
                 )
@@ -404,7 +448,7 @@ class PostDumpStreamIOTest {
                 assertEquals(
                     """
                     ${PostDumpStreamIO.HEADER_LINE}
-                    id,1234,author,,text
+                    id,1234,author,public-key,signature,7,,text
                     """.trimIndent() + "\n",
                     writer.second.written(),
                 )
@@ -423,6 +467,9 @@ class PostDumpStreamIOTest {
                     "First",
                     mapOf(
                         AUTHOR_GID_KEY to "author-1",
+                        AUTHOR_PUBLIC_KEY_KEY to "public-key-1",
+                        AUTHOR_SIGNATURE_KEY to "signature-1",
+                        SIGNATURE_VERSION_KEY to "7",
                         RECEIVED_AT_KEY to "1",
                     ),
                 )
@@ -433,6 +480,9 @@ class PostDumpStreamIOTest {
                     mapOf(
                         ROOT_ID_KEY to "root-id",
                         AUTHOR_GID_KEY to "author-2",
+                        AUTHOR_PUBLIC_KEY_KEY to "public-key-2",
+                        AUTHOR_SIGNATURE_KEY to "signature-2",
+                        SIGNATURE_VERSION_KEY to "11",
                         RECEIVED_AT_KEY to "2",
                     ),
                 )
@@ -451,8 +501,8 @@ class PostDumpStreamIOTest {
             assertEquals(
                 """
                 ${PostDumpStreamIO.HEADER_LINE}
-                id1,1,author-1,,First
-                id2,2,author-2,root-id,Second
+                id1,1,author-1,public-key-1,signature-1,7,,First
+                id2,2,author-2,public-key-2,signature-2,11,root-id,Second
                 """.trimIndent() + "\n",
                 written,
             )
@@ -468,6 +518,9 @@ class PostDumpStreamIOTest {
                         "First text",
                         mapOf(
                             AUTHOR_GID_KEY to "author-1",
+                            AUTHOR_PUBLIC_KEY_KEY to "public-key-1",
+                            AUTHOR_SIGNATURE_KEY to "signature-1",
+                            SIGNATURE_VERSION_KEY to "7",
                             RECEIVED_AT_KEY to "1",
                         ),
                     ),
@@ -477,6 +530,9 @@ class PostDumpStreamIOTest {
                         mapOf(
                             ROOT_ID_KEY to "root-id",
                             AUTHOR_GID_KEY to "author-2",
+                            AUTHOR_PUBLIC_KEY_KEY to "public-key-2",
+                            AUTHOR_SIGNATURE_KEY to "signature-2",
+                            SIGNATURE_VERSION_KEY to "11",
                             RECEIVED_AT_KEY to "2",
                         ),
                     ),
@@ -513,7 +569,12 @@ class PostDumpStreamIOTest {
                 VectorStore.PostDump(
                     "id",
                     "Text",
-                    mapOf(AUTHOR_GID_KEY to "author"),
+                    mapOf(
+                        AUTHOR_GID_KEY to "author",
+                        AUTHOR_PUBLIC_KEY_KEY to "public-key",
+                        AUTHOR_SIGNATURE_KEY to "signature",
+                        SIGNATURE_VERSION_KEY to "7",
+                    ),
                 )
             val writer = PostDumpStreamIO().writerTo(ByteArrayOutputStream().bufferedWriter())
 
@@ -530,7 +591,12 @@ class PostDumpStreamIOTest {
                 VectorStore.PostDump(
                     "id",
                     "Text",
-                    mapOf(RECEIVED_AT_KEY to "1234"),
+                    mapOf(
+                        AUTHOR_PUBLIC_KEY_KEY to "public-key",
+                        AUTHOR_SIGNATURE_KEY to "signature",
+                        SIGNATURE_VERSION_KEY to "7",
+                        RECEIVED_AT_KEY to "1234",
+                    ),
                 )
             val writer = PostDumpStreamIO().writerTo(ByteArrayOutputStream().bufferedWriter())
 
@@ -538,6 +604,72 @@ class PostDumpStreamIOTest {
 
             assertIs<IllegalStateException>(ex)
             assertEquals("Missing author GID metadata", ex.message)
+        }
+
+    @Test
+    fun `writerTo fails when author public key metadata missing`() =
+        runTest {
+            val postDump =
+                VectorStore.PostDump(
+                    "id",
+                    "Text",
+                    mapOf(
+                        AUTHOR_GID_KEY to "author",
+                        AUTHOR_SIGNATURE_KEY to "signature",
+                        SIGNATURE_VERSION_KEY to "7",
+                        RECEIVED_AT_KEY to "1234",
+                    ),
+                )
+            val writer = PostDumpStreamIO().writerTo(ByteArrayOutputStream().bufferedWriter())
+
+            val ex = assertFails { writer.write(postDump) }
+
+            assertIs<IllegalStateException>(ex)
+            assertEquals("Missing author public key metadata", ex.message)
+        }
+
+    @Test
+    fun `writerTo fails when author signature metadata missing`() =
+        runTest {
+            val postDump =
+                VectorStore.PostDump(
+                    "id",
+                    "Text",
+                    mapOf(
+                        AUTHOR_GID_KEY to "author",
+                        AUTHOR_PUBLIC_KEY_KEY to "public-key",
+                        SIGNATURE_VERSION_KEY to "7",
+                        RECEIVED_AT_KEY to "1234",
+                    ),
+                )
+            val writer = PostDumpStreamIO().writerTo(ByteArrayOutputStream().bufferedWriter())
+
+            val ex = assertFails { writer.write(postDump) }
+
+            assertIs<IllegalStateException>(ex)
+            assertEquals("Missing author signature metadata", ex.message)
+        }
+
+    @Test
+    fun `writerTo fails when signature version metadata missing`() =
+        runTest {
+            val postDump =
+                VectorStore.PostDump(
+                    "id",
+                    "Text",
+                    mapOf(
+                        AUTHOR_GID_KEY to "author",
+                        AUTHOR_PUBLIC_KEY_KEY to "public-key",
+                        AUTHOR_SIGNATURE_KEY to "signature",
+                        RECEIVED_AT_KEY to "1234",
+                    ),
+                )
+            val writer = PostDumpStreamIO().writerTo(ByteArrayOutputStream().bufferedWriter())
+
+            val ex = assertFails { writer.write(postDump) }
+
+            assertIs<IllegalStateException>(ex)
+            assertEquals("Missing signature version metadata", ex.message)
         }
 
     @Test
@@ -550,6 +682,9 @@ class PostDumpStreamIOTest {
                         "First text",
                         mapOf(
                             AUTHOR_GID_KEY to "author-1",
+                            AUTHOR_PUBLIC_KEY_KEY to "public-key-1",
+                            AUTHOR_SIGNATURE_KEY to "signature-1",
+                            SIGNATURE_VERSION_KEY to "7",
                             RECEIVED_AT_KEY to "1",
                         ),
                     ),
@@ -559,6 +694,9 @@ class PostDumpStreamIOTest {
                         mapOf(
                             ROOT_ID_KEY to "root-id",
                             AUTHOR_GID_KEY to "author-2",
+                            AUTHOR_PUBLIC_KEY_KEY to "public-key-2",
+                            AUTHOR_SIGNATURE_KEY to "signature-2",
+                            SIGNATURE_VERSION_KEY to "11",
                             RECEIVED_AT_KEY to "2",
                         ),
                     ),
