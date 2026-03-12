@@ -12,8 +12,7 @@ This is a Gradle-based Kotlin project using JVM target 19.
 
 ### Core Commands
 - `./gradlew run` - Start the main server application (port 8080)
-- `./gradlew cli:run` - Run the CLI application
-- `./gradlew build` - Build both main and CLI modules
+- `./gradlew build` - Build all modules
 - `./gradlew test` - Run all tests (uses JUnit 5 Platform)
 - `./gradlew check` - Run tests and all verification tasks
 - `./gradlew clean` - Clean build directories
@@ -31,7 +30,6 @@ This is a Gradle-based Kotlin project using JVM target 19.
 
 ### Multi-Module Structure
 - **Root module**: Main server application with REST API
-- **CLI module**: Command-line client for interacting with pods
 
 ### Core Components
 
@@ -85,10 +83,3 @@ The project includes local ONNX models for embeddings and text generation. These
 
 ### Security Implementation
 Uses Ed25519 signatures and MIS (Mosa Identity System) JWT tokens for authentication. All cryptographic operations go through the `Crypto` interface with BouncyCastle backend.
-
-### CLI Tools
-The CLI module provides commands for:
-- Creating identities (`CreateIdentityCommand`)
-- Publishing content (`PublishCommand`) 
-- Searching pods (`SearchCommand`)
-- Certificate management (`GetCertCommand`)

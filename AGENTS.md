@@ -72,7 +72,6 @@
 - Format all: `./gradlew formatKotlin`
 - Lint all: `./gradlew lintKotlin`
 - Run server: `./gradlew :server:run`
-- Run CLI example: `./gradlew :cli:run --args="search --pod http://localhost:8080 --topic 'query'"`
 
 ### Notes
 - Coverage report path: `build/reports/kover/report.xml`
@@ -82,7 +81,6 @@
 ## 7. Repository Topology
 - `server/src/main/kotlin`: Ktor server and business services.
 - `client/src/jsMain/kotlin`: Kotlin/JS web client.
-- `cli/src/main/kotlin/straightway/mosa/cli`: JVM CLI commands.
 - `shared/src/commonMain/kotlin`: Shared DTOs/models.
 - `models/`: Optional model assets (avoid committing large artifacts unintentionally).
 - `mosa_lucene_index/`: Local Lucene index data (delete to reset local state).
