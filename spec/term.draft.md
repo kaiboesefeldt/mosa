@@ -54,7 +54,7 @@ Rechte, die Sie nach dem Gesetz zwingend haben, werden durch diesen Text nicht e
 
 ## 10. Änderungen
 
-Diese Bedingungen können für die Zukunft geändert werden, wenn es dafür einen guten Grund gibt, zum Beispiel neue Funktionen, neue Gesetze oder Sicherheitsgründe. Änderungen zeigen wir Ihnen vor ihrer Geltung in Mosa an. Den neuen Text stellen wir Ihnen dort auch in speicherbarer Form bereit. Änderungen dürfen nicht willkürlich zu Ihrem Nachteil sein.
+Diese Bedingungen können für die Zukunft geändert werden, wenn es dafür einen guten Grund gibt, zum Beispiel neue Funktionen, neue Gesetze oder Sicherheitsgründe. Die Änderungen müssen fair sein. Wir zeigen Ihnen die neue Fassung in Mosa an und stellen sie dort auch in speicherbarer Form mit Versionsstand bereit. Sie gilt erst, wenn Sie ihr zustimmen. Wenn Sie nicht zustimmen, können Sie Mosa nicht weiter nutzen. Ihre eigenen Daten können Sie mit den dafür vorgesehenen Funktionen weiter herunterladen oder sichern.
 
 ## 11. Kontakt
 
