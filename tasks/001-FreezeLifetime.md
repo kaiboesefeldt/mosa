@@ -1,0 +1,1 @@
+Die Lebensdauer eines Freeze-Snapshots soll unbegrenzt sein. Das ist relativ einfach, weil man ja nur die entsprechenden Schlüssel aufbewahren muss, die nur jährlich rotieren. Der benötigte Speicherplatz ist also überschaubar.
