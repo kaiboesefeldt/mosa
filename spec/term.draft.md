@@ -32,7 +32,7 @@ Mosa darf Anfragen begrenzen, Zugänge sperren oder Inhalte entfernen, wenn das 
 
 Mosa bemüht sich um einen stabilen Betrieb. Eine ständige Verfügbarkeit wird aber nicht versprochen.
 
-Mosa verspricht nicht, Inhalte für immer zu speichern. Inhalte können auch ohne vorherige Ankündigung gelöscht werden, wenn das nötig ist, zum Beispiel wenn der Dienst endet, Speicherplatz fehlt oder Regeln zur Speicherdauer das vorsehen.
+Mosa verspricht nicht, Inhalte für immer zu speichern. Inhalte können ganz oder teilweise verloren gehen oder gelöscht werden, wenn das aus sachlichen Gründen nötig ist, zum Beispiel bei Ausfällen, technischen Problemen, fehlendem Speicherplatz, Regeln zur Speicherdauer oder wenn der Betrieb endet.
 
 ## 6. Ihre Kontrolle über eigene Daten
 
@@ -44,19 +44,15 @@ Sie können eigene Inhalte in eine gesicherte Datei auslagern und von diesem Mos
 
 Sie dürfen Mosa nicht absichtlich stören. Dazu gehört zum Beispiel, den Dienst automatisch mit sehr vielen Anfragen zu überlasten oder für Spam zu nutzen.
 
-## 8. Haftung
+## 8. Haftung und gesetzliche Rechte
 
-Mosa verspricht nicht, dass der Dienst immer verfügbar ist oder dass Inhalte dauerhaft gespeichert bleiben. Rechte, die Sie nach dem Gesetz zwingend haben, werden durch diesen Text nicht eingeschränkt.
+Mosa verspricht nicht, dass der Dienst immer verfügbar ist oder dass Inhalte dauerhaft gespeichert bleiben. Rechte, die Sie nach dem Gesetz zwingend haben, werden durch diesen Text nicht eingeschränkt. Soweit dieser Text nichts Besonderes regelt, gilt das Gesetz.
 
-## 9. Gesetzliche Rechte
-
-Rechte, die Sie nach dem Gesetz zwingend haben, werden durch diesen Text nicht eingeschränkt. Soweit dieser Text nichts Besonderes regelt, gilt das Gesetz.
-
-## 10. Änderungen
+## 9. Änderungen
 
 Diese Bedingungen können für die Zukunft geändert werden, wenn es dafür einen guten Grund gibt, zum Beispiel neue Funktionen, neue Gesetze oder Sicherheitsgründe. Die Änderungen müssen fair sein. Wir zeigen Ihnen die neue Fassung in Mosa an und stellen sie dort auch in speicherbarer Form mit Versionsstand bereit. Sie gilt erst, wenn Sie ihr zustimmen. Wenn Sie nicht zustimmen, können Sie Mosa nicht weiter nutzen. Ihre eigenen Daten können Sie mit den dafür vorgesehenen Funktionen weiter herunterladen oder sichern.
 
-## 11. Kontakt
+## 10. Kontakt
 
 Betreiber: [Name ergänzen]  
 Kontakt: [E-Mail ergänzen]
