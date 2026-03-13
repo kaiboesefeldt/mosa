@@ -1,0 +1,9 @@
+kind: profile
+id: mosa-terms-service
+version: "1.0.0-draft1"
+parent:
+  id: terms-default
+  version: "1.0.0-draft1"
+overrides:
+  values:
+    SERVICE_DISPLAY_NAME: "Mosa"

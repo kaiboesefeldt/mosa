@@ -1,0 +1,22 @@
+overrides:
+  texts:
+    de:
+      replace:
+        service-purpose-slot-service: |
+          {{string:SERVICE_DISPLAY_NAME}} ist ein Dienst zum Veröffentlichen von kurzen Texten, zum Antworten auf Texte und zum Suchen in veröffentlichten Inhalten. {{string:SERVICE_DISPLAY_NAME}} kann auch nach inhaltlich ähnlichen Beiträgen suchen, nicht nur nach genau denselben Wörtern.
+        account-details-slot-service: |
+          Ihr Konto läuft in {{string:SERVICE_DISPLAY_NAME}} grundsätzlich nicht auf Ihren echten Namen, sondern auf einen automatisch erzeugten Kontonamen.
+
+          Bewahren Sie Ihr Gerät und Ihre Zugangsdaten gut auf. Wenn sie verloren gehen oder in falsche Hände geraten, können andere unter Ihrem Konto schreiben oder Ihre Inhalte löschen. Sie selbst können eigene Beiträge dann nicht mehr bearbeiten oder löschen. Lesen bleibt in der Regel weiter möglich, weil veröffentlichte Inhalte grundsätzlich für alle Nutzerinnen und Nutzer sichtbar sind.
+        user-content-visibility-slot-service: |
+          Ihre veröffentlichten Beiträge und Antworten sind für andere sichtbar und können von anderen gespeichert werden. Wenn Sie einen Beitrag später löschen, entfernt {{string:SERVICE_DISPLAY_NAME}} ihn nur von diesem Dienst. Kopien bei anderen kann {{string:SERVICE_DISPLAY_NAME}} nicht zurückholen.
+        service-rights-slot-service: |
+          {{string:SERVICE_DISPLAY_NAME}} darf Ihre Inhalte speichern, anzeigen, durchsuchbar machen, mit Antworten verknüpfen und anderen Nutzerinnen und Nutzern anzeigen, soweit das nötig ist, damit {{string:SERVICE_DISPLAY_NAME}} funktioniert.
+
+          {{string:SERVICE_DISPLAY_NAME}} darf Anfragen begrenzen, Zugänge sperren oder Inhalte entfernen, wenn das zum Schutz des Dienstes, bei Missbrauch oder zur Erfüllung rechtlicher Pflichten nötig ist.
+        user-data-control-slot-service: |
+          Sie können eigene Inhalte löschen und mit den vorhandenen Funktionen eine Kopie Ihrer Inhalte herunterladen.
+
+          Sie können eigene Inhalte in eine gesicherte Datei auslagern und von diesem {{string:SERVICE_DISPLAY_NAME}}-Server entfernen. Diese Datei müssen Sie selbst gut aufbewahren. Zurückholen können Sie sie nur auf demselben {{string:SERVICE_DISPLAY_NAME}}-Server.
+        changes-follow-up-slot-service: |
+          Ihre eigenen Daten können Sie mit den dafür vorgesehenen Funktionen weiter herunterladen oder sichern.

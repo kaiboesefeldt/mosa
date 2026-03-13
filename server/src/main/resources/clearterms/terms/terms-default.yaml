@@ -1,0 +1,7 @@
+kind: profile
+id: terms-default
+version: "1.0.0-draft1"
+parent:
+  id: terms-baseline
+  version: "1.0.0-draft1"
+overrides: {}
