@@ -32,7 +32,7 @@ texts:
     - id: service-description-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Brief description of the service's core functions."
         override: once
 
     - id: data-use-principle
@@ -48,7 +48,7 @@ texts:
     - id: data-categories-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Service-specific data categories."
         override: once
 
     - id: data-categories-operational
@@ -66,13 +66,13 @@ texts:
     - id: data-sources-hint-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Additional note on the source or entry of service-specific data."
         override: once
 
     - id: local-processing-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Description of local processing or storage in the browser."
         override: once
 
     - id: purposes-heading
@@ -84,7 +84,7 @@ texts:
     - id: purposes-list-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Service-specific processing purposes."
         override: once
 
     - id: legal-basis-heading
@@ -116,7 +116,7 @@ texts:
     - id: recipients-list-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Additional service-specific recipients or visibility to others."
         override: once
 
     - id: third-country-transfers-heading
@@ -126,7 +126,7 @@ texts:
     - id: third-country-transfers-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Service-specific statement on access or transfers outside the EU."
         override: once
 
     - id: third-country-transfers-conditions
@@ -137,7 +137,7 @@ texts:
     - id: third-country-transfers-detail-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Additional details on third-country access or transfers."
         override: once
 
     - id: retention-heading
@@ -155,13 +155,13 @@ texts:
     - id: retention-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Service-specific retention periods."
         override: once
 
     - id: retention-deletion-details-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Details on deletion, residual copies, or restoration."
         override: once
 
     - id: retention-backups
@@ -176,7 +176,7 @@ texts:
     - id: provision-obligation-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Which information or inputs are required to use the service."
         override: once
 
     - id: automated-decisions
@@ -199,6 +199,7 @@ texts:
     - id: rights-access-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
       hints:
+        expectedContent: "How the right of access is exercised in the service."
         override: once
 
     - id: rights-portability-label
@@ -209,6 +210,7 @@ texts:
     - id: rights-portability-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
       hints:
+        expectedContent: "How data portability is exercised in the service."
         override: once
 
     - id: rights-rectification-label
@@ -219,6 +221,7 @@ texts:
     - id: rights-rectification-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
       hints:
+        expectedContent: "How rectification is handled in the service."
         override: once
 
     - id: rights-erasure-label
@@ -229,6 +232,7 @@ texts:
     - id: rights-erasure-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
       hints:
+        expectedContent: "How erasure is handled in the service."
         override: once
 
     - id: rights-restriction-label
@@ -239,6 +243,7 @@ texts:
     - id: rights-restriction-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
       hints:
+        expectedContent: "How restriction of processing is handled in the service."
         override: once
 
     - id: rights-objection-label
@@ -249,6 +254,7 @@ texts:
     - id: rights-objection-action-slot-service
       text: Datenschutzanfrage per E-Mail an {{string:CONTACT_PRIVACY_EMAIL}}
       hints:
+        expectedContent: "How objection is handled in the service."
         override: once
 
     - id: rights-other-requests

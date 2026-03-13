@@ -13,7 +13,7 @@ texts:
     - id: service-purpose-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Brief description of the service's core functions."
         override: once
 
     - id: eligibility-heading
@@ -31,7 +31,7 @@ texts:
     - id: account-details-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Account model and consequences of device or credential loss."
         override: once
 
     - id: user-content-heading
@@ -47,7 +47,7 @@ texts:
     - id: user-content-visibility-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Visibility of published content and limits of later deletion."
         override: once
 
     - id: service-rights-and-limits-heading
@@ -57,7 +57,7 @@ texts:
     - id: service-rights-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Service-specific processing, protective measures, and interventions."
         override: once
 
     - id: service-availability
@@ -75,7 +75,7 @@ texts:
     - id: user-data-control-slot-service
       text: null
       hints:
-        expectedContent: "Service-specific replacement required in derived profiles."
+        expectedContent: "Available functions for deleting, exporting, or securing the user's own content."
         override: once
 
     - id: fair-use-heading
@@ -105,6 +105,7 @@ texts:
     - id: changes-follow-up-slot-service
       text: ""
       hints:
+        expectedContent: "Optional note on available functions after non-acceptance."
         override: once
 
     - id: contact-heading
