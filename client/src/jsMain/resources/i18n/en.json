@@ -107,6 +107,8 @@
   "legal.privacy.label": "Privacy policy",
   "legal.imprint.label": "Imprint",
   "legal.terms.label": "Terms of use",
+  "legal.terms.loading": "Loading terms of use...",
+  "legal.terms.load.error": "Terms of use could not be loaded.",
   "legal.privacy.loading": "Loading privacy policy...",
   "legal.privacy.load.error": "Privacy policy could not be loaded.",
   "legal.privacy.downloadPdf.label": "Download privacy policy as PDF",

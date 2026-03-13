@@ -944,6 +944,18 @@ private class RecordingPodAccess(
     override suspend fun privacyOperatorClearTerms(): String {
         error("Not implemented")
     }
+
+    override suspend fun termsBaselineClearTerms(): String {
+        error("Not implemented")
+    }
+
+    override suspend fun termsDefaultClearTerms(): String {
+        error("Not implemented")
+    }
+
+    override suspend fun termsServiceClearTerms(): String {
+        error("Not implemented")
+    }
 }
 
 private class InMemoryTopicStore(

@@ -38,5 +38,26 @@ class LegalController(
                 status = HttpStatusCode.OK,
             )
         }
+        getRoute("/legal/terms/baseline") {
+            call.respondText(
+                text = legalService.termsBaselineCanonicalJson(),
+                contentType = ContentType.Application.Json,
+                status = HttpStatusCode.OK,
+            )
+        }
+        getRoute("/legal/terms/default") {
+            call.respondText(
+                text = legalService.termsDefaultCanonicalJson(),
+                contentType = ContentType.Application.Json,
+                status = HttpStatusCode.OK,
+            )
+        }
+        getRoute("/legal/terms/service") {
+            call.respondText(
+                text = legalService.termsServiceCanonicalJson(),
+                contentType = ContentType.Application.Json,
+                status = HttpStatusCode.OK,
+            )
+        }
     }
 }

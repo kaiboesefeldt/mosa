@@ -31,6 +31,7 @@ class LegalService(
     private val languageFragmentMerger: ClearTermsYamlLanguageFragmentMerger = ClearTermsYamlLanguageFragmentMerger(),
 ) {
     private val documents: PrivacyLegalDocuments = loadPrivacyDocuments()
+    private val termsDocuments: TermsLegalDocuments = loadTermsDocuments()
 
     fun privacyBaselineCanonicalJson(): String = documents.baselineCanonicalJson
 
@@ -39,6 +40,12 @@ class LegalService(
     fun privacyMosaCanonicalJson(): String = documents.mosaCanonicalJson
 
     fun privacyServiceCanonicalJson(): String = documents.serviceCanonicalJson
+
+    fun termsBaselineCanonicalJson(): String = termsDocuments.baselineCanonicalJson
+
+    fun termsDefaultCanonicalJson(): String = termsDocuments.defaultCanonicalJson
+
+    fun termsServiceCanonicalJson(): String = termsDocuments.serviceCanonicalJson
 
     private fun loadPrivacyDocuments(): PrivacyLegalDocuments {
         val mandatoryContext = loadMandatoryChainContext()
@@ -53,6 +60,22 @@ class LegalService(
         return loadPrivacyDocumentsFromOperatorProfile(
             mandatoryContext = mandatoryContext,
             operatorYaml = operatorYaml,
+        )
+    }
+
+    private fun loadTermsDocuments(): TermsLegalDocuments {
+        val baselineYaml = readRequiredResource(TERMS_BASELINE_RESOURCE)
+        val defaultYaml = readRequiredResource(TERMS_DEFAULT_RESOURCE)
+        val serviceYaml = readRequiredResource(TERMS_SERVICE_RESOURCE)
+        val conversion =
+            canonicalJsonConverter.convert(
+                baselineYaml,
+                listOf(defaultYaml, serviceYaml),
+            )
+        return TermsLegalDocuments(
+            baselineCanonicalJson = conversion.baseline.canonicalJson,
+            defaultCanonicalJson = conversion.profiles[0].canonicalJson,
+            serviceCanonicalJson = conversion.profiles[1].canonicalJson,
         )
     }
 
@@ -536,6 +559,12 @@ class LegalService(
         val serviceCanonicalJson: String,
     )
 
+    private data class TermsLegalDocuments(
+        val baselineCanonicalJson: String,
+        val defaultCanonicalJson: String,
+        val serviceCanonicalJson: String,
+    )
+
     private data class MandatoryChainContext(
         val baselineYaml: String,
         val defaultYaml: String,
@@ -562,6 +591,9 @@ class LegalService(
         private const val BASELINE_RESOURCE = "clearterms/privacy/privacy-gdpr-baseline.yaml"
         private const val DEFAULT_RESOURCE = "clearterms/privacy/privacy-gdpr-default.yaml"
         private const val MOSA_RESOURCE = "clearterms/privacy/mosa-privacy-gdpr-service.yaml"
+        private const val TERMS_BASELINE_RESOURCE = "clearterms/terms/terms-baseline.yaml"
+        private const val TERMS_DEFAULT_RESOURCE = "clearterms/terms/terms-default.yaml"
+        private const val TERMS_SERVICE_RESOURCE = "clearterms/terms/mosa-terms-service.yaml"
         private val yamlMapper: ObjectMapper =
             ObjectMapper(YAMLFactory())
                 .enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY)

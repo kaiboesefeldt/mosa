@@ -59,6 +59,70 @@ class LegalServiceTest {
     }
 
     @Test
+    fun `provides canonical json documents for terms baseline default and service`() {
+        val service = createLegalService()
+
+        val baselineJson = service.termsBaselineCanonicalJson()
+        val defaultJson = service.termsDefaultCanonicalJson()
+        val serviceJson = service.termsServiceCanonicalJson()
+
+        assertTrue(baselineJson.startsWith("{"))
+        assertTrue(defaultJson.startsWith("{"))
+        assertTrue(serviceJson.startsWith("{"))
+
+        val baseline = reader.readBaseline(parser.parse(baselineJson))
+        val default = reader.readProfile(parser.parse(defaultJson))
+        val document = reader.readProfile(parser.parse(serviceJson))
+
+        assertEquals("terms-baseline", baseline.id)
+        assertEquals("terms-default", default.id)
+        assertEquals("mosa-terms-service", document.id)
+    }
+
+    @Test
+    fun `chains parent hashes from terms baseline to default to service`() {
+        val service = createLegalService()
+
+        val baselineJson = service.termsBaselineCanonicalJson()
+        val defaultJson = service.termsDefaultCanonicalJson()
+        val serviceJson = service.termsServiceCanonicalJson()
+
+        val baseline = reader.readBaseline(parser.parse(baselineJson))
+        val default = reader.readProfile(parser.parse(defaultJson))
+        val document = reader.readProfile(parser.parse(serviceJson))
+
+        assertEquals(baseline.id, default.parent.id)
+        assertEquals(baseline.version, default.parent.version)
+        assertEquals(default.id, document.parent.id)
+        assertEquals(default.version, document.parent.version)
+        assertEquals("sha256:${sha256(baselineJson)}", default.parent.hash)
+        assertEquals("sha256:${sha256(defaultJson)}", document.parent.hash)
+    }
+
+    @Test
+    fun `terms chain from legal service is renderable for german`() =
+        runTest {
+            val service = createLegalService()
+
+            val renderer =
+                ClearTermsRenderer(
+                    parser = ClearTermsJsonParser(),
+                    hashProvider = Sha256HashProvider(),
+                    textEncoder = Utf8TextEncoder(),
+                    localeProvider = MinimalLocaleProvider(),
+                )
+
+            val rendered =
+                renderer.renderLanguage(
+                    baselineJson = service.termsBaselineCanonicalJson(),
+                    profileJsons = listOf(service.termsDefaultCanonicalJson(), service.termsServiceCanonicalJson()),
+                    languageTag = "de",
+                )
+
+            assertTrue(rendered.contains("Allgemeine Geschäftsbedingungen"))
+        }
+
+    @Test
     fun `chains parent hashes from baseline to default to mosa to service`() {
         val service = createLegalService()
 

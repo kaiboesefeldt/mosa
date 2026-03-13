@@ -256,6 +256,18 @@ private class FakeSessionPodAccess(
     override suspend fun privacyOperatorClearTerms(): String {
         error("not expected")
     }
+
+    override suspend fun termsBaselineClearTerms(): String {
+        error("not expected")
+    }
+
+    override suspend fun termsDefaultClearTerms(): String {
+        error("not expected")
+    }
+
+    override suspend fun termsServiceClearTerms(): String {
+        error("not expected")
+    }
 }
 
 private class StaticIdentityRepository(

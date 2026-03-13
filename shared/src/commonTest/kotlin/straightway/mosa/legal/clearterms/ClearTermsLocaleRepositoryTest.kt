@@ -55,7 +55,7 @@ class ClearTermsLocaleRepositoryTest {
                     """
                     {
                       "language": "de",
-                      "months": ["Januar","Februar","Maerz","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
+                      "months": ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
                       "weekdays": {"mon":"Montag","tue":"Dienstag","wed":"Mittwoch","thu":"Donnerstag","fri":"Freitag","sat":"Samstag","sun":"Sonntag"},
                       "decimalSeparator": ",",
                       "groupingSeparator": ".",

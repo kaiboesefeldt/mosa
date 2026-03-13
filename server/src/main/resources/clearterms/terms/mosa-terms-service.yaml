@@ -7,3 +7,6 @@ parent:
 overrides:
   values:
     SERVICE_DISPLAY_NAME: "Mosa"
+    ORG_CONTROLLER_NAME: "Mosa"
+    CONTACT_CONTROLLER_EMAIL: "legal@example.invalid"
+    DOC_EFFECTIVE_DATE: "2026-03-13T00:00:00Z"

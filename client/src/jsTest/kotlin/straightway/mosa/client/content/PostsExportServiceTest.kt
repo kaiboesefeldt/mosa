@@ -175,6 +175,18 @@ private class RecordingExportPodAccess : PodAccess {
     override suspend fun privacyOperatorClearTerms(): String {
         error("not used")
     }
+
+    override suspend fun termsBaselineClearTerms(): String {
+        error("not used")
+    }
+
+    override suspend fun termsDefaultClearTerms(): String {
+        error("not used")
+    }
+
+    override suspend fun termsServiceClearTerms(): String {
+        error("not used")
+    }
 }
 
 private class ExportStaticIdentityRepository(

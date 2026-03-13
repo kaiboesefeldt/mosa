@@ -2756,7 +2756,7 @@ class ClearTermsRendererTest {
                             listOf(
                                 "Januar",
                                 "Februar",
-                                "Maerz",
+                                "März",
                                 "April",
                                 "Mai",
                                 "Juni",

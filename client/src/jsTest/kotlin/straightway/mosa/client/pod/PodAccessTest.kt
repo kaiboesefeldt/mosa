@@ -407,6 +407,46 @@ class PodAccessTest {
         assertRestError("/v1/legal/privacy/baseline", HttpStatusCode.BadRequest) { podAccess.privacyBaselineClearTerms() }
     }
 
+    @Test
+    fun `terms baseline clear terms sends get and returns raw json`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, "{\"kind\":\"baseline\",\"id\":\"terms-baseline\"}")
+
+        val result = podAccess.termsBaselineClearTerms()
+
+        assertEquals("{\"kind\":\"baseline\",\"id\":\"terms-baseline\"}", result)
+        assertGetRequest(capturedRequests.single(), "v1/legal/terms/baseline")
+    }
+
+    @Test
+    fun `terms default clear terms sends get and returns raw json`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, "{\"kind\":\"profile\",\"id\":\"terms-default\"}")
+
+        val result = podAccess.termsDefaultClearTerms()
+
+        assertEquals("{\"kind\":\"profile\",\"id\":\"terms-default\"}", result)
+        assertGetRequest(capturedRequests.single(), "v1/legal/terms/default")
+    }
+
+    @Test
+    fun `terms service clear terms sends get and returns raw json`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, "{\"kind\":\"profile\",\"id\":\"mosa-terms-service\"}")
+
+        val result = podAccess.termsServiceClearTerms()
+
+        assertEquals("{\"kind\":\"profile\",\"id\":\"mosa-terms-service\"}", result)
+        assertGetRequest(capturedRequests.single(), "v1/legal/terms/service")
+    }
+
+    @Test
+    fun `terms baseline clear terms throws when backend returns error`() = runTest {
+        val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
+
+        assertRestError("/v1/legal/terms/baseline", HttpStatusCode.BadRequest) { podAccess.termsBaselineClearTerms() }
+    }
+
     private fun podAccess(handler: MockRequestHandler): PodAccess {
         val client =
             HttpClient(MockEngine) {

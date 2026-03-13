@@ -277,7 +277,7 @@ class ClearTermsValueRendererTest {
                     listOf(
                         "Januar",
                         "Februar",
-                        "Maerz",
+                        "März",
                         "April",
                         "Mai",
                         "Juni",

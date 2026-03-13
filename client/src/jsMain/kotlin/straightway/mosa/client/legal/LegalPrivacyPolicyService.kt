@@ -45,15 +45,36 @@ class LegalPrivacyPolicyService(
     }
 
     suspend fun loadPrivacyPolicyDocument(): LegalPrivacyPolicyDocument {
+        return loadDocument(
+            baselineLoader = { it.privacyBaselineClearTerms() },
+            profileLoaders =
+                listOf(
+                    { access -> access.privacyDefaultClearTerms() },
+                    { access -> access.privacyMosaClearTerms() },
+                    { access -> access.privacyOperatorClearTerms() },
+                ),
+        )
+    }
+
+    suspend fun loadTermsDocument(): LegalPrivacyPolicyDocument {
+        return loadDocument(
+            baselineLoader = { it.termsBaselineClearTerms() },
+            profileLoaders =
+                listOf(
+                    { access -> access.termsDefaultClearTerms() },
+                    { access -> access.termsServiceClearTerms() },
+                ),
+        )
+    }
+
+    private suspend fun loadDocument(
+        baselineLoader: suspend (straightway.mosa.client.pod.PodAccess) -> String,
+        profileLoaders: List<suspend (straightway.mosa.client.pod.PodAccess) -> String>,
+    ): LegalPrivacyPolicyDocument {
         val podBase = podBaseProvider.base() ?: throw IllegalStateException("No pod base available")
         val podAccess = podAccessFactory(podBase)
-        val baseline = podAccess.privacyBaselineClearTerms()
-        val profiles =
-            listOf(
-                podAccess.privacyDefaultClearTerms(),
-                podAccess.privacyMosaClearTerms(),
-                podAccess.privacyOperatorClearTerms(),
-            )
+        val baseline = baselineLoader(podAccess)
+        val profiles = profileLoaders.map { loader -> loader(podAccess) }
         val renderResult = clearTermsContentProvider.renderedTextsByLanguage(baseline, profiles)
         val normalizedTexts =
             renderResult.textsByLanguage.entries.associateBy(

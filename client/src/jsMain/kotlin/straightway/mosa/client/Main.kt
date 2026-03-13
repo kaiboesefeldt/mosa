@@ -70,7 +70,7 @@ private val IdentityApp = FC<Props> {
     val legalRequestVersion = useRef(0)
     var isLegalMenuVisible by useState(false)
     var activeLegalDocument by useState<String?>(null)
-    var privacyDocumentState by useState<PrivacyDocumentState>(PrivacyDocumentState.Idle)
+    var legalDocumentState by useState<LegalDocumentState>(LegalDocumentState.Idle)
     var isPrivacyPdfDownloading by useState(false)
     var activeComparison by useState<LegalComparisonSelection?>(null)
     var legalDiffMarkers by useState<List<LegalRailMarker>>(emptyList())
@@ -85,15 +85,14 @@ private val IdentityApp = FC<Props> {
     val legalDialogTitle =
         when (activeLegalDocument) {
             LEGAL_DOCUMENT_PRIVACY -> activeDocumentTitle
-            LEGAL_DOCUMENT_IMPRINT,
-            LEGAL_DOCUMENT_TERMS,
-            -> "$activeDocumentTitle (Dummy)"
+            LEGAL_DOCUMENT_IMPRINT -> "$activeDocumentTitle (Dummy)"
+            LEGAL_DOCUMENT_TERMS -> activeDocumentTitle
             else -> null
         }
 
     useEffect(arrayOf(activeLegalDocument)) {
-        if (activeLegalDocument != LEGAL_DOCUMENT_PRIVACY) {
-            privacyDocumentState = PrivacyDocumentState.Idle
+        if (activeLegalDocument != LEGAL_DOCUMENT_PRIVACY && activeLegalDocument != LEGAL_DOCUMENT_TERMS) {
+            legalDocumentState = LegalDocumentState.Idle
             isPrivacyPdfDownloading = false
             legalDocumentContentRef.current?.asDynamic()?.innerHTML = ""
             lastRenderedLegalHtmlRef.current = ""
@@ -102,37 +101,49 @@ private val IdentityApp = FC<Props> {
             return@useEffect
         }
 
-        if (privacyDocumentState != PrivacyDocumentState.Idle) {
+        if (legalDocumentState != LegalDocumentState.Idle) {
             return@useEffect
         }
 
         legalRequestVersion.current = (legalRequestVersion.current ?: 0) + 1
         val requestVersion = legalRequestVersion.current
-        privacyDocumentState = PrivacyDocumentState.Loading
+        legalDocumentState = LegalDocumentState.Loading
 
         scope.launch {
-            val result = runCatching { legalPrivacyPolicyService.loadPrivacyPolicyDocument() }
+            val result =
+                runCatching {
+                    when (activeLegalDocument) {
+                        LEGAL_DOCUMENT_PRIVACY -> legalPrivacyPolicyService.loadPrivacyPolicyDocument()
+                        LEGAL_DOCUMENT_TERMS -> legalPrivacyPolicyService.loadTermsDocument()
+                        else -> error("Unsupported legal document: $activeLegalDocument")
+                    }
+                }
             if (legalRequestVersion.current != requestVersion) {
                 return@launch
             }
             result
                 .onSuccess { document ->
-                    privacyDocumentState = PrivacyDocumentState.Ready(document)
+                    legalDocumentState = LegalDocumentState.Ready(document)
                 }
                 .onFailure {
-                    console.error("Failed to load privacy policy", it)
-                    privacyDocumentState = PrivacyDocumentState.Error(translator.translate("legal.privacy.load.error"))
+                    console.error("Failed to load legal document", it)
+                    val messageKey =
+                        when (activeLegalDocument) {
+                            LEGAL_DOCUMENT_TERMS -> "legal.terms.load.error"
+                            else -> "legal.privacy.load.error"
+                        }
+                    legalDocumentState = LegalDocumentState.Error(translator.translate(messageKey))
                 }
         }
     }
 
-    useEffect(arrayOf(privacyDocumentState)) {
+    useEffect(arrayOf(legalDocumentState)) {
         val html =
-            when (val state = privacyDocumentState) {
-                PrivacyDocumentState.Idle -> ""
-                PrivacyDocumentState.Loading -> ""
-                is PrivacyDocumentState.Ready -> state.document.html
-                is PrivacyDocumentState.Error -> ""
+            when (val state = legalDocumentState) {
+                LegalDocumentState.Idle -> ""
+                LegalDocumentState.Loading -> ""
+                is LegalDocumentState.Ready -> state.document.html
+                is LegalDocumentState.Error -> ""
             }
         val contentElement = legalDocumentContentRef.current
         val lastRenderedHtml = lastRenderedLegalHtmlRef.current ?: ""
@@ -147,11 +158,11 @@ private val IdentityApp = FC<Props> {
         }
     }
 
-    useEffect(arrayOf(privacyDocumentState, activeComparison, translator)) {
-        if (activeLegalDocument != LEGAL_DOCUMENT_PRIVACY) {
+    useEffect(arrayOf(legalDocumentState, activeComparison, translator, activeLegalDocument)) {
+        if (activeLegalDocument != LEGAL_DOCUMENT_PRIVACY && activeLegalDocument != LEGAL_DOCUMENT_TERMS) {
             return@useEffect
         }
-        val readyState = privacyDocumentState as? PrivacyDocumentState.Ready ?: return@useEffect
+        val readyState = legalDocumentState as? LegalDocumentState.Ready ?: return@useEffect
         val contentElement = legalDocumentContentRef.current ?: return@useEffect
 
         fun refreshComparisonBox() {
@@ -292,7 +303,7 @@ private val IdentityApp = FC<Props> {
                             className = ClassName("legal-dialog__download")
                             ariaLabel = translator.translate("legal.privacy.downloadPdf.label")
                             title = translator.translate("legal.privacy.downloadPdf.label")
-                            disabled = privacyDocumentState !is PrivacyDocumentState.Ready || isPrivacyPdfDownloading
+                            disabled = legalDocumentState !is LegalDocumentState.Ready || isPrivacyPdfDownloading
                             onClick = clickHandler@{
                                 val contentElement = legalDocumentContentRef.current
                                 if (contentElement == null) return@clickHandler
@@ -329,15 +340,15 @@ private val IdentityApp = FC<Props> {
                 when (activeLegalDocument) {
                     LEGAL_DOCUMENT_PRIVACY -> {
                         when {
-                            privacyDocumentState is PrivacyDocumentState.Loading -> {
+                            legalDocumentState is LegalDocumentState.Loading -> {
                                 p { +translator.translate("legal.privacy.loading") }
                             }
 
-                            privacyDocumentState is PrivacyDocumentState.Error -> {
-                                p { +((privacyDocumentState as PrivacyDocumentState.Error).text) }
+                            legalDocumentState is LegalDocumentState.Error -> {
+                                p { +((legalDocumentState as LegalDocumentState.Error).text) }
                             }
 
-                            privacyDocumentState is PrivacyDocumentState.Ready -> {
+                            legalDocumentState is LegalDocumentState.Ready -> {
                                 div {
                                     className = ClassName("legal-dialog__content-wrap")
                                     div {
@@ -392,6 +403,28 @@ private val IdentityApp = FC<Props> {
                                             indicatorStyle.height = "${legalViewportIndicator.heightPercent}%"
                                             this.asDynamic().style = indicatorStyle
                                         }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    LEGAL_DOCUMENT_TERMS -> {
+                        when {
+                            legalDocumentState is LegalDocumentState.Loading -> {
+                                p { +translator.translate("legal.terms.loading") }
+                            }
+
+                            legalDocumentState is LegalDocumentState.Error -> {
+                                p { +((legalDocumentState as LegalDocumentState.Error).text) }
+                            }
+
+                            legalDocumentState is LegalDocumentState.Ready -> {
+                                div {
+                                    className = ClassName("legal-dialog__content-wrap")
+                                    div {
+                                        className = ClassName("legal-dialog__content")
+                                        ref = legalDocumentContentRef
                                     }
                                 }
                             }
@@ -461,18 +494,18 @@ private fun updateLegalRail(
     apply(markers, indicator)
 }
 
-private sealed interface PrivacyDocumentState {
-    data object Idle : PrivacyDocumentState
+private sealed interface LegalDocumentState {
+    data object Idle : LegalDocumentState
 
-    data object Loading : PrivacyDocumentState
+    data object Loading : LegalDocumentState
 
     data class Ready(
         val document: straightway.mosa.client.legal.LegalPrivacyPolicyDocument,
-    ) : PrivacyDocumentState
+    ) : LegalDocumentState
 
     data class Error(
         val text: String,
-    ) : PrivacyDocumentState
+    ) : LegalDocumentState
 }
 
 private data class LegalComparisonSelection(

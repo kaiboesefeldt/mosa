@@ -80,4 +80,49 @@ class LegalControllerTest {
             assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
             assertEquals("{\"kind\":\"profile\",\"id\":\"service\"}", response.body<String>())
         }
+
+    @Test
+    fun `returns canonical baseline json on v1 terms baseline endpoint`() =
+        environment {
+            every { legalService.termsBaselineCanonicalJson() } returns "{\"kind\":\"baseline\",\"id\":\"terms-baseline\"}"
+
+            val response =
+                client.get("/v1/legal/terms/baseline") {
+                    bearerAuth("token")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
+            assertEquals("{\"kind\":\"baseline\",\"id\":\"terms-baseline\"}", response.body<String>())
+        }
+
+    @Test
+    fun `returns canonical default json on v1 terms default endpoint`() =
+        environment {
+            every { legalService.termsDefaultCanonicalJson() } returns "{\"kind\":\"profile\",\"id\":\"terms-default\"}"
+
+            val response =
+                client.get("/v1/legal/terms/default") {
+                    bearerAuth("token")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
+            assertEquals("{\"kind\":\"profile\",\"id\":\"terms-default\"}", response.body<String>())
+        }
+
+    @Test
+    fun `returns canonical service json on v1 terms service endpoint`() =
+        environment {
+            every { legalService.termsServiceCanonicalJson() } returns "{\"kind\":\"profile\",\"id\":\"mosa-terms-service\"}"
+
+            val response =
+                client.get("/v1/legal/terms/service") {
+                    bearerAuth("token")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
+            assertEquals("{\"kind\":\"profile\",\"id\":\"mosa-terms-service\"}", response.body<String>())
+        }
 }

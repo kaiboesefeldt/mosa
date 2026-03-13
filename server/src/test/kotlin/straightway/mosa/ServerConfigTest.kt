@@ -144,6 +144,21 @@ class ServerConfigTest {
         }
 
     @Test
+    fun `allows unauthenticated terms get requests when tls not required`() =
+        testApplication {
+            application {
+                installTestNetworkServerPlugins(requireTlsForPod = false)
+                routing {
+                    get("/v1/legal/terms/baseline") { call.respond(HttpStatusCode.OK) }
+                }
+            }
+
+            val response = client.get("/v1/legal/terms/baseline")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+        }
+
+    @Test
     fun `rate limits unauthenticated requests by ip before auth`() =
         testApplication {
             val rateLimiter =

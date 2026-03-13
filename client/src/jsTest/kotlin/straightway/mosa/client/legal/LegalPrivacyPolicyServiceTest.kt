@@ -45,6 +45,26 @@ class LegalPrivacyPolicyServiceTest {
     }
 
     @Test
+    fun `loads baseline and all terms profiles from pod`() = runTest {
+        val podAccess = RecordingPrivacyPodAccess()
+        val service =
+            LegalPrivacyPolicyService(
+                podBaseProvider = fixedPodBaseProvider("https://pod.example"),
+                podAccessFactory = { podAccess },
+                preferredLanguageTagsProvider = { listOf("de-DE") },
+                clearTermsContentProvider = fixedContentProvider(renderResultOf(mapOf("de" to "# AGB"))),
+            )
+
+        val document = service.loadTermsDocument()
+
+        assertContains(document.html, "<h1>AGB</h1>")
+        assertEquals(
+            listOf("baseline", "default", "service"),
+            podAccess.termsCalls,
+        )
+    }
+
+    @Test
     fun `falls back to english when preferred language is unavailable`() = runTest {
         val service =
             LegalPrivacyPolicyService(
@@ -845,6 +865,7 @@ private class RecordingPrivacyPodAccess(
     private val operator: String = "operator",
 ) : PodAccess {
     val privacyCalls = mutableListOf<String>()
+    val termsCalls = mutableListOf<String>()
 
     override suspend fun approveGid(gid: String): PodCertificateResponse {
         error("not used")
@@ -915,5 +936,20 @@ private class RecordingPrivacyPodAccess(
     override suspend fun privacyOperatorClearTerms(): String {
         privacyCalls += "operator"
         return operator
+    }
+
+    override suspend fun termsBaselineClearTerms(): String {
+        termsCalls += "baseline"
+        return baseline
+    }
+
+    override suspend fun termsDefaultClearTerms(): String {
+        termsCalls += "default"
+        return default
+    }
+
+    override suspend fun termsServiceClearTerms(): String {
+        termsCalls += "service"
+        return mosa
     }
 }

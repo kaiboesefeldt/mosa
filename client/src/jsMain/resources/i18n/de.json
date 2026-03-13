@@ -107,6 +107,8 @@
   "legal.privacy.label": "Datenschutz",
   "legal.imprint.label": "Impressum",
   "legal.terms.label": "Nutzungsbedingungen",
+  "legal.terms.loading": "Nutzungsbedingungen werden geladen...",
+  "legal.terms.load.error": "Nutzungsbedingungen konnten nicht geladen werden.",
   "legal.privacy.loading": "Datenschutzerklärung wird geladen...",
   "legal.privacy.load.error": "Datenschutzerklärung konnte nicht geladen werden.",
   "legal.privacy.downloadPdf.label": "Datenschutzerklärung als PDF herunterladen",
