@@ -23,6 +23,7 @@ Der Produkt-Flow soll mindestens diese Punkte erfüllen:
 Technisch sollte daraus folgen:
 
 - Der Pod braucht eine auslieferbare Dokumentversion pro Rechtsdokument.
+- Eine mögliche Versionierungsstrategie wäre, jede neue Dokumentenversion als neues Profil abzubilden, das auf dem letzten Profil der jeweiligen Vorversion aufsetzt.
 - Der Client braucht einen lokalen Speicher für bestätigte Dokumentversionen je Identität.
 - Geschützte Pod-Funktionen müssen zentral gesperrt werden können, bis die nötigen Bestätigungen vorliegen.
 - Export-, Download- oder Sicherungsfunktionen für eigene Daten müssen trotz offener Bestätigung gezielt weiter zugänglich bleiben.
