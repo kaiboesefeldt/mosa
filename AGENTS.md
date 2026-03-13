@@ -28,7 +28,8 @@
 5. Refactor without changing behavior if needed.
 
 ### 2.3 Final quality gate
-- Always run `./gradlew check` before finishing.
+- Run `./gradlew check` before finishing if the change includes production or test code changes.
+- For documentation-only or other non-code changes, `./gradlew check` is not required.
 
 ## 3. Code Design Rules
 - Kotlin version: 2.2.
@@ -82,6 +83,7 @@
 - `server/src/main/kotlin`: Ktor server and business services.
 - `client/src/jsMain/kotlin`: Kotlin/JS web client.
 - `shared/src/commonMain/kotlin`: Shared DTOs/models.
+- `tasks/`: File-based task tracking. See `tasks/README.md` for the workflow and conventions.
 - `models/`: Optional model assets (avoid committing large artifacts unintentionally).
 - `mosa_lucene_index/`: Local Lucene index data (delete to reset local state).
 
