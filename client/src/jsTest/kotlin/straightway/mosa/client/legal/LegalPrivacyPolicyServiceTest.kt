@@ -59,7 +59,7 @@ class LegalPrivacyPolicyServiceTest {
 
         assertContains(document.html, "<h1>AGB</h1>")
         assertEquals(
-            listOf("baseline", "default", "service"),
+            listOf("baseline", "default", "mosa", "operator"),
             podAccess.termsCalls,
         )
     }
@@ -948,8 +948,15 @@ private class RecordingPrivacyPodAccess(
         return default
     }
 
-    override suspend fun termsServiceClearTerms(): String {
-        termsCalls += "service"
+    override suspend fun termsMosaClearTerms(): String {
+        termsCalls += "mosa"
         return mosa
     }
+
+    override suspend fun termsOperatorClearTerms(): String {
+        termsCalls += "operator"
+        return operator
+    }
+
+    override suspend fun termsServiceClearTerms(): String = termsOperatorClearTerms()
 }

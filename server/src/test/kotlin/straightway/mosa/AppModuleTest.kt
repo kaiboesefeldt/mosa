@@ -49,6 +49,7 @@ class AppModuleTest {
     private val vectorStore = mockk<LuceneLocalVectorStore>()
     private var originalUserDir: String? = null
     private var testWorkingDir: Path? = null
+    private val moduleWorkingDir: Path = Path.of("").toAbsolutePath().normalize()
 
     private val koin: Koin
         get() = checkNotNull(koinApplication).koin
@@ -58,6 +59,8 @@ class AppModuleTest {
         originalUserDir = System.getProperty("user.dir")
         testWorkingDir = Files.createTempDirectory("mosa-test-")
         System.setProperty("user.dir", testWorkingDir.toString())
+        writeLegalOperatorProfiles(checkNotNull(testWorkingDir))
+        writeLegalOperatorProfiles(moduleWorkingDir)
         mockkObject(LuceneLocalVectorStore.Companion)
         mockOnnxEmbeddingService()
         mockVectorStore()
@@ -72,7 +75,11 @@ class AppModuleTest {
         unmockkObject(LuceneLocalVectorStore.Companion)
         testWorkingDir?.resolve("mosa_pod_keypair.pem")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.resolve("mosa_snapshot_archive_key.txt")?.let { Files.deleteIfExists(it) }
+        testWorkingDir?.resolve("mosa_privacy.yaml")?.let { Files.deleteIfExists(it) }
+        testWorkingDir?.resolve("mosa_terms.yaml")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.let { Files.deleteIfExists(it) }
+        Files.deleteIfExists(moduleWorkingDir.resolve("mosa_privacy.yaml"))
+        Files.deleteIfExists(moduleWorkingDir.resolve("mosa_terms.yaml"))
         originalUserDir?.let { System.setProperty("user.dir", it) }
     }
 
@@ -229,6 +236,50 @@ class AppModuleTest {
             }
         }
     }
+
+    private fun writeLegalOperatorProfiles(directory: Path) {
+        Files.writeString(directory.resolve("mosa_privacy.yaml"), privacyOperatorProfileYaml())
+        Files.writeString(directory.resolve("mosa_terms.yaml"), termsOperatorProfileYaml())
+    }
+
+    private fun privacyOperatorProfileYaml(): String =
+        """
+        kind: profile
+        id: privacy-operator-service
+        version: "1.0.0-draft2"
+        parent:
+          id: mosa-privacy-gdpr-service
+          version: "1.0.0-draft2"
+        overrides:
+          values:
+            AUTHORITY_SUPERVISORY_ADDRESS: "Example Authority Street 2, 12345 Example City"
+            AUTHORITY_SUPERVISORY_NAME: "Example Supervisory Authority"
+            AUTHORITY_SUPERVISORY_WEBSITE: "https://authority.example"
+            CONTACT_CONTROLLER_EMAIL: "legal@operator.example"
+            CONTACT_DPO_OR_NOT_REQUIRED: "not required"
+            CONTACT_PRIVACY_EMAIL: "privacy@operator.example"
+            DOC_EFFECTIVE_DATE: "2026-03-13T00:00:00Z"
+            ORG_CONTROLLER_ADDRESS: "Example Street 1, 12345 Example City"
+            ORG_CONTROLLER_NAME: "Operator Corp"
+            RECIPIENTS_PROCESSORS_INFO: "No processors"
+            SERVICE_DISPLAY_NAME: "Operator Service"
+            URL_CONTROLLER_WEBSITE: "https://operator.example"
+        """.trimIndent()
+
+    private fun termsOperatorProfileYaml(): String =
+        """
+        kind: profile
+        id: terms-operator-service
+        version: "1.0.0-draft2"
+        parent:
+          id: mosa-terms-service
+          version: "1.0.0-draft1"
+        overrides:
+          values:
+            ORG_CONTROLLER_NAME: "Operator Corp"
+            CONTACT_CONTROLLER_EMAIL: "legal@operator.example"
+            DOC_EFFECTIVE_DATE: "2026-03-13T00:00:00Z"
+        """.trimIndent()
 
     private fun createKoinApplication(arguments: CommandLineArgumentStore = CommandLineArgumentStore.EMPTY): KoinApplication =
         koinApplication {

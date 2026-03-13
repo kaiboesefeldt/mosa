@@ -42,6 +42,8 @@ interface PodAccess {
     suspend fun privacyOperatorClearTerms(): String
     suspend fun termsBaselineClearTerms(): String
     suspend fun termsDefaultClearTerms(): String
+    suspend fun termsMosaClearTerms(): String
+    suspend fun termsOperatorClearTerms(): String
     suspend fun termsServiceClearTerms(): String
 }
 
@@ -144,6 +146,16 @@ class PodAccessImpl(
     override suspend fun termsDefaultClearTerms(): String =
         get("/v1/legal/terms/default")
             .ensureSuccess("/v1/legal/terms/default", Unit)
+            .body()
+
+    override suspend fun termsMosaClearTerms(): String =
+        get("/v1/legal/terms/mosa")
+            .ensureSuccess("/v1/legal/terms/mosa", Unit)
+            .body()
+
+    override suspend fun termsOperatorClearTerms(): String =
+        get("/v1/legal/terms/operator")
+            .ensureSuccess("/v1/legal/terms/operator", Unit)
             .body()
 
     override suspend fun termsServiceClearTerms(): String =

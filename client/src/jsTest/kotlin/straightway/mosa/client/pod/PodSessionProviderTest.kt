@@ -265,6 +265,14 @@ private class FakeSessionPodAccess(
         error("not expected")
     }
 
+    override suspend fun termsMosaClearTerms(): String {
+        error("not expected")
+    }
+
+    override suspend fun termsOperatorClearTerms(): String {
+        error("not expected")
+    }
+
     override suspend fun termsServiceClearTerms(): String {
         error("not expected")
     }

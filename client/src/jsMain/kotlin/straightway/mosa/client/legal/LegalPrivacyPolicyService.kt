@@ -62,7 +62,8 @@ class LegalPrivacyPolicyService(
             profileLoaders =
                 listOf(
                     { access -> access.termsDefaultClearTerms() },
-                    { access -> access.termsServiceClearTerms() },
+                    { access -> access.termsMosaClearTerms() },
+                    { access -> access.termsOperatorClearTerms() },
                 ),
         )
     }

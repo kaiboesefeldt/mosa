@@ -23,6 +23,7 @@ import java.nio.file.Path
 class LegalService(
     private val canonicalJsonConverter: ClearTermsYamlCanonicalJsonConverter,
     private val operatorProfilePath: Path,
+    private val termsOperatorProfilePath: Path,
     private val completenessChecker: ClearTermsProfileChainCompletenessChecker,
     private val parser: ClearTermsJsonParser,
     private val reader: ClearTermsDocumentReader,
@@ -30,8 +31,13 @@ class LegalService(
     private val canonicalJson: ClearTermsCanonicalJson,
     private val languageFragmentMerger: ClearTermsYamlLanguageFragmentMerger = ClearTermsYamlLanguageFragmentMerger(),
 ) {
-    private val documents: PrivacyLegalDocuments = loadPrivacyDocuments()
-    private val termsDocuments: TermsLegalDocuments = loadTermsDocuments()
+    private val documents: PrivacyLegalDocuments by lazy { loadPrivacyDocuments() }
+    private val termsDocuments: TermsLegalDocuments by lazy { loadTermsDocuments() }
+
+    fun validateStartup() {
+        privacyServiceCanonicalJson()
+        termsOperatorCanonicalJson()
+    }
 
     fun privacyBaselineCanonicalJson(): String = documents.baselineCanonicalJson
 
@@ -45,17 +51,22 @@ class LegalService(
 
     fun termsDefaultCanonicalJson(): String = termsDocuments.defaultCanonicalJson
 
-    fun termsServiceCanonicalJson(): String = termsDocuments.serviceCanonicalJson
+    fun termsMosaCanonicalJson(): String = termsDocuments.mosaCanonicalJson
+
+    fun termsOperatorCanonicalJson(): String = termsDocuments.operatorCanonicalJson
+
+    fun termsServiceCanonicalJson(): String = termsOperatorCanonicalJson()
 
     private fun loadPrivacyDocuments(): PrivacyLegalDocuments {
         val mandatoryContext = loadMandatoryChainContext()
         val operatorYaml =
-            readOptionalProfile(operatorProfilePath) ?: return fallbackToMosaServiceProfile(
+            readOptionalProfile(operatorProfilePath) ?: failForMissingOrIncompleteOperatorProfile(
                 mandatoryConversion = mandatoryContext.conversion,
                 mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
                 reason = "Operator profile file is missing at '${
                     operatorProfilePath.toAbsolutePath().normalize()
                 }'",
+                fallbackProfileId = "mosa-privacy-fallback-service",
             )
         return loadPrivacyDocumentsFromOperatorProfile(
             mandatoryContext = mandatoryContext,
@@ -64,19 +75,43 @@ class LegalService(
     }
 
     private fun loadTermsDocuments(): TermsLegalDocuments {
-        val baselineYaml = readRequiredResource(TERMS_BASELINE_RESOURCE)
-        val defaultYaml = readRequiredResource(TERMS_DEFAULT_RESOURCE)
-        val serviceYaml = readRequiredResource(TERMS_SERVICE_RESOURCE)
-        val conversion =
-            canonicalJsonConverter.convert(
-                baselineYaml,
-                listOf(defaultYaml, serviceYaml),
+        val mandatoryContext =
+            loadMandatoryChainContext(
+                baselineResource = TERMS_BASELINE_RESOURCE,
+                defaultResource = TERMS_DEFAULT_RESOURCE,
+                mosaResource = TERMS_SERVICE_RESOURCE,
             )
-        return TermsLegalDocuments(
-            baselineCanonicalJson = conversion.baseline.canonicalJson,
-            defaultCanonicalJson = conversion.profiles[0].canonicalJson,
-            serviceCanonicalJson = conversion.profiles[1].canonicalJson,
-        )
+        val operatorYaml =
+            readOptionalProfile(termsOperatorProfilePath) ?: failForMissingOrIncompleteOperatorProfile(
+                mandatoryConversion = mandatoryContext.conversion,
+                mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
+                reason = "Operator profile file is missing at '${termsOperatorProfilePath.toAbsolutePath().normalize()}'",
+                fallbackProfileId = "mosa-terms-fallback-operator",
+            )
+        val fullConversion =
+            try {
+                convertFullChain(
+                    mandatoryContext = mandatoryContext,
+                    operatorYaml = operatorYaml,
+                )
+            } catch (exception: ClearTermsValidationException) {
+                return fallbackToTermsOperatorProfile(
+                    mandatoryConversion = mandatoryContext.conversion,
+                    mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
+                    reason = "Operator profile is invalid and could not be converted: ${exception.message}",
+                    operatorValuesOverride = extractOperatorValuesBestEffort(operatorYaml),
+                )
+            }
+        val fullChainContext = createFullChainContext(fullConversion)
+        val fallbackDocuments =
+            fallbackForInvalidTermsFullChain(
+                mandatoryContext = mandatoryContext,
+                fullChainContext = fullChainContext,
+            )
+        if (fallbackDocuments != null) {
+            return fallbackDocuments
+        }
+        return createTermsLegalDocuments(fullConversion)
     }
 
     private fun loadPrivacyDocumentsFromOperatorProfile(
@@ -109,10 +144,21 @@ class LegalService(
         return createPrivacyLegalDocuments(fullConversion)
     }
 
-    private fun loadMandatoryChainContext(): MandatoryChainContext {
-        val baselineYaml = readRequiredResource(BASELINE_RESOURCE)
-        val defaultYaml = readRequiredResource(DEFAULT_RESOURCE)
-        val mosaYaml = readRequiredResource(MOSA_RESOURCE)
+    private fun loadMandatoryChainContext(): MandatoryChainContext =
+        loadMandatoryChainContext(
+            baselineResource = BASELINE_RESOURCE,
+            defaultResource = DEFAULT_RESOURCE,
+            mosaResource = MOSA_RESOURCE,
+        )
+
+    private fun loadMandatoryChainContext(
+        baselineResource: String,
+        defaultResource: String,
+        mosaResource: String,
+    ): MandatoryChainContext {
+        val baselineYaml = readRequiredResource(baselineResource)
+        val defaultYaml = readRequiredResource(defaultResource)
+        val mosaYaml = readRequiredResource(mosaResource)
         val mandatoryConversion =
             canonicalJsonConverter.convert(
                 baselineYaml,
@@ -146,11 +192,12 @@ class LegalService(
     ): PrivacyLegalDocuments? {
         val analysis = analyzeChainCompleteness(fullChainContext.conversion.baseline.canonicalJson, fullChainContext.profileCanonicalJsons)
         if (!analysis.complete) {
-            return fallbackToMosaServiceProfile(
+            failForMissingOrIncompleteOperatorProfile(
                 mandatoryConversion = mandatoryContext.conversion,
                 mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
                 reason = "Legal profile chain is incomplete",
                 skeletonYamlOverride = analysis.skeletonYaml,
+                fallbackProfileId = "mosa-privacy-fallback-service",
             )
         }
         throwWhenChainHasInvalidValueTypes(fullChainContext)
@@ -158,11 +205,40 @@ class LegalService(
         if (fullChainValidationError == null) {
             return null
         }
-        return fallbackToMosaServiceProfile(
+        failForMissingOrIncompleteOperatorProfile(
             mandatoryConversion = mandatoryContext.conversion,
             mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
             reason = "Legal profile chain has invalid placeholder values: ${fullChainValidationError.message}",
             operatorValuesOverride = serviceProfileValues(fullChainContext.profiles),
+            fallbackProfileId = "mosa-privacy-fallback-service",
+        )
+    }
+
+    private fun fallbackForInvalidTermsFullChain(
+        mandatoryContext: MandatoryChainContext,
+        fullChainContext: FullChainContext,
+    ): TermsLegalDocuments? {
+        val analysis = analyzeChainCompleteness(fullChainContext.conversion.baseline.canonicalJson, fullChainContext.profileCanonicalJsons)
+        if (!analysis.complete) {
+            failForMissingOrIncompleteOperatorProfile(
+                mandatoryConversion = mandatoryContext.conversion,
+                mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
+                reason = "Legal profile chain is incomplete",
+                skeletonYamlOverride = analysis.skeletonYaml,
+                fallbackProfileId = "mosa-terms-fallback-operator",
+            )
+        }
+        throwWhenChainHasInvalidValueTypes(fullChainContext)
+        val fullChainValidationError = missingRequiredChainValuesError(fullChainContext)
+        if (fullChainValidationError == null) {
+            return null
+        }
+        failForMissingOrIncompleteOperatorProfile(
+            mandatoryConversion = mandatoryContext.conversion,
+            mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
+            reason = "Legal profile chain has invalid placeholder values: ${fullChainValidationError.message}",
+            operatorValuesOverride = serviceProfileValues(fullChainContext.profiles),
+            fallbackProfileId = "mosa-terms-fallback-operator",
         )
     }
 
@@ -316,13 +392,43 @@ class LegalService(
         return discovered.toList()
     }
 
-    private fun printProfileChainSkeleton(
+    private fun printMissingOrIncompleteOperatorProfile(
         reason: String,
-        skeletonYaml: String,
+        exampleProfileYaml: String,
+        fillInHintsYaml: String,
     ) {
-        println("Legal profile chain completeness check failed: $reason")
-        println("Suggested operator profile skeleton:")
-        println(skeletonYaml)
+        println("Legal operator profile validation failed: $reason")
+        println("Suggested operator profile example:")
+        println(exampleProfileYaml)
+        println("Fill-in hints:")
+        println(fillInHintsYaml)
+    }
+
+    private fun failForMissingOrIncompleteOperatorProfile(
+        mandatoryConversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
+        mandatoryCanonicals: List<String>,
+        reason: String,
+        fallbackProfileId: String,
+        skeletonYamlOverride: String? = null,
+        operatorValuesOverride: Map<String, ClearTermsJsonNode.ScalarNode> = emptyMap(),
+    ): Nothing {
+        val analysis =
+            completenessChecker.analyze(
+                baselineCanonicalJson = mandatoryConversion.baseline.canonicalJson,
+                profileChainCanonicalJsons = mandatoryCanonicals,
+            )
+        val exampleProfileCanonicalJson =
+            synthesizedFallbackProfileCanonicalJson(
+                mandatoryConversion = mandatoryConversion,
+                operatorValuesOverride = operatorValuesOverride,
+                fallbackProfileId = fallbackProfileId,
+            )
+        printMissingOrIncompleteOperatorProfile(
+            reason = reason,
+            exampleProfileYaml = renderYaml(exampleProfileCanonicalJson),
+            fillInHintsYaml = skeletonYamlOverride ?: analysis.skeletonYaml,
+        )
+        throw IllegalStateException("Legal operator profile is missing or incomplete: $reason")
     }
 
     private fun fallbackToMosaServiceProfile(
@@ -337,14 +443,23 @@ class LegalService(
                 baselineCanonicalJson = mandatoryConversion.baseline.canonicalJson,
                 profileChainCanonicalJsons = mandatoryCanonicals,
             )
-        printProfileChainSkeleton(
+        printMissingOrIncompleteOperatorProfile(
             reason = "$reason. Falling back to mosa service profile.",
-            skeletonYaml = skeletonYamlOverride ?: analysis.skeletonYaml,
+            exampleProfileYaml =
+                renderYaml(
+                    synthesizedFallbackProfileCanonicalJson(
+                        mandatoryConversion = mandatoryConversion,
+                        operatorValuesOverride = operatorValuesOverride,
+                        fallbackProfileId = "mosa-privacy-fallback-service",
+                    ),
+                ),
+            fillInHintsYaml = skeletonYamlOverride ?: analysis.skeletonYaml,
         )
         val fallbackServiceCanonicalJson =
-            synthesizedFallbackServiceCanonicalJson(
+            synthesizedFallbackProfileCanonicalJson(
                 mandatoryConversion = mandatoryConversion,
                 operatorValuesOverride = operatorValuesOverride,
+                fallbackProfileId = "mosa-privacy-fallback-service",
             )
         return PrivacyLegalDocuments(
             baselineCanonicalJson = mandatoryConversion.baseline.canonicalJson,
@@ -354,9 +469,48 @@ class LegalService(
         )
     }
 
-    private fun synthesizedFallbackServiceCanonicalJson(
+    private fun fallbackToTermsOperatorProfile(
+        mandatoryConversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
+        mandatoryCanonicals: List<String>,
+        reason: String,
+        skeletonYamlOverride: String? = null,
+        operatorValuesOverride: Map<String, ClearTermsJsonNode.ScalarNode> = emptyMap(),
+    ): TermsLegalDocuments {
+        val analysis =
+            completenessChecker.analyze(
+                baselineCanonicalJson = mandatoryConversion.baseline.canonicalJson,
+                profileChainCanonicalJsons = mandatoryCanonicals,
+            )
+        printMissingOrIncompleteOperatorProfile(
+            reason = "$reason. Falling back to mosa service profile.",
+            exampleProfileYaml =
+                renderYaml(
+                    synthesizedFallbackProfileCanonicalJson(
+                        mandatoryConversion = mandatoryConversion,
+                        operatorValuesOverride = operatorValuesOverride,
+                        fallbackProfileId = "mosa-terms-fallback-operator",
+                    ),
+                ),
+            fillInHintsYaml = skeletonYamlOverride ?: analysis.skeletonYaml,
+        )
+        val fallbackOperatorCanonicalJson =
+            synthesizedFallbackProfileCanonicalJson(
+                mandatoryConversion = mandatoryConversion,
+                operatorValuesOverride = operatorValuesOverride,
+                fallbackProfileId = "mosa-terms-fallback-operator",
+            )
+        return TermsLegalDocuments(
+            baselineCanonicalJson = mandatoryConversion.baseline.canonicalJson,
+            defaultCanonicalJson = mandatoryConversion.profiles[0].canonicalJson,
+            mosaCanonicalJson = mandatoryConversion.profiles[1].canonicalJson,
+            operatorCanonicalJson = fallbackOperatorCanonicalJson,
+        )
+    }
+
+    private fun synthesizedFallbackProfileCanonicalJson(
         mandatoryConversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
         operatorValuesOverride: Map<String, ClearTermsJsonNode.ScalarNode>,
+        fallbackProfileId: String,
     ): String {
         val baseline = parseBaselineFrom(mandatoryConversion.baseline.canonicalJson)
         val mandatoryProfiles = mandatoryConversion.profiles.map { artifact -> reader.readProfile(parser.parse(artifact.canonicalJson)) }
@@ -374,6 +528,7 @@ class LegalService(
                 parentHash = mandatoryConversion.profiles.last().hash,
                 fallbackValues = fallbackValues,
                 textOverrides = textOverrides,
+                fallbackProfileId = fallbackProfileId,
             )
         return canonicalJson.canonicalize(profileNode)
     }
@@ -435,6 +590,7 @@ class LegalService(
         parentHash: String,
         fallbackValues: Map<String, ClearTermsJsonNode.ScalarNode>,
         textOverrides: ClearTermsJsonNode.ObjectNode?,
+        fallbackProfileId: String,
     ): ClearTermsJsonNode.ObjectNode {
         val overridesEntries =
             linkedMapOf<String, ClearTermsJsonNode>().apply {
@@ -446,7 +602,7 @@ class LegalService(
         return ClearTermsJsonNode.ObjectNode(
             linkedMapOf(
                 "kind" to ClearTermsJsonNode.ScalarNode.StringNode("profile"),
-                "id" to ClearTermsJsonNode.ScalarNode.StringNode("mosa-privacy-fallback-service"),
+                "id" to ClearTermsJsonNode.ScalarNode.StringNode(fallbackProfileId),
                 "version" to ClearTermsJsonNode.ScalarNode.StringNode("${parentProfile.version}-fallback"),
                 "parent" to
                     ClearTermsJsonNode.ObjectNode(
@@ -552,6 +708,8 @@ class LegalService(
         return values
     }
 
+    private fun renderYaml(canonicalJson: String): String = yamlMapper.writeValueAsString(yamlMapper.readTree(canonicalJson)).trimEnd()
+
     private data class PrivacyLegalDocuments(
         val baselineCanonicalJson: String,
         val defaultCanonicalJson: String,
@@ -562,7 +720,8 @@ class LegalService(
     private data class TermsLegalDocuments(
         val baselineCanonicalJson: String,
         val defaultCanonicalJson: String,
-        val serviceCanonicalJson: String,
+        val mosaCanonicalJson: String,
+        val operatorCanonicalJson: String,
     )
 
     private data class MandatoryChainContext(
@@ -585,6 +744,14 @@ class LegalService(
             defaultCanonicalJson = conversion.profiles[0].canonicalJson,
             mosaCanonicalJson = conversion.profiles[1].canonicalJson,
             serviceCanonicalJson = conversion.profiles[2].canonicalJson,
+        )
+
+    private fun createTermsLegalDocuments(conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult): TermsLegalDocuments =
+        TermsLegalDocuments(
+            baselineCanonicalJson = conversion.baseline.canonicalJson,
+            defaultCanonicalJson = conversion.profiles[0].canonicalJson,
+            mosaCanonicalJson = conversion.profiles[1].canonicalJson,
+            operatorCanonicalJson = conversion.profiles[2].canonicalJson,
         )
 
     private companion object {

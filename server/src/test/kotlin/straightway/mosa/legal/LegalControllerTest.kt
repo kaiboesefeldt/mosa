@@ -112,17 +112,32 @@ class LegalControllerTest {
         }
 
     @Test
-    fun `returns canonical service json on v1 terms service endpoint`() =
+    fun `returns canonical mosa json on v1 terms mosa endpoint`() =
         environment {
-            every { legalService.termsServiceCanonicalJson() } returns "{\"kind\":\"profile\",\"id\":\"mosa-terms-service\"}"
+            every { legalService.termsMosaCanonicalJson() } returns "{\"kind\":\"profile\",\"id\":\"mosa-terms-service\"}"
 
             val response =
-                client.get("/v1/legal/terms/service") {
+                client.get("/v1/legal/terms/mosa") {
                     bearerAuth("token")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
             assertEquals("{\"kind\":\"profile\",\"id\":\"mosa-terms-service\"}", response.body<String>())
+        }
+
+    @Test
+    fun `returns canonical operator json on v1 terms operator endpoint`() =
+        environment {
+            every { legalService.termsOperatorCanonicalJson() } returns "{\"kind\":\"profile\",\"id\":\"terms-operator-service\"}"
+
+            val response =
+                client.get("/v1/legal/terms/operator") {
+                    bearerAuth("token")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
+            assertEquals("{\"kind\":\"profile\",\"id\":\"terms-operator-service\"}", response.body<String>())
         }
 }

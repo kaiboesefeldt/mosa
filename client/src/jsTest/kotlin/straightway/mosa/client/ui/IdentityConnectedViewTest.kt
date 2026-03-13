@@ -953,6 +953,14 @@ private class RecordingPodAccess(
         error("Not implemented")
     }
 
+    override suspend fun termsMosaClearTerms(): String {
+        error("Not implemented")
+    }
+
+    override suspend fun termsOperatorClearTerms(): String {
+        error("Not implemented")
+    }
+
     override suspend fun termsServiceClearTerms(): String {
         error("Not implemented")
     }

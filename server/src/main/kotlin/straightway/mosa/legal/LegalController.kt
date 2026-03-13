@@ -52,9 +52,23 @@ class LegalController(
                 status = HttpStatusCode.OK,
             )
         }
+        getRoute("/legal/terms/mosa") {
+            call.respondText(
+                text = legalService.termsMosaCanonicalJson(),
+                contentType = ContentType.Application.Json,
+                status = HttpStatusCode.OK,
+            )
+        }
+        getRoute("/legal/terms/operator") {
+            call.respondText(
+                text = legalService.termsOperatorCanonicalJson(),
+                contentType = ContentType.Application.Json,
+                status = HttpStatusCode.OK,
+            )
+        }
         getRoute("/legal/terms/service") {
             call.respondText(
-                text = legalService.termsServiceCanonicalJson(),
+                text = legalService.termsOperatorCanonicalJson(),
                 contentType = ContentType.Application.Json,
                 status = HttpStatusCode.OK,
             )

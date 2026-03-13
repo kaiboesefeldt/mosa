@@ -16,6 +16,7 @@ import java.nio.file.Path
 
 fun Module.configureLegalAppModule() {
     single(legalPrivacyProfilePathQualifier) { Path.of("mosa_privacy.yaml") }
+    single(legalTermsProfilePathQualifier) { Path.of("mosa_terms.yaml") }
     single {
         ClearTermsYamlCanonicalJsonConverter()
     }
@@ -37,18 +38,20 @@ fun Module.configureLegalAppModule() {
     single {
         ClearTermsCanonicalJson()
     }
-    single {
+    single(createdAtStart = true) {
         LegalService(
             canonicalJsonConverter = get(),
             completenessChecker = get(),
             operatorProfilePath = get(legalPrivacyProfilePathQualifier),
+            termsOperatorProfilePath = get(legalTermsProfilePathQualifier),
             parser = get(),
             reader = get(),
             profileValidator = get(),
             canonicalJson = get(),
-        )
+        ).also { it.validateStartup() }
     }
     single { LegalController(get()) } bind BaseController::class
 }
 
 private val legalPrivacyProfilePathQualifier: StringQualifier = named("legalPrivacyProfilePath")
+private val legalTermsProfilePathQualifier: StringQualifier = named("legalTermsProfilePath")

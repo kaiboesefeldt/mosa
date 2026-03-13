@@ -214,6 +214,14 @@ private class RecordingPrivacySnapshotPodAccess : PodAccess {
         error("not used")
     }
 
+    override suspend fun termsMosaClearTerms(): String {
+        error("not used")
+    }
+
+    override suspend fun termsOperatorClearTerms(): String {
+        error("not used")
+    }
+
     override suspend fun termsServiceClearTerms(): String {
         error("not used")
     }

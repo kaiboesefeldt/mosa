@@ -25,7 +25,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
-import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import kotlin.text.StringBuilder
 
@@ -55,48 +54,57 @@ class LegalServiceTest {
         assertEquals("privacy-gdpr-baseline", baseline.id)
         assertEquals("privacy-gdpr-default", default.id)
         assertEquals("mosa-privacy-gdpr-service", mosa.id)
-        assertEquals("mosa-privacy-fallback-service", operator.id)
+        assertEquals("privacy-operator-service", operator.id)
     }
 
     @Test
-    fun `provides canonical json documents for terms baseline default and service`() {
+    fun `provides canonical json documents for terms baseline default mosa and operator`() {
         val service = createLegalService()
 
         val baselineJson = service.termsBaselineCanonicalJson()
         val defaultJson = service.termsDefaultCanonicalJson()
-        val serviceJson = service.termsServiceCanonicalJson()
+        val mosaJson = service.termsMosaCanonicalJson()
+        val operatorJson = service.termsOperatorCanonicalJson()
 
         assertTrue(baselineJson.startsWith("{"))
         assertTrue(defaultJson.startsWith("{"))
-        assertTrue(serviceJson.startsWith("{"))
+        assertTrue(mosaJson.startsWith("{"))
+        assertTrue(operatorJson.startsWith("{"))
 
         val baseline = reader.readBaseline(parser.parse(baselineJson))
         val default = reader.readProfile(parser.parse(defaultJson))
-        val document = reader.readProfile(parser.parse(serviceJson))
+        val mosa = reader.readProfile(parser.parse(mosaJson))
+        val operator = reader.readProfile(parser.parse(operatorJson))
 
         assertEquals("terms-baseline", baseline.id)
         assertEquals("terms-default", default.id)
-        assertEquals("mosa-terms-service", document.id)
+        assertEquals("mosa-terms-service", mosa.id)
+        assertEquals("terms-operator-service", operator.id)
     }
 
     @Test
-    fun `chains parent hashes from terms baseline to default to service`() {
+    fun `chains parent hashes from terms baseline to default to mosa to operator`() {
         val service = createLegalService()
 
         val baselineJson = service.termsBaselineCanonicalJson()
         val defaultJson = service.termsDefaultCanonicalJson()
-        val serviceJson = service.termsServiceCanonicalJson()
+        val mosaJson = service.termsMosaCanonicalJson()
+        val operatorJson = service.termsOperatorCanonicalJson()
 
         val baseline = reader.readBaseline(parser.parse(baselineJson))
         val default = reader.readProfile(parser.parse(defaultJson))
-        val document = reader.readProfile(parser.parse(serviceJson))
+        val mosa = reader.readProfile(parser.parse(mosaJson))
+        val operator = reader.readProfile(parser.parse(operatorJson))
 
         assertEquals(baseline.id, default.parent.id)
         assertEquals(baseline.version, default.parent.version)
-        assertEquals(default.id, document.parent.id)
-        assertEquals(default.version, document.parent.version)
+        assertEquals(default.id, mosa.parent.id)
+        assertEquals(default.version, mosa.parent.version)
+        assertEquals(mosa.id, operator.parent.id)
+        assertEquals(mosa.version, operator.parent.version)
         assertEquals("sha256:${sha256(baselineJson)}", default.parent.hash)
-        assertEquals("sha256:${sha256(defaultJson)}", document.parent.hash)
+        assertEquals("sha256:${sha256(defaultJson)}", mosa.parent.hash)
+        assertEquals("sha256:${sha256(mosaJson)}", operator.parent.hash)
     }
 
     @Test
@@ -115,12 +123,52 @@ class LegalServiceTest {
             val rendered =
                 renderer.renderLanguage(
                     baselineJson = service.termsBaselineCanonicalJson(),
-                    profileJsons = listOf(service.termsDefaultCanonicalJson(), service.termsServiceCanonicalJson()),
+                    profileJsons =
+                        listOf(
+                            service.termsDefaultCanonicalJson(),
+                            service.termsMosaCanonicalJson(),
+                            service.termsOperatorCanonicalJson(),
+                        ),
                     languageTag = "de",
                 )
 
             assertTrue(rendered.contains("Allgemeine Geschäftsbedingungen"))
         }
+
+    @Test
+    fun `uses provided terms operator profile when it is complete and valid`() {
+        val operatorPath = Files.createTempDirectory("legal-service-valid-terms-operator").resolve("mosa_terms.yaml")
+        Files.writeString(operatorPath, validTermsOperatorProfileYaml())
+
+        val service =
+            createLegalService(
+                termsOperatorProfilePath = operatorPath,
+            )
+
+        val operatorProfile = reader.readProfile(parser.parse(service.termsOperatorCanonicalJson()))
+        val values = checkNotNull(operatorProfile.overrides.values)
+        val controllerName =
+            assertIs<straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.StringNode>(values.getValue("ORG_CONTROLLER_NAME"))
+
+        assertEquals("terms-operator-service", operatorProfile.id)
+        assertEquals("mosa-terms-service", operatorProfile.parent.id)
+        assertEquals("Operator Corp", controllerName.value)
+    }
+
+    @Test
+    fun `validate startup fails when terms operator profile file is missing`() {
+        val missingPath = Files.createTempDirectory("legal-service-startup-missing-terms").resolve("mosa_terms.yaml")
+
+        val exception =
+            assertFailsWith<IllegalStateException> {
+                createLegalService(
+                    termsOperatorProfilePath = missingPath,
+                    completenessChecker = completenessChecker(complete = false),
+                ).validateStartup()
+            }
+
+        assertTrue(exception.message?.contains("missing or incomplete") == true)
+    }
 
     @Test
     fun `chains parent hashes from baseline to default to mosa to service`() {
@@ -148,65 +196,89 @@ class LegalServiceTest {
     }
 
     @Test
-    fun `creates fallback service profile when operator profile file is missing`() {
+    fun `fails when privacy operator profile file is missing and logs example profile`() {
         val missingPath = Files.createTempDirectory("legal-service-missing").resolve("mosa_privacy.yaml")
         val stdout = ByteArrayOutputStream()
-        val service =
+        val exception =
             captureStdout(stdout) {
-                createLegalService(
-                    operatorProfilePath = missingPath,
-                    completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile"),
-                )
+                assertFailsWith<IllegalStateException> {
+                    createLegalService(
+                        operatorProfilePath = missingPath,
+                        completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile"),
+                    ).privacyServiceCanonicalJson()
+                }
             }
-        val mosaJson = service.privacyMosaCanonicalJson()
-        val serviceJson = service.privacyServiceCanonicalJson()
 
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile skeleton:"))
-        assertNotEquals(mosaJson, serviceJson)
+        assertTrue(exception.message?.contains("missing or incomplete") == true)
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:"))
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("mosa-privacy-fallback-service"))
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:"))
     }
 
     @Test
-    fun `prints skeleton and creates fallback profile when chain is incomplete`() {
+    fun `fails when privacy operator profile chain is incomplete and logs example profile`() {
         val stdout = ByteArrayOutputStream()
-        val service =
+        val exception =
             captureStdout(stdout) {
-                createLegalService(
-                    operatorProfilePath = writeOperatorProfile(),
-                    completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile\nid: \"template\""),
-                )
+                assertFailsWith<IllegalStateException> {
+                    createLegalService(
+                        operatorProfilePath = writeOperatorProfile(),
+                        completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile\nid: \"template\""),
+                    ).privacyServiceCanonicalJson()
+                }
             }
-        val mosaJson = service.privacyMosaCanonicalJson()
-        val serviceJson = service.privacyServiceCanonicalJson()
 
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile skeleton:"))
+        assertTrue(exception.message?.contains("missing or incomplete") == true)
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:"))
         assertTrue(stdout.toString(Charsets.UTF_8).contains("id: \"template\""))
-        assertNotEquals(mosaJson, serviceJson)
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:"))
     }
 
     @Test
-    fun `fallback service profile is complete when operator profile file is missing`() {
-        val missingPath = Files.createTempDirectory("legal-service-missing-complete").resolve("mosa_privacy.yaml")
-        val service = createLegalService(operatorProfilePath = missingPath)
+    fun `fails when terms operator profile file is missing and logs example profile`() {
+        val missingPath = Files.createTempDirectory("legal-service-missing-terms").resolve("mosa_terms.yaml")
+        val stdout = ByteArrayOutputStream()
+        val exception =
+            captureStdout(stdout) {
+                assertFailsWith<IllegalStateException> {
+                    createLegalService(
+                        termsOperatorProfilePath = missingPath,
+                        completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile"),
+                    ).termsOperatorCanonicalJson()
+                }
+            }
 
-        val baselineJson = service.privacyBaselineCanonicalJson()
-        val defaultJson = service.privacyDefaultCanonicalJson()
-        val mosaJson = service.privacyMosaCanonicalJson()
-        val serviceJson = service.privacyServiceCanonicalJson()
-
-        assertNotEquals(mosaJson, serviceJson)
-        val analysis =
-            ClearTermsProfileChainCompletenessChecker().analyze(
-                baselineCanonicalJson = baselineJson,
-                profileChainCanonicalJsons = listOf(defaultJson, mosaJson, serviceJson),
-            )
-        assertTrue(analysis.complete)
+        assertTrue(exception.message?.contains("missing or incomplete") == true)
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:"))
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("mosa-terms-fallback-operator"))
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:"))
     }
 
     @Test
-    fun `fallback chain from legal service is renderable for german`() =
+    fun `fails when terms operator profile chain is incomplete and logs example profile`() {
+        val stdout = ByteArrayOutputStream()
+        val exception =
+            captureStdout(stdout) {
+                assertFailsWith<IllegalStateException> {
+                    createLegalService(
+                        termsOperatorProfilePath = writeTermsOperatorProfile(),
+                        completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile\nid: \"terms-template\""),
+                    ).termsOperatorCanonicalJson()
+                }
+            }
+
+        assertTrue(exception.message?.contains("missing or incomplete") == true)
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:"))
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("id: \"terms-template\""))
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:"))
+    }
+
+    @Test
+    fun `fallback chain from legal service is renderable for german when operator yaml is invalid`() =
         runTest {
-            val missingPath = Files.createTempDirectory("legal-service-render").resolve("mosa_privacy.yaml")
-            val service = createLegalService(operatorProfilePath = missingPath)
+            val path = Files.createTempDirectory("legal-service-render").resolve("mosa_privacy.yaml")
+            Files.writeString(path, "kind: profile\noverrides: [")
+            val service = createLegalService(operatorProfilePath = path)
 
             val baselineJson = service.privacyBaselineCanonicalJson()
             val defaultJson = service.privacyDefaultCanonicalJson()
@@ -243,18 +315,18 @@ class LegalServiceTest {
     }
 
     @Test
-    fun `falls back when operator profile removes placeholder from final text`() {
+    fun `fails when operator profile removes placeholder from final text`() {
         val path = Files.createTempDirectory("legal-service-invalid-unknown-placeholder").resolve("mosa_privacy.yaml")
         Files.writeString(path, operatorProfileYamlWithoutRetentionPlaceholder())
-        val service =
-            createLegalService(
-                operatorProfilePath = path,
-                completenessChecker = completenessChecker(complete = true),
-            )
+        val exception =
+            assertFailsWith<IllegalStateException> {
+                createLegalService(
+                    operatorProfilePath = path,
+                    completenessChecker = completenessChecker(complete = true),
+                ).privacyServiceCanonicalJson()
+            }
 
-        val serviceProfile = reader.readProfile(parser.parse(service.privacyServiceCanonicalJson()))
-
-        assertEquals("mosa-privacy-fallback-service", serviceProfile.id)
+        assertTrue(exception.message?.contains("missing or incomplete") == true)
     }
 
     @Test
@@ -289,7 +361,7 @@ class LegalServiceTest {
                 createLegalService(
                     operatorProfilePath = path,
                     completenessChecker = completenessChecker(complete = true),
-                )
+                ).privacyServiceCanonicalJson()
             }
 
         assertTrue(exception.message?.contains("invalid placeholder values") == true)
@@ -297,17 +369,8 @@ class LegalServiceTest {
 
     @Test
     fun `uses provided operator profile when it is complete and valid`() {
-        val missingPath = Files.createTempDirectory("legal-service-fallback-seed").resolve("mosa_privacy.yaml")
-        val fallbackSeedService =
-            createLegalService(
-                operatorProfilePath = missingPath,
-                completenessChecker = completenessChecker(complete = true),
-            )
-        val fallbackProfile = reader.readProfile(parser.parse(fallbackSeedService.privacyServiceCanonicalJson()))
-        val operatorValues = checkNotNull(fallbackProfile.overrides.values)
-
         val operatorPath = Files.createTempDirectory("legal-service-valid-operator").resolve("mosa_privacy.yaml")
-        Files.writeString(operatorPath, validOperatorProfileYaml(operatorValues))
+        Files.writeString(operatorPath, operatorProfileYaml())
 
         val service =
             createLegalService(
@@ -322,17 +385,8 @@ class LegalServiceTest {
 
     @Test
     fun `loads operator profile text overrides from sibling language fragment files`() {
-        val missingPath = Files.createTempDirectory("legal-service-fragment-seed").resolve("mosa_privacy.yaml")
-        val fallbackSeedService =
-            createLegalService(
-                operatorProfilePath = missingPath,
-                completenessChecker = completenessChecker(complete = true),
-            )
-        val fallbackProfile = reader.readProfile(parser.parse(fallbackSeedService.privacyServiceCanonicalJson()))
-        val operatorValues = checkNotNull(fallbackProfile.overrides.values)
-
         val operatorPath = Files.createTempDirectory("legal-service-fragment-operator").resolve("mosa_privacy.yaml")
-        Files.writeString(operatorPath, validOperatorProfileYaml(operatorValues))
+        Files.writeString(operatorPath, operatorProfileYaml())
         Files.writeString(
             operatorPath.resolveSibling("mosa_privacy.de.yaml"),
             """
@@ -362,17 +416,8 @@ class LegalServiceTest {
 
     @Test
     fun `ignores sibling fragments when base operator file does not end with yaml`() {
-        val missingPath = Files.createTempDirectory("legal-service-non-yaml-seed").resolve("mosa_privacy.yaml")
-        val fallbackSeedService =
-            createLegalService(
-                operatorProfilePath = missingPath,
-                completenessChecker = completenessChecker(complete = true),
-            )
-        val fallbackProfile = reader.readProfile(parser.parse(fallbackSeedService.privacyServiceCanonicalJson()))
-        val operatorValues = checkNotNull(fallbackProfile.overrides.values)
-
         val path = Files.createTempDirectory("legal-service-non-yaml-operator").resolve("mosa_privacy.txt")
-        Files.writeString(path, validOperatorProfileYaml(operatorValues))
+        Files.writeString(path, operatorProfileYaml())
         Files.writeString(path.resolveSibling("mosa_privacy.txt.de.yaml"), "overrides: [")
 
         val service =
@@ -405,7 +450,7 @@ class LegalServiceTest {
                 createLegalService(
                     operatorProfilePath = path,
                     completenessChecker = completenessChecker(complete = true),
-                )
+                ).privacyServiceCanonicalJson()
             }
 
         assertEquals("Language 'de' is defined more than once", exception.message)
@@ -471,7 +516,7 @@ class LegalServiceTest {
     }
 
     @Test
-    fun `fallback synthesizes defaults for all placeholder types and unresolved english text`() {
+    fun `logs example profile defaults for all placeholder types and unresolved english text`() {
         val converter = ClearTermsYamlCanonicalJsonConverter()
         val customMandatoryConversion =
             converter.convert(
@@ -485,44 +530,25 @@ class LegalServiceTest {
         val canonicalJsonConverter = mockk<ClearTermsYamlCanonicalJsonConverter>()
         every { canonicalJsonConverter.convert(any(), any()) } returns customMandatoryConversion
         val missingPath = Files.createTempDirectory("legal-service-synthetic-missing").resolve("mosa_privacy.yaml")
+        val exception =
+            assertFailsWith<IllegalStateException> {
+                LegalService(
+                    canonicalJsonConverter = canonicalJsonConverter,
+                    operatorProfilePath = missingPath,
+                    termsOperatorProfilePath = writeTermsOperatorProfile(),
+                    completenessChecker = completenessChecker(complete = true),
+                    parser = ClearTermsJsonParser(),
+                    reader = ClearTermsDocumentReader(),
+                    profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
+                    canonicalJson = ClearTermsCanonicalJson(),
+                ).privacyServiceCanonicalJson()
+            }
 
-        val service =
-            LegalService(
-                canonicalJsonConverter = canonicalJsonConverter,
-                operatorProfilePath = missingPath,
-                completenessChecker = completenessChecker(complete = true),
-                parser = ClearTermsJsonParser(),
-                reader = ClearTermsDocumentReader(),
-                profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
-                canonicalJson = ClearTermsCanonicalJson(),
-            )
-
-        val serviceProfile = reader.readProfile(parser.parse(service.privacyServiceCanonicalJson()))
-        val values = checkNotNull(serviceProfile.overrides.values)
-        val numberValue =
-            assertIs<straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.NumberNode>(values.getValue("N_KEY"))
-        val weekdayValue =
-            assertIs<straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.StringNode>(values.getValue("W_KEY"))
-        val durationValue =
-            assertIs<straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.StringNode>(values.getValue("D_KEY"))
-        val timeValue =
-            assertIs<straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.StringNode>(values.getValue("T_KEY"))
-        val stringValue =
-            assertIs<straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.StringNode>(values.getValue("S_KEY"))
-        val textOverrides = checkNotNull(serviceProfile.overrides.texts)
-        val englishReplace = checkNotNull(textOverrides["en"]?.replace)
-
-        assertEquals("mosa-privacy-fallback-service", serviceProfile.id)
-        assertEquals(0.0, numberValue.value)
-        assertEquals("mon", weekdayValue.value)
-        assertEquals("infinite", durationValue.value)
-        assertEquals("*-*-*", timeValue.value)
-        assertEquals("not specified", stringValue.value)
-        assertEquals("Not specified (unresolved-slot).", englishReplace["unresolved-slot"])
+        assertTrue(exception.message?.contains("missing or incomplete") == true)
     }
 
     @Test
-    fun `fallback uses german default replacement text for unresolved german block`() {
+    fun `logs german default replacement text for unresolved german block`() {
         val converter = ClearTermsYamlCanonicalJsonConverter()
         val customMandatoryConversion =
             converter.convert(
@@ -536,27 +562,30 @@ class LegalServiceTest {
         val canonicalJsonConverter = mockk<ClearTermsYamlCanonicalJsonConverter>()
         every { canonicalJsonConverter.convert(any(), any()) } returns customMandatoryConversion
         val missingPath = Files.createTempDirectory("legal-service-synthetic-missing-de").resolve("mosa_privacy.yaml")
+        val stdout = ByteArrayOutputStream()
 
-        val service =
-            LegalService(
-                canonicalJsonConverter = canonicalJsonConverter,
-                operatorProfilePath = missingPath,
-                completenessChecker = completenessChecker(complete = true),
-                parser = ClearTermsJsonParser(),
-                reader = ClearTermsDocumentReader(),
-                profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
-                canonicalJson = ClearTermsCanonicalJson(),
-            )
+        val exception =
+            captureStdout(stdout) {
+                assertFailsWith<IllegalStateException> {
+                    LegalService(
+                        canonicalJsonConverter = canonicalJsonConverter,
+                        operatorProfilePath = missingPath,
+                        termsOperatorProfilePath = writeTermsOperatorProfile(),
+                        completenessChecker = completenessChecker(complete = true),
+                        parser = ClearTermsJsonParser(),
+                        reader = ClearTermsDocumentReader(),
+                        profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
+                        canonicalJson = ClearTermsCanonicalJson(),
+                    ).privacyServiceCanonicalJson()
+                }
+            }
 
-        val serviceProfile = reader.readProfile(parser.parse(service.privacyServiceCanonicalJson()))
-        val textOverrides = checkNotNull(serviceProfile.overrides.texts)
-        val germanReplace = checkNotNull(textOverrides["de"]?.replace)
-
-        assertEquals("Nicht angegeben (unresolved-slot-de).", germanReplace["unresolved-slot-de"])
+        assertTrue(exception.message?.contains("missing or incomplete") == true)
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("unresolved-slot-de: \"Nicht angegeben (unresolved-slot-de).\""))
     }
 
     @Test
-    fun `fallback uses empty operator values when full profile list is empty`() {
+    fun `fails when full profile list is empty`() {
         val converter = ClearTermsYamlCanonicalJsonConverter()
         val mandatoryConversion =
             converter.convert(
@@ -583,20 +612,23 @@ class LegalServiceTest {
             LegalService(
                 canonicalJsonConverter = canonicalJsonConverter,
                 operatorProfilePath = operatorPath,
+                termsOperatorProfilePath = writeTermsOperatorProfile(),
                 completenessChecker = completenessChecker(complete = true),
                 parser = ClearTermsJsonParser(),
                 reader = ClearTermsDocumentReader(),
                 profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
                 canonicalJson = ClearTermsCanonicalJson(),
             )
+        val exception =
+            assertFailsWith<IllegalStateException> {
+                service.privacyServiceCanonicalJson()
+            }
 
-        val serviceProfile = reader.readProfile(parser.parse(service.privacyServiceCanonicalJson()))
-        assertEquals("mosa-privacy-fallback-service", serviceProfile.id)
-        assertTrue(checkNotNull(serviceProfile.overrides.values).isNotEmpty())
+        assertTrue(exception.message?.contains("missing or incomplete") == true)
     }
 
     @Test
-    fun `fallback uses empty operator values when last full profile has no values`() {
+    fun `fails when last full profile has no values`() {
         val converter = ClearTermsYamlCanonicalJsonConverter()
         val mandatoryConversion =
             converter.convert(
@@ -623,24 +655,29 @@ class LegalServiceTest {
             LegalService(
                 canonicalJsonConverter = canonicalJsonConverter,
                 operatorProfilePath = operatorPath,
+                termsOperatorProfilePath = writeTermsOperatorProfile(),
                 completenessChecker = completenessChecker(complete = true),
                 parser = ClearTermsJsonParser(),
                 reader = ClearTermsDocumentReader(),
                 profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
                 canonicalJson = ClearTermsCanonicalJson(),
             )
+        val exception =
+            assertFailsWith<IllegalStateException> {
+                service.privacyServiceCanonicalJson()
+            }
 
-        val serviceProfile = reader.readProfile(parser.parse(service.privacyServiceCanonicalJson()))
-        assertEquals("mosa-privacy-fallback-service", serviceProfile.id)
-        assertTrue(checkNotNull(serviceProfile.overrides.values).isNotEmpty())
+        assertTrue(exception.message?.contains("missing or incomplete") == true)
     }
 
     private fun createLegalService(
         operatorProfilePath: Path? = null,
+        termsOperatorProfilePath: Path? = null,
         completenessChecker: ClearTermsProfileChainCompletenessChecker? = null,
     ) = LegalService(
         canonicalJsonConverter = ClearTermsYamlCanonicalJsonConverter(),
         operatorProfilePath = operatorProfilePath ?: writeOperatorProfile(),
+        termsOperatorProfilePath = termsOperatorProfilePath ?: writeTermsOperatorProfile(),
         completenessChecker = completenessChecker ?: completenessChecker(complete = true),
         parser = ClearTermsJsonParser(),
         reader = ClearTermsDocumentReader(),
@@ -656,6 +693,12 @@ class LegalServiceTest {
     private fun writeOperatorProfile(): Path {
         val path = Files.createTempDirectory("legal-service").resolve("mosa_privacy.yaml")
         Files.writeString(path, operatorProfileYaml())
+        return path
+    }
+
+    private fun writeTermsOperatorProfile(): Path {
+        val path = Files.createTempDirectory("legal-service").resolve("mosa_terms.yaml")
+        Files.writeString(path, validTermsOperatorProfileYaml())
         return path
     }
 
@@ -679,10 +722,10 @@ class LegalServiceTest {
         return checker
     }
 
-    private fun captureStdout(
+    private fun <T> captureStdout(
         stdout: ByteArrayOutputStream,
-        block: () -> LegalService,
-    ): LegalService {
+        block: () -> T,
+    ): T {
         val previous = System.out
         System.setOut(PrintStream(stdout, true, Charsets.UTF_8))
         return try {
@@ -702,7 +745,33 @@ class LegalServiceTest {
           version: "1.0.0-draft2"
         overrides:
           values:
+            AUTHORITY_SUPERVISORY_ADDRESS: "Example Authority Street 2, 12345 Example City"
+            AUTHORITY_SUPERVISORY_NAME: "Example Supervisory Authority"
+            AUTHORITY_SUPERVISORY_WEBSITE: "https://authority.example"
+            ORG_CONTROLLER_NAME: "Operator Corp"
+            ORG_CONTROLLER_ADDRESS: "Example Street 1, 12345 Example City"
+            CONTACT_CONTROLLER_EMAIL: "legal@operator.example"
+            CONTACT_DPO_OR_NOT_REQUIRED: "not required"
+            CONTACT_PRIVACY_EMAIL: "privacy@operator.example"
+            DOC_EFFECTIVE_DATE: "2026-03-13T00:00:00Z"
+            RECIPIENTS_PROCESSORS_INFO: "No processors"
             SERVICE_DISPLAY_NAME: "Operator Service"
+            URL_CONTROLLER_WEBSITE: "https://operator.example"
+        """.trimIndent()
+
+    private fun validTermsOperatorProfileYaml(): String =
+        """
+        kind: profile
+        id: terms-operator-service
+        version: "1.0.0-draft2"
+        parent:
+          id: mosa-terms-service
+          version: "1.0.0-draft1"
+        overrides:
+          values:
+            ORG_CONTROLLER_NAME: "Operator Corp"
+            CONTACT_CONTROLLER_EMAIL: "legal@operator.example"
+            DOC_EFFECTIVE_DATE: "2026-03-13T00:00:00Z"
         """.trimIndent()
 
     private fun operatorProfileYamlWithoutRetentionPlaceholder(): String =

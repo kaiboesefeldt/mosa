@@ -430,14 +430,25 @@ class PodAccessTest {
     }
 
     @Test
-    fun `terms service clear terms sends get and returns raw json`() = runTest {
+    fun `terms mosa clear terms sends get and returns raw json`() = runTest {
         val capturedRequests = mutableListOf<HttpRequestData>()
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, "{\"kind\":\"profile\",\"id\":\"mosa-terms-service\"}")
 
-        val result = podAccess.termsServiceClearTerms()
+        val result = podAccess.termsMosaClearTerms()
 
         assertEquals("{\"kind\":\"profile\",\"id\":\"mosa-terms-service\"}", result)
-        assertGetRequest(capturedRequests.single(), "v1/legal/terms/service")
+        assertGetRequest(capturedRequests.single(), "v1/legal/terms/mosa")
+    }
+
+    @Test
+    fun `terms operator clear terms sends get and returns raw json`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, "{\"kind\":\"profile\",\"id\":\"terms-operator-service\"}")
+
+        val result = podAccess.termsOperatorClearTerms()
+
+        assertEquals("{\"kind\":\"profile\",\"id\":\"terms-operator-service\"}", result)
+        assertGetRequest(capturedRequests.single(), "v1/legal/terms/operator")
     }
 
     @Test
