@@ -1,10 +1,14 @@
 package straightway.mosa.legal
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import org.slf4j.LoggerFactory
 import straightway.mosa.legal.clearterms.ClearTermsCanonicalJson
 import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
 import straightway.mosa.legal.clearterms.ClearTermsHashProvider
@@ -315,81 +319,95 @@ class LegalServiceTest {
     }
 
     @Test
-    fun `fails when privacy operator profile file is missing and logs example profile`() {
+    fun `fails when privacy operator profile file is missing and logs error without stdout yaml dump`() {
         val missingPath = Files.createTempDirectory("legal-service-missing").resolve("mosa_privacy.yaml")
         val stdout = ByteArrayOutputStream()
-        val exception =
-            captureStdout(stdout) {
+        val logMessages =
+            captureLegalServiceLogs {
                 assertFailsWith<IllegalStateException> {
-                    createLegalService(
-                        operatorProfilePath = missingPath,
-                        completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile"),
-                    ).privacyServiceCanonicalJson()
+                    captureStdout(stdout) {
+                        createLegalService(
+                            operatorProfilePath = missingPath,
+                            completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile"),
+                        ).privacyServiceCanonicalJson()
+                    }
                 }
             }
 
-        assertTrue(exception.message?.contains("missing or incomplete") == true)
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:"))
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("mosa-privacy-fallback-service"))
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:"))
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:").not())
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:").not())
+        assertTrue(logMessages.any { it.contains(missingPath.toAbsolutePath().normalize().toString()) })
+        assertTrue(logMessages.any { it.contains("Review and complete") })
     }
 
     @Test
-    fun `fails when privacy operator profile chain is incomplete and logs example profile`() {
+    fun `fails when privacy operator profile chain is incomplete and logs error without stdout yaml dump`() {
+        val path = writeOperatorProfile()
         val stdout = ByteArrayOutputStream()
-        val exception =
-            captureStdout(stdout) {
+        val logMessages =
+            captureLegalServiceLogs {
                 assertFailsWith<IllegalStateException> {
-                    createLegalService(
-                        operatorProfilePath = writeOperatorProfile(),
-                        completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile\nid: \"template\""),
-                    ).privacyServiceCanonicalJson()
+                    captureStdout(stdout) {
+                        createLegalService(
+                            operatorProfilePath = path,
+                            completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile\nid: \"template\""),
+                        ).privacyServiceCanonicalJson()
+                    }
                 }
             }
 
-        assertTrue(exception.message?.contains("missing or incomplete") == true)
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:"))
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("id: \"template\""))
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:"))
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:").not())
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:").not())
+        assertTrue(logMessages.any { it.contains(path.toAbsolutePath().normalize().toString()) })
+        assertTrue(logMessages.any { it.contains("validation failed") })
     }
 
     @Test
-    fun `fails when terms operator profile file is missing and logs example profile`() {
+    fun `fails when terms operator profile file is missing and logs error without stdout yaml dump`() {
         val missingPath = Files.createTempDirectory("legal-service-missing-terms").resolve("mosa_terms.yaml")
         val stdout = ByteArrayOutputStream()
-        val exception =
-            captureStdout(stdout) {
+        val logMessages =
+            captureLegalServiceLogs {
                 assertFailsWith<IllegalStateException> {
-                    createLegalService(
-                        termsOperatorProfilePath = missingPath,
-                        completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile"),
-                    ).termsOperatorCanonicalJson()
+                    captureStdout(stdout) {
+                        createLegalService(
+                            termsOperatorProfilePath = missingPath,
+                            completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile"),
+                        ).termsOperatorCanonicalJson()
+                    }
                 }
             }
 
-        assertTrue(exception.message?.contains("missing or incomplete") == true)
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:"))
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("mosa-terms-fallback-operator"))
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:"))
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:").not())
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:").not())
+        assertTrue(logMessages.any { it.contains(missingPath.toAbsolutePath().normalize().toString()) })
+        assertTrue(logMessages.any { it.contains("Review and complete") })
     }
 
     @Test
-    fun `fails when terms operator profile chain is incomplete and logs example profile`() {
+    fun `fails when terms operator profile chain is incomplete and logs error without stdout yaml dump`() {
+        val path = writeTermsOperatorProfile()
         val stdout = ByteArrayOutputStream()
-        val exception =
-            captureStdout(stdout) {
+        val logMessages =
+            captureLegalServiceLogs {
                 assertFailsWith<IllegalStateException> {
-                    createLegalService(
-                        termsOperatorProfilePath = writeTermsOperatorProfile(),
-                        completenessChecker = completenessChecker(complete = false, skeletonYaml = "kind: profile\nid: \"terms-template\""),
-                    ).termsOperatorCanonicalJson()
+                    captureStdout(stdout) {
+                        createLegalService(
+                            termsOperatorProfilePath = path,
+                            completenessChecker =
+                                completenessChecker(
+                                    complete = false,
+                                    skeletonYaml = "kind: profile\nid: \"terms-template\"",
+                                ),
+                        ).termsOperatorCanonicalJson()
+                    }
                 }
             }
 
-        assertTrue(exception.message?.contains("missing or incomplete") == true)
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:"))
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("id: \"terms-template\""))
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:"))
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:").not())
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:").not())
+        assertTrue(logMessages.any { it.contains(path.toAbsolutePath().normalize().toString()) })
+        assertTrue(logMessages.any { it.contains("validation failed") })
     }
 
     @Test
@@ -684,7 +702,7 @@ class LegalServiceTest {
     }
 
     @Test
-    fun `logs german default replacement text for unresolved german block`() {
+    fun `logs unresolved german block as structured error without stdout yaml dump`() {
         val converter = ClearTermsYamlCanonicalJsonConverter()
         val customMandatoryConversion =
             converter.convert(
@@ -700,24 +718,27 @@ class LegalServiceTest {
         val missingPath = Files.createTempDirectory("legal-service-synthetic-missing-de").resolve("mosa_privacy.yaml")
         val stdout = ByteArrayOutputStream()
 
-        val exception =
-            captureStdout(stdout) {
+        val logMessages =
+            captureLegalServiceLogs {
                 assertFailsWith<IllegalStateException> {
-                    LegalService(
-                        canonicalJsonConverter = canonicalJsonConverter,
-                        operatorProfilePath = missingPath,
-                        termsOperatorProfilePath = writeTermsOperatorProfile(),
-                        completenessChecker = completenessChecker(complete = true),
-                        parser = ClearTermsJsonParser(),
-                        reader = ClearTermsDocumentReader(),
-                        profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
-                        canonicalJson = ClearTermsCanonicalJson(),
-                    ).privacyServiceCanonicalJson()
+                    captureStdout(stdout) {
+                        LegalService(
+                            canonicalJsonConverter = canonicalJsonConverter,
+                            operatorProfilePath = missingPath,
+                            termsOperatorProfilePath = writeTermsOperatorProfile(),
+                            completenessChecker = completenessChecker(complete = true),
+                            parser = ClearTermsJsonParser(),
+                            reader = ClearTermsDocumentReader(),
+                            profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
+                            canonicalJson = ClearTermsCanonicalJson(),
+                        ).privacyServiceCanonicalJson()
+                    }
                 }
             }
 
-        assertTrue(exception.message?.contains("missing or incomplete") == true)
-        assertTrue(stdout.toString(Charsets.UTF_8).contains("unresolved-slot-de: \"Nicht angegeben (unresolved-slot-de).\""))
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Suggested operator profile example:").not())
+        assertTrue(stdout.toString(Charsets.UTF_8).contains("Fill-in hints:").not())
+        assertTrue(logMessages.any { it.contains(missingPath.toAbsolutePath().normalize().toString()) })
     }
 
     @Test
@@ -868,6 +889,20 @@ class LegalServiceTest {
             block()
         } finally {
             System.setOut(previous)
+        }
+    }
+
+    private fun captureLegalServiceLogs(block: () -> Unit): List<String> {
+        val logger = LoggerFactory.getLogger(LegalService::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>()
+        appender.start()
+        logger.addAppender(appender)
+        return try {
+            block()
+            appender.list.map { it.formattedMessage }
+        } finally {
+            logger.detachAppender(appender)
+            appender.stop()
         }
     }
 

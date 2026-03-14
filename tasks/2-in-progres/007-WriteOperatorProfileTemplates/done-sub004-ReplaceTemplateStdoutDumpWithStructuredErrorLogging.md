@@ -19,3 +19,7 @@ Akzeptanzkriterien
 - Bei fehlenden oder unvollstaendigen Operator-Profilen wird kein unstrukturierter YAML-Dump mehr auf `stdout` ausgegeben.
 - Stattdessen entsteht ein ERROR-Log mit Verweis auf `mosa_privacy.yaml` und/oder `mosa_terms.yaml`, sofern betroffen.
 - Das Logging ist in automatisierten Tests oder ueber oeffentlich beobachtbares Verhalten pruefbar.
+
+Pragmatisch geklaert
+
+- Beim Startup kann sowohl das Erzeugen fehlender Dateien als auch die anschliessende Validierungsverletzung geloggt werden. Entscheidend ist, dass keine YAML-Dumps mehr auf `stdout` erscheinen und dass die ERROR-Logs die betroffenen Dateien klar benennen.
