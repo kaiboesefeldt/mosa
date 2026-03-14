@@ -35,6 +35,7 @@ class LegalService(
     private val termsDocuments: TermsLegalDocuments by lazy { loadTermsDocuments() }
 
     fun validateStartup() {
+        ensureMissingOperatorProfilesExist()
         privacyServiceCanonicalJson()
         termsOperatorCanonicalJson()
     }
@@ -60,14 +61,21 @@ class LegalService(
     private fun loadPrivacyDocuments(): PrivacyLegalDocuments {
         val mandatoryContext = loadMandatoryChainContext()
         val operatorYaml =
-            readOptionalProfile(operatorProfilePath) ?: failForMissingOrIncompleteOperatorProfile(
-                mandatoryConversion = mandatoryContext.conversion,
-                mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
-                reason = "Operator profile file is missing at '${
-                    operatorProfilePath.toAbsolutePath().normalize()
-                }'",
-                fallbackProfileId = "mosa-privacy-fallback-service",
-            )
+            readOptionalProfile(operatorProfilePath) ?: run {
+                createMissingOperatorProfileFile(
+                    profilePath = operatorProfilePath,
+                    mandatoryContext = mandatoryContext,
+                    fallbackProfileId = "mosa-privacy-fallback-service",
+                )
+                failForMissingOrIncompleteOperatorProfile(
+                    mandatoryConversion = mandatoryContext.conversion,
+                    mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
+                    reason = "Operator profile file is missing at '${
+                        operatorProfilePath.toAbsolutePath().normalize()
+                    }'",
+                    fallbackProfileId = "mosa-privacy-fallback-service",
+                )
+            }
         return loadPrivacyDocumentsFromOperatorProfile(
             mandatoryContext = mandatoryContext,
             operatorYaml = operatorYaml,
@@ -82,12 +90,19 @@ class LegalService(
                 mosaResource = TERMS_SERVICE_RESOURCE,
             )
         val operatorYaml =
-            readOptionalProfile(termsOperatorProfilePath) ?: failForMissingOrIncompleteOperatorProfile(
-                mandatoryConversion = mandatoryContext.conversion,
-                mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
-                reason = "Operator profile file is missing at '${termsOperatorProfilePath.toAbsolutePath().normalize()}'",
-                fallbackProfileId = "mosa-terms-fallback-operator",
-            )
+            readOptionalProfile(termsOperatorProfilePath) ?: run {
+                createMissingOperatorProfileFile(
+                    profilePath = termsOperatorProfilePath,
+                    mandatoryContext = mandatoryContext,
+                    fallbackProfileId = "mosa-terms-fallback-operator",
+                )
+                failForMissingOrIncompleteOperatorProfile(
+                    mandatoryConversion = mandatoryContext.conversion,
+                    mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
+                    reason = "Operator profile file is missing at '${termsOperatorProfilePath.toAbsolutePath().normalize()}'",
+                    fallbackProfileId = "mosa-terms-fallback-operator",
+                )
+            }
         val fullConversion =
             try {
                 convertFullChain(
@@ -390,6 +405,59 @@ class LegalService(
             }
         }
         return discovered.toList()
+    }
+
+    private fun ensureMissingOperatorProfilesExist() {
+        createMissingOperatorProfileFileIfNeeded(
+            profilePath = operatorProfilePath,
+            mandatoryContext = loadMandatoryChainContext(),
+            fallbackProfileId = "mosa-privacy-fallback-service",
+        )
+        createMissingOperatorProfileFileIfNeeded(
+            profilePath = termsOperatorProfilePath,
+            mandatoryContext =
+                loadMandatoryChainContext(
+                    baselineResource = TERMS_BASELINE_RESOURCE,
+                    defaultResource = TERMS_DEFAULT_RESOURCE,
+                    mosaResource = TERMS_SERVICE_RESOURCE,
+                ),
+            fallbackProfileId = "mosa-terms-fallback-operator",
+        )
+    }
+
+    private fun createMissingOperatorProfileFile(
+        profilePath: Path,
+        mandatoryContext: MandatoryChainContext,
+        fallbackProfileId: String,
+    ) {
+        createMissingOperatorProfileFileIfNeeded(
+            profilePath = profilePath,
+            mandatoryContext = mandatoryContext,
+            fallbackProfileId = fallbackProfileId,
+        )
+    }
+
+    private fun createMissingOperatorProfileFileIfNeeded(
+        profilePath: Path,
+        mandatoryContext: MandatoryChainContext,
+        fallbackProfileId: String,
+    ) {
+        val normalizedPath = profilePath.toAbsolutePath().normalize()
+        if (Files.exists(normalizedPath)) {
+            return
+        }
+        Files.createDirectories(normalizedPath.parent ?: Path.of("."))
+        Files.writeString(
+            normalizedPath,
+            renderYaml(
+                synthesizedFallbackProfileCanonicalJson(
+                    mandatoryConversion = mandatoryContext.conversion,
+                    operatorValuesOverride = emptyMap(),
+                    fallbackProfileId = fallbackProfileId,
+                ),
+            ) + "\n",
+            Charsets.UTF_8,
+        )
     }
 
     private fun printMissingOrIncompleteOperatorProfile(

@@ -171,6 +171,42 @@ class LegalServiceTest {
     }
 
     @Test
+    fun `validate startup creates missing privacy operator profile file without touching terms file`() {
+        val directory = Files.createTempDirectory("legal-service-create-missing-privacy")
+        val missingPrivacyPath = directory.resolve("mosa_privacy.yaml")
+        val existingTermsPath = directory.resolve("mosa_terms.yaml")
+        Files.writeString(existingTermsPath, validTermsOperatorProfileYaml())
+        val originalTermsContent = Files.readString(existingTermsPath)
+
+        createLegalService(
+            operatorProfilePath = missingPrivacyPath,
+            termsOperatorProfilePath = existingTermsPath,
+            completenessChecker = completenessChecker(complete = true),
+        ).validateStartup()
+
+        assertTrue(Files.exists(missingPrivacyPath))
+        assertEquals(originalTermsContent, Files.readString(existingTermsPath))
+    }
+
+    @Test
+    fun `validate startup creates missing terms operator profile file without touching privacy file`() {
+        val directory = Files.createTempDirectory("legal-service-create-missing-terms")
+        val existingPrivacyPath = directory.resolve("mosa_privacy.yaml")
+        val missingTermsPath = directory.resolve("mosa_terms.yaml")
+        Files.writeString(existingPrivacyPath, operatorProfileYaml())
+        val originalPrivacyContent = Files.readString(existingPrivacyPath)
+
+        createLegalService(
+            operatorProfilePath = existingPrivacyPath,
+            termsOperatorProfilePath = missingTermsPath,
+            completenessChecker = completenessChecker(complete = true),
+        ).validateStartup()
+
+        assertTrue(Files.exists(missingTermsPath))
+        assertEquals(originalPrivacyContent, Files.readString(existingPrivacyPath))
+    }
+
+    @Test
     fun `chains parent hashes from baseline to default to mosa to service`() {
         val service = createLegalService()
 
