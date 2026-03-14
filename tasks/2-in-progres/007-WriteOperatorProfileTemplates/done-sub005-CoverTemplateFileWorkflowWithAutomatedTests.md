@@ -20,3 +20,7 @@ Akzeptanzkriterien
 - Es gibt mindestens einen automatisierten Test fuer den Fall, dass bereits vorhandene Dateien unangetastet bleiben.
 - Es gibt mindestens einen automatisierten Test, der den Startabbruch bei erzeugten oder unvollstaendigen Dateien nachweist.
 - Die Tests laufen mit den bestehenden Testwerkzeugen des Projekts und pruefen oeffentlich beobachtbares Verhalten.
+
+Pragmatisch geklaert
+
+- Die benoetigte Abdeckung wird nicht in einem einzigen Testblock gebuendelt, sondern entlang der Subtasks aufgebaut. Dadurch bleiben die Tests jeweils klein und direkt am beobachtbaren Verhalten der Teilfunktion ausgerichtet.
