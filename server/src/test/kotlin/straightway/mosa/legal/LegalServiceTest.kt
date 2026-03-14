@@ -294,6 +294,30 @@ class LegalServiceTest {
     }
 
     @Test
+    fun `validate startup succeeds after generated templates are filled minimally`() {
+        val directory = Files.createTempDirectory("legal-service-fill-generated-templates")
+        val privacyPath = directory.resolve("mosa_privacy.yaml")
+        val termsPath = directory.resolve("mosa_terms.yaml")
+
+        assertFailsWith<IllegalStateException> {
+            createLegalService(
+                operatorProfilePath = privacyPath,
+                termsOperatorProfilePath = termsPath,
+                completenessChecker = completenessChecker(complete = true),
+            ).validateStartup()
+        }
+
+        Files.writeString(privacyPath, minimallyFilledTemplateYaml(Files.readString(privacyPath)))
+        Files.writeString(termsPath, minimallyFilledTemplateYaml(Files.readString(termsPath)))
+
+        createLegalService(
+            operatorProfilePath = privacyPath,
+            termsOperatorProfilePath = termsPath,
+            completenessChecker = completenessChecker(complete = true),
+        ).validateStartup()
+    }
+
+    @Test
     fun `chains parent hashes from baseline to default to mosa to service`() {
         val service = createLegalService()
 
@@ -905,6 +929,27 @@ class LegalServiceTest {
             appender.stop()
         }
     }
+
+    private fun minimallyFilledTemplateYaml(templateYaml: String): String =
+        templateYaml
+            .lineSequence()
+            .map { line ->
+                when {
+                    line.contains(": null # type: string") ->
+                        line.replace(": null # type: string", """: "Filled value"""")
+                    line.contains(": null # type: time") ->
+                        line.replace(": null # type: time", """: "2026-03-14T00:00:00Z"""")
+                    line.contains(": null # type: duration") ->
+                        line.replace(": null # type: duration", """: "P30D"""")
+                    line.contains(": null # type: weekday") ->
+                        line.replace(": null # type: weekday", """: "mon"""")
+                    line.contains(": null # type: number") ->
+                        line.replace(": null # type: number", ": 1")
+                    line.contains(": null # TODO:") ->
+                        line.replace(Regex(""": null # TODO:.*$"""), """: "Filled text"""")
+                    else -> line
+                }
+            }.joinToString("\n")
 
     private fun operatorProfileYaml(): String =
         """
