@@ -28,6 +28,7 @@ import react.useState
 import straightway.mosa.client.assets.FontAwesomeResources
 import straightway.mosa.client.assets.LogoResources
 import straightway.mosa.client.i18n.Translator
+import straightway.mosa.client.legal.LegalImprintService
 import straightway.mosa.client.legal.LegalPrivacyPolicyService
 import straightway.mosa.client.legal.downloadLegalPdf
 import straightway.mosa.client.legal.LegalRailMarker
@@ -60,8 +61,9 @@ fun main() {
     root.render(IdentityApp.create())
 }
 
-private val IdentityApp = FC<Props> {
+internal val IdentityApp = FC<Props> {
     val translator = GlobalContext.get().get<Translator>()
+    val legalImprintService = useMemo(*mainNoDependencies) { GlobalContext.get().get<LegalImprintService>() }
     val legalPrivacyPolicyService = useMemo(*mainNoDependencies) { GlobalContext.get().get<LegalPrivacyPolicyService>() }
     val scope = useMemo(*mainNoDependencies) { MainScope() }
     val legalDocumentContentRef = useRef<HTMLDivElement>()
@@ -85,13 +87,17 @@ private val IdentityApp = FC<Props> {
     val legalDialogTitle =
         when (activeLegalDocument) {
             LEGAL_DOCUMENT_PRIVACY -> activeDocumentTitle
-            LEGAL_DOCUMENT_IMPRINT -> "$activeDocumentTitle (Dummy)"
+            LEGAL_DOCUMENT_IMPRINT -> activeDocumentTitle
             LEGAL_DOCUMENT_TERMS -> activeDocumentTitle
             else -> null
         }
 
     useEffect(arrayOf(activeLegalDocument)) {
-        if (activeLegalDocument != LEGAL_DOCUMENT_PRIVACY && activeLegalDocument != LEGAL_DOCUMENT_TERMS) {
+        if (
+            activeLegalDocument != LEGAL_DOCUMENT_PRIVACY &&
+            activeLegalDocument != LEGAL_DOCUMENT_IMPRINT &&
+            activeLegalDocument != LEGAL_DOCUMENT_TERMS
+        ) {
             legalDocumentState = LegalDocumentState.Idle
             isPrivacyPdfDownloading = false
             legalDocumentContentRef.current?.asDynamic()?.innerHTML = ""
@@ -114,6 +120,7 @@ private val IdentityApp = FC<Props> {
                 runCatching {
                     when (activeLegalDocument) {
                         LEGAL_DOCUMENT_PRIVACY -> legalPrivacyPolicyService.loadPrivacyPolicyDocument()
+                        LEGAL_DOCUMENT_IMPRINT -> legalImprintService.loadImprintDocument()
                         LEGAL_DOCUMENT_TERMS -> legalPrivacyPolicyService.loadTermsDocument()
                         else -> error("Unsupported legal document: $activeLegalDocument")
                     }
@@ -129,6 +136,7 @@ private val IdentityApp = FC<Props> {
                     console.error("Failed to load legal document", it)
                     val messageKey =
                         when (activeLegalDocument) {
+                            LEGAL_DOCUMENT_IMPRINT -> "legal.imprint.load.error"
                             LEGAL_DOCUMENT_TERMS -> "legal.terms.load.error"
                             else -> "legal.privacy.load.error"
                         }
@@ -432,14 +440,24 @@ private val IdentityApp = FC<Props> {
                     }
 
                     else -> {
-                        p {
-                            +"Dies ist ein Platzhaltertext. Das finale Rechtsdokument wird später mit ClearTerms ausgeliefert."
-                        }
-                        p {
-                            +"Aktuell dient dieser Inhalt nur der UI-Integration und ist rechtlich nicht verbindlich."
-                        }
-                        p {
-                            +"Verantwortlich ist der Heimat-Pod, von dem diese App geladen wurde."
+                        when {
+                            legalDocumentState is LegalDocumentState.Loading -> {
+                                p { +translator.translate("legal.imprint.loading") }
+                            }
+
+                            legalDocumentState is LegalDocumentState.Error -> {
+                                p { +((legalDocumentState as LegalDocumentState.Error).text) }
+                            }
+
+                            legalDocumentState is LegalDocumentState.Ready -> {
+                                div {
+                                    className = ClassName("legal-dialog__content-wrap")
+                                    div {
+                                        className = ClassName("legal-dialog__content")
+                                        ref = legalDocumentContentRef
+                                    }
+                                }
+                            }
                         }
                     }
                 }

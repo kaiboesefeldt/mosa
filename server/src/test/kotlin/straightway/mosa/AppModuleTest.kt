@@ -27,6 +27,7 @@ import straightway.mosa.content.ContentService
 import straightway.mosa.content.PrivacySnapshotController
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
+import straightway.mosa.legal.ImprintService
 import straightway.mosa.legal.LegalController
 import straightway.mosa.legal.LegalService
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
@@ -60,7 +61,9 @@ class AppModuleTest {
         testWorkingDir = Files.createTempDirectory("mosa-test-")
         System.setProperty("user.dir", testWorkingDir.toString())
         writeLegalOperatorProfiles(checkNotNull(testWorkingDir))
+        writeImprintConfig(checkNotNull(testWorkingDir))
         writeLegalOperatorProfiles(moduleWorkingDir)
+        writeImprintConfig(moduleWorkingDir)
         mockkObject(LuceneLocalVectorStore.Companion)
         mockOnnxEmbeddingService()
         mockVectorStore()
@@ -77,9 +80,11 @@ class AppModuleTest {
         testWorkingDir?.resolve("mosa_snapshot_archive_key.txt")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.resolve("mosa_privacy.yaml")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.resolve("mosa_terms.yaml")?.let { Files.deleteIfExists(it) }
+        testWorkingDir?.resolve("imprint.yaml")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.let { Files.deleteIfExists(it) }
         Files.deleteIfExists(moduleWorkingDir.resolve("mosa_privacy.yaml"))
         Files.deleteIfExists(moduleWorkingDir.resolve("mosa_terms.yaml"))
+        Files.deleteIfExists(moduleWorkingDir.resolve("imprint.yaml"))
         originalUserDir?.let { System.setProperty("user.dir", it) }
     }
 
@@ -145,6 +150,11 @@ class AppModuleTest {
     @Test
     fun `provides pod certificate service singleton`() {
         assertDoesNotThrow { koin.get<PodCertificateService>() }
+    }
+
+    @Test
+    fun `provides imprint service singleton`() {
+        assertDoesNotThrow { koin.get<ImprintService>() }
     }
 
     @Test
@@ -240,6 +250,23 @@ class AppModuleTest {
     private fun writeLegalOperatorProfiles(directory: Path) {
         Files.writeString(directory.resolve("mosa_privacy.yaml"), privacyOperatorProfileYaml())
         Files.writeString(directory.resolve("mosa_terms.yaml"), termsOperatorProfileYaml())
+    }
+
+    private fun writeImprintConfig(directory: Path) {
+        Files.writeString(
+            directory.resolve("imprint.yaml"),
+            """
+            provider:
+              name: "Example Pod GmbH"
+            address:
+              street: "Main Street 1"
+              postal_code: "12345"
+              city: "Berlin"
+              country: "Deutschland"
+            contact:
+              email: "legal@example.invalid"
+            """.trimIndent(),
+        )
     }
 
     private fun privacyOperatorProfileYaml(): String =

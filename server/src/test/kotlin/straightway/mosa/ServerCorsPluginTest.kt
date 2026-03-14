@@ -279,6 +279,33 @@ class ServerCorsPluginTest {
     }
 
     @Test
+    fun `allows GET legal imprint route without auth`() {
+        var handlerInvoked = false
+
+        testApplication {
+            application {
+                install(createMosaApiCorsPlugin(requireTlsForPod = true, clientIpResolver = trustedProxyResolver))
+                routing {
+                    get("/v1/legal/imprint") {
+                        handlerInvoked = true
+                        call.respond(HttpStatusCode.OK)
+                    }
+                }
+            }
+
+            val response =
+                client.get("/v1/legal/imprint") {
+                    header(HttpHeaders.XForwardedProto, "https")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(handlerInvoked)
+            assertEquals("*", response.headers[HttpHeaders.AccessControlAllowOrigin])
+            assertEquals("Retry-After", response.headers[HttpHeaders.AccessControlExposeHeaders])
+        }
+    }
+
+    @Test
     fun `rejects missing authorization for secured endpoint`() {
         var handlerInvoked = false
 

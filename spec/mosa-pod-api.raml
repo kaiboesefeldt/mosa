@@ -276,6 +276,150 @@ types:
           id: privacy-operator-service
           version: 1.0.0-draft2
 
+  ImprintAddress:
+    type: object
+    properties:
+      street?: string
+      postalCode?: string
+      city?: string
+      region?: string
+      country?: string
+    example:
+      street: "Musterstrasse 12"
+      postalCode: "12345"
+      city: "Berlin"
+      region: "Berlin"
+      country: "Deutschland"
+
+  ImprintProviderBlock:
+    type: object
+    properties:
+      name?: string
+      legalForm?: string
+      representative?: string
+    example:
+      name: "Beispielpod GmbH"
+      legalForm: "GmbH"
+      representative: "Mira Beispiel"
+
+  ImprintContactBlock:
+    type: object
+    properties:
+      email?: string
+      phone?: string
+      website?: string
+    example:
+      email: "kontakt@beispielpod.invalid"
+      phone: "+49 30 1234567"
+      website: "https://beispielpod.invalid"
+
+  ImprintRegisterBlock:
+    type: object
+    properties:
+      court?: string
+      number?: string
+      name?: string
+    example:
+      court: "Amtsgericht Berlin-Charlottenburg"
+      number: "HRB 123456 B"
+      name: "Handelsregister"
+
+  ImprintTaxBlock:
+    type: object
+    properties:
+      vatId?: string
+      businessId?: string
+      other?: string
+    example:
+      vatId: "DE123456789"
+      businessId: "W-12345678"
+      other: "Steuernummer 12/345/67890"
+
+  ImprintSupervisionBlock:
+    type: object
+    properties:
+      authority?: string
+      address?: ImprintAddress
+      website?: string
+    example:
+      authority: "Medienanstalt Berlin-Brandenburg"
+      address:
+        street: "Kleine Praesidentenstrasse 1"
+        postalCode: "10178"
+        city: "Berlin"
+        region: "Berlin"
+        country: "Deutschland"
+      website: "https://www.mabb.de"
+
+  ImprintEditorialBlock:
+    type: object
+    properties:
+      responsiblePerson?: string
+      address?: ImprintAddress
+    example:
+      responsiblePerson: "Mira Beispiel"
+      address:
+        street: "Musterstrasse 12"
+        postalCode: "12345"
+        city: "Berlin"
+        region: "Berlin"
+        country: "Deutschland"
+
+  ImprintDocument:
+    type: object
+    properties:
+      provider: ImprintProviderBlock
+      address: ImprintAddress
+      contact: ImprintContactBlock
+      register?: ImprintRegisterBlock
+      tax?: ImprintTaxBlock
+      supervision?: ImprintSupervisionBlock
+      editorial?: ImprintEditorialBlock
+      additionalMarkdown?: string
+    example:
+      provider:
+        name: "Beispielpod GmbH"
+        legalForm: "GmbH"
+        representative: "Mira Beispiel"
+      address:
+        street: "Musterstrasse 12"
+        postalCode: "12345"
+        city: "Berlin"
+        region: "Berlin"
+        country: "Deutschland"
+      contact:
+        email: "kontakt@beispielpod.invalid"
+        phone: "+49 30 1234567"
+        website: "https://beispielpod.invalid"
+      register:
+        court: "Amtsgericht Berlin-Charlottenburg"
+        number: "HRB 123456 B"
+        name: "Handelsregister"
+      tax:
+        vatId: "DE123456789"
+        businessId: "W-12345678"
+        other: "Steuernummer 12/345/67890"
+      supervision:
+        authority: "Medienanstalt Berlin-Brandenburg"
+        address:
+          street: "Kleine Praesidentenstrasse 1"
+          postalCode: "10178"
+          city: "Berlin"
+          region: "Berlin"
+          country: "Deutschland"
+        website: "https://www.mabb.de"
+      editorial:
+        responsiblePerson: "Mira Beispiel"
+        address:
+          street: "Musterstrasse 12"
+          postalCode: "12345"
+          city: "Berlin"
+          region: "Berlin"
+          country: "Deutschland"
+      additionalMarkdown: |
+        ## Angaben gemaess § 5 DDG
+        Dieses Beispiel dient nur als Vorlage.
+
 traits:
   rateLimited:
     responses:
@@ -421,6 +565,20 @@ securitySchemes:
           description: Server error
 
   /legal:
+    /imprint:
+      get:
+        displayName: Get Imprint Document
+        description: |
+          Returns the pod operator's configured imprint document with fixed semantic blocks.
+          This endpoint is unauthenticated.
+        responses:
+          200:
+            body:
+              application/json:
+                type: ImprintDocument
+          5xx:
+            description: Server error
+
     /privacy:
       get:
         displayName: Get Privacy Document Chain

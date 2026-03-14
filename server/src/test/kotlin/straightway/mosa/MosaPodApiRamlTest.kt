@@ -33,6 +33,15 @@ class MosaPodApiRamlTest {
         assertContains("/reply", "Unsupported signature version or signature verification failed")
     }
 
+    @Test
+    fun `legal imprint endpoint and document types are documented`() {
+        assertContains("/legal", "/imprint:")
+        assertContains("/legal", "displayName: Get Imprint Document")
+        assertContains("ImprintDocument", "type: ImprintDocument")
+        assertContains("ImprintProviderBlock", "ImprintProviderBlock:")
+        assertContains("ImprintDocument", "additionalMarkdown?: string")
+    }
+
     private fun assertContains(
         sectionAnchor: String,
         expected: String,

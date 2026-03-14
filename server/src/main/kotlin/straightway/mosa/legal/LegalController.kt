@@ -9,6 +9,7 @@ import straightway.mosa.base.BaseController
 
 class LegalController(
     private val legalService: LegalService,
+    private val imprintService: ImprintService,
 ) : BaseController() {
     override fun Route.register() {
         getRoute("/legal/privacy") {
@@ -21,6 +22,13 @@ class LegalController(
         getRoute("/legal/terms") {
             call.respondText(
                 text = Json.encodeToString(legalService.termsDocumentChainResponse()),
+                contentType = ContentType.Application.Json,
+                status = HttpStatusCode.OK,
+            )
+        }
+        getRoute("/legal/imprint") {
+            call.respondText(
+                text = Json.encodeToString(imprintService.document()),
                 contentType = ContentType.Application.Json,
                 status = HttpStatusCode.OK,
             )

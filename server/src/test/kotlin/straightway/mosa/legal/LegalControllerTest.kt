@@ -10,17 +10,23 @@ import io.mockk.mockk
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import straightway.mosa.content.ControllerHttpTestEnvironment
+import straightway.mosa.legal.imprint.ImprintAddress
+import straightway.mosa.legal.imprint.ImprintContactBlock
+import straightway.mosa.legal.imprint.ImprintDocument
+import straightway.mosa.legal.imprint.ImprintProviderBlock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class LegalControllerTest {
     private val legalService = mockk<LegalService>()
+    private val imprintService = mockk<ImprintService>()
     private val environment =
         ControllerHttpTestEnvironment(
-            LegalController(legalService),
+            LegalController(legalService, imprintService),
         ) {
             single<LegalService> { legalService }
+            single<ImprintService> { imprintService }
         }
 
     @Test
@@ -92,6 +98,45 @@ class LegalControllerTest {
             assertEquals(
                 """{"baseline":{"kind":"baseline","id":"terms-baseline"},"profiles":[{"kind":"profile","id":"terms-default"},{"kind":"profile","id":"terms-operator"}]}""",
                 response.body<String>(),
+            )
+        }
+
+    @Test
+    fun `returns imprint document on v1 legal imprint endpoint`() =
+        environment {
+            every { imprintService.document() } returns
+                ImprintDocument(
+                    provider = ImprintProviderBlock(name = "Example Pod GmbH"),
+                    address =
+                        ImprintAddress(
+                            street = "Main Street 1",
+                            postalCode = "12345",
+                            city = "Berlin",
+                            country = "Deutschland",
+                        ),
+                    contact = ImprintContactBlock(email = "legal@example.invalid"),
+                )
+
+            val response =
+                client.get("/v1/legal/imprint") {
+                    bearerAuth("token")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
+            assertEquals(
+                ImprintDocument(
+                    provider = ImprintProviderBlock(name = "Example Pod GmbH"),
+                    address =
+                        ImprintAddress(
+                            street = "Main Street 1",
+                            postalCode = "12345",
+                            city = "Berlin",
+                            country = "Deutschland",
+                        ),
+                    contact = ImprintContactBlock(email = "legal@example.invalid"),
+                ),
+                response.body(),
             )
         }
 }

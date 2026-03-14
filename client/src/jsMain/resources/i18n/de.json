@@ -106,6 +106,8 @@
   "legal.button.label": "Rechtliches",
   "legal.privacy.label": "Datenschutz",
   "legal.imprint.label": "Impressum",
+  "legal.imprint.loading": "Impressum wird geladen...",
+  "legal.imprint.load.error": "Impressum konnte nicht geladen werden.",
   "legal.terms.label": "Nutzungsbedingungen",
   "legal.terms.loading": "Nutzungsbedingungen werden geladen...",
   "legal.terms.load.error": "Nutzungsbedingungen konnten nicht geladen werden.",

@@ -30,6 +30,10 @@ import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.SearchResult
 import straightway.mosa.legal.LegalDocumentChainResponse
+import straightway.mosa.legal.imprint.ImprintAddress
+import straightway.mosa.legal.imprint.ImprintContactBlock
+import straightway.mosa.legal.imprint.ImprintDocument
+import straightway.mosa.legal.imprint.ImprintProviderBlock
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -214,6 +218,39 @@ class PodAccessTest {
         val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
 
         assertRestError("/v1/posts/export.csv", HttpStatusCode.BadRequest) { podAccess.exportPostsCsv("jwt-token") }
+    }
+
+    @Test
+    fun `imprint sends unauthenticated get and returns document`() = runTest {
+        val expectedDocument =
+            ImprintDocument(
+                provider = ImprintProviderBlock(name = "Example Pod GmbH"),
+                address =
+                    ImprintAddress(
+                        street = "Main Street 1",
+                        postalCode = "12345",
+                        city = "Berlin",
+                        country = "Deutschland",
+                    ),
+                contact = ImprintContactBlock(email = "legal@example.invalid"),
+            )
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedDocument)
+
+        val document = podAccess.imprint()
+
+        assertEquals(expectedDocument, document)
+        assertGetRequest(
+            request = capturedRequests.single(),
+            route = "v1/legal/imprint",
+        )
+    }
+
+    @Test
+    fun `imprint throws when backend returns error`() = runTest {
+        val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
+
+        assertRestError("/v1/legal/imprint", HttpStatusCode.BadRequest) { podAccess.imprint() }
     }
 
     @Test

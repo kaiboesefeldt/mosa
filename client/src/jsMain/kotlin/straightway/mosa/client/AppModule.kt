@@ -69,6 +69,8 @@ import straightway.mosa.client.content.IndexedDbReplyCache
 import straightway.mosa.client.content.ReplyReferenceStore
 import straightway.mosa.client.content.ReplySearchService
 import straightway.mosa.client.legal.ClearTermsPrivacyContentProvider
+import straightway.mosa.client.legal.ImprintHtmlRenderer
+import straightway.mosa.client.legal.LegalImprintService
 import straightway.mosa.client.legal.LegalPrivacyPolicyService
 import straightway.mosa.client.legal.PrivacyClearTermsContentProvider
 import straightway.mosa.client.ui.BrowserIdentitySessionStore
@@ -200,6 +202,7 @@ object AppModule : KoinComponent {
                             )
                         }
                         single<PrivacyClearTermsContentProvider> { ClearTermsPrivacyContentProvider(get()) }
+                        single { ImprintHtmlRenderer() }
                         single {
                             LegalPrivacyPolicyService(
                                 podBaseProvider = get(),
@@ -209,6 +212,13 @@ object AppModule : KoinComponent {
                                 },
                                 clearTermsContentProvider = get(),
                                 timeZoneDisplayConverter = get(),
+                            )
+                        }
+                        single {
+                            LegalImprintService(
+                                podBaseProvider = get(),
+                                podAccessFactory = get(),
+                                imprintHtmlRenderer = get(),
                             )
                         }
                     },

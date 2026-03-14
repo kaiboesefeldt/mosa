@@ -106,6 +106,8 @@
   "legal.button.label": "Legal",
   "legal.privacy.label": "Privacy policy",
   "legal.imprint.label": "Imprint",
+  "legal.imprint.loading": "Loading imprint...",
+  "legal.imprint.load.error": "Imprint could not be loaded.",
   "legal.terms.label": "Terms of use",
   "legal.terms.loading": "Loading terms of use...",
   "legal.terms.load.error": "Terms of use could not be loaded.",

@@ -23,6 +23,7 @@ import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
 import straightway.mosa.content.SearchResult
 import straightway.mosa.legal.LegalDocumentChainResponse
+import straightway.mosa.legal.imprint.ImprintDocument
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
@@ -39,6 +40,7 @@ interface PodAccess {
     suspend fun search(request: QueryRequest, jwt: String): SearchResult
     suspend fun searchOn(request: QueryOnRequest, jwt: String): SearchResult
     suspend fun fetch(request: FetchRequest, jwt: String): FetchResult
+    suspend fun imprint(): ImprintDocument = error("Imprint endpoint is not implemented for this PodAccess")
     suspend fun privacyClearTerms(): LegalDocumentChainResponse =
         LegalDocumentChainResponse(
             baseline = Json.parseToJsonElement(privacyBaselineClearTerms()).jsonObject,
@@ -149,6 +151,11 @@ class PodAccessImpl(
     override suspend fun fetch(request: FetchRequest, jwt: String): FetchResult =
         post("/v1/fetch", request, jwt)
             .ensureSuccess("/v1/fetch", request)
+            .body()
+
+    override suspend fun imprint(): ImprintDocument =
+        get("/v1/legal/imprint")
+            .ensureSuccess("/v1/legal/imprint", Unit)
             .body()
 
     override suspend fun privacyBaselineClearTerms(): String =
