@@ -37,6 +37,19 @@ class LegalService(
 
     fun validateStartup() {
         ensureMissingOperatorProfilesExist()
+        validateOperatorProfileForStartup(
+            profilePath = operatorProfilePath,
+            mandatoryContext = loadMandatoryChainContext(),
+        )
+        validateOperatorProfileForStartup(
+            profilePath = termsOperatorProfilePath,
+            mandatoryContext =
+                loadMandatoryChainContext(
+                    baselineResource = TERMS_BASELINE_RESOURCE,
+                    defaultResource = TERMS_DEFAULT_RESOURCE,
+                    mosaResource = TERMS_SERVICE_RESOURCE,
+                ),
+        )
         privacyServiceCanonicalJson()
         termsOperatorCanonicalJson()
     }
@@ -114,7 +127,9 @@ class LegalService(
                 return fallbackToTermsOperatorProfile(
                     mandatoryConversion = mandatoryContext.conversion,
                     mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
-                    reason = "Operator profile is invalid and could not be converted: ${exception.message}",
+                    reason =
+                        "Operator profile at '${termsOperatorProfilePath.toAbsolutePath().normalize()}' " +
+                            "is invalid and could not be converted: ${exception.message}",
                     operatorValuesOverride = extractOperatorValuesBestEffort(operatorYaml),
                 )
             }
@@ -144,7 +159,9 @@ class LegalService(
                 return fallbackToMosaServiceProfile(
                     mandatoryConversion = mandatoryContext.conversion,
                     mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
-                    reason = "Operator profile is invalid and could not be converted: ${exception.message}",
+                    reason =
+                        "Operator profile at '${operatorProfilePath.toAbsolutePath().normalize()}' " +
+                            "is invalid and could not be converted: ${exception.message}",
                     operatorValuesOverride = extractOperatorValuesBestEffort(operatorYaml),
                 )
             }
@@ -202,6 +219,62 @@ class LegalService(
             ),
         )
 
+    private fun validateOperatorProfileForStartup(
+        profilePath: Path,
+        mandatoryContext: MandatoryChainContext,
+    ) {
+        val normalizedPath = profilePath.toAbsolutePath().normalize()
+        val operatorYaml =
+            readOptionalProfile(profilePath)
+                ?: throw IllegalStateException(
+                    "Legal operator profile is missing or incomplete: " +
+                        "Operator profile file is missing at '$normalizedPath'",
+                )
+        val fullConversion =
+            try {
+                convertFullChain(
+                    mandatoryContext = mandatoryContext,
+                    operatorYaml = operatorYaml,
+                )
+            } catch (exception: ClearTermsValidationException) {
+                throw IllegalStateException(
+                    "Legal operator profile is missing or incomplete: " +
+                        "Operator profile at '$normalizedPath' is invalid and could not be converted: ${exception.message}",
+                )
+            }
+        val fullChainContext = createFullChainContext(fullConversion)
+        val analysis =
+            analyzeChainCompleteness(
+                baselineCanonicalJson = fullChainContext.conversion.baseline.canonicalJson,
+                profileCanonicalJsons = fullChainContext.profileCanonicalJsons,
+            )
+        if (!analysis.complete) {
+            throw IllegalStateException(
+                "Legal operator profile is missing or incomplete: " +
+                    "Legal profile chain is incomplete for '$normalizedPath'",
+            )
+        }
+        val valueTypeValidationError =
+            validateChainValues(
+                baselineCanonicalJson = fullChainContext.conversion.baseline.canonicalJson,
+                profiles = fullChainContext.profiles,
+                requireAll = false,
+            )
+        if (valueTypeValidationError != null) {
+            throw IllegalStateException(
+                "Legal operator profile is missing or incomplete: " +
+                    "Legal profile chain has invalid placeholder values in '$normalizedPath': ${valueTypeValidationError.message}",
+            )
+        }
+        val missingRequiredValuesError = missingRequiredChainValuesError(fullChainContext)
+        if (missingRequiredValuesError != null) {
+            throw IllegalStateException(
+                "Legal operator profile is missing or incomplete: " +
+                    "Legal profile chain has invalid placeholder values in '$normalizedPath': ${missingRequiredValuesError.message}",
+            )
+        }
+    }
+
     private fun fallbackForInvalidFullChain(
         mandatoryContext: MandatoryChainContext,
         fullChainContext: FullChainContext,
@@ -211,7 +284,7 @@ class LegalService(
             failForMissingOrIncompleteOperatorProfile(
                 mandatoryConversion = mandatoryContext.conversion,
                 mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
-                reason = "Legal profile chain is incomplete",
+                reason = "Legal profile chain is incomplete for '${operatorProfilePath.toAbsolutePath().normalize()}'",
                 skeletonYamlOverride = analysis.skeletonYaml,
                 fallbackProfileId = "mosa-privacy-fallback-service",
             )
@@ -224,7 +297,9 @@ class LegalService(
         failForMissingOrIncompleteOperatorProfile(
             mandatoryConversion = mandatoryContext.conversion,
             mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
-            reason = "Legal profile chain has invalid placeholder values: ${fullChainValidationError.message}",
+            reason =
+                "Legal profile chain has invalid placeholder values in " +
+                    "'${operatorProfilePath.toAbsolutePath().normalize()}': ${fullChainValidationError.message}",
             operatorValuesOverride = serviceProfileValues(fullChainContext.profiles),
             fallbackProfileId = "mosa-privacy-fallback-service",
         )
@@ -239,7 +314,7 @@ class LegalService(
             failForMissingOrIncompleteOperatorProfile(
                 mandatoryConversion = mandatoryContext.conversion,
                 mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
-                reason = "Legal profile chain is incomplete",
+                reason = "Legal profile chain is incomplete for '${termsOperatorProfilePath.toAbsolutePath().normalize()}'",
                 skeletonYamlOverride = analysis.skeletonYaml,
                 fallbackProfileId = "mosa-terms-fallback-operator",
             )
@@ -252,7 +327,9 @@ class LegalService(
         failForMissingOrIncompleteOperatorProfile(
             mandatoryConversion = mandatoryContext.conversion,
             mandatoryCanonicals = mandatoryContext.profileCanonicalJsons,
-            reason = "Legal profile chain has invalid placeholder values: ${fullChainValidationError.message}",
+            reason =
+                "Legal profile chain has invalid placeholder values in " +
+                    "'${termsOperatorProfilePath.toAbsolutePath().normalize()}': ${fullChainValidationError.message}",
             operatorValuesOverride = serviceProfileValues(fullChainContext.profiles),
             fallbackProfileId = "mosa-terms-fallback-operator",
         )

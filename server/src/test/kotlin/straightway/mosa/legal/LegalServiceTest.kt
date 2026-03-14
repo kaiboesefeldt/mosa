@@ -181,14 +181,18 @@ class LegalServiceTest {
         Files.writeString(existingTermsPath, validTermsOperatorProfileYaml())
         val originalTermsContent = Files.readString(existingTermsPath)
 
-        createLegalService(
-            operatorProfilePath = missingPrivacyPath,
-            termsOperatorProfilePath = existingTermsPath,
-            completenessChecker = completenessChecker(complete = true),
-        ).validateStartup()
+        val exception =
+            assertFailsWith<IllegalStateException> {
+                createLegalService(
+                    operatorProfilePath = missingPrivacyPath,
+                    termsOperatorProfilePath = existingTermsPath,
+                    completenessChecker = completenessChecker(complete = true),
+                ).validateStartup()
+            }
 
         assertTrue(Files.exists(missingPrivacyPath))
         assertEquals(originalTermsContent, Files.readString(existingTermsPath))
+        assertTrue(exception.message?.contains(missingPrivacyPath.toAbsolutePath().normalize().toString()) == true)
     }
 
     @Test
@@ -199,14 +203,18 @@ class LegalServiceTest {
         Files.writeString(existingPrivacyPath, operatorProfileYaml())
         val originalPrivacyContent = Files.readString(existingPrivacyPath)
 
-        createLegalService(
-            operatorProfilePath = existingPrivacyPath,
-            termsOperatorProfilePath = missingTermsPath,
-            completenessChecker = completenessChecker(complete = true),
-        ).validateStartup()
+        val exception =
+            assertFailsWith<IllegalStateException> {
+                createLegalService(
+                    operatorProfilePath = existingPrivacyPath,
+                    termsOperatorProfilePath = missingTermsPath,
+                    completenessChecker = completenessChecker(complete = true),
+                ).validateStartup()
+            }
 
         assertTrue(Files.exists(missingTermsPath))
         assertEquals(originalPrivacyContent, Files.readString(existingPrivacyPath))
+        assertTrue(exception.message?.contains(missingTermsPath.toAbsolutePath().normalize().toString()) == true)
     }
 
     @Test
@@ -437,6 +445,23 @@ class LegalServiceTest {
                 ).privacyServiceCanonicalJson()
             }
 
+        assertTrue(exception.message?.contains("missing or incomplete") == true)
+    }
+
+    @Test
+    fun `fails when existing privacy operator profile still contains null values and mentions file path`() {
+        val path = Files.createTempDirectory("legal-service-null-privacy-value").resolve("mosa_privacy.yaml")
+        Files.writeString(path, operatorProfileYamlWithNullValue())
+
+        val exception =
+            assertFailsWith<IllegalStateException> {
+                createLegalService(
+                    operatorProfilePath = path,
+                    completenessChecker = completenessChecker(complete = true),
+                ).privacyServiceCanonicalJson()
+            }
+
+        assertTrue(exception.message?.contains(path.toAbsolutePath().normalize().toString()) == true)
         assertTrue(exception.message?.contains("missing or incomplete") == true)
     }
 
@@ -930,6 +955,22 @@ class LegalServiceTest {
         overrides:
           values:
             DOC_EFFECTIVE_DATE: 42
+        """.trimIndent()
+
+    private fun operatorProfileYamlWithNullValue(): String =
+        """
+        kind: profile
+        id: privacy-operator-service
+        version: "1.0.0-draft2"
+        parent:
+          id: mosa-privacy-gdpr-service
+          version: "1.0.0-draft2"
+        overrides:
+          values:
+            ORG_CONTROLLER_NAME: null
+            CONTACT_CONTROLLER_EMAIL: "legal@operator.example"
+            DOC_EFFECTIVE_DATE: "2026-03-13T00:00:00Z"
+            SERVICE_DISPLAY_NAME: "Operator Service"
         """.trimIndent()
 
     private fun operatorProfileYamlWithNonObjectValues(): String =
