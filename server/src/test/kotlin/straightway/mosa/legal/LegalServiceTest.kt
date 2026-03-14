@@ -1,5 +1,7 @@
 package straightway.mosa.legal
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -31,6 +33,7 @@ import kotlin.text.StringBuilder
 class LegalServiceTest {
     private val parser = ClearTermsJsonParser()
     private val reader = ClearTermsDocumentReader()
+    private val yamlMapper = ObjectMapper(YAMLFactory())
 
     @Test
     fun `provides canonical json documents for privacy baseline default mosa and service`() {
@@ -204,6 +207,78 @@ class LegalServiceTest {
 
         assertTrue(Files.exists(missingTermsPath))
         assertEquals(originalPrivacyContent, Files.readString(existingPrivacyPath))
+    }
+
+    @Test
+    fun `creates privacy template with null values and expected content comments`() {
+        val directory = Files.createTempDirectory("legal-service-privacy-template")
+        val missingPrivacyPath = directory.resolve("mosa_privacy.yaml")
+
+        assertFailsWith<IllegalStateException> {
+            createLegalService(
+                operatorProfilePath = missingPrivacyPath,
+                termsOperatorProfilePath =
+                    directory.resolve("mosa_terms.yaml").also {
+                        Files.writeString(it, validTermsOperatorProfileYaml())
+                    },
+                completenessChecker = completenessChecker(complete = true),
+            ).privacyServiceCanonicalJson()
+        }
+
+        val templateYaml = Files.readString(missingPrivacyPath)
+        val templateNode = yamlMapper.readTree(templateYaml)
+
+        assertEquals("privacy-operator-service", templateNode.path("id").asText())
+        assertEquals("1.0.0-draft2", templateNode.path("version").asText())
+        assertEquals("mosa-privacy-gdpr-service", templateNode.path("parent").path("id").asText())
+        assertTrue(
+            templateNode
+                .path("overrides")
+                .path("values")
+                .path("ORG_CONTROLLER_NAME")
+                .isNull,
+        )
+        assertTrue(
+            templateYaml.contains(
+                "service-description-slot-service: null # TODO: Brief description of the service's core functions.",
+            ),
+        )
+    }
+
+    @Test
+    fun `creates terms template with null values and expected content comments`() {
+        val directory = Files.createTempDirectory("legal-service-terms-template")
+        val missingTermsPath = directory.resolve("mosa_terms.yaml")
+
+        assertFailsWith<IllegalStateException> {
+            createLegalService(
+                operatorProfilePath =
+                    directory.resolve("mosa_privacy.yaml").also {
+                        Files.writeString(it, operatorProfileYaml())
+                    },
+                termsOperatorProfilePath = missingTermsPath,
+                completenessChecker = completenessChecker(complete = true),
+            ).termsOperatorCanonicalJson()
+        }
+
+        val templateYaml = Files.readString(missingTermsPath)
+        val templateNode = yamlMapper.readTree(templateYaml)
+
+        assertEquals("terms-operator-service", templateNode.path("id").asText())
+        assertEquals("1.0.0-draft2", templateNode.path("version").asText())
+        assertEquals("mosa-terms-service", templateNode.path("parent").path("id").asText())
+        assertTrue(
+            templateNode
+                .path("overrides")
+                .path("values")
+                .path("ORG_CONTROLLER_NAME")
+                .isNull,
+        )
+        assertTrue(
+            templateYaml.contains(
+                "service-purpose-slot-service: null # TODO: Brief description of the service's core functions.",
+            ),
+        )
     }
 
     @Test

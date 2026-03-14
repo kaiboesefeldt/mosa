@@ -22,3 +22,7 @@ Akzeptanzkriterien
 - Pflichtfelder, die Nutzerinnen und Nutzer ausfuellen muessen, stehen auf `null`.
 - Die Vorlagen enthalten die benoetigten `expectedContent`-Hinweise als Kommentare in unmittelbarer Naehe der betroffenen Felder.
 - Die Vorlagen verwenden die korrekten Profil- und Parent-Bezuege fuer Privacy bzw. Terms.
+
+Pragmatisch geklaert
+
+- Das Template-Rendering basiert auf der Skeleton-Berechnung fuer die Mandatory-Chain und nicht auf eventuell gestubbten Startup-Pruefpfaden, damit Dateiinhalte reproduzierbar und vollstaendig erzeugt werden.

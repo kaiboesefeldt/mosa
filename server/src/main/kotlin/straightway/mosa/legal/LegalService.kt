@@ -30,6 +30,7 @@ class LegalService(
     private val profileValidator: ClearTermsProfileValidator,
     private val canonicalJson: ClearTermsCanonicalJson,
     private val languageFragmentMerger: ClearTermsYamlLanguageFragmentMerger = ClearTermsYamlLanguageFragmentMerger(),
+    private val templateCompletenessChecker: ClearTermsProfileChainCompletenessChecker = ClearTermsProfileChainCompletenessChecker(),
 ) {
     private val documents: PrivacyLegalDocuments by lazy { loadPrivacyDocuments() }
     private val termsDocuments: TermsLegalDocuments by lazy { loadTermsDocuments() }
@@ -411,7 +412,7 @@ class LegalService(
         createMissingOperatorProfileFileIfNeeded(
             profilePath = operatorProfilePath,
             mandatoryContext = loadMandatoryChainContext(),
-            fallbackProfileId = "mosa-privacy-fallback-service",
+            templateMetadata = templateMetadataFor(PRIVACY_FALLBACK_PROFILE_ID),
         )
         createMissingOperatorProfileFileIfNeeded(
             profilePath = termsOperatorProfilePath,
@@ -421,7 +422,7 @@ class LegalService(
                     defaultResource = TERMS_DEFAULT_RESOURCE,
                     mosaResource = TERMS_SERVICE_RESOURCE,
                 ),
-            fallbackProfileId = "mosa-terms-fallback-operator",
+            templateMetadata = templateMetadataFor(TERMS_FALLBACK_PROFILE_ID),
         )
     }
 
@@ -433,14 +434,14 @@ class LegalService(
         createMissingOperatorProfileFileIfNeeded(
             profilePath = profilePath,
             mandatoryContext = mandatoryContext,
-            fallbackProfileId = fallbackProfileId,
+            templateMetadata = templateMetadataFor(fallbackProfileId),
         )
     }
 
     private fun createMissingOperatorProfileFileIfNeeded(
         profilePath: Path,
         mandatoryContext: MandatoryChainContext,
-        fallbackProfileId: String,
+        templateMetadata: OperatorProfileTemplateMetadata,
     ) {
         val normalizedPath = profilePath.toAbsolutePath().normalize()
         if (Files.exists(normalizedPath)) {
@@ -449,16 +450,57 @@ class LegalService(
         Files.createDirectories(normalizedPath.parent ?: Path.of("."))
         Files.writeString(
             normalizedPath,
-            renderYaml(
-                synthesizedFallbackProfileCanonicalJson(
-                    mandatoryConversion = mandatoryContext.conversion,
-                    operatorValuesOverride = emptyMap(),
-                    fallbackProfileId = fallbackProfileId,
-                ),
+            renderOperatorProfileTemplate(
+                mandatoryContext = mandatoryContext,
+                templateMetadata = templateMetadata,
             ) + "\n",
             Charsets.UTF_8,
         )
     }
+
+    private fun renderOperatorProfileTemplate(
+        mandatoryContext: MandatoryChainContext,
+        templateMetadata: OperatorProfileTemplateMetadata,
+    ): String {
+        val analysis =
+            templateCompletenessChecker.analyze(
+                baselineCanonicalJson = mandatoryContext.conversion.baseline.canonicalJson,
+                profileChainCanonicalJsons = mandatoryContext.profileCanonicalJsons,
+            )
+        val overridesYaml =
+            analysis.skeletonYaml
+                .lineSequence()
+                .dropWhile { line -> line != "overrides:" }
+                .joinToString("\n")
+        return buildString {
+            appendLine("kind: profile")
+            appendLine("""id: "${templateMetadata.profileId}"""")
+            appendLine("""version: "${templateMetadata.profileVersion}"""")
+            appendLine("parent:")
+            appendLine("""  id: "${templateMetadata.parentId}"""")
+            appendLine("""  version: "${templateMetadata.parentVersion}"""")
+            append(overridesYaml)
+        }
+    }
+
+    private fun templateMetadataFor(fallbackProfileId: String): OperatorProfileTemplateMetadata =
+        when (fallbackProfileId) {
+            PRIVACY_FALLBACK_PROFILE_ID ->
+                OperatorProfileTemplateMetadata(
+                    profileId = PRIVACY_OPERATOR_PROFILE_ID,
+                    profileVersion = PRIVACY_OPERATOR_PROFILE_VERSION,
+                    parentId = "mosa-privacy-gdpr-service",
+                    parentVersion = "1.0.0-draft2",
+                )
+            TERMS_FALLBACK_PROFILE_ID ->
+                OperatorProfileTemplateMetadata(
+                    profileId = TERMS_OPERATOR_PROFILE_ID,
+                    profileVersion = TERMS_OPERATOR_PROFILE_VERSION,
+                    parentId = "mosa-terms-service",
+                    parentVersion = "1.0.0-draft1",
+                )
+            else -> throw IllegalArgumentException("Unsupported fallback profile id '$fallbackProfileId'")
+        }
 
     private fun printMissingOrIncompleteOperatorProfile(
         reason: String,
@@ -806,6 +848,13 @@ class LegalService(
         val profileCanonicalJsons: List<String>,
     )
 
+    private data class OperatorProfileTemplateMetadata(
+        val profileId: String,
+        val profileVersion: String,
+        val parentId: String,
+        val parentVersion: String,
+    )
+
     private fun createPrivacyLegalDocuments(conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult): PrivacyLegalDocuments =
         PrivacyLegalDocuments(
             baselineCanonicalJson = conversion.baseline.canonicalJson,
@@ -826,6 +875,12 @@ class LegalService(
         private const val BASELINE_RESOURCE = "clearterms/privacy/privacy-gdpr-baseline.yaml"
         private const val DEFAULT_RESOURCE = "clearterms/privacy/privacy-gdpr-default.yaml"
         private const val MOSA_RESOURCE = "clearterms/privacy/mosa-privacy-gdpr-service.yaml"
+        private const val PRIVACY_FALLBACK_PROFILE_ID = "mosa-privacy-fallback-service"
+        private const val TERMS_FALLBACK_PROFILE_ID = "mosa-terms-fallback-operator"
+        private const val PRIVACY_OPERATOR_PROFILE_ID = "privacy-operator-service"
+        private const val PRIVACY_OPERATOR_PROFILE_VERSION = "1.0.0-draft2"
+        private const val TERMS_OPERATOR_PROFILE_ID = "terms-operator-service"
+        private const val TERMS_OPERATOR_PROFILE_VERSION = "1.0.0-draft2"
         private const val TERMS_BASELINE_RESOURCE = "clearterms/terms/terms-baseline.yaml"
         private const val TERMS_DEFAULT_RESOURCE = "clearterms/terms/terms-default.yaml"
         private const val TERMS_SERVICE_RESOURCE = "clearterms/terms/mosa-terms-service.yaml"
