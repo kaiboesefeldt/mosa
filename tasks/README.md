@@ -33,6 +33,31 @@ Bevorzugtes Textformat ist Markdown. Der Inhalt darf knapp bleiben. Wenn eine Au
 
 Zusätzliche Informationen duerfen direkt im Aufgabenordner abgelegt werden, wenn sie fuer die Bearbeitung nuetzlich sind, zum Beispiel Notizen, Entscheidungen, Skizzen oder Verweise.
 
+### Subtasks innerhalb einer Aufgabe
+
+Wenn eine Aufgabe sinnvoll in kleinere, klar abgrenzbare Arbeitspakete zerlegt werden soll, duerfen im Aufgabenordner Subtasks als eigene Markdown-Dateien angelegt werden.
+
+Namensschema fuer offene Subtasks:
+
+```text
+subNNN-ShortDescription.md
+```
+
+Beispiel:
+
+```text
+sub001-CreateMissingOperatorProfileFiles.md
+```
+
+Regeln fuer Subtasks:
+
+- Subtasks liegen im selben Ordner wie die `Description.md` der Hauptaufgabe.
+- `NNN` ist eine dreistellige laufende Nummer innerhalb der Aufgabe.
+- `ShortDescription` bleibt kurz, stabil und ASCII-kompatibel.
+- Jede Subtask-Beschreibung soll so geschnitten sein, dass sie von einer Coding-KI oder einer Person eigenstaendig bearbeitet werden kann.
+- Eine abgeschlossene Subtask wird nicht verschoben, sondern durch Umbenennen der Datei markiert: Aus `subNNN-ShortDescription.md` wird `done-subNNN-ShortDescription.md`.
+- Die Hauptaufgabe bleibt die fachliche Klammer; Subtasks ersetzen nicht die `Description.md`, sondern praezisieren die Bearbeitung.
+
 ## Nummerierung
 
 - Neue Aufgaben bekommen die nächste freie dreistellige Nummer.
