@@ -1,6 +1,8 @@
 package straightway.mosa.client.legal
 
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.client.pod.PodAccess
 import straightway.mosa.client.pod.PodBaseProvider
@@ -13,6 +15,7 @@ import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.SearchResult
+import straightway.mosa.legal.LegalDocumentChainResponse
 import straightway.mosa.legal.clearterms.ClearTermsRenderBackground
 import straightway.mosa.legal.clearterms.ClearTermsRenderResult
 import straightway.mosa.legal.clearterms.ClearTermsRenderedBlock
@@ -918,6 +921,28 @@ private class RecordingPrivacyPodAccess(
         error("not used")
     }
 
+    override suspend fun privacyClearTerms(): LegalDocumentChainResponse {
+        privacyCalls += "baseline"
+        privacyCalls += "default"
+        privacyCalls += "mosa"
+        privacyCalls += "operator"
+        return LegalDocumentChainResponse(
+            baseline = canonicalJsonEnvelope(baseline),
+            profiles = listOf(canonicalJsonEnvelope(default), canonicalJsonEnvelope(mosa), canonicalJsonEnvelope(operator)),
+        )
+    }
+
+    override suspend fun termsClearTerms(): LegalDocumentChainResponse {
+        termsCalls += "baseline"
+        termsCalls += "default"
+        termsCalls += "mosa"
+        termsCalls += "operator"
+        return LegalDocumentChainResponse(
+            baseline = canonicalJsonEnvelope(baseline),
+            profiles = listOf(canonicalJsonEnvelope(default), canonicalJsonEnvelope(mosa), canonicalJsonEnvelope(operator)),
+        )
+    }
+
     override suspend fun privacyBaselineClearTerms(): String {
         privacyCalls += "baseline"
         return baseline
@@ -959,4 +984,9 @@ private class RecordingPrivacyPodAccess(
     }
 
     override suspend fun termsServiceClearTerms(): String = termsOperatorClearTerms()
+
+    private fun canonicalJsonEnvelope(value: String) =
+        buildJsonObject {
+            put("canonicalJson", value)
+        }
 }

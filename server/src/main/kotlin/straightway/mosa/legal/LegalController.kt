@@ -4,71 +4,23 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
+import kotlinx.serialization.json.Json
 import straightway.mosa.base.BaseController
 
 class LegalController(
     private val legalService: LegalService,
 ) : BaseController() {
     override fun Route.register() {
-        getRoute("/legal/privacy/baseline") {
+        getRoute("/legal/privacy") {
             call.respondText(
-                text = legalService.privacyBaselineCanonicalJson(),
+                text = Json.encodeToString(legalService.privacyDocumentChainResponse()),
                 contentType = ContentType.Application.Json,
                 status = HttpStatusCode.OK,
             )
         }
-        getRoute("/legal/privacy/default") {
+        getRoute("/legal/terms") {
             call.respondText(
-                text = legalService.privacyDefaultCanonicalJson(),
-                contentType = ContentType.Application.Json,
-                status = HttpStatusCode.OK,
-            )
-        }
-        getRoute("/legal/privacy/mosa") {
-            call.respondText(
-                text = legalService.privacyMosaCanonicalJson(),
-                contentType = ContentType.Application.Json,
-                status = HttpStatusCode.OK,
-            )
-        }
-        getRoute("/legal/privacy/operator") {
-            call.respondText(
-                text = legalService.privacyServiceCanonicalJson(),
-                contentType = ContentType.Application.Json,
-                status = HttpStatusCode.OK,
-            )
-        }
-        getRoute("/legal/terms/baseline") {
-            call.respondText(
-                text = legalService.termsBaselineCanonicalJson(),
-                contentType = ContentType.Application.Json,
-                status = HttpStatusCode.OK,
-            )
-        }
-        getRoute("/legal/terms/default") {
-            call.respondText(
-                text = legalService.termsDefaultCanonicalJson(),
-                contentType = ContentType.Application.Json,
-                status = HttpStatusCode.OK,
-            )
-        }
-        getRoute("/legal/terms/mosa") {
-            call.respondText(
-                text = legalService.termsMosaCanonicalJson(),
-                contentType = ContentType.Application.Json,
-                status = HttpStatusCode.OK,
-            )
-        }
-        getRoute("/legal/terms/operator") {
-            call.respondText(
-                text = legalService.termsOperatorCanonicalJson(),
-                contentType = ContentType.Application.Json,
-                status = HttpStatusCode.OK,
-            )
-        }
-        getRoute("/legal/terms/service") {
-            call.respondText(
-                text = legalService.termsOperatorCanonicalJson(),
+                text = Json.encodeToString(legalService.termsDocumentChainResponse()),
                 contentType = ContentType.Application.Json,
                 status = HttpStatusCode.OK,
             )

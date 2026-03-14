@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import straightway.mosa.legal.LegalDocumentChainResponse
 import straightway.mosa.legal.clearterms.ClearTermsBaseline
 import straightway.mosa.legal.clearterms.ClearTermsCanonicalJson
 import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
@@ -32,6 +36,15 @@ class LegalService(
     private val canonicalJson: ClearTermsCanonicalJson,
     private val languageFragmentMerger: ClearTermsYamlLanguageFragmentMerger = ClearTermsYamlLanguageFragmentMerger(),
     private val templateCompletenessChecker: ClearTermsProfileChainCompletenessChecker = ClearTermsProfileChainCompletenessChecker(),
+    private val privacyResourceDirectory: String = PRIVACY_RESOURCE_DIRECTORY,
+    private val termsResourceDirectory: String = TERMS_RESOURCE_DIRECTORY,
+    private val resourceTextReader: (String) -> String? = { path ->
+        LegalService::class.java.classLoader
+            .getResourceAsStream(path)
+            ?.bufferedReader(Charsets.UTF_8)
+            ?.use { it.readText() }
+    },
+    private val resourceDirectoryEntriesProvider: (String) -> List<String>? = { _ -> null },
 ) {
     private val documents: PrivacyLegalDocuments by lazy { loadPrivacyDocuments() }
     private val termsDocuments: TermsLegalDocuments by lazy { loadTermsDocuments() }
@@ -45,16 +58,17 @@ class LegalService(
             )
         }
         validateOperatorProfileForStartup(
+            documentKind = "privacy",
             profilePath = operatorProfilePath,
             mandatoryContext = loadMandatoryChainContext(),
         )
         validateOperatorProfileForStartup(
+            documentKind = "terms",
             profilePath = termsOperatorProfilePath,
             mandatoryContext =
                 loadMandatoryChainContext(
                     baselineResource = TERMS_BASELINE_RESOURCE,
-                    defaultResource = TERMS_DEFAULT_RESOURCE,
-                    mosaResource = TERMS_SERVICE_RESOURCE,
+                    resourceDirectory = termsResourceDirectory,
                 ),
         )
         privacyServiceCanonicalJson()
@@ -69,6 +83,8 @@ class LegalService(
 
     fun privacyServiceCanonicalJson(): String = documents.serviceCanonicalJson
 
+    fun privacyDocumentChainResponse(): LegalDocumentChainResponse = documents.toDocumentChainResponse()
+
     fun termsBaselineCanonicalJson(): String = termsDocuments.baselineCanonicalJson
 
     fun termsDefaultCanonicalJson(): String = termsDocuments.defaultCanonicalJson
@@ -78,6 +94,8 @@ class LegalService(
     fun termsOperatorCanonicalJson(): String = termsDocuments.operatorCanonicalJson
 
     fun termsServiceCanonicalJson(): String = termsOperatorCanonicalJson()
+
+    fun termsDocumentChainResponse(): LegalDocumentChainResponse = termsDocuments.toDocumentChainResponse()
 
     private fun loadPrivacyDocuments(): PrivacyLegalDocuments {
         val mandatoryContext = loadMandatoryChainContext()
@@ -108,8 +126,7 @@ class LegalService(
         val mandatoryContext =
             loadMandatoryChainContext(
                 baselineResource = TERMS_BASELINE_RESOURCE,
-                defaultResource = TERMS_DEFAULT_RESOURCE,
-                mosaResource = TERMS_SERVICE_RESOURCE,
+                resourceDirectory = termsResourceDirectory,
             )
         val operatorYaml =
             readOptionalProfile(termsOperatorProfilePath) ?: run {
@@ -191,29 +208,34 @@ class LegalService(
     private fun loadMandatoryChainContext(): MandatoryChainContext =
         loadMandatoryChainContext(
             baselineResource = BASELINE_RESOURCE,
-            defaultResource = DEFAULT_RESOURCE,
-            mosaResource = MOSA_RESOURCE,
+            resourceDirectory = privacyResourceDirectory,
         )
 
     private fun loadMandatoryChainContext(
         baselineResource: String,
-        defaultResource: String,
-        mosaResource: String,
+        resourceDirectory: String,
     ): MandatoryChainContext {
         val baselineYaml = readRequiredResource(baselineResource)
-        val defaultYaml = readRequiredResource(defaultResource)
-        val mosaYaml = readRequiredResource(mosaResource)
+        val profileYamls = resolveResourceProfileChain(baselineResource, resourceDirectory)
+        val profileMetadata =
+            profileYamls.mapIndexed { index, yaml ->
+                parseProfileMetadata(yaml, "$resourceDirectory[$index]")
+            }
         val mandatoryConversion =
             canonicalJsonConverter.convert(
                 baselineYaml,
-                listOf(defaultYaml, mosaYaml),
+                profileYamls,
             )
         return MandatoryChainContext(
             baselineYaml = baselineYaml,
-            defaultYaml = defaultYaml,
-            mosaYaml = mosaYaml,
+            profileYamls = profileYamls,
             conversion = mandatoryConversion,
             profileCanonicalJsons = mandatoryConversion.profiles.map { artifact -> artifact.canonicalJson },
+            lastProfile = profileMetadata.last(),
+            availableProfileVersions =
+                profileMetadata.groupBy { metadata -> metadata.id }.mapValues { (_, metadata) ->
+                    metadata.map { item -> item.version }.distinct().sorted()
+                },
         )
     }
 
@@ -223,14 +245,11 @@ class LegalService(
     ): ClearTermsYamlCanonicalJsonConverter.ConversionResult =
         canonicalJsonConverter.convert(
             mandatoryContext.baselineYaml,
-            listOf(
-                mandatoryContext.defaultYaml,
-                mandatoryContext.mosaYaml,
-                operatorYaml,
-            ),
+            mandatoryContext.profileYamls + operatorYaml,
         )
 
     private fun validateOperatorProfileForStartup(
+        documentKind: String,
         profilePath: Path,
         mandatoryContext: MandatoryChainContext,
     ) {
@@ -238,8 +257,12 @@ class LegalService(
         val operatorYaml =
             readOptionalProfile(profilePath)
                 ?: throw IllegalStateException(
-                    "Legal operator profile is missing or incomplete: " +
-                        "Operator profile file is missing at '$normalizedPath'",
+                    startupValidationMessage(
+                        documentKind = documentKind,
+                        operatorMetadata = OperatorProfileMetadata.missing(normalizedPath.toString()),
+                        reason = "operator profile file is missing at '$normalizedPath'",
+                        availableVersions = mandatoryContext.availableProfileVersionsText(),
+                    ),
                 )
         val fullConversion =
             try {
@@ -249,8 +272,14 @@ class LegalService(
                 )
             } catch (exception: ClearTermsValidationException) {
                 throw IllegalStateException(
-                    "Legal operator profile is missing or incomplete: " +
-                        "Operator profile at '$normalizedPath' is invalid and could not be converted: ${exception.message}",
+                    startupValidationMessage(
+                        documentKind = documentKind,
+                        operatorMetadata = parseOperatorProfileMetadata(operatorYaml, normalizedPath),
+                        reason =
+                            "operator profile at '$normalizedPath' " +
+                                "is invalid and could not be converted: ${exception.message}",
+                        availableVersions = mandatoryContext.availableProfileVersionsText(),
+                    ),
                 )
             }
         val fullChainContext = createFullChainContext(fullConversion)
@@ -262,8 +291,12 @@ class LegalService(
         if (!analysis.complete) {
             val incompleteDetails = incompleteChainDetails(analysis)
             throw IllegalStateException(
-                "Legal operator profile is missing or incomplete: " +
-                    "Legal profile chain is incomplete for '$normalizedPath'$incompleteDetails",
+                startupValidationMessage(
+                    documentKind = documentKind,
+                    operatorMetadata = parseOperatorProfileMetadata(operatorYaml, normalizedPath),
+                    reason = "legal profile chain is incomplete for '$normalizedPath'$incompleteDetails",
+                    availableVersions = mandatoryContext.availableProfileVersionsText(),
+                ),
             )
         }
         val valueTypeValidationError =
@@ -274,15 +307,27 @@ class LegalService(
             )
         if (valueTypeValidationError != null) {
             throw IllegalStateException(
-                "Legal operator profile is missing or incomplete: " +
-                    "Legal profile chain has invalid placeholder values in '$normalizedPath': ${valueTypeValidationError.message}",
+                startupValidationMessage(
+                    documentKind = documentKind,
+                    operatorMetadata = parseOperatorProfileMetadata(operatorYaml, normalizedPath),
+                    reason =
+                        "legal profile chain has invalid placeholder values " +
+                            "in '$normalizedPath': ${valueTypeValidationError.message}",
+                    availableVersions = mandatoryContext.availableProfileVersionsText(),
+                ),
             )
         }
         val missingRequiredValuesError = missingRequiredChainValuesError(fullChainContext)
         if (missingRequiredValuesError != null) {
             throw IllegalStateException(
-                "Legal operator profile is missing or incomplete: " +
-                    "Legal profile chain has invalid placeholder values in '$normalizedPath': ${missingRequiredValuesError.message}",
+                startupValidationMessage(
+                    documentKind = documentKind,
+                    operatorMetadata = parseOperatorProfileMetadata(operatorYaml, normalizedPath),
+                    reason =
+                        "legal profile chain has invalid placeholder values " +
+                            "in '$normalizedPath': ${missingRequiredValuesError.message}",
+                    availableVersions = mandatoryContext.availableProfileVersionsText(),
+                ),
             )
         }
     }
@@ -424,11 +469,7 @@ class LegalService(
     private fun readRequiredResourceWithoutFragments(path: String): String =
         readResource(path) ?: throw IllegalStateException("Missing resource '$path'")
 
-    private fun readResource(path: String): String? =
-        javaClass.classLoader
-            .getResourceAsStream(path)
-            ?.bufferedReader(Charsets.UTF_8)
-            ?.use { it.readText() }
+    private fun readResource(path: String): String? = resourceTextReader(path)
 
     private fun listSiblingFileFragments(basePath: Path): List<Path> {
         val baseFileName = basePath.fileName.toString()
@@ -515,6 +556,174 @@ class LegalService(
         return discovered.toList()
     }
 
+    private fun resolveResourceProfileChain(
+        baselineResource: String,
+        resourceDirectory: String,
+    ): List<String> {
+        val baselineYaml = readRequiredResource(baselineResource)
+        val baseline = parseBaselineMetadata(baselineYaml, baselineResource)
+        val profiles =
+            listResourceBaseDocuments(resourceDirectory)
+                .filterNot { path -> path == baselineResource }
+                .map { path -> ResourceProfileCandidate(path, readRequiredResource(path)) }
+        val profileMetadataByCandidate = profiles.associateWith { candidate -> parseProfileMetadata(candidate.yaml, candidate.path) }
+        val resolved = mutableListOf<ResourceProfileCandidate>()
+        val unresolved = profileMetadataByCandidate.toMutableMap()
+        var expectedParent = baseline.reference
+        while (true) {
+            val next =
+                unresolved.entries.singleOrNull { (_, metadata) ->
+                    metadata.parent == expectedParent
+                } ?: break
+            resolved += next.key
+            unresolved.remove(next.key)
+            expectedParent = next.value.reference
+        }
+        check(resolved.isNotEmpty()) { "No legal profiles found in '$resourceDirectory'" }
+        check(unresolved.isEmpty()) {
+            "Legal profile resources in '$resourceDirectory' do not form a single deterministic parent chain"
+        }
+        return resolved.map { candidate -> candidate.yaml }
+    }
+
+    private fun listResourceBaseDocuments(directoryPath: String): List<String> =
+        listResourceFiles(directoryPath)
+            .filter { path ->
+                path.endsWith(".yaml") && path.substringAfterLast('/').count { character -> character == '.' } == 1
+            }.sorted()
+
+    private fun listResourceFiles(directoryPath: String): List<String> {
+        resourceDirectoryEntriesProvider(directoryPath)?.let { entries ->
+            return entries.sorted()
+        }
+        val discovered = linkedSetOf<String>()
+        val resources = javaClass.classLoader.getResources(directoryPath)
+        while (resources.hasMoreElements()) {
+            val directoryUrl = resources.nextElement()
+            when (directoryUrl.protocol) {
+                "file" -> {
+                    val directory = Path.of(directoryUrl.toURI())
+                    Files
+                        .list(directory)
+                        .use { stream ->
+                            stream
+                                .filter(Files::isRegularFile)
+                                .map { candidate ->
+                                    if (directoryPath.isEmpty()) {
+                                        candidate.fileName.toString()
+                                    } else {
+                                        "$directoryPath/${candidate.fileName}"
+                                    }
+                                }.sorted()
+                                .forEach(discovered::add)
+                        }
+                }
+                "jar" -> {
+                    val connection = directoryUrl.openConnection() as JarURLConnection
+                    val directoryEntryPrefix = connection.entryName.trimEnd('/') + "/"
+                    connection
+                        .jarFile
+                        .entries()
+                        .asSequence()
+                        .map { entry -> entry.name }
+                        .filter { entryName ->
+                            entryName.startsWith(directoryEntryPrefix) &&
+                                !entryName.removePrefix(directoryEntryPrefix).contains("/")
+                        }.sorted()
+                        .forEach(discovered::add)
+                }
+            }
+        }
+        return discovered.toList()
+    }
+
+    private fun parseBaselineMetadata(
+        yaml: String,
+        source: String,
+    ): BaselineMetadata {
+        val root = parseYamlTree(yaml, source)
+        return BaselineMetadata(
+            id = root.requiredText("id", source),
+            version = root.requiredText("version", source),
+        )
+    }
+
+    private fun parseOperatorProfileMetadata(
+        yaml: String,
+        path: Path,
+    ): OperatorProfileMetadata =
+        runCatching {
+            val root = parseYamlTree(yaml, path.toString())
+            val id = root.requiredText("id", path.toString())
+            val version = root.requiredText("version", path.toString())
+            val parent = root.requiredObject("parent", path.toString())
+            OperatorProfileMetadata(
+                id = id,
+                version = version,
+                referencedParentId = parent.requiredText("id", path.toString()),
+                referencedParentVersion = parent.requiredText("version", path.toString()),
+            )
+        }.getOrElse {
+            OperatorProfileMetadata.missing(path.toString())
+        }
+
+    private fun parseProfileMetadata(
+        yaml: String,
+        source: String,
+    ): ProfileMetadata {
+        val root = parseYamlTree(yaml, source)
+        val parent = root.requiredObject("parent", source)
+        return ProfileMetadata(
+            id = root.requiredText("id", source),
+            version = root.requiredText("version", source),
+            parent =
+                ArtifactReference(
+                    id = parent.requiredText("id", source),
+                    version = parent.requiredText("version", source),
+                ),
+        )
+    }
+
+    private fun parseYamlTree(
+        yaml: String,
+        source: String,
+    ) = try {
+        yamlMapper.readTree(yaml)
+    } catch (exception: Exception) {
+        throw IllegalStateException("Invalid YAML in '$source': ${exception.message}", exception)
+    }
+
+    private fun com.fasterxml.jackson.databind.JsonNode.requiredObject(
+        key: String,
+        source: String,
+    ): com.fasterxml.jackson.databind.JsonNode {
+        val node = get(key)
+        check(node != null && node.isObject) { "Expected object key '$key' in '$source'" }
+        return node
+    }
+
+    private fun com.fasterxml.jackson.databind.JsonNode.requiredText(
+        key: String,
+        source: String,
+    ): String {
+        val node = get(key)
+        check(node != null && node.isTextual) { "Expected text key '$key' in '$source'" }
+        return node.asText()
+    }
+
+    private fun startupValidationMessage(
+        documentKind: String,
+        operatorMetadata: OperatorProfileMetadata,
+        reason: String,
+        availableVersions: String,
+    ): String =
+        "Legal operator profile is missing or incomplete: " +
+            "documentKind=$documentKind; " +
+            "targetOperatorProfile=${operatorMetadata.id}@${operatorMetadata.version}; " +
+            "referencedParent=${operatorMetadata.referencedParentId}@${operatorMetadata.referencedParentVersion}; " +
+            "reason=$reason; " +
+            "availableVersions=$availableVersions"
+
     private fun ensureMissingOperatorProfilesExist(): List<Path> {
         val createdPaths = mutableListOf<Path>()
         createMissingOperatorProfileFileIfNeeded(
@@ -528,8 +737,7 @@ class LegalService(
             mandatoryContext =
                 loadMandatoryChainContext(
                     baselineResource = TERMS_BASELINE_RESOURCE,
-                    defaultResource = TERMS_DEFAULT_RESOURCE,
-                    mosaResource = TERMS_SERVICE_RESOURCE,
+                    resourceDirectory = termsResourceDirectory,
                 ),
             templateMetadata = templateMetadataFor(TERMS_FALLBACK_PROFILE_ID),
             createdPaths = createdPaths,
@@ -591,8 +799,8 @@ class LegalService(
             appendLine("""id: "${templateMetadata.profileId}"""")
             appendLine("""version: "${templateMetadata.profileVersion}"""")
             appendLine("parent:")
-            appendLine("""  id: "${templateMetadata.parentId}"""")
-            appendLine("""  version: "${templateMetadata.parentVersion}"""")
+            appendLine("""  id: "${mandatoryContext.lastProfile.id}"""")
+            appendLine("""  version: "${mandatoryContext.lastProfile.version}"""")
             append(overridesYaml)
         }
     }
@@ -603,15 +811,11 @@ class LegalService(
                 OperatorProfileTemplateMetadata(
                     profileId = PRIVACY_OPERATOR_PROFILE_ID,
                     profileVersion = PRIVACY_OPERATOR_PROFILE_VERSION,
-                    parentId = "mosa-privacy-gdpr-service",
-                    parentVersion = "1.0.0-draft2",
                 )
             TERMS_FALLBACK_PROFILE_ID ->
                 OperatorProfileTemplateMetadata(
                     profileId = TERMS_OPERATOR_PROFILE_ID,
                     profileVersion = TERMS_OPERATOR_PROFILE_VERSION,
-                    parentId = "mosa-terms-service",
-                    parentVersion = "1.0.0-draft1",
                 )
             else -> throw IllegalArgumentException("Unsupported fallback profile id '$fallbackProfileId'")
         }
@@ -674,9 +878,7 @@ class LegalService(
             )
         return PrivacyLegalDocuments(
             baselineCanonicalJson = mandatoryConversion.baseline.canonicalJson,
-            defaultCanonicalJson = mandatoryConversion.profiles[0].canonicalJson,
-            mosaCanonicalJson = mandatoryConversion.profiles[1].canonicalJson,
-            serviceCanonicalJson = fallbackServiceCanonicalJson,
+            profileCanonicalJsons = mandatoryConversion.profiles.map { it.canonicalJson } + fallbackServiceCanonicalJson,
         )
     }
 
@@ -700,9 +902,7 @@ class LegalService(
             )
         return TermsLegalDocuments(
             baselineCanonicalJson = mandatoryConversion.baseline.canonicalJson,
-            defaultCanonicalJson = mandatoryConversion.profiles[0].canonicalJson,
-            mosaCanonicalJson = mandatoryConversion.profiles[1].canonicalJson,
-            operatorCanonicalJson = fallbackOperatorCanonicalJson,
+            profileCanonicalJsons = mandatoryConversion.profiles.map { it.canonicalJson } + fallbackOperatorCanonicalJson,
         )
     }
 
@@ -911,25 +1111,47 @@ class LegalService(
 
     private data class PrivacyLegalDocuments(
         val baselineCanonicalJson: String,
-        val defaultCanonicalJson: String,
-        val mosaCanonicalJson: String,
-        val serviceCanonicalJson: String,
-    )
+        val profileCanonicalJsons: List<String>,
+    ) {
+        val defaultCanonicalJson: String get() = profileCanonicalJsons.first()
+        val mosaCanonicalJson: String get() = profileCanonicalJsons[1]
+        val serviceCanonicalJson: String get() = profileCanonicalJsons.last()
+
+        fun toDocumentChainResponse(): LegalDocumentChainResponse =
+            LegalDocumentChainResponse(
+                baseline = jsonObjectOf(baselineCanonicalJson),
+                profiles = profileCanonicalJsons.map(::jsonObjectOf),
+            )
+    }
 
     private data class TermsLegalDocuments(
         val baselineCanonicalJson: String,
-        val defaultCanonicalJson: String,
-        val mosaCanonicalJson: String,
-        val operatorCanonicalJson: String,
-    )
+        val profileCanonicalJsons: List<String>,
+    ) {
+        val defaultCanonicalJson: String get() = profileCanonicalJsons.first()
+        val mosaCanonicalJson: String get() = profileCanonicalJsons[1]
+        val operatorCanonicalJson: String get() = profileCanonicalJsons.last()
+
+        fun toDocumentChainResponse(): LegalDocumentChainResponse =
+            LegalDocumentChainResponse(
+                baseline = jsonObjectOf(baselineCanonicalJson),
+                profiles = profileCanonicalJsons.map(::jsonObjectOf),
+            )
+    }
 
     private data class MandatoryChainContext(
         val baselineYaml: String,
-        val defaultYaml: String,
-        val mosaYaml: String,
+        val profileYamls: List<String>,
         val conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
         val profileCanonicalJsons: List<String>,
-    )
+        val lastProfile: ProfileMetadata,
+        val availableProfileVersions: Map<String, List<String>>,
+    ) {
+        fun availableProfileVersionsText(): String =
+            availableProfileVersions.entries
+                .sortedBy { (id, _) -> id }
+                .joinToString("; ") { (id, versions) -> "$id=[${versions.joinToString(", ")}]" }
+    }
 
     private data class FullChainContext(
         val conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
@@ -937,45 +1159,81 @@ class LegalService(
         val profileCanonicalJsons: List<String>,
     )
 
+    private data class ArtifactReference(
+        val id: String,
+        val version: String,
+    )
+
+    private data class BaselineMetadata(
+        val id: String,
+        val version: String,
+    ) {
+        val reference: ArtifactReference = ArtifactReference(id, version)
+    }
+
+    private data class ProfileMetadata(
+        val id: String,
+        val version: String,
+        val parent: ArtifactReference,
+    ) {
+        val reference: ArtifactReference = ArtifactReference(id, version)
+    }
+
+    private data class OperatorProfileMetadata(
+        val id: String,
+        val version: String,
+        val referencedParentId: String,
+        val referencedParentVersion: String,
+    ) {
+        companion object {
+            fun missing(path: String): OperatorProfileMetadata =
+                OperatorProfileMetadata(
+                    id = path,
+                    version = "unknown",
+                    referencedParentId = "unknown",
+                    referencedParentVersion = "unknown",
+                )
+        }
+    }
+
+    private data class ResourceProfileCandidate(
+        val path: String,
+        val yaml: String,
+    )
+
     private data class OperatorProfileTemplateMetadata(
         val profileId: String,
         val profileVersion: String,
-        val parentId: String,
-        val parentVersion: String,
     )
 
     private fun createPrivacyLegalDocuments(conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult): PrivacyLegalDocuments =
         PrivacyLegalDocuments(
             baselineCanonicalJson = conversion.baseline.canonicalJson,
-            defaultCanonicalJson = conversion.profiles[0].canonicalJson,
-            mosaCanonicalJson = conversion.profiles[1].canonicalJson,
-            serviceCanonicalJson = conversion.profiles[2].canonicalJson,
+            profileCanonicalJsons = conversion.profiles.map { it.canonicalJson },
         )
 
     private fun createTermsLegalDocuments(conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult): TermsLegalDocuments =
         TermsLegalDocuments(
             baselineCanonicalJson = conversion.baseline.canonicalJson,
-            defaultCanonicalJson = conversion.profiles[0].canonicalJson,
-            mosaCanonicalJson = conversion.profiles[1].canonicalJson,
-            operatorCanonicalJson = conversion.profiles[2].canonicalJson,
+            profileCanonicalJsons = conversion.profiles.map { it.canonicalJson },
         )
 
     private companion object {
         private val logger = KotlinLogging.logger {}
+        private const val PRIVACY_RESOURCE_DIRECTORY = "clearterms/privacy"
         private const val BASELINE_RESOURCE = "clearterms/privacy/privacy-gdpr-baseline.yaml"
-        private const val DEFAULT_RESOURCE = "clearterms/privacy/privacy-gdpr-default.yaml"
-        private const val MOSA_RESOURCE = "clearterms/privacy/mosa-privacy-gdpr-service.yaml"
         private const val PRIVACY_FALLBACK_PROFILE_ID = "mosa-privacy-fallback-service"
         private const val TERMS_FALLBACK_PROFILE_ID = "mosa-terms-fallback-operator"
         private const val PRIVACY_OPERATOR_PROFILE_ID = "privacy-operator-service"
         private const val PRIVACY_OPERATOR_PROFILE_VERSION = "1.0.0-draft2"
         private const val TERMS_OPERATOR_PROFILE_ID = "terms-operator-service"
         private const val TERMS_OPERATOR_PROFILE_VERSION = "1.0.0-draft2"
+        private const val TERMS_RESOURCE_DIRECTORY = "clearterms/terms"
         private const val TERMS_BASELINE_RESOURCE = "clearterms/terms/terms-baseline.yaml"
-        private const val TERMS_DEFAULT_RESOURCE = "clearterms/terms/terms-default.yaml"
-        private const val TERMS_SERVICE_RESOURCE = "clearterms/terms/mosa-terms-service.yaml"
         private val yamlMapper: ObjectMapper =
             ObjectMapper(YAMLFactory())
                 .enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY)
+
+        private fun jsonObjectOf(value: String): JsonObject = Json.parseToJsonElement(value).jsonObject
     }
 }

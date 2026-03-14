@@ -248,6 +248,34 @@ types:
         - 'AxY0b1p3...'
         - 'R0oTId42'
 
+  LegalDocumentChainResponse:
+    type: object
+    description: |
+      Canonical legal document chain for one document kind.
+      `baseline` contains the canonical baseline JSON object.
+      `profiles` contains the canonical profile JSON objects in deterministic order
+      from the first profile step up to the operator profile.
+    properties:
+      baseline:
+        type: object
+      profiles:
+        type: object[]
+    example:
+      baseline:
+        kind: baseline
+        id: privacy-gdpr-baseline
+        version: 1.0.0
+      profiles:
+        - kind: profile
+          id: privacy-gdpr-default
+          version: 1.0.0
+        - kind: profile
+          id: mosa-privacy-gdpr-service
+          version: 1.0.0-draft2
+        - kind: profile
+          id: privacy-operator-service
+          version: 1.0.0-draft2
+
 traits:
   rateLimited:
     responses:
@@ -391,6 +419,35 @@ securitySchemes:
           description: Missing or invalid bearer token
         5xx:
           description: Server error
+
+  /legal:
+    /privacy:
+      get:
+        displayName: Get Privacy Document Chain
+        description: |
+          Returns the canonical privacy baseline and the complete ordered privacy profile chain.
+          This endpoint is unauthenticated.
+        responses:
+          200:
+            body:
+              application/json:
+                type: LegalDocumentChainResponse
+          5xx:
+            description: Server error
+
+    /terms:
+      get:
+        displayName: Get Terms Document Chain
+        description: |
+          Returns the canonical terms baseline and the complete ordered terms profile chain.
+          This endpoint is unauthenticated.
+        responses:
+          200:
+            body:
+              application/json:
+                type: LegalDocumentChainResponse
+          5xx:
+            description: Server error
 
   /publish:
     post:

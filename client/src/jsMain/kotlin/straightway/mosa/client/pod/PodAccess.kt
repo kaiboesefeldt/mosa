@@ -22,6 +22,9 @@ import straightway.mosa.content.FetchResult
 import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
 import straightway.mosa.content.SearchResult
+import straightway.mosa.legal.LegalDocumentChainResponse
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 
 interface PodAccess {
     suspend fun approveGid(gid: String): PodCertificateResponse
@@ -36,6 +39,26 @@ interface PodAccess {
     suspend fun search(request: QueryRequest, jwt: String): SearchResult
     suspend fun searchOn(request: QueryOnRequest, jwt: String): SearchResult
     suspend fun fetch(request: FetchRequest, jwt: String): FetchResult
+    suspend fun privacyClearTerms(): LegalDocumentChainResponse =
+        LegalDocumentChainResponse(
+            baseline = Json.parseToJsonElement(privacyBaselineClearTerms()).jsonObject,
+            profiles =
+                listOf(
+                    privacyDefaultClearTerms(),
+                    privacyMosaClearTerms(),
+                    privacyOperatorClearTerms(),
+                ).map { canonicalJson -> Json.parseToJsonElement(canonicalJson).jsonObject },
+        )
+    suspend fun termsClearTerms(): LegalDocumentChainResponse =
+        LegalDocumentChainResponse(
+            baseline = Json.parseToJsonElement(termsBaselineClearTerms()).jsonObject,
+            profiles =
+                listOf(
+                    termsDefaultClearTerms(),
+                    termsMosaClearTerms(),
+                    termsOperatorClearTerms(),
+                ).map { canonicalJson -> Json.parseToJsonElement(canonicalJson).jsonObject },
+        )
     suspend fun privacyBaselineClearTerms(): String
     suspend fun privacyDefaultClearTerms(): String
     suspend fun privacyMosaClearTerms(): String
@@ -51,6 +74,16 @@ class PodAccessImpl(
     private val podBase: String,
     private val httpClient: HttpClient,
 ): PodAccess  {
+    override suspend fun privacyClearTerms(): LegalDocumentChainResponse =
+        get("/v1/legal/privacy")
+            .ensureSuccess("/v1/legal/privacy", Unit)
+            .body()
+
+    override suspend fun termsClearTerms(): LegalDocumentChainResponse =
+        get("/v1/legal/terms")
+            .ensureSuccess("/v1/legal/terms", Unit)
+            .body()
+
     override suspend fun approveGid(gid: String): PodCertificateResponse {
         val path = "/v1/approvegid"
         return post(path, AuthenticationApprovalRequest(gid))

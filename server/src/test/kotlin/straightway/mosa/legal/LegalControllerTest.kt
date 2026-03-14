@@ -7,6 +7,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import straightway.mosa.content.ControllerHttpTestEnvironment
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,122 +24,74 @@ class LegalControllerTest {
         }
 
     @Test
-    fun `returns canonical baseline json on v1 privacy baseline endpoint`() =
+    fun `returns privacy document chain on v1 legal privacy endpoint`() =
         environment {
-            every { legalService.privacyBaselineCanonicalJson() } returns "{\"kind\":\"baseline\"}"
+            every { legalService.privacyDocumentChainResponse() } returns
+                LegalDocumentChainResponse(
+                    baseline =
+                        buildJsonObject {
+                            put("kind", "baseline")
+                            put("id", "privacy-baseline")
+                        },
+                    profiles =
+                        listOf(
+                            buildJsonObject {
+                                put("kind", "profile")
+                                put("id", "privacy-default")
+                            },
+                            buildJsonObject {
+                                put("kind", "profile")
+                                put("id", "privacy-operator")
+                            },
+                        ),
+                )
 
             val response =
-                client.get("/v1/legal/privacy/baseline") {
+                client.get("/v1/legal/privacy") {
                     bearerAuth("token")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
-            assertEquals("{\"kind\":\"baseline\"}", response.body<String>())
+            assertEquals(
+                """{"baseline":{"kind":"baseline","id":"privacy-baseline"},"profiles":[{"kind":"profile","id":"privacy-default"},{"kind":"profile","id":"privacy-operator"}]}""",
+                response.body<String>(),
+            )
         }
 
     @Test
-    fun `returns canonical default json on v1 privacy default endpoint`() =
+    fun `returns terms document chain on v1 legal terms endpoint`() =
         environment {
-            every { legalService.privacyDefaultCanonicalJson() } returns "{\"kind\":\"profile\",\"id\":\"default\"}"
+            every { legalService.termsDocumentChainResponse() } returns
+                LegalDocumentChainResponse(
+                    baseline =
+                        buildJsonObject {
+                            put("kind", "baseline")
+                            put("id", "terms-baseline")
+                        },
+                    profiles =
+                        listOf(
+                            buildJsonObject {
+                                put("kind", "profile")
+                                put("id", "terms-default")
+                            },
+                            buildJsonObject {
+                                put("kind", "profile")
+                                put("id", "terms-operator")
+                            },
+                        ),
+                )
 
             val response =
-                client.get("/v1/legal/privacy/default") {
+                client.get("/v1/legal/terms") {
                     bearerAuth("token")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
-            assertEquals("{\"kind\":\"profile\",\"id\":\"default\"}", response.body<String>())
-        }
-
-    @Test
-    fun `returns canonical mosa json on v1 privacy mosa endpoint`() =
-        environment {
-            every { legalService.privacyMosaCanonicalJson() } returns "{\"kind\":\"profile\",\"id\":\"mosa\"}"
-
-            val response =
-                client.get("/v1/legal/privacy/mosa") {
-                    bearerAuth("token")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
-            assertEquals("{\"kind\":\"profile\",\"id\":\"mosa\"}", response.body<String>())
-        }
-
-    @Test
-    fun `returns canonical service json on v1 privacy operator endpoint`() =
-        environment {
-            every { legalService.privacyServiceCanonicalJson() } returns "{\"kind\":\"profile\",\"id\":\"service\"}"
-
-            val response =
-                client.get("/v1/legal/privacy/operator") {
-                    bearerAuth("token")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
-            assertEquals("{\"kind\":\"profile\",\"id\":\"service\"}", response.body<String>())
-        }
-
-    @Test
-    fun `returns canonical baseline json on v1 terms baseline endpoint`() =
-        environment {
-            every { legalService.termsBaselineCanonicalJson() } returns "{\"kind\":\"baseline\",\"id\":\"terms-baseline\"}"
-
-            val response =
-                client.get("/v1/legal/terms/baseline") {
-                    bearerAuth("token")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
-            assertEquals("{\"kind\":\"baseline\",\"id\":\"terms-baseline\"}", response.body<String>())
-        }
-
-    @Test
-    fun `returns canonical default json on v1 terms default endpoint`() =
-        environment {
-            every { legalService.termsDefaultCanonicalJson() } returns "{\"kind\":\"profile\",\"id\":\"terms-default\"}"
-
-            val response =
-                client.get("/v1/legal/terms/default") {
-                    bearerAuth("token")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
-            assertEquals("{\"kind\":\"profile\",\"id\":\"terms-default\"}", response.body<String>())
-        }
-
-    @Test
-    fun `returns canonical mosa json on v1 terms mosa endpoint`() =
-        environment {
-            every { legalService.termsMosaCanonicalJson() } returns "{\"kind\":\"profile\",\"id\":\"mosa-terms-service\"}"
-
-            val response =
-                client.get("/v1/legal/terms/mosa") {
-                    bearerAuth("token")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
-            assertEquals("{\"kind\":\"profile\",\"id\":\"mosa-terms-service\"}", response.body<String>())
-        }
-
-    @Test
-    fun `returns canonical operator json on v1 terms operator endpoint`() =
-        environment {
-            every { legalService.termsOperatorCanonicalJson() } returns "{\"kind\":\"profile\",\"id\":\"terms-operator-service\"}"
-
-            val response =
-                client.get("/v1/legal/terms/operator") {
-                    bearerAuth("token")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("application/json") == true)
-            assertEquals("{\"kind\":\"profile\",\"id\":\"terms-operator-service\"}", response.body<String>())
+            assertEquals(
+                """{"baseline":{"kind":"baseline","id":"terms-baseline"},"profiles":[{"kind":"profile","id":"terms-default"},{"kind":"profile","id":"terms-operator"}]}""",
+                response.body<String>(),
+            )
         }
 }

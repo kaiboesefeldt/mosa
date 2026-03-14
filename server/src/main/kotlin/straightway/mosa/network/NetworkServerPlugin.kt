@@ -124,8 +124,8 @@ private fun createMosaRequireTlsPlugin(clientIpResolver: ClientIpResolver): Appl
 
 private const val API_ROUTE_PREFIX = "/v1/"
 private const val APPROVE_GID_ROUTE = "/v1/approvegid"
-private const val LEGAL_PRIVACY_ROUTE_PREFIX = "/v1/legal/privacy/"
-private const val LEGAL_TERMS_ROUTE_PREFIX = "/v1/legal/terms/"
+private const val LEGAL_PRIVACY_ROUTE = "/v1/legal/privacy"
+private const val LEGAL_TERMS_ROUTE = "/v1/legal/terms"
 private const val ALLOWED_CORS_METHODS = "POST, GET, DELETE, OPTIONS"
 private const val ALLOWED_CORS_HEADERS = "Authorization, Content-Type"
 private const val CORS_MAX_AGE_SECONDS = "7200"
@@ -153,8 +153,10 @@ private fun isUnauthenticatedApiRoute(
     when (method) {
         HttpMethod.Post -> path.equals(APPROVE_GID_ROUTE, ignoreCase = true)
         HttpMethod.Get ->
-            path.startsWith(LEGAL_PRIVACY_ROUTE_PREFIX, ignoreCase = true) ||
-                path.startsWith(LEGAL_TERMS_ROUTE_PREFIX, ignoreCase = true)
+            path.equals(LEGAL_PRIVACY_ROUTE, ignoreCase = true) ||
+                path.startsWith("$LEGAL_PRIVACY_ROUTE/", ignoreCase = true) ||
+                path.equals(LEGAL_TERMS_ROUTE, ignoreCase = true) ||
+                path.startsWith("$LEGAL_TERMS_ROUTE/", ignoreCase = true)
         else -> false
     }
 

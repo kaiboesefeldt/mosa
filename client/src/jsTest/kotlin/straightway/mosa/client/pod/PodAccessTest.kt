@@ -16,6 +16,7 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import straightway.mosa.auth.AuthenticationApprovalRequest
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.auth.PodCertificateResponse
@@ -28,6 +29,7 @@ import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.SearchResult
+import straightway.mosa.legal.LegalDocumentChainResponse
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -357,6 +359,26 @@ class PodAccessTest {
     }
 
     @Test
+    fun `privacy clear terms sends get and returns document chain`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val expected =
+            LegalDocumentChainResponse(
+                baseline = Json.parseToJsonElement("""{"kind":"baseline","id":"privacy-baseline"}""").jsonObject,
+                profiles =
+                    listOf(
+                        Json.parseToJsonElement("""{"kind":"profile","id":"privacy-default"}""").jsonObject,
+                        Json.parseToJsonElement("""{"kind":"profile","id":"privacy-operator"}""").jsonObject,
+                    ),
+            )
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expected)
+
+        val result = podAccess.privacyClearTerms()
+
+        assertEquals(expected, result)
+        assertGetRequest(capturedRequests.single(), "v1/legal/privacy")
+    }
+
+    @Test
     fun `privacy baseline clear terms sends get and returns raw json`() = runTest {
         val capturedRequests = mutableListOf<HttpRequestData>()
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, "{\"kind\":\"baseline\"}")
@@ -405,6 +427,26 @@ class PodAccessTest {
         val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
 
         assertRestError("/v1/legal/privacy/baseline", HttpStatusCode.BadRequest) { podAccess.privacyBaselineClearTerms() }
+    }
+
+    @Test
+    fun `terms clear terms sends get and returns document chain`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val expected =
+            LegalDocumentChainResponse(
+                baseline = Json.parseToJsonElement("""{"kind":"baseline","id":"terms-baseline"}""").jsonObject,
+                profiles =
+                    listOf(
+                        Json.parseToJsonElement("""{"kind":"profile","id":"terms-default"}""").jsonObject,
+                        Json.parseToJsonElement("""{"kind":"profile","id":"terms-operator"}""").jsonObject,
+                    ),
+            )
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expected)
+
+        val result = podAccess.termsClearTerms()
+
+        assertEquals(expected, result)
+        assertGetRequest(capturedRequests.single(), "v1/legal/terms")
     }
 
     @Test

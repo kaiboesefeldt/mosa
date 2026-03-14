@@ -19,6 +19,8 @@ import straightway.mosa.legal.clearterms.ClearTermsTimeZoneDisplayConverter
 import straightway.mosa.legal.clearterms.ClearTermsValueRenderer
 import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
 import straightway.mosa.legal.clearterms.JsClearTermsResourceReader
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class LegalPrivacyPolicyService(
     private val podBaseProvider: PodBaseProvider,
@@ -45,37 +47,21 @@ class LegalPrivacyPolicyService(
     }
 
     suspend fun loadPrivacyPolicyDocument(): LegalPrivacyPolicyDocument {
-        return loadDocument(
-            baselineLoader = { it.privacyBaselineClearTerms() },
-            profileLoaders =
-                listOf(
-                    { access -> access.privacyDefaultClearTerms() },
-                    { access -> access.privacyMosaClearTerms() },
-                    { access -> access.privacyOperatorClearTerms() },
-                ),
-        )
+        return loadDocument { it.privacyClearTerms() }
     }
 
     suspend fun loadTermsDocument(): LegalPrivacyPolicyDocument {
-        return loadDocument(
-            baselineLoader = { it.termsBaselineClearTerms() },
-            profileLoaders =
-                listOf(
-                    { access -> access.termsDefaultClearTerms() },
-                    { access -> access.termsMosaClearTerms() },
-                    { access -> access.termsOperatorClearTerms() },
-                ),
-        )
+        return loadDocument { it.termsClearTerms() }
     }
 
     private suspend fun loadDocument(
-        baselineLoader: suspend (straightway.mosa.client.pod.PodAccess) -> String,
-        profileLoaders: List<suspend (straightway.mosa.client.pod.PodAccess) -> String>,
+        chainLoader: suspend (straightway.mosa.client.pod.PodAccess) -> straightway.mosa.legal.LegalDocumentChainResponse,
     ): LegalPrivacyPolicyDocument {
         val podBase = podBaseProvider.base() ?: throw IllegalStateException("No pod base available")
         val podAccess = podAccessFactory(podBase)
-        val baseline = baselineLoader(podAccess)
-        val profiles = profileLoaders.map { loader -> loader(podAccess) }
+        val chain = chainLoader(podAccess)
+        val baseline = chain.baseline.toCanonicalJson()
+        val profiles = chain.profiles.map { profile -> profile.toCanonicalJson() }
         val renderResult = clearTermsContentProvider.renderedTextsByLanguage(baseline, profiles)
         val normalizedTexts =
             renderResult.textsByLanguage.entries.associateBy(
@@ -145,6 +131,8 @@ class LegalPrivacyPolicyService(
     }
 
     private fun normalizeLanguageTag(languageTag: String): String = languageTag.trim().lowercase()
+
+    private fun JsonObject.toCanonicalJson(): String = this["canonicalJson"]?.jsonPrimitive?.content ?: toString()
 
     private fun renderBlock(
         block: ClearTermsRenderedBlock,
