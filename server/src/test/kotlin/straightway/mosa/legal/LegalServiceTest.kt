@@ -178,6 +178,44 @@ class LegalServiceTest {
     }
 
     @Test
+    fun `validate startup reports missing placeholder keys for incomplete operator profile`() {
+        val path = Files.createTempDirectory("legal-service-startup-missing-placeholder").resolve("mosa_terms.yaml")
+        Files.writeString(
+            path,
+            """
+            kind: profile
+            id: terms-operator-service
+            version: "1.0.0-draft2"
+            parent:
+              id: mosa-terms-service
+              version: "1.0.0-draft1"
+            overrides:
+              values:
+                CONTACT_CONTROLLER_EMAIL: "legal@operator.example"
+                DOC_EFFECTIVE_DATE: "2026-03-13T00:00:00Z"
+              texts:
+                de:
+                  replace:
+                    service-purpose-slot-service: "Kurzbeschreibung"
+                    account-details-slot-service: "Kontenbeschreibung"
+                    user-content-visibility-slot-service: "Sichtbarkeit"
+                    service-rights-slot-service: "Betriebsregeln"
+                    user-data-control-slot-service: "Datenkontrolle"
+            """.trimIndent(),
+        )
+
+        val exception =
+            assertFailsWith<IllegalStateException> {
+                createLegalService(
+                    operatorProfilePath = writeOperatorProfile(),
+                    termsOperatorProfilePath = path,
+                ).validateStartup()
+            }
+
+        assertTrue(exception.message?.contains("ORG_CONTROLLER_NAME") == true)
+    }
+
+    @Test
     fun `validate startup creates missing privacy operator profile file without touching terms file`() {
         val directory = Files.createTempDirectory("legal-service-create-missing-privacy")
         val missingPrivacyPath = directory.resolve("mosa_privacy.yaml")

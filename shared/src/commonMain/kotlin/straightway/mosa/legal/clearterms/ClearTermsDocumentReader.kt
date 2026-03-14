@@ -108,10 +108,12 @@ class ClearTermsDocumentReader {
             val languageContract = languageMap.contractWithRequiredKeys(textOverrideKeys, setOf("replace"))
 
             val replace =
-                languageContract.requireMap("replace").entries.mapValues { (_, replaceValue) ->
+                languageContract.requireMap("replace").entries.mapValues { (blockId, replaceValue) ->
                     val textNode =
                         replaceValue as? ClearTermsJsonNode.ScalarNode.StringNode
-                            ?: throw ClearTermsValidationException("Replace text must be string")
+                            ?: throw ClearTermsValidationException(
+                                "Replace text for block '$blockId' in language '$language' must be string",
+                            )
                     textNode.value
                 }
 
@@ -133,10 +135,12 @@ class ClearTermsDocumentReader {
             val languageContract = languageMap.contractWithRequiredKeys(textOverrideKeys, setOf("replace"))
 
             val replace =
-                languageContract.requireMap("replace").entries.mapValues { (_, replaceValue) ->
+                languageContract.requireMap("replace").entries.mapValues { (blockId, replaceValue) ->
                     val textNode =
                         replaceValue as? ClearTermsJsonNode.ScalarNode.StringNode
-                            ?: throw ClearTermsValidationException("Replace text must be string")
+                            ?: throw ClearTermsValidationException(
+                                "Replace text for block '$blockId' in language '$language' must be string",
+                            )
                     textNode.value
                 }
 

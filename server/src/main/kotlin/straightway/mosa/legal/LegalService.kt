@@ -260,9 +260,10 @@ class LegalService(
                 profileCanonicalJsons = fullChainContext.profileCanonicalJsons,
             )
         if (!analysis.complete) {
+            val incompleteDetails = incompleteChainDetails(analysis)
             throw IllegalStateException(
                 "Legal operator profile is missing or incomplete: " +
-                    "Legal profile chain is incomplete for '$normalizedPath'",
+                    "Legal profile chain is incomplete for '$normalizedPath'$incompleteDetails",
             )
         }
         val valueTypeValidationError =
@@ -284,6 +285,20 @@ class LegalService(
                     "Legal profile chain has invalid placeholder values in '$normalizedPath': ${missingRequiredValuesError.message}",
             )
         }
+    }
+
+    private fun incompleteChainDetails(analysis: ClearTermsProfileChainCompletenessChecker.Result): String {
+        val details = mutableListOf<String>()
+        if (analysis.missingPlaceholderKeys.isNotEmpty()) {
+            details += "missing placeholder keys: ${analysis.missingPlaceholderKeys.joinToString(", ")}"
+        }
+        val unresolvedBlocks =
+            analysis.unresolvedRequiredBlockIdsByLanguage
+                .flatMap { (language, blockIds) -> blockIds.map { blockId -> "$language:$blockId" } }
+        if (unresolvedBlocks.isNotEmpty()) {
+            details += "unresolved block ids: ${unresolvedBlocks.joinToString(", ")}"
+        }
+        return if (details.isEmpty()) "" else " (${details.joinToString("; ")})"
     }
 
     private fun fallbackForInvalidFullChain(

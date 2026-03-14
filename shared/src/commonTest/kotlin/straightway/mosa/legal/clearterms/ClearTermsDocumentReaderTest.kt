@@ -613,7 +613,7 @@ class ClearTermsDocumentReaderTest {
                 reader.readDeviation(parser.parse(json))
             }
 
-        assertEquals("Replace text must be string", exception.message)
+        assertEquals("Replace text for block 'support' in language 'en' must be string", exception.message)
     }
 
     @Test
@@ -946,7 +946,7 @@ class ClearTermsDocumentReaderTest {
                 reader.readProfile(parser.parse(json))
             }
 
-        assertEquals("Replace text must be string", exception.message)
+        assertEquals("Replace text for block 'contact' in language 'en' must be string", exception.message)
     }
 
     @Test
@@ -1141,7 +1141,7 @@ class ClearTermsDocumentReaderTest {
                 reader.readProfile(parser.parse(json))
             }
 
-        assertEquals("Replace text must be string", exception.message)
+        assertEquals("Replace text for block 'contact' in language 'en' must be string", exception.message)
     }
 
     @Test
