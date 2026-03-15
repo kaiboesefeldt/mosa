@@ -7,6 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlinx.coroutines.await
 import kotlinx.coroutines.test.runTest
+import org.w3c.dom.events.KeyboardEvent
 import org.koin.core.component.get
 import straightway.mosa.client.AppModule
 import straightway.mosa.client.i18n.Translator
@@ -164,6 +165,13 @@ class IdentityProfileViewTest {
         user.click(confirmButton).await()
 
         assertTrue(handled)
+    }
+
+    @Test
+    fun `invokes gid copy handler on keyboard shortcut`() = runTest {
+        val event = js("new KeyboardEvent('keydown', { key: 'g', ctrlKey: true, altKey: true, bubbles: true })").unsafeCast<KeyboardEvent>()
+
+        assertTrue(event.isCopyGidShortcut())
     }
 
     private fun text(key: String): String = AppModule.get<Translator>().translate(key)

@@ -115,6 +115,17 @@ class IdentitySessionStateMachine(
         }
     }
 
+    fun copyGidToClipboard() {
+        val selection = currentSelection ?: return
+        scope.launch {
+            runCatching {
+                transfer.copyTextToClipboard(selection.identity.gid)
+            }.onFailure {
+                logger.error("GID copy failed", it)
+            }
+        }
+    }
+
     fun exportPostsCsv() {
         if (!isConnected) return
         val fileBaseName = identityNameParts.toIdentityDownloadFileName()

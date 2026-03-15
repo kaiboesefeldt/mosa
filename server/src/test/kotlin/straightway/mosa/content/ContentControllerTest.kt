@@ -352,6 +352,38 @@ class ContentControllerTest {
     }
 
     @Nested
+    inner class CapabilitiesEndpoint {
+        @Test
+        fun `should return content capabilities for authenticated user`() =
+            with(test) {
+                env {
+                    val expected = ContentCapabilitiesResult(isAdmin = true)
+                    coEvery { contentService.contentCapabilities(env.gid) } returns expected
+
+                    val response =
+                        client.get("/v1/posts/capabilities") {
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.OK, response.status)
+                    assertEquals(expected, response.body())
+                    coVerify(exactly = 1) { contentService.contentCapabilities(env.gid) }
+                }
+            }
+
+        @Test
+        fun `should return 401 Unauthorized when not authenticated`() =
+            with(test) {
+                env {
+                    val response = client.get("/v1/posts/capabilities")
+
+                    assertEquals(HttpStatusCode.Unauthorized, response.status)
+                    coVerify(exactly = 0) { contentService.contentCapabilities(any()) }
+                }
+            }
+    }
+
+    @Nested
     inner class DeleteAllEndpoint {
         @Test
         fun `should return 200 OK on success`() =

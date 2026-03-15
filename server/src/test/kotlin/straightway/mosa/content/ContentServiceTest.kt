@@ -33,7 +33,14 @@ class ContentServiceTest {
     private val hasherFactory = mockk<() -> MessageDigest>()
     private val transaction = mockk<VectorStore.Transaction>(relaxed = true)
     private val maxFetchItems = 100
-    private val sut = ContentService(embeddingService, vectorStore, hasherFactory, maxFetchItems) { "reply-id" }
+    private val sut =
+        ContentService(
+            embeddingService = embeddingService,
+            vectorStore = vectorStore,
+            hasherFactory = hasherFactory,
+            maxFetchItems = maxFetchItems,
+            replyIdFactory = { "reply-id" },
+        )
 
     private val testUserGID = "test-user-gid"
     private val testEmbedding = floatArrayOf(0.1f, 0.2f, 0.3f)
@@ -1232,6 +1239,29 @@ class ContentServiceTest {
                     sut.delete(testUserGID, postId)
                 }
                 coVerify(exactly = 0) { vectorStore.writeAccess(any()) }
+            }
+
+        @Test
+        fun `removes item when user is admin`() =
+            runTest {
+                val service = ContentService(embeddingService, vectorStore, hasherFactory, maxFetchItems, isAdmin = { it == "admin-gid" })
+                coEvery { vectorStore.fetch(listOf(postId)) } returns
+                    listOf(
+                        VectorStore.PostDump(
+                            postId,
+                            "content",
+                            mapOf(
+                                AUTHOR_GID_KEY to "other-user",
+                                ROOT_ID_KEY to "root-1",
+                            ),
+                        ),
+                    )
+                setupWriteAccess()
+
+                val deletedIds = service.delete("admin-gid", postId)
+
+                coVerify { transaction.remove(postId) }
+                assertEquals(listOf(postId), deletedIds)
             }
 
         @Test

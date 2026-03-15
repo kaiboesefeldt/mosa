@@ -88,6 +88,7 @@
   "connected.replies.compose.close": "Close reply composer",
   "connected.replies.compose.error": "The reply could not be published. Please try again.",
   "identity.copy.success": "Identity copied",
+  "identity.gid.copy.success": "GID copied",
   "identity.export.inProgress": "Generating CSV...",
   "identity.export.error": "Could not export CSV. Please try again.",
   "identity.failedToPrepare": "Failed to prepare identity: {{message}}",

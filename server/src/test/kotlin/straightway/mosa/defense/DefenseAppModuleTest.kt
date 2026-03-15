@@ -9,6 +9,7 @@ import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.NanoClock
+import straightway.mosa.config.AdminAllowList
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
 import straightway.mosa.config.IdentityBlockList
@@ -60,6 +61,7 @@ class DefenseAppModuleTest {
                 assertNotNull(koin.get<RateLimiter>(ipRateLimit))
                 val ipBlockListContent = koin.get<AutoRefreshingFileBackedContent<ClientBlockList>>(ipBlockList)
                 val identityBlockListContent = koin.get<AutoRefreshingFileBackedContent<IdentityBlockList>>(identityBlockList)
+                val adminAllowListContent = koin.get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
                 meterRegistry.timer(RequestMetricsPlugin.REQUEST_DURATION_METRIC_NAME, "method", "GET", "route", "/health")
                 koin
                     .get<RequestDurationForRouteStateRegistry>()
@@ -69,6 +71,8 @@ class DefenseAppModuleTest {
                 runBlocking { ipBlockListContent.get() }
                 Files.writeString(Path.of("mosa_identity_blocklist.yaml"), "blockedGids: [\n")
                 runBlocking { identityBlockListContent.get() }
+                Files.writeString(Path.of("mosa_admin_gids.yaml"), "adminGids: [\n")
+                runBlocking { adminAllowListContent.get() }
             } finally {
                 koinApplication.close()
             }
@@ -120,11 +124,51 @@ class DefenseAppModuleTest {
                 assertRateLimitConfigDefaults(koin, ipRateLimit, 12, 13, 14L, 3L)
                 val ipBlockListContent = koin.get<AutoRefreshingFileBackedContent<ClientBlockList>>(ipBlockList)
                 val identityBlockListContent = koin.get<AutoRefreshingFileBackedContent<IdentityBlockList>>(identityBlockList)
+                val adminAllowListContent = koin.get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
                 clock.advanceSeconds(10)
                 Files.writeString(Path.of("mosa_ip_blocklist.yaml"), "blockedClients: [\"invalid-ip\"]\n")
                 runBlocking { ipBlockListContent.get() }
                 Files.writeString(Path.of("mosa_identity_blocklist.yaml"), "blockedGids: [\n")
                 runBlocking { identityBlockListContent.get() }
+                Files.writeString(Path.of("mosa_admin_gids.yaml"), "adminGids: [\n")
+                runBlocking { adminAllowListContent.get() }
+            } finally {
+                koinApplication.close()
+            }
+        }
+    }
+
+    @Test
+    fun `admin allow list keeps previous valid content on invalid reload`() {
+        withBlockListFiles {
+            val clock = MutableClock(Instant.EPOCH)
+            val koinApplication = buildKoin(CommandLineArgumentStore.EMPTY, clock)
+            try {
+                val koin = koinApplication.koin
+                val adminAllowListContent = koin.get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
+
+                assertEquals(listOf("admin-gid"), runBlocking { adminAllowListContent.get() }?.adminGids)
+
+                clock.advanceSeconds(10)
+                Files.writeString(Path.of("mosa_admin_gids.yaml"), "adminGids: [\n")
+
+                assertEquals(listOf("admin-gid"), runBlocking { adminAllowListContent.get() }?.adminGids)
+            } finally {
+                koinApplication.close()
+            }
+        }
+    }
+
+    @Test
+    fun `admin allow list is absent when config file is missing`() {
+        withBlockListFiles(includeAdminFile = false) {
+            val clock = MutableClock(Instant.EPOCH)
+            val koinApplication = buildKoin(CommandLineArgumentStore.EMPTY, clock)
+            try {
+                val koin = koinApplication.koin
+                val adminAllowListContent = koin.get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
+
+                assertEquals(null, runBlocking { adminAllowListContent.get() })
             } finally {
                 koinApplication.close()
             }
@@ -161,9 +205,13 @@ class DefenseAppModuleTest {
         assertEquals(retryAfterJitterSeconds, config.retryAfterJitterSeconds)
     }
 
-    private fun withBlockListFiles(block: () -> Unit) {
+    private fun withBlockListFiles(
+        includeAdminFile: Boolean = true,
+        block: () -> Unit,
+    ) {
         val ipPath = Path.of("mosa_ip_blocklist.yaml")
         val identityPath = Path.of("mosa_identity_blocklist.yaml")
+        val adminPath = Path.of("mosa_admin_gids.yaml")
         Files.writeString(
             ipPath,
             """
@@ -178,11 +226,21 @@ class DefenseAppModuleTest {
               - "test-gid"
             """.trimIndent() + "\n",
         )
+        if (includeAdminFile) {
+            Files.writeString(
+                adminPath,
+                """
+                adminGids:
+                  - "admin-gid"
+                """.trimIndent() + "\n",
+            )
+        }
         try {
             block()
         } finally {
             Files.deleteIfExists(ipPath)
             Files.deleteIfExists(identityPath)
+            Files.deleteIfExists(adminPath)
         }
     }
 

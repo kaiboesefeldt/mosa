@@ -19,6 +19,7 @@ import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
+import straightway.mosa.content.ContentCapabilitiesResult
 import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
 import straightway.mosa.content.SearchResult
@@ -34,6 +35,8 @@ interface PodAccess {
     suspend fun reply(request: ReplyRequest, jwt: String)
     suspend fun deletePosts(jwt: String): DeletePostsResult
     suspend fun deletePost(postId: String, jwt: String): DeletePostsResult
+    suspend fun contentCapabilities(jwt: String): ContentCapabilitiesResult =
+        error("Content capabilities endpoint is not implemented for this PodAccess")
     suspend fun exportPostsCsv(jwt: String): ByteArray
     suspend fun freezePrivacySnapshot(jwt: String): ByteArray
     suspend fun restorePrivacySnapshot(snapshot: ByteArray, jwt: String): FreezeSnapshotRestoreResult
@@ -119,6 +122,11 @@ class PodAccessImpl(
         val path = "/v1/posts/$postId"
         return delete(path, jwt).ensureSuccess(path, postId).body()
     }
+
+    override suspend fun contentCapabilities(jwt: String): ContentCapabilitiesResult =
+        get("/v1/posts/capabilities", jwt)
+            .ensureSuccess("/v1/posts/capabilities", Unit)
+            .body()
 
     override suspend fun exportPostsCsv(jwt: String): ByteArray =
         get("/v1/posts/export.csv", jwt)

@@ -16,6 +16,7 @@ class AutoRefreshingFileBackedContent<T>(
     val config: Config,
     val clock: Clock,
     private val onError: (Throwable) -> Unit = {},
+    private val onRefresh: (Path) -> Unit = {},
     private val transformer: Transformer<T>,
 ) {
     data class Config(
@@ -35,7 +36,10 @@ class AutoRefreshingFileBackedContent<T>(
                 runCatching {
                     readFileContent().transform(oldState.value, onError)
                 }.getOrNull()?.let {
-                    state = it
+                    state = it.state
+                    if (it.wasRefreshed) {
+                        onRefresh(config.path)
+                    }
                 }
             }
 
@@ -50,25 +54,40 @@ class AutoRefreshingFileBackedContent<T>(
         val previousFileModifiedTime: FileTime,
     )
 
+    private data class TransformResult<T>(
+        val state: State<T>,
+        val wasRefreshed: Boolean,
+    )
+
     private val mutex = Mutex()
-    private var state: State<T> = readFileContent().transform(null) { throw it }
+    private var state: State<T> = readFileContent().transform(null) { throw it }.state
 
     private fun State<ByteArray>.transform(
         old: T?,
         onError: (Throwable) -> Unit,
-    ) = State(
-        value =
+    ): TransformResult<T> {
+        var wasRefreshed = false
+        val newValue =
             value?.let {
                 try {
-                    transformer.transform(it)
+                    transformer.transform(it).also {
+                        wasRefreshed = true
+                    }
                 } catch (e: Exception) {
                     onError(e)
                     old
                 }
-            },
-        nextRefreshTime = nextRefreshTime,
-        previousFileModifiedTime = previousFileModifiedTime,
-    )
+            }
+        return TransformResult(
+            state =
+                State(
+                    value = newValue,
+                    nextRefreshTime = nextRefreshTime,
+                    previousFileModifiedTime = previousFileModifiedTime,
+                ),
+            wasRefreshed = wasRefreshed,
+        )
+    }
 
     private fun State<*>.needsRefresh(): Boolean = clock.instant().isAfter(nextRefreshTime) && isFileChanged()
 

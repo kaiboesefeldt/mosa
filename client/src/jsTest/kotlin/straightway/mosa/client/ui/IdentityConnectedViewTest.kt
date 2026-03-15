@@ -51,6 +51,7 @@ import straightway.mosa.client.content.CachedPost
 import straightway.mosa.client.content.CachedPostResolution
 import straightway.mosa.client.content.PostCache
 import straightway.mosa.client.content.PostCacheSnapshot
+import straightway.mosa.client.content.ContentCapabilitiesService
 import straightway.mosa.client.content.TopicScopedPost
 import straightway.mosa.client.content.Topic
 import straightway.mosa.client.content.TopicRepository
@@ -70,6 +71,7 @@ import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryResult
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.SearchResult
+import straightway.mosa.content.ContentCapabilitiesResult
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
@@ -216,6 +218,25 @@ class IdentityConnectedViewTest {
         waitForCondition { podAccess.queryInvocations.size == 2 }
         waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
         assertEquals("content-p2", view.container.querySelector(".post-card__content")?.textContent?.trim())
+    }
+
+    @Test
+    fun `shows delete action for foreign post when connected identity is admin`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
+
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelector(".post-card__delete") != null }
     }
 
     @Test
@@ -682,6 +703,7 @@ private fun scrollPostsToEnd(container: Element) {
                     )
                 }
                 single { PostPublisher(get(), get()) }
+                single { ContentCapabilitiesService(get()) }
                 single { PostDeletionService(get(), get(), get()) }
                 single { AllPostsDeletionService(get(), get(), get()) }
                 single { ReplyPublisher(get(), get()) }
@@ -767,6 +789,7 @@ private fun placeholderProfile(snapshotRefreshVersion: Int = 0): IdentityScreen.
         onDownload = {},
         canCopy = false,
         onCopy = {},
+        onCopyGid = {},
         canUpload = false,
         onUpload = {},
         canPaste = false,
@@ -807,6 +830,7 @@ private class RecordingPodAccess(
     responses: Map<String, QueryResult>,
     private val additionalResponses: Map<String, List<QueryResult>> = emptyMap(),
     replyResponses: Map<String, List<QueryResult>> = emptyMap(),
+    private val capabilities: ContentCapabilitiesResult = ContentCapabilitiesResult(isAdmin = false),
 ) : PodAccess {
     val approveInvocations = mutableListOf<String>()
     val searchInvocations = mutableListOf<QueryRequest>()
@@ -862,6 +886,8 @@ private class RecordingPodAccess(
     override suspend fun exportPostsCsv(jwt: String): ByteArray {
         error("Not implemented")
     }
+
+    override suspend fun contentCapabilities(jwt: String): ContentCapabilitiesResult = capabilities
 
     override suspend fun freezePrivacySnapshot(jwt: String): ByteArray {
         error("Not implemented")
@@ -1104,11 +1130,14 @@ private class RecordingLogger : Logger {
     override fun warn(message: String, throwable: Throwable?) {}
 }
 
-private fun queryResult(id: String): QueryResult =
+private fun queryResult(
+    id: String,
+    authorGid: String = "author",
+): QueryResult =
     QueryResult(
         entries =
             listOf(
-                QueryResult.Entry(id, "content-$id", 0.9f, "author", 0),
+                QueryResult.Entry(id, "content-$id", 0.9f, authorGid, 0),
             ),
         queryOnId = "query-on-$id",
     )

@@ -7,6 +7,7 @@ import java.nio.file.Path
 import java.nio.file.attribute.FileTime
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.writeBytes
@@ -109,6 +110,32 @@ class AutoRefreshingFileBackedContentTest {
         }
 
     @Test
+    fun `calls refresh callback after successful reload`() =
+        runTest {
+            val path = createTempDirectory("mosa-test-").resolve("content.bin")
+            writeContent(path, "first".encodeToByteArray(), 1_000)
+            val clock = TestClock(Instant.ofEpochMilli(0))
+            val refreshedPath = AtomicReference<Path?>(null)
+
+            val sut =
+                AutoRefreshingFileBackedContent(
+                    config = AutoRefreshingFileBackedContent.Config(path, 5.seconds),
+                    clock = clock,
+                    onRefresh = { refreshedPath.set(it) },
+                    transformer = { it.decodeToString() },
+                )
+
+            assertEquals("first", sut.get())
+            assertNull(refreshedPath.get())
+
+            writeContent(path, "second".encodeToByteArray(), 2_000)
+            clock.advance(6.seconds)
+
+            assertEquals("second", sut.get())
+            assertEquals(path, refreshedPath.get())
+        }
+
+    @Test
     fun `keeps old value and reports errors during refresh`() =
         runTest {
             val path = createTempDirectory("mosa-test-").resolve("content.bin")
@@ -140,6 +167,37 @@ class AutoRefreshingFileBackedContentTest {
             assertEquals("ok", sut.get())
             assertEquals(1, errors.get())
             assertEquals(2, calls.get())
+        }
+
+    @Test
+    fun `does not call refresh callback when reload fails`() =
+        runTest {
+            val path = createTempDirectory("mosa-test-").resolve("content.bin")
+            writeContent(path, "ok".encodeToByteArray(), 1_000)
+            val clock = TestClock(Instant.ofEpochMilli(0))
+            val refreshedPath = AtomicReference<Path?>(null)
+
+            val sut =
+                AutoRefreshingFileBackedContent(
+                    config = AutoRefreshingFileBackedContent.Config(path, 5.seconds),
+                    clock = clock,
+                    onRefresh = { refreshedPath.set(it) },
+                    transformer = {
+                        val text = it.decodeToString()
+                        if (text == "bad") {
+                            throw IllegalStateException("bad")
+                        }
+                        text
+                    },
+                )
+
+            assertEquals("ok", sut.get())
+
+            writeContent(path, "bad".encodeToByteArray(), 2_000)
+            clock.advance(6.seconds)
+
+            assertEquals("ok", sut.get())
+            assertNull(refreshedPath.get())
         }
 
     @Test

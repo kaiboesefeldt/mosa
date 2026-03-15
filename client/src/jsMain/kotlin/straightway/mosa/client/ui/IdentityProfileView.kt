@@ -56,6 +56,7 @@ external interface IdentityProfileViewProps : Props {
     var onSelect: (Int) -> Unit
     var onDownload: () -> Unit
     var onCopy: () -> Unit
+    var onCopyGid: () -> Unit
     var onUpload: () -> Unit
     var onPaste: () -> Unit
     var onPasteContent: (String) -> Unit
@@ -81,6 +82,7 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
     val activeSegment = if (totalItems <= 1) 0 else boundedIndex
     val (areToolsVisible, setToolsVisible) = useState(false)
     val (isCopyFeedbackVisible, setCopyFeedbackVisible) = useState(false)
+    val (copyFeedbackText, setCopyFeedbackText) = useState<String?>(null)
     val (isDeletePostsVisible, setDeletePostsVisible) = useState(false)
     val (isFreezePostsVisible, setFreezePostsVisible) = useState(false)
     val toolActions = IdentityToolsPresenter.present(props.toIdentityToolsCapabilities())
@@ -126,7 +128,10 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
     }
     useEffect(arrayOf(isCopyFeedbackVisible)) {
         if (!isCopyFeedbackVisible) return@useEffect
-        val timeoutId = window.setTimeout({ setCopyFeedbackVisible(false) }, 1800)
+        val timeoutId = window.setTimeout({
+            setCopyFeedbackVisible(false)
+            setCopyFeedbackText(null)
+        }, 1800)
         try {
             awaitCancellation()
         } finally {
@@ -156,6 +161,24 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
             if (props.isBusy || !props.canCopy) return@listener
             keyboardEvent.preventDefault()
             props.onCopy()
+            setCopyFeedbackText(translator.translate("identity.copy.success"))
+            setCopyFeedbackVisible(true)
+        }
+        window.addEventListener("keydown", listener)
+        try {
+            awaitCancellation()
+        } finally {
+            window.removeEventListener("keydown", listener)
+        }
+    }
+    useEffect(arrayOf(props.onCopyGid, props.isBusy)) {
+        val listener: (Event) -> Unit = listener@ { event ->
+            val keyboardEvent = event.asKeyboardEvent() ?: return@listener
+            if (keyboardEvent.repeat || !keyboardEvent.isCopyGidShortcut()) return@listener
+            if (props.isBusy) return@listener
+            keyboardEvent.preventDefault()
+            props.onCopyGid()
+            setCopyFeedbackText(translator.translate("identity.gid.copy.success"))
             setCopyFeedbackVisible(true)
         }
         window.addEventListener("keydown", listener)
@@ -228,7 +251,7 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
             if (isCopyFeedbackVisible) {
                 div {
                     className = ClassName("profile-dialog__toast")
-                    +translator.translate("identity.copy.success")
+                    +(copyFeedbackText ?: translator.translate("identity.copy.success"))
                 }
             }
             if (isDeletePostsVisible) {
@@ -326,6 +349,7 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
     onSelect = screen.onSelect
     onDownload = screen.onDownload
     onCopy = screen.onCopy
+    onCopyGid = screen.onCopyGid
     onUpload = screen.onUpload
     onPaste = screen.onPaste
     onPasteContent = screen.onPasteContent
@@ -339,8 +363,11 @@ private fun Event.asPasteEvent(): ClipboardEvent? =
 private fun Event.asKeyboardEvent(): KeyboardEvent? =
     this as? KeyboardEvent
 
-private fun KeyboardEvent.isSystemCopyShortcut(): Boolean =
+internal fun KeyboardEvent.isSystemCopyShortcut(): Boolean =
     (ctrlKey || metaKey) && !altKey && key.lowercase() == "c"
+
+internal fun KeyboardEvent.isCopyGidShortcut(): Boolean =
+    (ctrlKey || metaKey) && altKey && !shiftKey && key.lowercase() == "g"
 
 private fun ChildrenBuilder.confirmationSheet(
     title: String,

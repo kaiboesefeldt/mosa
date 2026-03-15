@@ -22,6 +22,7 @@ import straightway.mosa.auth.PodCertificate
 import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
+import straightway.mosa.content.ContentCapabilitiesResult
 import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
 import straightway.mosa.content.PublishRequest
@@ -218,6 +219,29 @@ class PodAccessTest {
         val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
 
         assertRestError("/v1/posts/export.csv", HttpStatusCode.BadRequest) { podAccess.exportPostsCsv("jwt-token") }
+    }
+
+    @Test
+    fun `contentCapabilities sends get with auth and returns result`() = runTest {
+        val expectedResult = ContentCapabilitiesResult(isAdmin = true)
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
+
+        val result = podAccess.contentCapabilities("jwt-token")
+
+        assertEquals(expectedResult, result)
+        assertAuthenticatedGetRequest(
+            request = capturedRequests.single(),
+            route = "v1/posts/capabilities",
+            bearerToken = "jwt-token",
+        )
+    }
+
+    @Test
+    fun `contentCapabilities throws when backend returns error`() = runTest {
+        val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
+
+        assertRestError("/v1/posts/capabilities", HttpStatusCode.BadRequest) { podAccess.contentCapabilities("jwt-token") }
     }
 
     @Test

@@ -46,6 +46,7 @@ internal fun renderIdentityProfileView(
             onUpload = {}
             canCopy = true
             onCopy = {}
+            onCopyGid = {}
             canPaste = true
             onPaste = {}
             onPasteContent = {}

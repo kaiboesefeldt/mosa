@@ -58,6 +58,11 @@ class ContentController(
                 val deletedIds = contentService.delete(gid, id)
                 call.respond(HttpStatusCode.OK, DeletePostsResult(deletedIds), typeInfo<DeletePostsResult>())
             }
+            getRoute("/posts/capabilities") {
+                val gid = userGidOrRespondUnauthorized() ?: return@getRoute
+                val capabilities = contentService.contentCapabilities(gid)
+                call.respond(HttpStatusCode.OK, capabilities, typeInfo<ContentCapabilitiesResult>())
+            }
             getRoute("/posts/export.csv") {
                 val gid = userGidOrRespondUnauthorized() ?: return@getRoute
                 val csv = contentService.exportCsvForUser(gid)

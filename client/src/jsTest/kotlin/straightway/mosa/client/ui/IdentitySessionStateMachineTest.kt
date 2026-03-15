@@ -129,6 +129,8 @@ class IdentitySessionStateMachineTest {
 
                 override suspend fun copyToClipboard(protectedExport: String) = Unit
 
+                override suspend fun copyTextToClipboard(content: String) = Unit
+
                 override suspend fun upload(): String? = null
 
                 override suspend fun pasteFromClipboard(): String = "serialized"
@@ -162,6 +164,8 @@ class IdentitySessionStateMachineTest {
                 override suspend fun download(protectedExport: String, fileBaseName: String) = Unit
 
                 override suspend fun copyToClipboard(protectedExport: String) = Unit
+
+                override suspend fun copyTextToClipboard(content: String) = Unit
 
                 override suspend fun upload(): String? = null
 
@@ -366,6 +370,23 @@ class IdentitySessionStateMachineTest {
         assertEquals(null, state.profile.errorText)
         assertEquals(0, state.profile.snapshotRefreshVersion)
     }
+
+    @Test
+    fun `copies gid to clipboard for current identity`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore()
+        val transfer = RecordingIdentityTransferPort()
+        val machine = createMachine(repository, store, transfer = transfer)
+
+        machine.refresh()
+        advanceUntilIdle()
+
+        machine.copyGidToClipboard()
+        advanceUntilIdle()
+
+        assertEquals(listOf("gid-a"), transfer.copiedTexts)
+    }
 }
 
 private fun TestScope.createMachine(
@@ -489,6 +510,25 @@ private object NoopIdentityTransferPort : IdentityTransferPort {
     override suspend fun download(protectedExport: String, fileBaseName: String) = Unit
 
     override suspend fun copyToClipboard(protectedExport: String) = Unit
+
+    override suspend fun copyTextToClipboard(content: String) = Unit
+
+    override suspend fun upload(): String? = null
+
+    override suspend fun pasteFromClipboard(): String =
+        throw UnsupportedOperationException("Not used in test")
+}
+
+private class RecordingIdentityTransferPort : IdentityTransferPort {
+    val copiedTexts = mutableListOf<String>()
+
+    override suspend fun download(protectedExport: String, fileBaseName: String) = Unit
+
+    override suspend fun copyToClipboard(protectedExport: String) = Unit
+
+    override suspend fun copyTextToClipboard(content: String) {
+        copiedTexts += content
+    }
 
     override suspend fun upload(): String? = null
 

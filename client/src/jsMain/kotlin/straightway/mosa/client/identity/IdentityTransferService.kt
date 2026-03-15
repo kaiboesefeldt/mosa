@@ -27,6 +27,7 @@ interface IdentityTransferPort {
     suspend fun download(protectedExport: String, fileBaseName: String)
     suspend fun upload(): String?
     suspend fun copyToClipboard(protectedExport: String)
+    suspend fun copyTextToClipboard(content: String)
     suspend fun pasteFromClipboard(): String
 }
 
@@ -36,8 +37,14 @@ class IdentityTransferService(
     override suspend fun copyToClipboard(protectedExport: String) {
         val content = protectedExport.trim()
         if (content.isEmpty()) throw InvalidIdentityTransferException("Identity export is empty")
+        copyTextToClipboard(content)
+    }
+
+    override suspend fun copyTextToClipboard(content: String) {
+        val text = content.trim()
+        if (text.isEmpty()) throw InvalidIdentityTransferException("Clipboard content is empty")
         val clipboard = navigatorOrNull()?.clipboard
-        if (copyTextToClipboard(content, clipboard)) return
+        if (copyTextToClipboard(text, clipboard)) return
         throw InvalidIdentityTransferException("Clipboard write is not allowed")
     }
 

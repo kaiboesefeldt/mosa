@@ -88,6 +88,7 @@
   "connected.replies.compose.close": "Antwortfenster schließen",
   "connected.replies.compose.error": "Antwort konnte nicht veröffentlicht werden. Bitte versuche es erneut.",
   "identity.copy.success": "Identität kopiert",
+  "identity.gid.copy.success": "GID kopiert",
   "identity.export.inProgress": "CSV wird erstellt...",
   "identity.export.error": "CSV konnte nicht exportiert werden. Bitte versuche es erneut.",
   "identity.failedToPrepare": "Identität konnte nicht vorbereitet werden: {{message}}",

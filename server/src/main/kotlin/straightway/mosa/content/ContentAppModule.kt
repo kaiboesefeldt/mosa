@@ -6,6 +6,8 @@ import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.HasherFactory
 import straightway.mosa.SignatureFactory
 import straightway.mosa.base.BaseController
+import straightway.mosa.config.AdminAllowList
+import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.content.ContentCommandLineOptions.Companion.MAX_FETCH_ITEMS
 import straightway.mosa.content.snapshot.FileBackedFreezeSnapshotArchiveKeyStore
 import straightway.mosa.content.snapshot.FreezeSnapshotActiveArchiveKeyProvider
@@ -20,6 +22,7 @@ import straightway.mosa.content.snapshot.FreezeSnapshotSelectionService
 import straightway.mosa.content.snapshot.FreezeSnapshotService
 import straightway.mosa.content.snapshot.FreezeSnapshotSizePolicy
 import straightway.mosa.content.snapshot.SecureRandomFreezeSnapshotNonceGenerator
+import straightway.mosa.defense.adminAllowList
 import java.nio.file.Path
 import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.days
@@ -66,7 +69,10 @@ fun Module.configureContentAppModule() {
     single {
         val cliArguments: CommandLineArgumentStore = get()
         val maxFetchItems = cliArguments.getInt(MAX_FETCH_ITEMS) ?: 100
-        ContentService(get(), get(), get(), maxFetchItems)
+        val admins = get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
+        ContentService(get(), get(), get(), maxFetchItems) { gid ->
+            (admins.get() ?: AdminAllowList(emptyList())).adminGids.contains(gid)
+        }
     }
     single { ContentSignatureVerifier(get(), get(), get()) }
     single { ContentController(get(), get(), get()) } bind BaseController::class

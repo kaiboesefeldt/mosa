@@ -44,6 +44,7 @@ import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.PostCache
 import straightway.mosa.client.content.ReplyCache
 import straightway.mosa.client.content.PostPublisher
+import straightway.mosa.client.content.ContentCapabilitiesService
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.AllPostsDeletionService
 import straightway.mosa.client.content.ReplyPublisher
@@ -101,6 +102,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val nameGenerator = ConnectedViewInjector.get<FictionalNameGenerator>()
     val avatarGenerator = ConnectedViewInjector.get<DiceBearAvatarGenerator>()
     val postPublisher = ConnectedViewInjector.get<PostPublisher>()
+    val contentCapabilitiesService = ConnectedViewInjector.get<ContentCapabilitiesService>()
     val postDeletionService = ConnectedViewInjector.get<PostDeletionService>()
     val allPostsDeletionService = ConnectedViewInjector.get<AllPostsDeletionService>()
     val replyPublisher = ConnectedViewInjector.get<ReplyPublisher>()
@@ -155,6 +157,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val swipeTargetsRef = useRef(SwipeTargets(null, null))
     val (swipeOffsetPercent, setSwipeOffsetPercent) = useState(0.0)
     val (connectedGid, setConnectedGid) = useState<String?>(null)
+    val (isAdmin, setIsAdmin) = useState(false)
     val snapshotRefreshVersionRef = useRef(props.profile.snapshotRefreshVersion)
 
     useEffect(sessionStore) {
@@ -162,6 +165,16 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             val snapshot = runCatching { sessionStore.load() }.getOrNull()
             setProfileVisible(snapshot?.isProfileVisible ?: false)
             setConnectedGid(snapshot?.connectedIdentityGid)
+        }
+    }
+    useEffect(connectedGid) {
+        if (connectedGid == null) {
+            setIsAdmin(false)
+            return@useEffect
+        }
+        scope.launch {
+            val capabilities = contentCapabilitiesService.fetch()
+            setIsAdmin(capabilities?.isAdmin == true)
         }
     }
 
@@ -1096,6 +1109,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onClearFilter = ::clearTopicFilter,
                     onSelectPost = ::selectPost,
                     connectedGid = connectedGid,
+                    canDeleteAsAdmin = isAdmin,
                     deleteCandidateId = deleteCandidate?.id,
                     isDeleting = isDeletingPost,
                     deleteError = deleteError,
@@ -1114,6 +1128,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     replies = replies,
                     isLoading = isLoadingReplies,
                     connectedGid = connectedGid,
+                    canDeleteAsAdmin = isAdmin,
                     deleteCandidateId = deleteCandidate?.id,
                     isDeleting = isDeletingPost,
                     deleteError = deleteError,
@@ -1258,6 +1273,7 @@ private fun ChildrenBuilder.postsColumn(
     onClearFilter: (Topic) -> Unit,
     onSelectPost: (QueryResult.Entry) -> Unit,
     connectedGid: String?,
+    canDeleteAsAdmin: Boolean,
     deleteCandidateId: String?,
     isDeleting: Boolean,
     deleteError: String?,
@@ -1362,6 +1378,7 @@ private fun ChildrenBuilder.postsColumn(
                             onSelectPost(entry)
                         },
                         connectedGid = connectedGid,
+                        canDeleteAsAdmin = canDeleteAsAdmin,
                         deleteCandidateId = deleteCandidateId,
                         isDeleting = isDeleting,
                         deleteError = deleteError,
@@ -1387,6 +1404,7 @@ private fun ChildrenBuilder.repliesColumn(
     replies: ThreadReplies?,
     isLoading: Boolean,
     connectedGid: String?,
+    canDeleteAsAdmin: Boolean,
     deleteCandidateId: String?,
     isDeleting: Boolean,
     deleteError: String?,
@@ -1460,6 +1478,7 @@ private fun ChildrenBuilder.repliesColumn(
                     visualsFactory = visualsFactory,
                     reply = reply,
                     connectedGid = connectedGid,
+                    canDeleteAsAdmin = canDeleteAsAdmin,
                     deleteCandidateId = deleteCandidateId,
                     isDeleting = isDeleting,
                     deleteError = deleteError,
@@ -1573,6 +1592,7 @@ private fun ChildrenBuilder.replyCard(
     visualsFactory: IdentityVisualsFactory,
     reply: QueryResult.Entry,
     connectedGid: String?,
+    canDeleteAsAdmin: Boolean,
     deleteCandidateId: String?,
     isDeleting: Boolean,
     deleteError: String?,
@@ -1582,8 +1602,8 @@ private fun ChildrenBuilder.replyCard(
 ) {
     val authorVisuals = visualsFactory.createFromGid(reply.authorGID)
     val authorName = authorVisuals.name.toString().trim()
-    val isOwnReply = connectedGid != null && reply.authorGID == connectedGid
-    val showDeletePopover = isOwnReply && deleteCandidateId == reply.id
+    val canDeleteReply = (connectedGid != null && reply.authorGID == connectedGid) || canDeleteAsAdmin
+    val showDeletePopover = canDeleteReply && deleteCandidateId == reply.id
     div {
         key = reply.id
         className = ClassName("reply-card")
@@ -1606,7 +1626,7 @@ private fun ChildrenBuilder.replyCard(
                         className = ClassName("reply-card__timestamp")
                         +formatTimestamp(reply.storedAt)
                     }
-                    if (isOwnReply) {
+                    if (canDeleteReply) {
                         val deleteLabel = translator.translate("connected.posts.delete.action")
                         button {
                             className = ClassName("post-card__delete reply-card__delete")
@@ -1732,6 +1752,7 @@ private fun ChildrenBuilder.postCard(
     isSelected: Boolean,
     onSelect: () -> Unit,
     connectedGid: String?,
+    canDeleteAsAdmin: Boolean,
     deleteCandidateId: String?,
     isDeleting: Boolean,
     deleteError: String?,
@@ -1743,8 +1764,8 @@ private fun ChildrenBuilder.postCard(
     val authorName = authorVisuals.name.toString().trim()
     val timestamp = formatTimestamp(entry.storedAt)
     val similarity = formatSimilarity(entry.similarity)
-    val isOwnPost = connectedGid != null && entry.authorGID == connectedGid
-    val showDeletePopover = isOwnPost && deleteCandidateId == entry.id
+    val canDeletePost = (connectedGid != null && entry.authorGID == connectedGid) || canDeleteAsAdmin
+    val showDeletePopover = canDeletePost && deleteCandidateId == entry.id
     val cardClass =
         buildString {
             append("post-card")
@@ -1802,7 +1823,7 @@ private fun ChildrenBuilder.postCard(
                             className = ClassName("fa fa-solid fa-arrows-up-to-line")
                         }
                     }
-                    if (isOwnPost) {
+                    if (canDeletePost) {
                         val deleteLabel = translator.translate("connected.posts.delete.action")
                         button {
                             className = ClassName("post-card__delete")

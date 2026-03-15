@@ -10,6 +10,7 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.onClose
 import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.NanoClock
+import straightway.mosa.config.AdminAllowList
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
 import straightway.mosa.config.IdentityBlockList
@@ -30,6 +31,7 @@ val authenticatedRateLimit: Qualifier = named("authenticatedRateLimit")
 val ipRateLimit: Qualifier = named("ipRateLimit")
 val ipBlockList: Qualifier = named("ipBlockList")
 val identityBlockList: Qualifier = named("identityBlockList")
+val adminAllowList: Qualifier = named("adminAllowList")
 
 fun Module.configureDefenseAppModule() {
     single<MeterRegistry> { SimpleMeterRegistry() } onClose { it?.close() }
@@ -180,6 +182,24 @@ fun Module.configureDefenseAppModule() {
                 val entries = blockList.blockedGids.map { gid -> IdentityLogEntryFormatter.format(gid) }
                 klogger.info {
                     "blocked gids: ${entries.joinToString(", ")}"
+                }
+            }
+        }
+    }
+    single(adminAllowList) {
+        AutoRefreshingFileBackedContent(
+            AutoRefreshingFileBackedContent.Config(
+                path = Path.of("mosa_admin_gids.yaml"),
+                refreshInterval = 5.seconds,
+            ),
+            get(),
+            onError = { error -> klogger.error(error) { "mosa_admin_gids has invalid format" } },
+            onRefresh = { klogger.info { "reloaded mosa_admin_gids after file change" } },
+        ) {
+            AdminAllowList.transformer.transform(it).also { allowList ->
+                val entries = allowList.adminGids.map { gid -> IdentityLogEntryFormatter.format(gid) }
+                klogger.info {
+                    "admin gids: ${entries.joinToString(", ")}"
                 }
             }
         }

@@ -22,6 +22,7 @@ class ContentService(
     private val hasherFactory: () -> MessageDigest,
     private val maxFetchItems: Int,
     private val replyIdFactory: () -> String = { UUID.randomUUID().toString() },
+    private val isAdmin: suspend (String) -> Boolean = { false },
 ) {
     suspend fun publish(
         userGID: String,
@@ -74,7 +75,7 @@ class ContentService(
         if (id.isBlank()) throw BadRequestException("id must not be blank")
         val post = vectorStore.fetch(listOf(id)).singleOrNull() ?: throw ContentNotFoundException()
         val author = post.fields.requireContentMetadata(post.id, ContentMetadataField.AuthorGid)
-        if (author != userGID) throw ContentForbiddenException()
+        if (author != userGID && !isAdmin(userGID)) throw ContentForbiddenException()
         val deletedIds = linkedSetOf<String>()
         vectorStore.writeAccess {
             remove(post.id)
@@ -99,6 +100,8 @@ class ContentService(
             rootIds.forEach { deleteRepliesForRoot(it, deletedIds) }
         }
     }
+
+    suspend fun contentCapabilities(userGID: String): ContentCapabilitiesResult = ContentCapabilitiesResult(isAdmin = isAdmin(userGID))
 
     suspend fun query(request: QueryRequest): QueryResult {
         if (request == nilQueryRequest) throw BadRequestException("no search criteria")
