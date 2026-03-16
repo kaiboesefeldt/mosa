@@ -4,6 +4,13 @@ Auslöser ist, dass die jüngsten Fixes zwar funktional korrekt sind, aber der W
 
 Ziel ist nicht, das UI neu zu gestalten, sondern die bestehende Lösung wartbarer, klarer und robuster zu machen.
 
+Vorgehensregel fuer dieses Refactoring:
+
+- Jede Code-Stelle, die in dieser Aufgabe fachlich refactored wird, bekommt vor der eigentlichen Aenderung bestmoeglich eine fachliche Testabsicherung des aktuellen oeffentlich beobachtbaren Verhaltens.
+- Wenn eine einzelne View oder Logikstelle fachlich nicht isoliert genug testbar ist, wird vor dem Refactoring zuerst die kleinstmoegliche sinnvolle Teilintegration ueber automatisierte Tests abgesichert.
+- Neue Struktur darf erst eingefuehrt werden, wenn fuer den betroffenen Ausschnitt klar ist, welche Tests die fachliche Funktion bereits abdecken und welche Luecken vorab noch geschlossen werden muessen.
+- Ziel ist, dass kein relevanter Refactoring-Schritt auf ungesicherter fachlicher Flaeche passiert.
+
 Die Aufgabe umfasst mindestens diese Punkte:
 
 - Die fachlichen Zustände `verbundene Identität`, `aktuell angezeigte Identität`, `Admin-Status der verbundenen Identität` und `Admin-Status der angezeigten Identität` im Client klar voneinander trennen.
@@ -41,6 +48,19 @@ Akzeptanzkriterien:
   - verbundenes Nicht-Admin-Profil -> verbundenes Admin-Profil
   - Nicht-Admin-Profil im Overlay -> Admin-Profil im Overlay
   - Wechsel der verbundenen Identität mit unterschiedlichem Admin-Status
+- Die automatisierten Tests bilden eine explizite Szenario-Matrix für die fachlich riskanten Kombinationen aus:
+  - verbundene Identität
+  - aktuell angezeigte Identität
+  - Admin-Status der verbundenen Identität
+  - Admin-Status der angezeigten Identität
+  - Reihenfolge konkurrierender Capability-Responses
+- Für jedes Matrix-Szenario ist automatisiert nachgewiesen:
+  - welcher Admin-Status im Header-Badge sichtbar ist
+  - welcher Admin-Status im Profil-Badge sichtbar ist
+  - dass die angezeigte Identität nicht stillschweigend zur verbundenen Identität wird
+  - dass veraltete Responses keinen neueren Zustand sichtbar überschreiben
+- Am Ende bleibt nur ein kurzer manueller Smoke-Test zur Bestätigung der UI-Verdrahtung; die fachliche Korrektheit der Zustandsübergänge wird nicht primär manuell abgesichert.
+- Fuer jede refactorte Teilkomponente ist vorab festgehalten und automatisiert abgesichert, welches bestehende fachliche Verhalten erhalten bleiben muss, notfalls ueber Teilintegrationen statt nur ueber reine Unit-Tests.
 
 Nicht Ziel dieser Aufgabe:
 
