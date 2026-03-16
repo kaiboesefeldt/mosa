@@ -8,6 +8,7 @@ Dieses Verzeichnis ist ein bewusst einfaches Taskboard im Dateisystem. Eine Aufg
 - `2-in-progres`: Aufgabe wird gerade aktiv bearbeitet.
 - `3-done`: Aufgabe ist fachlich erledigt.
 - `4-discarded`: Aufgabe wird nicht weiterverfolgt.
+- `5-follow-up`: Aufgabe ist fuer den Moment abgeschlossen oder pausiert, soll aber spaeter erneut geprueft oder erneut ausgefuehrt werden, zum Beispiel bei 3rd-Party-Software-Aktualisierungen.
 
 Es soll immer nur einen aktuellen Status pro Aufgabe geben. Statuswechsel passieren durch Verschieben des ganzen Aufgabenordners.
 
@@ -77,6 +78,7 @@ Beispiel: Aus `tasks/1-open/003-NewTask/` wird bei Arbeitsbeginn `tasks/2-in-pro
 2. Arbeit starten: Ordner nach `2-in-progres` verschieben.
 3. Arbeit abschließen: Ordner nach `3-done` verschieben.
 4. Aufgabe verwerfen: Ordner nach `4-discarded` verschieben.
+5. Wiedervorlage vormerken: Ordner nach `5-follow-up` verschieben, wenn die Aufgabe spaeter bewusst erneut aufgegriffen werden soll.
 
 Wenn sich der Zuschnitt einer Aufgabe wesentlich ändert, wird die Beschreibung aktualisiert. Wenn daraus eigentlich zwei Aufgaben werden, bleibt die ursprüngliche Aufgabe klein und es wird eine neue Aufgabe mit neuer Nummer angelegt. Falls es pragmatischer ist, duerfen im Aufgabenordner auch Subtasks als weitere Markdown-Dateien oder Unterordner abgelegt werden, solange klar bleibt, was die Hauptaufgabe ist und was nur Teil davon ist.
 
@@ -88,6 +90,7 @@ Wenn sich der Zuschnitt einer Aufgabe wesentlich ändert, wird die Beschreibung 
 - Keine Prioritätslogik im Verzeichnisnamen; Priorisierung passiert beim Blick auf `1-open`.
 - Erledigte Aufgaben werden nicht umnummeriert.
 - Verworfen ist ein bewusster Endstatus, kein temporärer Parkplatz.
+- `5-follow-up` ist fuer Aufgaben, die nicht jetzt aktiv bearbeitet werden, aber spaeter erneut relevant werden. Typische Beispiele sind geplante Rechecks, Wiederholungen oder Updates von externer Software.
 
 ## Konventionen
 
