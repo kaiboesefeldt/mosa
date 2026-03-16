@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+
 package straightway.mosa.client.identity
 
 import kotlinx.coroutines.test.runTest

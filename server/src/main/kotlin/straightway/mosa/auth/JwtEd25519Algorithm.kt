@@ -3,9 +3,9 @@ package straightway.mosa.auth
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.exceptions.SignatureVerificationException
 import com.auth0.jwt.interfaces.DecodedJWT
-import io.ktor.util.decodeBase64Bytes
 import java.security.KeyPair
 import java.security.Signature
+import kotlin.io.encoding.Base64
 
 class JwtEd25519Algorithm(
     val keyPair: KeyPair,
@@ -13,7 +13,7 @@ class JwtEd25519Algorithm(
     override fun verify(jwt: DecodedJWT) =
         runCatching {
             val content = "${jwt.header}.${jwt.payload}".toByteArray(Charsets.UTF_8)
-            val signatureBytes = jwt.signature.decodeBase64Bytes()
+            val signatureBytes = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).decode(jwt.signature)
             sig {
                 initVerify(keyPair.public)
                 update(content)

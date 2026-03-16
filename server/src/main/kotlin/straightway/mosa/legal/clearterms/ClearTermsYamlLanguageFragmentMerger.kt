@@ -59,7 +59,7 @@ class ClearTermsYamlLanguageFragmentMerger(
         targetTexts: ObjectNode,
         fragmentTexts: ObjectNode,
     ) {
-        fragmentTexts.fields().forEach { (language, textsNode) ->
+        fragmentTexts.properties().forEach { (language, textsNode) ->
             if (targetTexts.has(language)) {
                 throw ClearTermsValidationException("Language '$language' is defined more than once")
             }

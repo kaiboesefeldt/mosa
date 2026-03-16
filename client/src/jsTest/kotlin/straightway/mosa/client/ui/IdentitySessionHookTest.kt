@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+
 package straightway.mosa.client.ui
 
 import kotlin.test.AfterTest

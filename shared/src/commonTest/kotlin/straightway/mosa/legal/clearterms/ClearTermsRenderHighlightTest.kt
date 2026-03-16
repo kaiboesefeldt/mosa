@@ -649,14 +649,14 @@ class ClearTermsRenderHighlightTest {
     private class IncrementingHashProvider : ClearTermsHashProvider {
         private var counter = 0
 
-        override suspend fun sha256(input: ByteArray): ByteArray {
+        override suspend fun sha256(data: ByteArray): ByteArray {
             counter += 1
             return byteArrayOf(counter.toByte())
         }
     }
 
     private class PassthroughTextEncoder : ClearTermsTextEncoder {
-        override fun encode(text: String): ByteArray = text.encodeToByteArray()
+        override fun encode(value: String): ByteArray = value.encodeToByteArray()
     }
 
     private class TestLocaleProvider : ClearTermsLocaleProvider {
