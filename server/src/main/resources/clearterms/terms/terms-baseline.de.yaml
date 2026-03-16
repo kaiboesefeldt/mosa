@@ -114,5 +114,5 @@ texts:
 
     - id: contact-details
       text: |
-        Betreiber: {{string:ORG_CONTROLLER_NAME}}
-        Kontakt: {{string:CONTACT_CONTROLLER_EMAIL}}
+        - Betreiber: {{string:ORG_CONTROLLER_NAME}}
+        - Kontakt: {{string:CONTACT_CONTROLLER_EMAIL}}

@@ -1,0 +1,118 @@
+texts:
+  en:
+    - id: terms-title
+      text: |
+        # Terms and Conditions for {{string:SERVICE_DISPLAY_NAME}}
+
+        As of: {{time:DOC_EFFECTIVE_DATE}}
+
+    - id: service-purpose-heading
+      text: |
+        ## 1. What this is about
+
+    - id: service-purpose-slot-service
+      text: null
+      hints:
+        expectedContent: "Brief description of the service's core functions."
+        override: once
+
+    - id: eligibility-heading
+      text: |
+        ## 2. Who may use the service
+
+    - id: eligibility-rule
+      text: |
+        You may only use {{string:SERVICE_DISPLAY_NAME}} if you follow the rules in this text.
+
+    - id: account-heading
+      text: |
+        ## 3. Your account
+
+    - id: account-details-slot-service
+      text: null
+      hints:
+        expectedContent: "Account model and consequences of device or credential loss."
+        override: once
+
+    - id: user-content-heading
+      text: |
+        ## 4. Your content
+
+    - id: user-content-responsibility
+      text: |
+        Your content means the texts and replies that you write. You are responsible for your own content.
+
+        You may not publish anything that harms others or that you are not allowed to publish, for example someone else's texts, insulting content, or unlawful content.
+
+    - id: user-content-visibility-slot-service
+      text: null
+      hints:
+        expectedContent: "Visibility of published content and limits of later deletion."
+        override: once
+
+    - id: service-rights-and-limits-heading
+      text: |
+        ## 5. What the service may and may not do
+
+    - id: service-rights-slot-service
+      text: null
+      hints:
+        expectedContent: "Service-specific processing, protective measures, and interventions."
+        override: once
+
+    - id: service-availability
+      text: |
+        {{string:SERVICE_DISPLAY_NAME}} aims to operate reliably. Continuous availability is not promised, however.
+
+    - id: service-storage-limits
+      text: |
+        {{string:SERVICE_DISPLAY_NAME}} does not promise to store content forever. Content may be lost or deleted in whole or in part if this is necessary for objective reasons, for example outages, technical problems, lack of storage space, storage period rules, or if the service ends.
+
+    - id: user-data-control-heading
+      text: |
+        ## 6. Your control over your own data
+
+    - id: user-data-control-slot-service
+      text: null
+      hints:
+        expectedContent: "Available functions for deleting, exporting, or securing the user's own content."
+        override: once
+
+    - id: fair-use-heading
+      text: |
+        ## 7. Fair use
+
+    - id: fair-use-rule
+      text: |
+        You may not intentionally disrupt {{string:SERVICE_DISPLAY_NAME}}. This includes, for example, overloading the service with very large numbers of automated requests or using it for spam.
+
+    - id: liability-and-statutory-rights-heading
+      text: |
+        ## 8. Liability and statutory rights
+
+    - id: liability-and-statutory-rights-reference
+      text: |
+        {{string:SERVICE_DISPLAY_NAME}} does not promise that the service will always be available or that content will remain stored permanently. Rights that you must have under the law are not limited by this text. Unless this text provides otherwise, the law applies.
+
+    - id: changes-heading
+      text: |
+        ## 9. Changes
+
+    - id: changes-conditions
+      text: |
+        These terms may be changed for the future if there is a good reason, for example new functions, new laws, or security reasons. The changes must be fair. We will show you the new version in {{string:SERVICE_DISPLAY_NAME}} and make it available there in a storable form together with its version. It only applies once you agree to it. If you do not agree, you may no longer use {{string:SERVICE_DISPLAY_NAME}}.
+
+    - id: changes-follow-up-slot-service
+      text: ""
+      hints:
+        expectedContent: "Optional note on available functions after non-acceptance."
+        override: once
+
+    - id: contact-heading
+      text: |
+        ## 10. Contact
+
+    - id: contact-details
+      text: |
+        - Operator: {{string:ORG_CONTROLLER_NAME}}
+        - Contact: {{string:CONTACT_CONTROLLER_EMAIL}}

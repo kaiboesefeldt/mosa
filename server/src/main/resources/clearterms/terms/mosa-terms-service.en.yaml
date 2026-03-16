@@ -1,0 +1,22 @@
+overrides:
+  texts:
+    en:
+      replace:
+        service-purpose-slot-service: |
+          {{string:SERVICE_DISPLAY_NAME}} is a service for publishing short texts, replying to texts, and searching published content. {{string:SERVICE_DISPLAY_NAME}} can also search for posts with similar meaning, not only for exactly the same words.
+        account-details-slot-service: |
+          Your account in {{string:SERVICE_DISPLAY_NAME}} normally does not use your real name, but an automatically generated account name.
+
+          Keep your device and your login credentials safe. If they are lost or fall into the wrong hands, others may write under your account or delete your content. You yourself may then no longer be able to edit or delete your own posts. Reading usually remains possible because published content is generally visible to all users.
+        user-content-visibility-slot-service: |
+          Your published posts and replies are visible to others and can be saved by others. If you later delete a post, {{string:SERVICE_DISPLAY_NAME}} only removes it from this service. {{string:SERVICE_DISPLAY_NAME}} cannot retrieve copies that others have kept.
+        service-rights-slot-service: |
+          {{string:SERVICE_DISPLAY_NAME}} may store your content, display it, make it searchable, link it with replies, and show it to other users to the extent necessary for {{string:SERVICE_DISPLAY_NAME}} to function.
+
+          {{string:SERVICE_DISPLAY_NAME}} may limit requests, block access, or remove content if this is necessary to protect the service, in cases of misuse, or to comply with legal obligations.
+        user-data-control-slot-service: |
+          You can delete your own content and use the available functions to download a copy of your content.
+
+          You can freeze your own content into a protected file and remove it from this {{string:SERVICE_DISPLAY_NAME}} server. You must keep this file safe yourself. You can only restore it on the same {{string:SERVICE_DISPLAY_NAME}} server.
+        changes-follow-up-slot-service: |
+          You can still download or secure your own data using the functions provided for that purpose.
