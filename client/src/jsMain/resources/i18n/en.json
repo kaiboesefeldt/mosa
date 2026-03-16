@@ -52,6 +52,7 @@
   "connected.topics.delete": "Delete topic",
   "connected.profile.avatar.aria": "Open profile",
   "connected.profile.avatar.title": "Open profile",
+  "connected.profile.avatar.admin.title": "Open profile. You are acting as an admin on this pod.",
   "connected.posts.title": "Posts",
   "connected.posts.empty": "No posts found.",
   "connected.posts.similarity": "Similarity: {{value}}",
@@ -121,7 +122,9 @@
   "legal.comparison.original": "Original",
   "legal.comparison.original.missing": "No original text available.",
   "profile.identityAvatar.connect": "Adopt identity",
+  "profile.identityAvatar.admin.tooltip": "Admin on this pod. Click the avatar to adopt this identity",
   "profile.identityAvatar.tooltip": "Click the avatar to adopt this identity",
+  "identity.admin.badge": "Admin",
   "profile.description": "It's about the content!",
   "profile.identityLabel": "You are",
   "profile.title": "MOSA"

@@ -2,6 +2,7 @@ package straightway.mosa.client.ui
 
 import kotlin.js.json
 import kotlin.test.AfterTest
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -172,6 +173,20 @@ class IdentityProfileViewTest {
         val event = js("new KeyboardEvent('keydown', { key: 'g', ctrlKey: true, altKey: true, bubbles: true })").unsafeCast<KeyboardEvent>()
 
         assertTrue(event.isCopyGidShortcut())
+    }
+
+    @Test
+    fun `shows admin badge and tooltip for admin identity`() = runTest {
+        val view =
+            renderIdentityProfileView {
+                isAdmin = true
+            }
+
+        val badge = view.container.querySelector(".profile-dialog__identity-badge")
+        val button = view.container.querySelector(".profile-dialog__identity-avatar-button")
+
+        assertEquals(text("identity.admin.badge"), badge?.textContent?.trim())
+        assertEquals(text("profile.identityAvatar.admin.tooltip"), button?.getAttribute("title"))
     }
 
     private fun text(key: String): String = AppModule.get<Translator>().translate(key)

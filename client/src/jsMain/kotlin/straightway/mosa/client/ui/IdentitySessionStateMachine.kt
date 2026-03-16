@@ -36,7 +36,8 @@ class IdentitySessionStateMachine(
     private var isBusy = false
     private var errorText: String? = null
     private var statusText: String? = null
-    private var isConnected = false
+    private var connectedIdentityGid: String? = null
+    private var isCurrentSelectionConnected = false
     private var isRestoring = true
     private var snapshotRefreshVersion = 0
 
@@ -46,9 +47,9 @@ class IdentitySessionStateMachine(
     init {
         scope.launch {
             val snapshot = runCatching { sessionStore.load() }.getOrNull()
-            val wasConnected = snapshot?.connectedIdentityGid != null
+            connectedIdentityGid = snapshot?.connectedIdentityGid
+            val wasConnected = connectedIdentityGid != null
             if (wasConnected) {
-                isConnected = true
                 publishState()
             }
         }
@@ -80,7 +81,8 @@ class IdentitySessionStateMachine(
         ) {
             val selection = ensureProtectedSelection() ?: return@runExclusive
             currentSelection = selection
-            isConnected = true
+            connectedIdentityGid = selection.identity.gid
+            isCurrentSelectionConnected = true
             errorText = null
             runCatching { repository.persist() }
                 .onFailure { logger.error("Identity persistence failed", it) }
@@ -127,7 +129,7 @@ class IdentitySessionStateMachine(
     }
 
     fun exportPostsCsv() {
-        if (!isConnected) return
+        if (!isCurrentSelectionConnected) return
         val fileBaseName = identityNameParts.toIdentityDownloadFileName()
         runExclusive(
             failureMessage = "Posts export failed",
@@ -151,7 +153,7 @@ class IdentitySessionStateMachine(
     }
 
     fun freezePosts() {
-        if (!isConnected) return
+        if (!isCurrentSelectionConnected) return
         runSnapshotAction(
             statusText = textProvider.freezeInProgress,
             errorText = textProvider.freezeError,
@@ -163,7 +165,7 @@ class IdentitySessionStateMachine(
     }
 
     fun restorePosts() {
-        if (!isConnected) return
+        if (!isCurrentSelectionConnected) return
         runSnapshotAction(
             statusText = textProvider.restoreInProgress,
             errorText = textProvider.restoreError,
@@ -292,7 +294,7 @@ class IdentitySessionStateMachine(
 
     private fun publishState() {
         if (isRestoring) return
-        _state.value = if (isConnected) connectedState() else profileViewState()
+        _state.value = if (connectedIdentityGid != null) connectedState() else profileViewState()
     }
 
     private fun finishRestoring() {
@@ -302,6 +304,7 @@ class IdentitySessionStateMachine(
 
     private fun profileViewState(): IdentitySessionViewState.Profile =
         IdentitySessionViewState.Profile(
+            identityGid = currentSelection?.identity?.gid,
             identityNameParts = identityNameParts,
             identityAvatar = identityAvatar,
             isBusy = isBusy,
@@ -309,10 +312,10 @@ class IdentitySessionStateMachine(
             statusText = statusText,
             snapshotRefreshVersion = snapshotRefreshVersion,
             canDelete = currentSelection != null,
-            canDeletePosts = isConnected,
-            canExportPosts = isConnected,
-            canFreezePosts = isConnected,
-            canRestorePosts = isConnected,
+            canDeletePosts = isCurrentSelectionConnected,
+            canExportPosts = isCurrentSelectionConnected,
+            canFreezePosts = isCurrentSelectionConnected,
+            canRestorePosts = isCurrentSelectionConnected,
             canNavigatePrevious = currentSelection?.hasPrevious ?: false,
             canNavigateNext = currentSelection != null,
             isShowingLastIdentity = currentSelection?.let { !it.hasNext } ?: false,
@@ -382,12 +385,21 @@ class IdentitySessionStateMachine(
 
     private suspend fun restoreConnection(selection: IdentitySelection) {
         val snapshot = sessionStore.load()
-        isConnected = snapshot?.connectedIdentityGid == selection.identity.gid
+        connectedIdentityGid = snapshot?.connectedIdentityGid
+        isCurrentSelectionConnected = connectedIdentityGid == selection.identity.gid
     }
 
-    private suspend fun persistSession(profileVisibleOverride: Boolean? = null) {
-        val connectedGid = currentSelection?.identity?.gid?.takeIf { isConnected }
+    private suspend fun persistSession(
+        profileVisibleOverride: Boolean? = null,
+        preserveConnectedIdentity: Boolean = true,
+    ) {
         val current = sessionStore.load()
+        val connectedGid =
+            when {
+                connectedIdentityGid != null -> connectedIdentityGid
+                preserveConnectedIdentity -> current?.connectedIdentityGid
+                else -> null
+            }
         val isProfileVisible: Boolean = profileVisibleOverride ?: current?.isProfileVisible ?: false
         sessionStore.save(
             IdentitySessionSnapshot(
@@ -399,9 +411,10 @@ class IdentitySessionStateMachine(
     }
 
     private fun resetConnection() {
-        isConnected = false
+        connectedIdentityGid = null
+        isCurrentSelectionConnected = false
         scope.launch {
-            persistSession(profileVisibleOverride = false)
+            persistSession(profileVisibleOverride = false, preserveConnectedIdentity = false)
         }
     }
 

@@ -24,8 +24,10 @@ import web.clipboard.ClipboardEvent
 import web.html.ButtonType
 
 external interface IdentityProfileViewProps : Props {
+    var identityGid: String?
     var identityNameParts: FictionalName
     var identityAvatar: String?
+    var isAdmin: Boolean
     var isBusy: Boolean
     var errorText: String?
     var statusText: String?
@@ -317,8 +319,10 @@ private fun IdentityProfileViewProps.toIdentityToolsCapabilities(): IdentityTool
     )
 
 internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) {
+    identityGid = screen.identityGid
     identityNameParts = screen.identityNameParts
     identityAvatar = screen.identityAvatar
+    isAdmin = screen.isAdmin
     isBusy = screen.isBusy
     errorText = screen.errorText
     statusText = screen.statusText

@@ -381,6 +381,24 @@ class ContentControllerTest {
                     coVerify(exactly = 0) { contentService.contentCapabilities(any()) }
                 }
             }
+
+        @Test
+        fun `should return content capabilities for requested gid`() =
+            with(test) {
+                env {
+                    val expected = ContentCapabilitiesResult(isAdmin = true)
+                    coEvery { contentService.contentCapabilities(env.gid, "gid-target") } returns expected
+
+                    val response =
+                        client.get("/v1/posts/capabilities?gid=gid-target") {
+                            bearerAuth(env.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.OK, response.status)
+                    assertEquals(expected, response.body())
+                    coVerify(exactly = 1) { contentService.contentCapabilities(env.gid, "gid-target") }
+                }
+            }
     }
 
     @Nested

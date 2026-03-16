@@ -240,6 +240,110 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `shows admin badge and tooltip on connected avatar when connected identity is admin`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
+
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelector(".connected-shell__avatar-badge") != null }
+        assertEquals(
+            text("identity.admin.badge"),
+            view.container.querySelector(".connected-shell__avatar-badge")?.textContent?.trim(),
+        )
+        assertEquals(
+            text("connected.profile.avatar.admin.title"),
+            avatarButton(view.container).getAttribute("title"),
+        )
+    }
+
+    @Test
+    fun `shows admin badge again when returning to connected admin profile`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                capabilitiesByGid =
+                    mapOf(
+                        identityForTests.gid to ContentCapabilitiesResult(isAdmin = true),
+                        "gid-other" to ContentCapabilitiesResult(isAdmin = false),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, true))
+        val user = userEvent.setup()
+        val view = renderAdminProfileCycleView()
+
+        waitForCondition { view.container.querySelector(".profile-dialog__identity-badge") != null }
+        user.click(showOtherProfileButton(view.container)).await()
+        waitForCondition { view.container.querySelector(".profile-dialog__identity-badge") == null }
+        user.click(showAdminProfileButton(view.container)).await()
+        waitForCondition { view.container.querySelector(".profile-dialog__identity-badge") != null }
+    }
+
+    @Test
+    fun `shows admin badge when browsing from non admin profile to admin profile`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                capabilitiesByGid =
+                    mapOf(
+                        identityForTests.gid to ContentCapabilitiesResult(isAdmin = true),
+                        "gid-other" to ContentCapabilitiesResult(isAdmin = false),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, true))
+        val user = userEvent.setup()
+        val view = renderAdminProfileCycleView(startWithOtherProfile = true)
+
+        waitForCondition { view.container.querySelector(".profile-dialog__identity-badge") == null }
+        user.click(showAdminProfileButton(view.container)).await()
+        waitForCondition { view.container.querySelector(".profile-dialog__identity-badge") != null }
+    }
+
+    @Test
+    fun `updates connected header badge when switching connected profile to non admin`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                capabilitiesByGid =
+                    mapOf(
+                        identityForTests.gid to ContentCapabilitiesResult(isAdmin = true),
+                        "gid-other" to ContentCapabilitiesResult(isAdmin = false),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
+        val user = userEvent.setup()
+        val view = renderConnectedAdminSwitchView()
+
+        waitForCondition { view.container.querySelector(".connected-shell__avatar-badge") != null }
+        user.click(switchConnectedProfileButton(view.container)).await()
+        waitForCondition { view.container.querySelector(".connected-shell__avatar-badge") == null }
+    }
+
+    @Test
     fun `appends posts when reaching list end`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val triggers = stubIntersectionObserver()
@@ -622,6 +726,18 @@ private fun scrollPostsToEnd(container: Element) {
             RefreshableConnectedViewHarness.create(),
         )
 
+    private fun renderAdminProfileCycleView(startWithOtherProfile: Boolean = false): RenderResult =
+        render(
+            AdminProfileCycleHarness.create {
+                this.startWithOtherProfile = startWithOtherProfile
+            },
+        )
+
+    private fun renderConnectedAdminSwitchView(): RenderResult =
+        render(
+            ConnectedAdminSwitchHarness.create(),
+        )
+
     private fun topicCard(container: Element, title: String): Element {
         val nodes = container.querySelectorAll(".topic-card")
         repeat(nodes.length) { index ->
@@ -731,6 +847,17 @@ private fun scrollPostsToEnd(container: Element) {
 
     private fun snapshotRefreshButton(container: Element): Element =
         container.querySelector(".snapshot-refresh-trigger") ?: error("Snapshot refresh trigger missing")
+
+    private fun showAdminProfileButton(container: Element): Element =
+        container.querySelector(".admin-profile-trigger") ?: error("Admin profile trigger missing")
+
+    private fun showOtherProfileButton(container: Element): Element =
+        container.querySelector(".other-profile-trigger") ?: error("Other profile trigger missing")
+
+    private fun switchConnectedProfileButton(container: Element): Element =
+        container.querySelector(".connected-profile-switch-trigger") ?: error("Connected profile switch trigger missing")
+
+    private fun text(key: String): String = ConnectedViewTestInjector.get<Translator>().translate(key)
 }
 
 private fun ByteArray.toArrayBuffer(): ArrayBuffer =
@@ -755,18 +882,76 @@ private val RefreshableConnectedViewHarness = FC<Props> {
     }
 }
 
+private external interface AdminProfileCycleHarnessProps : Props {
+    var startWithOtherProfile: Boolean
+}
+
+private val AdminProfileCycleHarness = FC<AdminProfileCycleHarnessProps> { props ->
+    val (currentProfile, setProfile) =
+        useState(
+            if (props.startWithOtherProfile) {
+                placeholderProfile(identityGid = "gid-other")
+            } else {
+                placeholderProfile()
+            },
+        )
+    button {
+        className = web.cssom.ClassName("admin-profile-trigger")
+        onClick = { setProfile { placeholderProfile() } }
+    }
+    button {
+        className = web.cssom.ClassName("other-profile-trigger")
+        onClick = { setProfile { placeholderProfile(identityGid = "gid-other") } }
+    }
+    IdentityConnectedView {
+        identityName = "Tester"
+        profile = currentProfile
+    }
+}
+
+private val ConnectedAdminSwitchHarness = FC<Props> {
+    val (currentProfile, setProfile) =
+        useState(
+            placeholderProfile(
+                identityGid = identityForTests.gid,
+                canDeletePosts = true,
+            ),
+        )
+    button {
+        className = web.cssom.ClassName("connected-profile-switch-trigger")
+        onClick = {
+            setProfile {
+                placeholderProfile(
+                    identityGid = "gid-other",
+                    canDeletePosts = true,
+                )
+            }
+        }
+    }
+    IdentityConnectedView {
+        identityName = "Tester"
+        profile = currentProfile
+    }
+}
+
 private object ConnectedViewTestInjector : KoinComponent
 
-private fun placeholderProfile(snapshotRefreshVersion: Int = 0): IdentityScreen.Profile =
+private fun placeholderProfile(
+    snapshotRefreshVersion: Int = 0,
+    identityGid: String = identityForTests.gid,
+    canDeletePosts: Boolean = false,
+): IdentityScreen.Profile =
     IdentityScreen.Profile(
+        identityGid = identityGid,
         identityNameParts = FictionalName(emptyList(), ""),
         identityAvatar = null,
+        isAdmin = false,
         isBusy = false,
         errorText = null,
         statusText = null,
         snapshotRefreshVersion = snapshotRefreshVersion,
         canDelete = false,
-        canDeletePosts = false,
+        canDeletePosts = canDeletePosts,
         canExportPosts = false,
         canFreezePosts = false,
         canRestorePosts = false,
@@ -831,6 +1016,7 @@ private class RecordingPodAccess(
     private val additionalResponses: Map<String, List<QueryResult>> = emptyMap(),
     replyResponses: Map<String, List<QueryResult>> = emptyMap(),
     private val capabilities: ContentCapabilitiesResult = ContentCapabilitiesResult(isAdmin = false),
+    private val capabilitiesByGid: Map<String, ContentCapabilitiesResult> = emptyMap(),
 ) : PodAccess {
     val approveInvocations = mutableListOf<String>()
     val searchInvocations = mutableListOf<QueryRequest>()
@@ -887,7 +1073,10 @@ private class RecordingPodAccess(
         error("Not implemented")
     }
 
-    override suspend fun contentCapabilities(jwt: String): ContentCapabilitiesResult = capabilities
+    override suspend fun contentCapabilities(
+        jwt: String,
+        gid: String?,
+    ): ContentCapabilitiesResult = gid?.let { capabilitiesByGid[it] } ?: capabilities
 
     override suspend fun freezePrivacySnapshot(jwt: String): ByteArray {
         error("Not implemented")

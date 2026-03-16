@@ -52,6 +52,7 @@
   "connected.topics.delete": "Thema löschen",
   "connected.profile.avatar.aria": "Profil anzeigen",
   "connected.profile.avatar.title": "Profil anzeigen",
+  "connected.profile.avatar.admin.title": "Profil anzeigen. Du bist auf diesem Pod als Admin unterwegs.",
   "connected.posts.title": "Beiträge",
   "connected.posts.empty": "Keine Beiträge gefunden.",
   "connected.posts.similarity": "Ähnlichkeit: {{value}}",
@@ -121,7 +122,9 @@
   "legal.comparison.original": "Original",
   "legal.comparison.original.missing": "Kein ursprünglicher Text vorhanden.",
   "profile.identityAvatar.connect": "Identität übernehmen",
+  "profile.identityAvatar.admin.tooltip": "Admin auf diesem Pod. Avatar anklicken, um diese Identität zu übernehmen",
   "profile.identityAvatar.tooltip": "Avatar anklicken, um diese Identität zu übernehmen",
+  "identity.admin.badge": "Admin",
   "profile.description": "Es geht um den Inhalt!",
   "profile.identityLabel": "Du bist",
   "profile.title": "MOSA"

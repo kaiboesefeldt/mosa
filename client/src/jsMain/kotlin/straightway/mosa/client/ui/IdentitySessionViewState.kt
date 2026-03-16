@@ -6,6 +6,7 @@ sealed interface IdentitySessionViewState {
     data object Loading : IdentitySessionViewState
 
     data class Profile(
+        val identityGid: String?,
         val identityNameParts: FictionalName,
         val identityAvatar: String?,
         val isBusy: Boolean,

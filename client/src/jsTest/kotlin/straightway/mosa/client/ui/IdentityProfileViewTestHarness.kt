@@ -16,7 +16,9 @@ internal fun renderIdentityProfileView(
                 givenNames = listOf("Default"),
                 sureName = "Identity",
             )
+            identityGid = "gid-default"
             identityAvatar = null
+            isAdmin = false
             isBusy = false
             errorText = null
             statusText = null

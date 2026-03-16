@@ -61,6 +61,18 @@ internal fun ChildrenBuilder.identityCarousel(
                 } else {
                     "profile-dialog__identity-avatar profile-dialog__identity-avatar--transient"
                 }
+            val avatarButtonClass =
+                if (props.isAdmin) {
+                    "profile-dialog__identity-avatar-button profile-dialog__identity-avatar-button--admin"
+                } else {
+                    "profile-dialog__identity-avatar-button"
+                }
+            val avatarTooltip =
+                if (props.isAdmin) {
+                    translator.translate("profile.identityAvatar.admin.tooltip")
+                } else {
+                    translator.translate("profile.identityAvatar.tooltip")
+                }
             span {
                 className = ClassName("profile-dialog__identity-heading")
                 span {
@@ -69,10 +81,10 @@ internal fun ChildrenBuilder.identityCarousel(
                 }
             }
             ReactHTML.button {
-                className = ClassName("profile-dialog__identity-avatar-button")
+                className = ClassName(avatarButtonClass)
                 disabled = !props.canConnect
                 ariaLabel = translator.translate("profile.identityAvatar.connect")
-                title = translator.translate("profile.identityAvatar.tooltip")
+                title = avatarTooltip
                 onClick = {
                     if (!props.isBusy && props.canConnect) {
                         props.onConnect()
@@ -89,6 +101,12 @@ internal fun ChildrenBuilder.identityCarousel(
                     div {
                         className = ClassName("$avatarClass profile-dialog__identity-avatar--placeholder")
                         +props.identityNameParts.placeholderInitial()
+                    }
+                }
+                if (props.isAdmin) {
+                    span {
+                        className = ClassName("profile-dialog__identity-badge")
+                        +translator.translate("identity.admin.badge")
                     }
                 }
             }

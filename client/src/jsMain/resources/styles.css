@@ -306,6 +306,8 @@ button:disabled {
     gap: 0;
     justify-self: center;
     cursor: pointer;
+    position: relative;
+    overflow: visible;
 }
 
 .profile-dialog__identity-avatar-button:disabled {
@@ -313,14 +315,39 @@ button:disabled {
     opacity: 0.7;
 }
 
+.profile-dialog__identity-avatar-button--admin .profile-dialog__identity-avatar {
+    box-shadow: 0 0 0 3px rgba(180, 83, 9, 0.88), 0 0 0 8px rgba(245, 158, 11, 0.28), 0 14px 32px rgba(15, 23, 42, 0.12);
+}
+
 .profile-dialog__identity-avatar-button:hover .profile-dialog__identity-avatar {
     transform: translateY(-2px);
     box-shadow: 0 16px 32px rgba(99, 102, 241, 0.28);
 }
 
+.profile-dialog__identity-avatar-button--admin:hover .profile-dialog__identity-avatar {
+    box-shadow: 0 0 0 3px rgba(180, 83, 9, 0.96), 0 0 0 8px rgba(245, 158, 11, 0.34), 0 18px 34px rgba(180, 83, 9, 0.22);
+}
+
 .profile-dialog__identity-avatar-button:hover .profile-dialog__identity-avatar--transient {
     opacity: 1;
     filter: saturate(1);
+}
+
+.profile-dialog__identity-badge {
+    position: absolute;
+    right: -0.65rem;
+    bottom: 0.1rem;
+    padding: 0.18rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid rgba(146, 64, 14, 0.28);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.96), rgba(217, 119, 6, 0.98));
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow: 0 10px 18px rgba(146, 64, 14, 0.24);
+    pointer-events: none;
 }
 
 .profile-dialog__identity-avatar-hint {
@@ -780,18 +807,27 @@ button:disabled {
     min-height: 42px;
     aspect-ratio: 1 / 1;
     border-radius: 50%;
-    overflow: hidden;
+    overflow: visible;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+    position: relative;
 }
 
 .connected-shell__avatar-button:hover {
     transform: translateY(-1px);
     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+}
+
+.connected-shell__avatar-button--admin {
+    box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.88), 0 0 0 6px rgba(245, 158, 11, 0.24), 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.connected-shell__avatar-button--admin:hover {
+    box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.96), 0 0 0 6px rgba(245, 158, 11, 0.32), 0 12px 28px rgba(180, 83, 9, 0.22);
 }
 
 .connected-shell__avatar-button:focus-visible {
@@ -809,6 +845,23 @@ button:disabled {
 .connected-shell__avatar-fallback {
     font-weight: 600;
     color: var(--color-primary);
+}
+
+.connected-shell__avatar-badge {
+    position: absolute;
+    right: -0.5rem;
+    bottom: -0.3rem;
+    padding: 0.12rem 0.38rem;
+    border-radius: 999px;
+    border: 1px solid rgba(146, 64, 14, 0.24);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.98), rgba(217, 119, 6, 0.98));
+    color: #fff;
+    font-size: 0.55rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow: 0 8px 16px rgba(146, 64, 14, 0.24);
+    pointer-events: none;
 }
 
 .connected-shell__content {

@@ -60,7 +60,8 @@ class ContentController(
             }
             getRoute("/posts/capabilities") {
                 val gid = userGidOrRespondUnauthorized() ?: return@getRoute
-                val capabilities = contentService.contentCapabilities(gid)
+                val targetGid = call.request.queryParameters["gid"]?.takeIf { it.isNotBlank() } ?: gid
+                val capabilities = contentService.contentCapabilities(gid, targetGid)
                 call.respond(HttpStatusCode.OK, capabilities, typeInfo<ContentCapabilitiesResult>())
             }
             getRoute("/posts/export.csv") {

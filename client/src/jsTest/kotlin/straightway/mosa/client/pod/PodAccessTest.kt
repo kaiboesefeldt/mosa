@@ -245,6 +245,22 @@ class PodAccessTest {
     }
 
     @Test
+    fun `contentCapabilities sends gid query parameter when requested`() = runTest {
+        val expectedResult = ContentCapabilitiesResult(isAdmin = true)
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
+
+        val result = podAccess.contentCapabilities("jwt-token", "gid-target")
+
+        assertEquals(expectedResult, result)
+        assertAuthenticatedGetRequest(
+            request = capturedRequests.single(),
+            route = "v1/posts/capabilities?gid=gid-target",
+            bearerToken = "jwt-token",
+        )
+    }
+
+    @Test
     fun `imprint sends unauthenticated get and returns document`() = runTest {
         val expectedDocument =
             ImprintDocument(

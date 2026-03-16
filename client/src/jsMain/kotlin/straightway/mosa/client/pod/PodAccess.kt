@@ -3,6 +3,7 @@ package straightway.mosa.client.pod
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -35,7 +36,10 @@ interface PodAccess {
     suspend fun reply(request: ReplyRequest, jwt: String)
     suspend fun deletePosts(jwt: String): DeletePostsResult
     suspend fun deletePost(postId: String, jwt: String): DeletePostsResult
-    suspend fun contentCapabilities(jwt: String): ContentCapabilitiesResult =
+    suspend fun contentCapabilities(
+        jwt: String,
+        gid: String? = null,
+    ): ContentCapabilitiesResult =
         error("Content capabilities endpoint is not implemented for this PodAccess")
     suspend fun exportPostsCsv(jwt: String): ByteArray
     suspend fun freezePrivacySnapshot(jwt: String): ByteArray
@@ -123,8 +127,11 @@ class PodAccessImpl(
         return delete(path, jwt).ensureSuccess(path, postId).body()
     }
 
-    override suspend fun contentCapabilities(jwt: String): ContentCapabilitiesResult =
-        get("/v1/posts/capabilities", jwt)
+    override suspend fun contentCapabilities(
+        jwt: String,
+        gid: String?,
+    ): ContentCapabilitiesResult =
+        get("/v1/posts/capabilities", jwt, gid)
             .ensureSuccess("/v1/posts/capabilities", Unit)
             .body()
 
@@ -239,8 +246,13 @@ class PodAccessImpl(
             header(HttpHeaders.Authorization, "Bearer $jwt")
         }
 
-    private suspend fun get(path: String, jwt: String? = null): HttpResponse =
+    private suspend fun get(
+        path: String,
+        jwt: String? = null,
+        gid: String? = null,
+    ): HttpResponse =
         httpClient.get("$podBase$path") {
+            gid?.let { parameter("gid", it) }
             if (jwt != null) {
                 header(HttpHeaders.Authorization, "Bearer $jwt")
             } else {

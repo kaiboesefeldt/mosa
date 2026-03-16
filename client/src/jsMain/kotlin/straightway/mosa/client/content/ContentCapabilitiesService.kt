@@ -6,8 +6,8 @@ import straightway.mosa.content.ContentCapabilitiesResult
 class ContentCapabilitiesService(
     private val podSessionProvider: PodSessionProvider,
 ) {
-    suspend fun fetch(): ContentCapabilitiesResult? =
+    suspend fun fetch(gid: String? = null): ContentCapabilitiesResult? =
         podSessionProvider.execute("content capabilities") { session ->
-            session.podAccess.contentCapabilities(session.jwt)
+            session.podAccess.contentCapabilities(session.jwt, gid)
         }
 }

@@ -4,7 +4,6 @@ package straightway.mosa.client.ui
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
@@ -79,7 +78,7 @@ class IdentitySessionStateMachineTest {
     }
 
     @Test
-    fun `clears persisted connection when switching identity`() = runMachineTest {
+    fun `preserves persisted connection when browsing other identities`() = runMachineTest {
         val identityA = identity("gid-a")
         val identityB = identity("gid-b")
         val repository = FakeIdentitySelectionRepository(identityA, identityB)
@@ -97,8 +96,37 @@ class IdentitySessionStateMachineTest {
         advanceUntilIdle()
 
         val state = machine.state.value
-        assertTrue(state is IdentitySessionViewState.Profile)
-        assertNull(store.snapshot?.connectedIdentityGid)
+        assertTrue(state is IdentitySessionViewState.Connected)
+        assertEquals(listOf(identityB.gid), state.profile.identityNameParts.givenNames)
+        assertEquals(false, state.profile.canDeletePosts)
+        assertEquals(identityA.gid, store.snapshot?.connectedIdentityGid)
+    }
+
+    @Test
+    fun `restores connected state when returning to previously connected identity`() = runMachineTest {
+        val identityA = identity("gid-a")
+        val identityB = identity("gid-b")
+        val repository = FakeIdentitySelectionRepository(identityA, identityB)
+        val store = RecordingIdentitySessionStore()
+        val machine = createMachine(repository, store)
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+        machine.navigateToNext()
+        advanceUntilIdle()
+
+        val switchedState = machine.state.value
+        assertTrue(switchedState is IdentitySessionViewState.Connected)
+        assertEquals(listOf(identityB.gid), switchedState.profile.identityNameParts.givenNames)
+
+        machine.navigateToPrevious()
+        advanceUntilIdle()
+
+        val restoredState = machine.state.value
+        assertTrue(restoredState is IdentitySessionViewState.Connected)
+        assertEquals(identityA.gid, store.snapshot?.connectedIdentityGid)
     }
 
     @Test

@@ -101,7 +101,10 @@ class ContentService(
         }
     }
 
-    suspend fun contentCapabilities(userGID: String): ContentCapabilitiesResult = ContentCapabilitiesResult(isAdmin = isAdmin(userGID))
+    suspend fun contentCapabilities(
+        userGID: String,
+        targetGID: String = userGID,
+    ): ContentCapabilitiesResult = ContentCapabilitiesResult(isAdmin = isAdmin(targetGID))
 
     suspend fun query(request: QueryRequest): QueryResult {
         if (request == nilQueryRequest) throw BadRequestException("no search criteria")
