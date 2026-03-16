@@ -35,10 +35,14 @@ class ProcessCpuTimeSampler(
         return state
             .updateAndGet { previous ->
                 when {
-                    nowNs <= previous.lastSampleNs || cpuTime <= previous.lastCpuTimeNs ->
+                    nowNs <= previous.lastSampleNs || cpuTime <= previous.lastCpuTimeNs -> {
                         previous
-                    nowNs - previous.lastSampleNs < minSampleIntervalNs ->
+                    }
+
+                    nowNs - previous.lastSampleNs < minSampleIntervalNs -> {
                         previous
+                    }
+
                     else -> {
                         val elapsed = nowNs - previous.lastSampleNs
                         val cpuElapsed = cpuTime - previous.lastCpuTimeNs

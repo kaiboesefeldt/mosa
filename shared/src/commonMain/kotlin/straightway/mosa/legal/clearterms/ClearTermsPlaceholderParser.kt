@@ -13,10 +13,12 @@ class ClearTermsPlaceholderParser(
                     buffer.append("{{")
                     index += 3
                 }
+
                 text.startsWith("\\}}", index) -> {
                     buffer.append("}}")
                     index += 3
                 }
+
                 text.startsWith("{{", index) -> {
                     flushLiteral(buffer, segments)
                     val endIndex = findPlaceholderEnd(text, index + 2)
@@ -27,6 +29,7 @@ class ClearTermsPlaceholderParser(
                     segments += Segment.Placeholder(contentParser.parse(placeholderText))
                     index = endIndex + 2
                 }
+
                 else -> {
                     buffer.append(text[index])
                     index += 1

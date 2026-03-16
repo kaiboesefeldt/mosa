@@ -109,12 +109,30 @@ class ClearTermsYamlCanonicalJsonConverter(
                 }
                 ClearTermsJsonNode.ObjectNode(entries)
             }
-            node.isArray -> ClearTermsJsonNode.ArrayNode(node.map { item -> fromJacksonNode(item) })
-            node.isTextual -> ClearTermsJsonNode.ScalarNode.StringNode(node.asText())
-            node.isNumber -> ClearTermsJsonNode.ScalarNode.NumberNode(node.asDouble())
-            node.isBoolean -> ClearTermsJsonNode.ScalarNode.BooleanNode(node.asBoolean())
-            node.isNull -> ClearTermsJsonNode.ScalarNode.NullNode
-            else -> throw ClearTermsValidationException("Only string, number, boolean and null values are supported")
+
+            node.isArray -> {
+                ClearTermsJsonNode.ArrayNode(node.map { item -> fromJacksonNode(item) })
+            }
+
+            node.isTextual -> {
+                ClearTermsJsonNode.ScalarNode.StringNode(node.asText())
+            }
+
+            node.isNumber -> {
+                ClearTermsJsonNode.ScalarNode.NumberNode(node.asDouble())
+            }
+
+            node.isBoolean -> {
+                ClearTermsJsonNode.ScalarNode.BooleanNode(node.asBoolean())
+            }
+
+            node.isNull -> {
+                ClearTermsJsonNode.ScalarNode.NullNode
+            }
+
+            else -> {
+                throw ClearTermsValidationException("Only string, number, boolean and null values are supported")
+            }
         }
 
     private fun hashSha256(value: String): String {

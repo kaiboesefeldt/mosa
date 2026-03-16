@@ -265,8 +265,14 @@ class LuceneLocalVectorStore private constructor(
         val lastDocMatch by lazy { query.matchesScoreRangeFor(docs.scoreDocs.last()) }
 
         return when {
-            docs.scoreDocs.isEmpty() -> FilteredSearchResult.EMPTY
-            firstDocMatch == ScoreRangeMatch.ScoreTooLow -> FilteredSearchResult.EMPTY
+            docs.scoreDocs.isEmpty() -> {
+                FilteredSearchResult.EMPTY
+            }
+
+            firstDocMatch == ScoreRangeMatch.ScoreTooLow -> {
+                FilteredSearchResult.EMPTY
+            }
+
             else -> {
                 val matches =
                     docs.scoreDocs

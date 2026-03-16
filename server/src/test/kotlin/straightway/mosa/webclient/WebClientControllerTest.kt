@@ -34,7 +34,10 @@ class WebClientControllerTest {
                     allowPlainHttp = allowPlainHttp,
                     getResourceUrl = { resourceName ->
                         when {
-                            nullResourceUrl -> null
+                            nullResourceUrl -> {
+                                null
+                            }
+
                             resourceDirectory != null -> {
                                 val path = resourceDirectory.resolve(resourceName)
                                 if (Files.exists(path)) {
@@ -43,7 +46,10 @@ class WebClientControllerTest {
                                     null
                                 }
                             }
-                            else -> ControllerHttpTestEnvironment::class.java.classLoader.getResource(resourceName)
+
+                            else -> {
+                                ControllerHttpTestEnvironment::class.java.classLoader.getResource(resourceName)
+                            }
                         }
                     },
                 ),

@@ -89,8 +89,14 @@ class ClearTermsPlaceholderContentParser {
 
     private fun parseNumberFormat(value: String): ClearTermsNumberFormat =
         when {
-            value == "integer" -> ClearTermsNumberFormat.Integer
-            value == "auto" -> ClearTermsNumberFormat.Auto
+            value == "integer" -> {
+                ClearTermsNumberFormat.Integer
+            }
+
+            value == "auto" -> {
+                ClearTermsNumberFormat.Auto
+            }
+
             value.startsWith("decimal(") && value.endsWith(")") -> {
                 val content = value.substringAfter("decimal(").dropLast(1)
                 val scale =
@@ -101,7 +107,10 @@ class ClearTermsPlaceholderContentParser {
                 }
                 ClearTermsNumberFormat.Decimal(scale)
             }
-            else -> throw ClearTermsValidationException("Invalid number format '$value'")
+
+            else -> {
+                throw ClearTermsValidationException("Invalid number format '$value'")
+            }
         }
 
     private fun parseNumberGrouping(value: String): ClearTermsNumberGrouping =

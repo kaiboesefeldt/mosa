@@ -973,19 +973,33 @@ class LegalServiceTest {
             .lineSequence()
             .map { line ->
                 when {
-                    line.contains(": null # type: string") ->
+                    line.contains(": null # type: string") -> {
                         line.replace(": null # type: string", """: "Filled value"""")
-                    line.contains(": null # type: time") ->
+                    }
+
+                    line.contains(": null # type: time") -> {
                         line.replace(": null # type: time", """: "2026-03-14T00:00:00Z"""")
-                    line.contains(": null # type: duration") ->
+                    }
+
+                    line.contains(": null # type: duration") -> {
                         line.replace(": null # type: duration", """: "P30D"""")
-                    line.contains(": null # type: weekday") ->
+                    }
+
+                    line.contains(": null # type: weekday") -> {
                         line.replace(": null # type: weekday", """: "mon"""")
-                    line.contains(": null # type: number") ->
+                    }
+
+                    line.contains(": null # type: number") -> {
                         line.replace(": null # type: number", ": 1")
-                    line.contains(": null # TODO:") ->
+                    }
+
+                    line.contains(": null # TODO:") -> {
                         line.replace(Regex(""": null # TODO:.*$"""), """: "Filled text"""")
-                    else -> line
+                    }
+
+                    else -> {
+                        line
+                    }
                 }
             }.joinToString("\n")
 
@@ -1205,8 +1219,11 @@ class LegalServiceTest {
                         "\"",
                         "\\\"",
                     )}\""
+
                     is straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.NumberNode -> value.value.toString()
+
                     is straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.BooleanNode -> value.value.toString()
+
                     is straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.NullNode -> "null"
                 }
             builder.appendLine("    $key: $yamlValue")

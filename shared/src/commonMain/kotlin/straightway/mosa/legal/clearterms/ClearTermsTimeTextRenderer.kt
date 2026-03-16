@@ -50,24 +50,45 @@ class ClearTermsTimeTextRenderer(
         val day = parts.day
         val overflow = parts.isOverflow
         return when {
-            year != null && month != null && day != null && !overflow ->
+            year != null && month != null && day != null && !overflow -> {
                 locale.onFullDate(locale.monthName(month), day, year)
-            year != null && month != null && day == null ->
+            }
+
+            year != null && month != null && day == null -> {
                 locale.inMonthYear(locale.monthName(month), year)
-            year != null && month == null && day != null && !overflow ->
+            }
+
+            year != null && month == null && day != null && !overflow -> {
                 locale.onDayOfEveryMonthInYear(day, year)
-            year != null && month == null && day == null ->
+            }
+
+            year != null && month == null && day == null -> {
                 locale.inYear(year)
-            year == null && month != null && day != null && !overflow ->
+            }
+
+            year == null && month != null && day != null && !overflow -> {
                 locale.onMonthDayEveryYear(locale.monthName(month), day)
-            year == null && month != null && day == null ->
+            }
+
+            year == null && month != null && day == null -> {
                 locale.everyDayInMonth(locale.monthName(month))
-            year == null && month == null && day != null && !overflow ->
+            }
+
+            year == null && month == null && day != null && !overflow -> {
                 locale.onDayOfEveryMonth(day)
-            year == null && month == null && day == null ->
+            }
+
+            year == null && month == null && day == null -> {
                 locale.everyDay()
-            overflow -> renderOverflowDate(parts, locale)
-            else -> throw ClearTermsValidationException("Unsupported time pattern")
+            }
+
+            overflow -> {
+                renderOverflowDate(parts, locale)
+            }
+
+            else -> {
+                throw ClearTermsValidationException("Unsupported time pattern")
+            }
         }
     }
 

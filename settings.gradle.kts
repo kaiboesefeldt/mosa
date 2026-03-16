@@ -5,7 +5,7 @@ include("client")
 include("shared")
 
 plugins {
-    id("org.jetbrains.kotlinx.kover.aggregation") version "0.9.3"
+    id("org.jetbrains.kotlinx.kover.aggregation") version "0.9.7"
 }
 
 kover {

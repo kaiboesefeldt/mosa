@@ -98,8 +98,14 @@ class ClearTermsTimeValueParser {
                     28
                 }
             }
-            4, 6, 9, 11 -> 30
-            else -> 31
+
+            4, 6, 9, 11 -> {
+                30
+            }
+
+            else -> {
+                31
+            }
         }
 
     private fun ensureValidTimeSyntax(raw: String) {

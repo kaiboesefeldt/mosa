@@ -32,11 +32,15 @@ class ClearTermsValueRenderer(
         val result = StringBuilder()
         segments.forEach { segment ->
             when (segment) {
-                is ClearTermsPlaceholderParser.Segment.Literal -> result.append(segment.text)
-                is ClearTermsPlaceholderParser.Segment.Placeholder ->
+                is ClearTermsPlaceholderParser.Segment.Literal -> {
+                    result.append(segment.text)
+                }
+
+                is ClearTermsPlaceholderParser.Segment.Placeholder -> {
                     result.append(
                         renderPlaceholder(segment.placeholder, values, languageTag),
                     )
+                }
             }
         }
         return result.toString()

@@ -13,12 +13,16 @@ class SystemMemoryUsageSamplerTest {
                 freeMemoryBytes = { 10L * 1024L },
                 readTextFn = { path ->
                     when (path.toString()) {
-                        "/proc/meminfo" ->
+                        "/proc/meminfo" -> {
                             """
                             MemTotal:       1000 kB
                             MemAvailable:    400 kB
                             """.trimIndent()
-                        else -> null
+                        }
+
+                        else -> {
+                            null
+                        }
                     }
                 },
                 osName = "Linux",
@@ -35,13 +39,23 @@ class SystemMemoryUsageSamplerTest {
                 freeMemoryBytes = { 10L },
                 readTextFn = { path ->
                     when (path.toString()) {
-                        "/sys/fs/cgroup/memory.current" -> "700"
-                        "/sys/fs/cgroup/memory.max" -> "1000"
-                        "/proc/meminfo" ->
+                        "/sys/fs/cgroup/memory.current" -> {
+                            "700"
+                        }
+
+                        "/sys/fs/cgroup/memory.max" -> {
+                            "1000"
+                        }
+
+                        "/proc/meminfo" -> {
                             """
                             MemAvailable: 900 kB
                             """.trimIndent()
-                        else -> null
+                        }
+
+                        else -> {
+                            null
+                        }
                     }
                 },
                 osName = "Linux",

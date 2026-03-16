@@ -51,8 +51,8 @@ kotlin {
         val kotlinxSerializationJsonVersion = "1.9.0"
         val ktorVersion = "3.3.1"
         val kotlinWrappersVersion = "2025.11.1-19.2.0"
-        val diceBearVersion = "9.2.4"
-        val fontAwesomeVersion = "7.1.0"
+        val diceBearVersion = "9.4.0"
+        val fontAwesomeVersion = "7.2.0"
         val html2canvasVersion = "1.4.1"
         val jspdfVersion = "4.2.0"
 
@@ -79,7 +79,7 @@ kotlin {
         }
 
         val karmaSourceMapSupportVersion = "1.4.0"
-        val testingLibReactVersion = "16.3.0"
+        val testingLibReactVersion = "16.3.2"
         val testingLibUserEventVersion = "14.6.1"
         val testingLibDomVersion = "10.4.1"
         jsTest {

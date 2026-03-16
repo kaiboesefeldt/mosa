@@ -77,11 +77,15 @@ class ClearTermsJsonValueReader(
                 index += 4
                 ClearTermsJsonNode.ScalarNode.BooleanNode(true)
             }
+
             text.startsWith("false", index) -> {
                 index += 5
                 ClearTermsJsonNode.ScalarNode.BooleanNode(false)
             }
-            else -> throw ClearTermsValidationException("Expected boolean")
+
+            else -> {
+                throw ClearTermsValidationException("Expected boolean")
+            }
         }
 
     private fun parseString(): String {
@@ -89,8 +93,14 @@ class ClearTermsJsonValueReader(
         val result = StringBuilder()
         while (hasRemaining()) {
             when (val ch = next()) {
-                '"' -> return result.toString()
-                '\\' -> result.append(parseEscape())
+                '"' -> {
+                    return result.toString()
+                }
+
+                '\\' -> {
+                    result.append(parseEscape())
+                }
+
                 else -> {
                     if (ch.code < 0x20) {
                         throw ClearTermsValidationException("Invalid control character in string")
@@ -203,11 +213,15 @@ class ClearTermsJsonValueReader(
                 index += 1
                 true
             }
+
             endToken -> {
                 index += 1
                 false
             }
-            else -> throw ClearTermsValidationException(invalidDelimiterMessage)
+
+            else -> {
+                throw ClearTermsValidationException(invalidDelimiterMessage)
+            }
         }
     }
 

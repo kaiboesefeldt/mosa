@@ -5,13 +5,34 @@ class ClearTermsCanonicalStringEscaper {
         buildString {
             value.forEach { char ->
                 when (char) {
-                    '"' -> append("\\\"")
-                    '\\' -> append("\\\\")
-                    '\b' -> append("\\b")
-                    '\u000c' -> append("\\f")
-                    '\n' -> append("\\n")
-                    '\r' -> append("\\r")
-                    '\t' -> append("\\t")
+                    '"' -> {
+                        append("\\\"")
+                    }
+
+                    '\\' -> {
+                        append("\\\\")
+                    }
+
+                    '\b' -> {
+                        append("\\b")
+                    }
+
+                    '\u000c' -> {
+                        append("\\f")
+                    }
+
+                    '\n' -> {
+                        append("\\n")
+                    }
+
+                    '\r' -> {
+                        append("\\r")
+                    }
+
+                    '\t' -> {
+                        append("\\t")
+                    }
+
                     else -> {
                         if (char.code < 0x20) {
                             append("\\u")

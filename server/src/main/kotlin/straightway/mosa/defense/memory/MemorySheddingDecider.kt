@@ -35,11 +35,18 @@ class MemorySheddingDecider(
 
     private fun sheddingFactorFor(usage: Double): Double =
         when {
-            usage < config.memorySheddingStart -> 0.0
-            config.memorySheddingFull <= usage -> 1.0
-            else ->
+            usage < config.memorySheddingStart -> {
+                0.0
+            }
+
+            config.memorySheddingFull <= usage -> {
+                1.0
+            }
+
+            else -> {
                 ((usage - config.memorySheddingStart) / (config.memorySheddingFull - config.memorySheddingStart))
                     .coerceIn(0.0, 1.0)
+            }
         }
 
     private fun sheddingReason(usage: Double): String =

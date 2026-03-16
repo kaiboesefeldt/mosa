@@ -6,8 +6,8 @@ plugins {
     kotlin("jvm") version "2.2.21" apply false
     kotlin("multiplatform") version "2.2.21" apply false
     id("org.jetbrains.kotlin.plugin.serialization") version "2.2.21" apply false
-    id("org.jmailen.kotlinter") version "5.1.1" apply false
-    id("com.gradleup.shadow") version "9.0.0" apply false
+    id("org.jmailen.kotlinter") version "5.4.2" apply false
+    id("com.gradleup.shadow") version "9.4.0" apply false
 }
 
 val firefoxWorkspace = layout.projectDirectory.dir(".fx")

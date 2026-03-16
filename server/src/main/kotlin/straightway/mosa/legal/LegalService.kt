@@ -525,6 +525,7 @@ class LegalService(
                                 .forEach { candidatePath -> discovered.add(candidatePath) }
                         }
                 }
+
                 "jar" -> {
                     val connection = directoryUrl.openConnection() as JarURLConnection
                     val directoryEntryPrefix = connection.entryName.trimEnd('/') + "/"
@@ -618,6 +619,7 @@ class LegalService(
                                 .forEach(discovered::add)
                         }
                 }
+
                 "jar" -> {
                     val connection = directoryUrl.openConnection() as JarURLConnection
                     val directoryEntryPrefix = connection.entryName.trimEnd('/') + "/"
@@ -807,17 +809,23 @@ class LegalService(
 
     private fun templateMetadataFor(fallbackProfileId: String): OperatorProfileTemplateMetadata =
         when (fallbackProfileId) {
-            PRIVACY_FALLBACK_PROFILE_ID ->
+            PRIVACY_FALLBACK_PROFILE_ID -> {
                 OperatorProfileTemplateMetadata(
                     profileId = PRIVACY_OPERATOR_PROFILE_ID,
                     profileVersion = PRIVACY_OPERATOR_PROFILE_VERSION,
                 )
-            TERMS_FALLBACK_PROFILE_ID ->
+            }
+
+            TERMS_FALLBACK_PROFILE_ID -> {
                 OperatorProfileTemplateMetadata(
                     profileId = TERMS_OPERATOR_PROFILE_ID,
                     profileVersion = TERMS_OPERATOR_PROFILE_VERSION,
                 )
-            else -> throw IllegalArgumentException("Unsupported fallback profile id '$fallbackProfileId'")
+            }
+
+            else -> {
+                throw IllegalArgumentException("Unsupported fallback profile id '$fallbackProfileId'")
+            }
         }
 
     private fun logMissingOrIncompleteOperatorProfiles(

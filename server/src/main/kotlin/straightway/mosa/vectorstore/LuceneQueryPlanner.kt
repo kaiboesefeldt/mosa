@@ -52,11 +52,12 @@ class LuceneQueryPlanner(
                 )
             }
 
-            else ->
+            else -> {
                 add(
                     TermQuery(Term(fieldName, value)),
                     BooleanClause.Occur.FILTER,
                 )
+            }
         }
     }
 

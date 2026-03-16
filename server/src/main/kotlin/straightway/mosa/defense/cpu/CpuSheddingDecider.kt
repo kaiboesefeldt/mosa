@@ -25,11 +25,18 @@ class CpuSheddingDecider(
 
     private fun sheddingFactorFor(load: Double): Double =
         when {
-            load < config.loadSheddingStart -> 0.0
-            config.loadSheddingFull <= load -> 1.0
-            else ->
+            load < config.loadSheddingStart -> {
+                0.0
+            }
+
+            config.loadSheddingFull <= load -> {
+                1.0
+            }
+
+            else -> {
                 ((load - config.loadSheddingStart) / (config.loadSheddingFull - config.loadSheddingStart))
                     .coerceIn(0.0, 1.0)
+            }
         }
 
     private fun sheddingReason(load: Double): String =

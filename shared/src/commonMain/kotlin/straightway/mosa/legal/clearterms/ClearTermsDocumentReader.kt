@@ -178,14 +178,21 @@ class ClearTermsDocumentReader {
         val textNode = blockMap.entries.getValue("text")
         val text =
             when (textNode) {
-                is ClearTermsJsonNode.ScalarNode.StringNode -> textNode.value
-                ClearTermsJsonNode.ScalarNode.NullNode ->
+                is ClearTermsJsonNode.ScalarNode.StringNode -> {
+                    textNode.value
+                }
+
+                ClearTermsJsonNode.ScalarNode.NullNode -> {
                     if (allowNullText) {
                         null
                     } else {
                         throw ClearTermsValidationException("Text block text must be string")
                     }
-                else -> throw ClearTermsValidationException("Key 'text' must be a string")
+                }
+
+                else -> {
+                    throw ClearTermsValidationException("Key 'text' must be a string")
+                }
             }
         val hints = if (allowHints) blockContract.optionalNode("hints")?.let { readHints(it) } else null
         return ClearTermsTextBlock(

@@ -16,3 +16,5 @@ Bei der Umsetzung ist zu klären:
 - Wie mit Abhängigkeiten umgegangen wird, bei denen ein Update größere API-Anpassungen nach sich zieht.
 - Ob Updates in einem Schritt erfolgen sollen oder in mehrere kleinere Aufgaben aufgeteilt werden sollten.
 - Welche Abhängigkeiten aus Stabilitäts- oder Kompatibilitätsgründen bewusst auf dem aktuellen Stand belassen werden.
+
+Die Aufgabe ist fuer die Bearbeitung in Subtasks entlang der Build- und Modulgrenzen des Repos zerlegt. Nicht sinnvoll sofort umsetzbare Updates sollen nicht stillschweigend entfallen, sondern mit technischer Begruendung dokumentiert werden, damit sie spaeter erneut aufgegriffen werden koennen.

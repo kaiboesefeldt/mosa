@@ -44,12 +44,17 @@ class RateLimiter(
         key: String,
     ): RateLimitDecision =
         when {
-            isPenaltyActive(nowNanos) ->
+            isPenaltyActive(nowNanos) -> {
                 RateLimitDecision.rejected(retryAfterSecondsDuringPenalty(nowNanos, key))
-            allowed ->
+            }
+
+            allowed -> {
                 RateLimitDecision.allowed()
-            else ->
+            }
+
+            else -> {
                 RateLimitDecision.rejected(retryAfterSecondsForEmptyBucket(nowNanos, key))
+            }
         }
 
     private fun BucketState.refill(nowNanos: Long): BucketState {

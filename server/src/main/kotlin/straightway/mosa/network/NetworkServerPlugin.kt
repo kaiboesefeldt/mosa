@@ -89,7 +89,9 @@ fun createMosaApiCorsPlugin(
             if (!path.startsWith(API_ROUTE_PREFIX)) return@onCall
 
             when (call.request.httpMethod) {
-                HttpMethod.Options -> handlePreflightRequest(call)
+                HttpMethod.Options -> {
+                    handlePreflightRequest(call)
+                }
 
                 HttpMethod.Post, HttpMethod.Delete -> {
                     if (isUnauthenticatedApiRoute(path, call.request.httpMethod)) return@onCall
@@ -98,7 +100,7 @@ fun createMosaApiCorsPlugin(
                         ?.let { call.respond(it) }
                 }
 
-                HttpMethod.Get ->
+                HttpMethod.Get -> {
                     if (isUnauthenticatedApiRoute(path, call.request.httpMethod)) {
                         return@onCall
                     } else {
@@ -106,8 +108,11 @@ fun createMosaApiCorsPlugin(
                             .secureEndpointViolation(requireTlsForPod, clientIpResolver)
                             ?.let { call.respond(it) }
                     }
+                }
 
-                else -> call.respond(HttpStatusCode.MethodNotAllowed)
+                else -> {
+                    call.respond(HttpStatusCode.MethodNotAllowed)
+                }
             }
         }
     }
@@ -152,15 +157,22 @@ private fun isUnauthenticatedApiRoute(
     method: HttpMethod,
 ): Boolean =
     when (method) {
-        HttpMethod.Post -> path.equals(APPROVE_GID_ROUTE, ignoreCase = true)
-        HttpMethod.Get ->
+        HttpMethod.Post -> {
+            path.equals(APPROVE_GID_ROUTE, ignoreCase = true)
+        }
+
+        HttpMethod.Get -> {
             path.equals(LEGAL_PRIVACY_ROUTE, ignoreCase = true) ||
                 path.startsWith("$LEGAL_PRIVACY_ROUTE/", ignoreCase = true) ||
                 path.equals(LEGAL_IMPRINT_ROUTE, ignoreCase = true) ||
                 path.startsWith("$LEGAL_IMPRINT_ROUTE/", ignoreCase = true) ||
                 path.equals(LEGAL_TERMS_ROUTE, ignoreCase = true) ||
                 path.startsWith("$LEGAL_TERMS_ROUTE/", ignoreCase = true)
-        else -> false
+        }
+
+        else -> {
+            false
+        }
     }
 
 private fun ApplicationCall.secureEndpointViolation(

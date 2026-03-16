@@ -270,13 +270,23 @@ class ClearTermsRenderer(
                     ClearTermsTextOverrideSeverity.ALERT
                 }
         when (effectiveSeverity) {
-            ClearTermsTextOverrideSeverity.ALERT -> return ClearTermsRenderBackground.RED
-            ClearTermsTextOverrideSeverity.WARN -> return ClearTermsRenderBackground.YELLOW
-            ClearTermsTextOverrideSeverity.ONCE ->
+            ClearTermsTextOverrideSeverity.ALERT -> {
+                return ClearTermsRenderBackground.RED
+            }
+
+            ClearTermsTextOverrideSeverity.WARN -> {
+                return ClearTermsRenderBackground.YELLOW
+            }
+
+            ClearTermsTextOverrideSeverity.ONCE -> {
                 if (count > 1) {
                     return ClearTermsRenderBackground.RED
                 }
-            ClearTermsTextOverrideSeverity.OK -> return ClearTermsRenderBackground.NONE
+            }
+
+            ClearTermsTextOverrideSeverity.OK -> {
+                return ClearTermsRenderBackground.NONE
+            }
         }
         return ClearTermsRenderBackground.NONE
     }
