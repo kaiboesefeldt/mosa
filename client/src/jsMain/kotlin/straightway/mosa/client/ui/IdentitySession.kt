@@ -27,6 +27,7 @@ sealed interface IdentityScreen {
 
     data class Profile(
         val identityGid: String?,
+        val connectedIdentityGid: String?,
         val identityNameParts: FictionalName,
         val identityAvatar: String?,
         val isAdmin: Boolean,
@@ -130,6 +131,7 @@ fun useIdentitySession(): IdentityScreen {
     fun IdentitySessionViewState.Profile.toScreen(): IdentityScreen.Profile =
         IdentityScreen.Profile(
             identityGid = identityGid,
+            connectedIdentityGid = connectedIdentityGid,
             identityNameParts = identityNameParts,
             identityAvatar = identityAvatar,
             isAdmin = false,

@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.browser.window
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.await
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
@@ -316,6 +317,45 @@ class IdentityConnectedViewTest {
         waitForCondition { view.container.querySelector(".profile-dialog__identity-badge") == null }
         user.click(showAdminProfileButton(view.container)).await()
         waitForCondition { view.container.querySelector(".profile-dialog__identity-badge") != null }
+    }
+
+    @Test
+    fun `ignores stale displayed admin response after switching profiles`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val connectedAdmin = CompletableDeferred(ContentCapabilitiesResult(isAdmin = true))
+        val otherProfile = CompletableDeferred<ContentCapabilitiesResult>()
+        val displayedAdmin = CompletableDeferred<ContentCapabilitiesResult>()
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                deferredCapabilitiesByGid =
+                    mapOf(
+                        identityForTests.gid to mutableListOf(connectedAdmin, displayedAdmin),
+                        "gid-other" to mutableListOf(otherProfile),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, true))
+        val user = userEvent.setup()
+        val view = renderAdminProfileCycleView(startWithOtherProfile = true)
+
+        waitForCondition { view.container.querySelector(".profile-dialog") != null }
+        connectedAdmin.complete(ContentCapabilitiesResult(isAdmin = true))
+        waitForCondition { view.container.querySelector(".connected-shell__avatar-badge") != null }
+
+        user.click(showAdminProfileButton(view.container)).await()
+        displayedAdmin.complete(ContentCapabilitiesResult(isAdmin = true))
+        waitForCondition { view.container.querySelector(".profile-dialog__identity-badge") != null }
+
+        otherProfile.complete(ContentCapabilitiesResult(isAdmin = false))
+        delay(100)
+        assertEquals(
+            text("identity.admin.badge"),
+            view.container.querySelector(".profile-dialog__identity-badge")?.textContent?.trim(),
+        )
     }
 
     @Test
@@ -890,7 +930,7 @@ private val AdminProfileCycleHarness = FC<AdminProfileCycleHarnessProps> { props
     val (currentProfile, setProfile) =
         useState(
             if (props.startWithOtherProfile) {
-                placeholderProfile(identityGid = "gid-other")
+                placeholderProfile(identityGid = "gid-other", connectedIdentityGid = identityForTests.gid)
             } else {
                 placeholderProfile()
             },
@@ -901,7 +941,7 @@ private val AdminProfileCycleHarness = FC<AdminProfileCycleHarnessProps> { props
     }
     button {
         className = web.cssom.ClassName("other-profile-trigger")
-        onClick = { setProfile { placeholderProfile(identityGid = "gid-other") } }
+        onClick = { setProfile { placeholderProfile(identityGid = "gid-other", connectedIdentityGid = identityForTests.gid) } }
     }
     IdentityConnectedView {
         identityName = "Tester"
@@ -914,6 +954,7 @@ private val ConnectedAdminSwitchHarness = FC<Props> {
         useState(
             placeholderProfile(
                 identityGid = identityForTests.gid,
+                connectedIdentityGid = identityForTests.gid,
                 canDeletePosts = true,
             ),
         )
@@ -923,6 +964,7 @@ private val ConnectedAdminSwitchHarness = FC<Props> {
             setProfile {
                 placeholderProfile(
                     identityGid = "gid-other",
+                    connectedIdentityGid = "gid-other",
                     canDeletePosts = true,
                 )
             }
@@ -939,10 +981,12 @@ private object ConnectedViewTestInjector : KoinComponent
 private fun placeholderProfile(
     snapshotRefreshVersion: Int = 0,
     identityGid: String = identityForTests.gid,
+    connectedIdentityGid: String? = identityGid,
     canDeletePosts: Boolean = false,
 ): IdentityScreen.Profile =
     IdentityScreen.Profile(
         identityGid = identityGid,
+        connectedIdentityGid = connectedIdentityGid,
         identityNameParts = FictionalName(emptyList(), ""),
         identityAvatar = null,
         isAdmin = false,
@@ -1017,6 +1061,7 @@ private class RecordingPodAccess(
     replyResponses: Map<String, List<QueryResult>> = emptyMap(),
     private val capabilities: ContentCapabilitiesResult = ContentCapabilitiesResult(isAdmin = false),
     private val capabilitiesByGid: Map<String, ContentCapabilitiesResult> = emptyMap(),
+    private val deferredCapabilitiesByGid: Map<String, MutableList<CompletableDeferred<ContentCapabilitiesResult>>> = emptyMap(),
 ) : PodAccess {
     val approveInvocations = mutableListOf<String>()
     val searchInvocations = mutableListOf<QueryRequest>()
@@ -1076,7 +1121,22 @@ private class RecordingPodAccess(
     override suspend fun contentCapabilities(
         jwt: String,
         gid: String?,
-    ): ContentCapabilitiesResult = gid?.let { capabilitiesByGid[it] } ?: capabilities
+    ): ContentCapabilitiesResult {
+        val deferred =
+            gid?.let { requestedGid ->
+                deferredCapabilitiesByGid[requestedGid]?.let { queue ->
+                    if (queue.isEmpty()) {
+                        null
+                    } else {
+                        queue.removeAt(0)
+                    }
+                }
+            }
+        if (deferred != null) {
+            return deferred.await()
+        }
+        return gid?.let { capabilitiesByGid[it] } ?: capabilities
+    }
 
     override suspend fun freezePrivacySnapshot(jwt: String): ByteArray {
         error("Not implemented")

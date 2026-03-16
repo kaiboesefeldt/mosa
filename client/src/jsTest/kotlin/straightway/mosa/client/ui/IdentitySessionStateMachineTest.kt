@@ -99,6 +99,7 @@ class IdentitySessionStateMachineTest {
         assertTrue(state is IdentitySessionViewState.Connected)
         assertEquals(listOf(identityB.gid), state.profile.identityNameParts.givenNames)
         assertEquals(false, state.profile.canDeletePosts)
+        assertEquals(identityA.gid, state.profile.connectedIdentityGid)
         assertEquals(identityA.gid, store.snapshot?.connectedIdentityGid)
     }
 
@@ -126,7 +127,38 @@ class IdentitySessionStateMachineTest {
 
         val restoredState = machine.state.value
         assertTrue(restoredState is IdentitySessionViewState.Connected)
+        assertEquals(identityA.gid, restoredState.profile.connectedIdentityGid)
+        assertEquals(true, restoredState.profile.canDeletePosts)
         assertEquals(identityA.gid, store.snapshot?.connectedIdentityGid)
+    }
+
+    @Test
+    fun `tracks displayed and connected identity relation across navigation matrix`() = runMachineTest {
+        val identityA = identity("gid-a")
+        val identityB = identity("gid-b")
+        val repository = FakeIdentitySelectionRepository(identityA, identityB)
+        val store = RecordingIdentitySessionStore()
+        val machine = createMachine(repository, store)
+
+        machine.refresh()
+        advanceUntilIdle()
+        assertProfileBinding(machine.state.value, displayedGid = identityA.gid, connectedGid = null, canDeletePosts = false)
+
+        machine.connectToPod()
+        advanceUntilIdle()
+        assertProfileBinding(machine.state.value, displayedGid = identityA.gid, connectedGid = identityA.gid, canDeletePosts = true)
+
+        machine.navigateToNext()
+        advanceUntilIdle()
+        assertProfileBinding(machine.state.value, displayedGid = identityB.gid, connectedGid = identityA.gid, canDeletePosts = false)
+
+        machine.connectToPod()
+        advanceUntilIdle()
+        assertProfileBinding(machine.state.value, displayedGid = identityB.gid, connectedGid = identityB.gid, canDeletePosts = true)
+
+        machine.navigateToPrevious()
+        advanceUntilIdle()
+        assertProfileBinding(machine.state.value, displayedGid = identityA.gid, connectedGid = identityB.gid, canDeletePosts = false)
     }
 
     @Test
@@ -441,6 +473,23 @@ private fun TestScope.createMachine(
         logger = TestLogger,
         sessionStore = store,
     )
+
+private fun assertProfileBinding(
+    state: IdentitySessionViewState,
+    displayedGid: String?,
+    connectedGid: String?,
+    canDeletePosts: Boolean,
+) {
+    val profile =
+        when (state) {
+            is IdentitySessionViewState.Connected -> state.profile
+            is IdentitySessionViewState.Profile -> state
+            IdentitySessionViewState.Loading -> error("loading state has no profile binding")
+        }
+    assertEquals(displayedGid, profile.identityGid)
+    assertEquals(connectedGid, profile.connectedIdentityGid)
+    assertEquals(canDeletePosts, profile.canDeletePosts)
+}
 
 private fun identity(id: String): Identity =
     Identity(

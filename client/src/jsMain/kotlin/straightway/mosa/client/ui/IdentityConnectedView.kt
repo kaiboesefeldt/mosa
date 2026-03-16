@@ -156,55 +156,22 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val swipeActiveRef = useRef(false)
     val swipeTargetsRef = useRef(SwipeTargets(null, null))
     val (swipeOffsetPercent, setSwipeOffsetPercent) = useState(0.0)
-    val (connectedGid, setConnectedGid) = useState<String?>(null)
-    val (isAdmin, setIsAdmin) = useState(false)
-    val (displayedProfileIsAdmin, setDisplayedProfileIsAdmin) = useState(false)
     val snapshotRefreshVersionRef = useRef(props.profile.snapshotRefreshVersion)
-    val connectedAdminRequestVersionRef = useRef(0)
-    val displayedAdminRequestVersionRef = useRef(0)
 
     useEffect(sessionStore) {
         scope.launch {
             val snapshot = runCatching { sessionStore.load() }.getOrNull()
             setProfileVisible(snapshot?.isProfileVisible ?: false)
-            setConnectedGid(snapshot?.connectedIdentityGid)
         }
     }
-    useEffect(props.profile.identityGid, props.profile.canDeletePosts) {
-        if (props.profile.canDeletePosts && props.profile.identityGid != null) {
-            setConnectedGid(props.profile.identityGid)
-        }
-    }
-    useEffect(connectedGid) {
-        if (connectedGid == null) {
-            setIsAdmin(false)
-            return@useEffect
-        }
-        connectedAdminRequestVersionRef.current = (connectedAdminRequestVersionRef.current ?: 0) + 1
-        val requestVersion = connectedAdminRequestVersionRef.current ?: 0
-        setIsAdmin(false)
-        scope.launch {
-            val capabilities = contentCapabilitiesService.fetch(connectedGid)
-            if (connectedAdminRequestVersionRef.current == requestVersion) {
-                setIsAdmin(capabilities?.isAdmin == true)
-            }
-        }
-    }
-    useEffect(isProfileVisible, props.profile.identityGid, connectedGid) {
-        if (!isProfileVisible || props.profile.identityGid == null) {
-            setDisplayedProfileIsAdmin(false)
-            return@useEffect
-        }
-        displayedAdminRequestVersionRef.current = (displayedAdminRequestVersionRef.current ?: 0) + 1
-        val requestVersion = displayedAdminRequestVersionRef.current ?: 0
-        setDisplayedProfileIsAdmin(false)
-        scope.launch {
-            val capabilities = contentCapabilitiesService.fetch(props.profile.identityGid)
-            if (displayedAdminRequestVersionRef.current == requestVersion) {
-                setDisplayedProfileIsAdmin(capabilities?.isAdmin == true)
-            }
-        }
-    }
+    val adminPresentation =
+        useIdentityAdminPresentation(
+            connectedIdentityGid = props.profile.connectedIdentityGid,
+            displayedIdentityGid = props.profile.identityGid,
+            isProfileVisible = isProfileVisible,
+            contentCapabilitiesService = contentCapabilitiesService,
+            scope = scope,
+        )
 
     suspend fun persistSessionSnapshot(
         builder: (IdentitySessionSnapshot?) -> IdentitySessionSnapshot,
@@ -521,12 +488,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    val avatarDescription =
-        if (isAdmin) {
-            translator.translate("connected.profile.avatar.admin.title")
-        } else {
-            translator.translate("connected.profile.avatar.title")
-        }
+    val avatarDescription = translator.translate(adminPresentation.avatarTitleKey)
 
     fun persistProfileVisibility(visible: Boolean) {
         if (visible) {
@@ -972,7 +934,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 button {
                     className =
                         ClassName(
-                            if (isAdmin) {
+                            if (adminPresentation.showsConnectedAdminBadge) {
                                 "connected-shell__avatar-button connected-shell__avatar-button--admin"
                             } else {
                                 "connected-shell__avatar-button"
@@ -994,7 +956,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                             +(props.identityName.firstOrNull()?.uppercaseChar()?.toString() ?: "?")
                         }
                     }
-                    if (isAdmin) {
+                    if (adminPresentation.showsConnectedAdminBadge) {
                         span {
                             className = ClassName("connected-shell__avatar-badge")
                             +translator.translate("identity.admin.badge")
@@ -1154,8 +1116,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onToggleFilter = ::toggleTopicFilter,
                     onClearFilter = ::clearTopicFilter,
                     onSelectPost = ::selectPost,
-                    connectedGid = connectedGid,
-                    canDeleteAsAdmin = isAdmin,
+                    connectedGid = props.profile.connectedIdentityGid,
+                    canDeleteAsAdmin = adminPresentation.canDeleteAsAdmin,
                     deleteCandidateId = deleteCandidate?.id,
                     isDeleting = isDeletingPost,
                     deleteError = deleteError,
@@ -1173,8 +1135,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     selectedPost = selectedPost,
                     replies = replies,
                     isLoading = isLoadingReplies,
-                    connectedGid = connectedGid,
-                    canDeleteAsAdmin = isAdmin,
+                    connectedGid = props.profile.connectedIdentityGid,
+                    canDeleteAsAdmin = adminPresentation.canDeleteAsAdmin,
                     deleteCandidateId = deleteCandidate?.id,
                     isDeleting = isDeletingPost,
                     deleteError = deleteError,
@@ -1216,7 +1178,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
 
     if (shouldRenderProfile) {
         IdentityProfileView {
-            applyFrom(props.profile.copy(isAdmin = displayedProfileIsAdmin))
+            applyFrom(props.profile.copy(isAdmin = adminPresentation.showsDisplayedAdminBadge))
             val connectProfile = props.profile.onConnect
             onClose = { hideProfile() }
             onConnect = {

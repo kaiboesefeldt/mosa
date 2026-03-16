@@ -30,6 +30,13 @@ class IdentitySessionStateMachine(
     private val logger: Logger,
     private val sessionStore: IdentitySessionStore,
 ) {
+    private data class IdentityBinding(
+        val displayedIdentityGid: String?,
+        val connectedIdentityGid: String?,
+    ) {
+        val isDisplayedIdentityConnected: Boolean = displayedIdentityGid != null && displayedIdentityGid == connectedIdentityGid
+    }
+
     private var currentSelection: IdentitySelection? = null
     private var identityNameParts = placeholderName(textProvider.loading)
     private var identityAvatar: String? = null
@@ -37,7 +44,6 @@ class IdentitySessionStateMachine(
     private var errorText: String? = null
     private var statusText: String? = null
     private var connectedIdentityGid: String? = null
-    private var isCurrentSelectionConnected = false
     private var isRestoring = true
     private var snapshotRefreshVersion = 0
 
@@ -82,7 +88,6 @@ class IdentitySessionStateMachine(
             val selection = ensureProtectedSelection() ?: return@runExclusive
             currentSelection = selection
             connectedIdentityGid = selection.identity.gid
-            isCurrentSelectionConnected = true
             errorText = null
             runCatching { repository.persist() }
                 .onFailure { logger.error("Identity persistence failed", it) }
@@ -303,8 +308,10 @@ class IdentitySessionStateMachine(
     }
 
     private fun profileViewState(): IdentitySessionViewState.Profile =
+        currentBinding().let { binding ->
         IdentitySessionViewState.Profile(
-            identityGid = currentSelection?.identity?.gid,
+            identityGid = binding.displayedIdentityGid,
+            connectedIdentityGid = binding.connectedIdentityGid,
             identityNameParts = identityNameParts,
             identityAvatar = identityAvatar,
             isBusy = isBusy,
@@ -312,10 +319,10 @@ class IdentitySessionStateMachine(
             statusText = statusText,
             snapshotRefreshVersion = snapshotRefreshVersion,
             canDelete = currentSelection != null,
-            canDeletePosts = isCurrentSelectionConnected,
-            canExportPosts = isCurrentSelectionConnected,
-            canFreezePosts = isCurrentSelectionConnected,
-            canRestorePosts = isCurrentSelectionConnected,
+            canDeletePosts = binding.isDisplayedIdentityConnected,
+            canExportPosts = binding.isDisplayedIdentityConnected,
+            canFreezePosts = binding.isDisplayedIdentityConnected,
+            canRestorePosts = binding.isDisplayedIdentityConnected,
             canNavigatePrevious = currentSelection?.hasPrevious ?: false,
             canNavigateNext = currentSelection != null,
             isShowingLastIdentity = currentSelection?.let { !it.hasNext } ?: false,
@@ -328,6 +335,7 @@ class IdentitySessionStateMachine(
             canPaste = true,
             isPersisted = currentSelection?.isPersisted ?: false,
         )
+    }
 
     private fun connectedState(): IdentitySessionViewState.Connected =
         IdentitySessionViewState.Connected(
@@ -386,7 +394,6 @@ class IdentitySessionStateMachine(
     private suspend fun restoreConnection(selection: IdentitySelection) {
         val snapshot = sessionStore.load()
         connectedIdentityGid = snapshot?.connectedIdentityGid
-        isCurrentSelectionConnected = connectedIdentityGid == selection.identity.gid
     }
 
     private suspend fun persistSession(
@@ -412,11 +419,19 @@ class IdentitySessionStateMachine(
 
     private fun resetConnection() {
         connectedIdentityGid = null
-        isCurrentSelectionConnected = false
         scope.launch {
             persistSession(profileVisibleOverride = false, preserveConnectedIdentity = false)
         }
     }
+
+    private val isCurrentSelectionConnected: Boolean
+        get() = currentBinding().isDisplayedIdentityConnected
+
+    private fun currentBinding(): IdentityBinding =
+        IdentityBinding(
+            displayedIdentityGid = currentSelection?.identity?.gid,
+            connectedIdentityGid = connectedIdentityGid,
+        )
 
     private fun errorMessage(error: Throwable): String {
         if (error is CancellationException) return textProvider.unknownError

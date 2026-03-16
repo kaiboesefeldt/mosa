@@ -10,4 +10,6 @@ class ContentCapabilitiesService(
         podSessionProvider.execute("content capabilities") { session ->
             session.podAccess.contentCapabilities(session.jwt, gid)
         }
+
+    suspend fun isAdmin(gid: String): Boolean = fetch(gid)?.isAdmin == true
 }
