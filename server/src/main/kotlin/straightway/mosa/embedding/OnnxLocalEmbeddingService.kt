@@ -10,7 +10,7 @@ import kotlinx.coroutines.sync.withLock
 import straightway.mosa.EmbeddingService
 
 class OnnxLocalEmbeddingService private constructor(
-    modelUrl: String = "djl://ai.djl.huggingface.onnxruntime/efederici/multilingual-e5-small-4096",
+    modelUrl: String = DEFAULT_MODEL_URL,
 ) : EmbeddingService,
     AutoCloseable {
     private val model = loadModel(modelUrl)
@@ -35,10 +35,11 @@ class OnnxLocalEmbeddingService private constructor(
     }
 
     companion object {
+        const val DEFAULT_MODEL_URL = "djl://ai.djl.huggingface.rust/efederici/multilingual-e5-small-4096"
+
         var embeddingServiceFactory: Factory? = null
 
-        fun create(modelUrl: String = "djl://ai.djl.huggingface.onnxruntime/efederici/multilingual-e5-small-4096") =
-            embeddingServiceFactory?.create(modelUrl) ?: OnnxLocalEmbeddingService(modelUrl)
+        fun create(modelUrl: String = DEFAULT_MODEL_URL) = embeddingServiceFactory?.create(modelUrl) ?: OnnxLocalEmbeddingService(modelUrl)
 
         private fun loadModel(modelUrl: String): ZooModel<String, FloatArray> =
             ModelZoo.loadModel(

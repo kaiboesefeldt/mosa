@@ -46,6 +46,25 @@ class OnnxLocalEmbeddingServiceTest {
             }
         }
 
+    @Test
+    fun `uses supported huggingface rust zoo by default`() =
+        mockkStatic(Criteria::class, ModelZoo::class) {
+            runTest {
+                val criteria = mockk<Criteria<String, FloatArray>>()
+                val criteriaBuilder = mockCriteriaBuilderFor(criteria)
+                val predictor = mockPredictor()
+                val model = mockModel(predictor)
+                every { ModelZoo.loadModel(criteria) } returns model
+                every { criteriaBuilder.optModelUrls(OnnxLocalEmbeddingService.DEFAULT_MODEL_URL) } returns criteriaBuilder
+
+                OnnxLocalEmbeddingService.create().close()
+
+                verify(exactly = 1) {
+                    criteriaBuilder.optModelUrls(OnnxLocalEmbeddingService.DEFAULT_MODEL_URL)
+                }
+            }
+        }
+
     private fun mockModel(predictor: Predictor<String, FloatArray>): ZooModel<String, FloatArray> {
         val model = mockk<ZooModel<String, FloatArray>>()
         every { model.close() } just Runs
@@ -76,6 +95,7 @@ class OnnxLocalEmbeddingServiceTest {
             )
         } returns criteriaBuilder
         every { criteriaBuilder.optModelUrls("custom-model") } returns criteriaBuilder
+        every { criteriaBuilder.optModelUrls(OnnxLocalEmbeddingService.DEFAULT_MODEL_URL) } returns criteriaBuilder
         every { criteriaBuilder.optTranslatorFactory(any()) } returns criteriaBuilder
         every { criteriaBuilder.build() } returns criteria
         return criteriaBuilder
