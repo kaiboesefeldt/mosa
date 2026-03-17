@@ -699,6 +699,38 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `reloads inbox messages when connected profile changes`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                inboxResponses =
+                    listOf(
+                        AdminMessageListResult(
+                            listOf(AdminMessage("message-1", "admin-a", 10, "Second profile subject", "Second body")),
+                        ),
+                        AdminMessageListResult(
+                            listOf(AdminMessage("message-2", "admin-a", 11, "Second profile refreshed", "Second body refreshed")),
+                        ),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedAdminSwitchView()
+
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+        user.click(switchConnectedProfileButton(view.container)).await()
+
+        waitForCondition { podAccess.messagesRequests.size == 1 }
+        user.click(inboxButton(view.container)).await()
+        waitForCondition { podAccess.messagesRequests.size == 2 }
+        waitForCondition { view.container.textContent?.contains("Second profile refreshed") == true }
+    }
+
+    @Test
     fun `deleting selected topic selects next`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val podAccess =

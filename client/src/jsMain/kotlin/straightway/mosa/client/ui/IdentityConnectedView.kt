@@ -176,6 +176,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val swipeTargetsRef = useRef(SwipeTargets(null, null))
     val (swipeOffsetPercent, setSwipeOffsetPercent) = useState(0.0)
     val snapshotRefreshVersionRef = useRef(props.profile.snapshotRefreshVersion)
+    val connectedIdentityGidRef = useRef(props.profile.connectedIdentityGid)
 
     useEffect(sessionStore) {
         scope.launch {
@@ -240,9 +241,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         setAdminMessageError(null)
     }
 
-    fun loadInbox() {
+    fun refreshInbox(openAfterLoad: Boolean) {
         if (isInboxLoading) return
-        setInboxOpen(true)
+        setInboxOpen(openAfterLoad || isInboxOpen)
         setInboxLoading(true)
         setInboxError(null)
         scope.launch {
@@ -255,6 +256,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 setInboxEntries(entries)
             }
         }
+    }
+
+    fun loadInbox() {
+        refreshInbox(openAfterLoad = true)
     }
 
     fun updateTopicFilterState(filters: Map<String, Float>) {
@@ -463,6 +468,20 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 showToast(translator.translate("connected.composer.refresh.error"))
             }
         }
+    }
+
+    useEffect(props.profile.connectedIdentityGid) {
+        val nextConnectedIdentityGid = props.profile.connectedIdentityGid
+        if (nextConnectedIdentityGid == connectedIdentityGidRef.current) return@useEffect
+        connectedIdentityGidRef.current = nextConnectedIdentityGid
+        setInboxEntries(emptyList())
+        setInboxError(null)
+        if (nextConnectedIdentityGid == null) {
+            setInboxLoading(false)
+            setInboxOpen(false)
+            return@useEffect
+        }
+        refreshInbox(openAfterLoad = false)
     }
 
     fun persistFilters(updated: Map<String, Float>) {
@@ -993,7 +1012,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     title = translator.translate("connected.messages.inbox.button")
                     onClick = { loadInbox() }
                     i {
-                        className = ClassName("fa fa-solid fa-envelope")
+                        className = ClassName("fa fa-solid fa-bullhorn")
                     }
                     if (inboxEntries.isNotEmpty()) {
                         span {
