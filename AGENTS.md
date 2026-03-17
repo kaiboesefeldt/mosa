@@ -32,7 +32,7 @@
 - For documentation-only or other non-code changes, `./gradlew check` is not required.
 
 ## 3. Code Design Rules
-- Kotlin version: 2.2.
+- Prefer the latest stable Kotlin version unless a task explicitly requires a narrower compatibility window.
 - Formatting/linting: ktlint via `org.jmailen.kotlinter`.
 - Use expressive naming instead of comments. Do not write code comments.
 - Keep one top-level class per file.
@@ -77,7 +77,7 @@
 ### Notes
 - Coverage report path: `build/reports/kover/report.xml`
 - `straightway.mosa.content.QualityTest` may be excluded for intermediate runs unless embedding/vector-store behavior is changed.
-- Gradle warnings can be ignored.
+- Use `--warning-mode all` when a task requires warning verification.
 
 ## 7. Repository Topology
 - `server/src/main/kotlin`: Ktor server and business services.

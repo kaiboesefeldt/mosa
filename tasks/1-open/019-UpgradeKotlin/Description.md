@@ -22,6 +22,7 @@ Besonders zu klaeren:
 - Ob die neueste stabile Kotlin-Version mit Gradle `9.4.0` offiziell freigegeben oder nur faktisch lauffaehig ist.
 - Ob Kotlin-Multiplatform-, JS-, Serialization- oder Wrapper-bezogene APIs angepasst werden muessen.
 - Ob das Upgrade die bekannte `archives`-Deprecation im Client veraendert, verschaerft oder beseitigt, ohne diese Aufgabe mit Task `018` unklar zu vermischen.
+- Lucene-bezogene Warnungen duerfen fuer diese Aufgabe voruebergehend toleriert werden, wenn sie nicht durch das Kotlin-Upgrade verursacht werden und durch die geplante Lucene-Aktualisierung separat adressiert sind.
 - Ob fuer die lokale Entwicklung zusaetzliche Dokumentation oder Setup-Hinweise noetig werden.
 
 Abnahme:
