@@ -135,8 +135,8 @@ class LuceneWriteTransactionTest {
                 val reader = DirectoryReader.open(directory)
                 try {
                     val visitor = DocumentStoredFieldVisitor()
-                    reader.document(0, visitor)
-                    val document = visitor.document
+                    reader.storedFields().document(0, visitor)
+                    val document = visitor.getDocument()
                     assertEquals("id-1", document[ID_FIELD_NAME])
                     assertEquals("body text", document[TEXT_FIELD_NAME])
                     assertEquals("news", document["category"])

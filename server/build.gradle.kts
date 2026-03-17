@@ -1,6 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import org.gradle.api.file.DuplicatesStrategy
 
 plugins {
     kotlin("jvm")
@@ -25,7 +26,7 @@ dependencies {
     val kotlinLoggingVersion = "8.0.01"
     val logbackVersion = "1.5.32"
     val djlVersion = "0.36.0"
-    val luceneVersion = "9.12.3"
+    val luceneVersion = "10.4.0"
     val mockkVersion = "1.14.9"
     val auth0JwtVersion = "4.5.1"
     val bouncyCastleVersion = "1.83"
@@ -65,7 +66,6 @@ dependencies {
     // Lucene as Vector Store for KNN search
     implementation("org.apache.lucene:lucene-core:$luceneVersion")
     implementation("org.apache.lucene:lucene-analysis-common:$luceneVersion")
-    implementation("org.apache.lucene:lucene-backward-codecs:$luceneVersion")
 
     // ONNX and djl Runtime for local embeddings
     implementation(platform("ai.djl:bom:$djlVersion"))
@@ -166,5 +166,6 @@ tasks.named("shadowJar") {
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     archiveBaseName.set("mosa-server")
     archiveClassifier.set("all")
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     mergeServiceFiles()
 }

@@ -24,7 +24,7 @@ class LuceneQueryPlanner(
                 addTimeRangeQuery(TIME_ADDED_FIELD_NAME, query.fromTime, query.toTime)
                 query.fields.forEach { (key, value) -> addTermQuery(key, value) }
             }.build()
-            .takeUnless { it.clauses().isEmpty() } ?: MatchAllDocsQuery()
+            .takeUnless { it.clauses().isEmpty() } ?: MatchAllDocsQuery.INSTANCE
 
     private fun BooleanQuery.Builder.addKnnQuery(vector: FloatArray?) =
         also {
@@ -43,7 +43,7 @@ class LuceneQueryPlanner(
         when (value) {
             null -> {
                 add(
-                    MatchAllDocsQuery(),
+                    MatchAllDocsQuery.INSTANCE,
                     BooleanClause.Occur.FILTER,
                 )
                 add(

@@ -5,6 +5,7 @@ import kotlinx.coroutines.sync.withLock
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.index.DirectoryReader
 import org.apache.lucene.index.DirectoryReader.openIfChanged
+import org.apache.lucene.index.IndexFormatTooOldException
 import org.apache.lucene.index.IndexWriter
 import org.apache.lucene.index.IndexWriterConfig
 import org.apache.lucene.store.Directory
@@ -16,7 +17,7 @@ class LuceneIndexAccess(
     private val directory: Directory = directoryFactory()
     private val analyzer = StandardAnalyzer()
     private val config = IndexWriterConfig(analyzer)
-    private val writer = IndexWriter(directory, config)
+    private val writer = createWriter()
     private var reader: DirectoryReader? = null
     private val lock = Mutex()
 
@@ -52,6 +53,16 @@ class LuceneIndexAccess(
         reader = currentReader
         return currentReader
     }
+
+    private fun createWriter(): IndexWriter =
+        try {
+            IndexWriter(directory, config)
+        } catch (exception: IndexFormatTooOldException) {
+            throw RuntimeException(
+                "Existing local Lucene 9 index is incompatible with Lucene 10. Delete the local index directory, such as mosa_lucene_index, manually and restart to create an empty Lucene 10 index.",
+                exception,
+            )
+        }
 
     override fun close() {
         reader?.close()

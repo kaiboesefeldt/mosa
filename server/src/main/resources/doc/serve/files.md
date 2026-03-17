@@ -43,3 +43,5 @@ The Lucene vector store persists its index under the server working directory.
 
 **Directory name:** `mosa_lucene_index`  
 **Reset:** Stop the server and delete the directory to delete the index.
+
+If the server reports that an older local Lucene index is incompatible after an upgrade, stop the server, delete `mosa_lucene_index` manually, and start again. A new empty Lucene index will be created automatically.

@@ -197,7 +197,7 @@ class LuceneLocalVectorStore private constructor(
                             val topDocs =
                                 searcher.searchAfter(
                                     after,
-                                    MatchAllDocsQuery(),
+                                    MatchAllDocsQuery.INSTANCE,
                                     pageSize,
                                     SORT_BY_TIME_ADDED,
                                 )
@@ -337,8 +337,8 @@ class LuceneLocalVectorStore private constructor(
 
     private fun ScoreDoc.getDocument(reader: DirectoryReader): Document {
         val visitor = DocumentStoredFieldVisitor()
-        reader.document(doc, visitor)
-        return visitor.document
+        reader.storedFields().document(doc, visitor)
+        return visitor.getDocument()
     }
 
     private fun Document.getFieldMap(): Map<String, String> =
