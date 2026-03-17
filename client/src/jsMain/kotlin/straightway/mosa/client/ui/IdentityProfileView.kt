@@ -362,7 +362,7 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
 }
 
 private fun Event.asPasteEvent(): ClipboardEvent? =
-    this as? ClipboardEvent
+    unsafeCast<ClipboardEvent>()
 
 private fun Event.asKeyboardEvent(): KeyboardEvent? =
     this as? KeyboardEvent

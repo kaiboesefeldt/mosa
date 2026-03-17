@@ -11,7 +11,7 @@ fun textEncode(value: String): ByteArray {
     val encoded = TextEncoder().encode(value)
     val result = ByteArray(encoded.length)
     for (index in result.indices) {
-        result[index] = encoded[index].toByte()
+        result[index] = encoded[index]
     }
     return result
 }

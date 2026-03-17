@@ -72,6 +72,7 @@ data class ClientBlockList(
             when (this) {
                 is Inet4Address -> 32
                 is Inet6Address -> 128
+                else -> throw IllegalArgumentException("Unsupported IP address type: ${this::class.qualifiedName}")
             }
     }
 }

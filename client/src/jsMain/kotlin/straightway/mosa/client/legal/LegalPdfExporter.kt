@@ -337,8 +337,8 @@ private fun resolvePdfDocumentName(source: HTMLDivElement): String {
 private fun resolvePdfExportDateText(): String {
     val now = Date()
     val year = now.getUTCFullYear().toString()
-    val month = (now.getUTCMonth() + 1).toInt().toString().padStart(2, '0')
-    val day = now.getUTCDate().toInt().toString().padStart(2, '0')
+    val month = (now.getUTCMonth() + 1).toString().padStart(2, '0')
+    val day = now.getUTCDate().toString().padStart(2, '0')
     return "$year-$month-$day"
 }
 

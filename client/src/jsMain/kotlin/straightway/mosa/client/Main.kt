@@ -368,7 +368,7 @@ internal val IdentityApp = FC<Props> {
                                             val blockId = resolveBlockId(marker)
                                             if (blockId == null) return@mouseDownHandler
                                             val groupId =
-                                                (marker.closest("[data-ct-group-id]") as? Element)?.getAttribute("data-ct-group-id") ?: blockId
+                                                marker.closest("[data-ct-group-id]")?.getAttribute("data-ct-group-id") ?: blockId
                                             event.preventDefault()
                                             activeComparison =
                                                 if (activeComparison?.groupId == groupId && activeComparison?.blockId == blockId) {
@@ -537,7 +537,7 @@ private fun findComparisonGroupElement(
 ): Element? {
     val groups = contentElement.querySelectorAll("[data-ct-group-id]")
     for (index in 0 until groups.length) {
-        val candidate = groups.item(index) as? Element ?: continue
+        val candidate = groups.item(index) ?: continue
         if (candidate.getAttribute("data-ct-group-id") == groupId) {
             return candidate
         }
@@ -628,7 +628,7 @@ private fun resolveBlockId(marker: Element): String? {
     if (!direct.isNullOrBlank()) {
         return direct
     }
-    val group = marker.closest("[data-ct-block-ids]") as? Element ?: return null
+    val group = marker.closest("[data-ct-block-ids]") ?: return null
     val groupIds = group.getAttribute("data-ct-block-ids") ?: return null
     return groupIds
         .split(' ')

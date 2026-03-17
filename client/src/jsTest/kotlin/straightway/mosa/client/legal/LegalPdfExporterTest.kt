@@ -146,7 +146,7 @@ class LegalPdfExporterTest {
         assertTrue(logo != null)
         assertTrue(title != null)
         assertTrue(titleText != null)
-        assertEquals("Mosa", titleText?.textContent)
+        assertEquals("Mosa", titleText.textContent)
         assertEquals("flex-start", title.asDynamic().style.justifyContent as String)
         assertTrue((logo.asDynamic().getAttribute("src") as String).contains("data:image/png;base64,ZmFrZQ=="))
         assertTrue(heading != null)

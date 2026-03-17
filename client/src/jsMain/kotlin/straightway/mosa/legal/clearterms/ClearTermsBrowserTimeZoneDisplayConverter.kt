@@ -15,12 +15,12 @@ class ClearTermsBrowserTimeZoneDisplayConverter : ClearTermsTimeZoneDisplayConve
         if (date.getTime().isNaN()) {
             return null
         }
-        val localYear = date.getFullYear().toInt()
-        val localMonth = date.getMonth().toInt() + 1
-        val localDay = date.getDate().toInt()
-        val localHour = date.getHours().toInt()
-        val localMinute = date.getMinutes().toInt()
-        val localSecond = date.getSeconds().toInt()
+        val localYear = date.getFullYear()
+        val localMonth = date.getMonth() + 1
+        val localDay = date.getDate()
+        val localHour = date.getHours()
+        val localMinute = date.getMinutes()
+        val localSecond = date.getSeconds()
         val hasSeconds = timeWithSecondsRegex.matches(time)
         val localTime =
             if (hasSeconds) {
