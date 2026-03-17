@@ -26,6 +26,7 @@ dependencies {
     val djlVersion = "0.36.0"
     val luceneVersion = "10.4.0"
     val mockkVersion = "1.14.9"
+    val byteBuddyVersion = "1.18.7"
     val auth0JwtVersion = "4.5.1"
     val bouncyCastleVersion = "1.83"
     val kotlinxCliVersion = "0.3.6"
@@ -89,8 +90,12 @@ dependencies {
     implementation("commons-validator:commons-validator:$commonsValidatorVersion")
 
     // Test
-    testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion")
+    testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion") {
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-debug")
+    }
     testImplementation("io.mockk:mockk:${mockkVersion}")
+    testImplementation("net.bytebuddy:byte-buddy:$byteBuddyVersion")
+    testImplementation("net.bytebuddy:byte-buddy-agent:$byteBuddyVersion")
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")

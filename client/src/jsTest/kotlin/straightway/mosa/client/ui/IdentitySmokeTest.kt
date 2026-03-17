@@ -41,7 +41,7 @@ class IdentitySmokeTest : KoinComponent {
                 single<IdentitySessionStore> { sessionStore }
             }
         GlobalContext.get().loadModules(listOf(overrideModule), allowOverride = true)
-        val generator = get<IdentityGenerator>()
+        val generator = GlobalContext.get().get<IdentityGenerator>()
         val identities =
             listOf(
                 generator.generate(),

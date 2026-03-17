@@ -102,3 +102,9 @@
 - Certificates are URL-safe Base64 encoded and time-limited.
 - Never commit secrets or credential material.
 - Never commit large model artifacts unintentionally.
+
+## 10. Remember
+- Under JDK 25, `sun.misc.Unsafe` warnings still remain in upstream tooling even after upgrading project Kotlin and pruning extra test dependencies:
+  - `org.jmailen.kotlinter` currently pulls `ktlint 1.8.0`, which still depends on `kotlin-compiler-embeddable 2.2.21`.
+  - Server tests still trigger a Byte Buddy `Unsafe` warning through MockK even on `byte-buddy 1.18.7`.
+- A full removal of those warnings likely requires future upstream releases or replacing the affected linting/mocking stack, not just local version bumps.
