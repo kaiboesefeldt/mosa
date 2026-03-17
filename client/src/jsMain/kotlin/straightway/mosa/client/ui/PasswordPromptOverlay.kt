@@ -125,8 +125,8 @@ val PasswordPromptOverlay = FC<Props> {
                             value = password
                             autoFocus = true
                             placeholder = passwordLabel
-                            onChange = { event: ChangeEvent<HTMLInputElement> ->
-                                password = event.target.value
+                            onChange = { event: ChangeEvent<HTMLInputElement, HTMLInputElement> ->
+                                password = event.currentTarget.value
                             }
                         }
                         button {
@@ -155,8 +155,8 @@ val PasswordPromptOverlay = FC<Props> {
                         type = (if (isRevealed) "text" else "password").unsafeCast<InputType>()
                         value = confirmation
                         placeholder = confirmationLabel
-                        onChange = { event: ChangeEvent<HTMLInputElement> ->
-                            confirmation = event.target.value
+                        onChange = { event: ChangeEvent<HTMLInputElement, HTMLInputElement> ->
+                            confirmation = event.currentTarget.value
                         }
                     }
                 }

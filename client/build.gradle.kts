@@ -50,7 +50,8 @@ kotlin {
         val kotlinxCoroutinesVersion = "1.10.2"
         val kotlinxSerializationJsonVersion = "1.9.0"
         val ktorVersion = "3.3.1"
-        val kotlinWrappersVersion = "2025.11.1-19.2.0"
+        val kotlinReactWrappersVersion = "2026.3.12-19.2.4"
+        val kotlinBrowserWrappersVersion = "2026.3.12"
         val diceBearVersion = "9.4.0"
         val fontAwesomeVersion = "7.2.0"
         val html2canvasVersion = "1.4.1"
@@ -67,9 +68,9 @@ kotlin {
                 implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
                 implementation(project(":shared"))
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
-                implementation("org.jetbrains.kotlin-wrappers:kotlin-react:$kotlinWrappersVersion")
-                implementation("org.jetbrains.kotlin-wrappers:kotlin-react-dom:$kotlinWrappersVersion")
-                implementation("org.jetbrains.kotlin-wrappers:kotlin-browser:$kotlinWrappersVersion")
+                implementation("org.jetbrains.kotlin-wrappers:kotlin-react:$kotlinReactWrappersVersion")
+                implementation("org.jetbrains.kotlin-wrappers:kotlin-react-dom:$kotlinReactWrappersVersion")
+                implementation("org.jetbrains.kotlin-wrappers:kotlin-browser:$kotlinBrowserWrappersVersion")
                 implementation(npm("@dicebear/core", diceBearVersion))
                 implementation(npm("@dicebear/adventurer-neutral", diceBearVersion))
                 implementation(npm("@fortawesome/fontawesome-free", fontAwesomeVersion))

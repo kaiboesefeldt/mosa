@@ -17,6 +17,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import react.ChildrenBuilder
 import react.FC
+import react.Key
 import react.Props
 import react.dom.html.ReactHTML.button
 import react.dom.html.ReactHTML.div
@@ -1247,7 +1248,7 @@ private fun ChildrenBuilder.topicColumn(
                     "topic-card"
                 }
             div {
-                key = topic.title
+                key = topic.title.unsafeCast<Key>()
                 className = ClassName(cardClass)
                 asDynamic()["data-topic-title"] = topic.title
                 onClick = { onSelectTopic(topic) }
@@ -1574,8 +1575,8 @@ private fun ChildrenBuilder.replyComposerPopover(
         value = text
         disabled = isPublishing
         rows = 4
-        onChange = { event: ChangeEvent<HTMLTextAreaElement> ->
-            onTextChange(event.target.value)
+        onChange = { event: ChangeEvent<HTMLTextAreaElement, HTMLTextAreaElement> ->
+            onTextChange(event.currentTarget.value)
         }
     }
     if (errorText != null) {
@@ -1613,7 +1614,7 @@ private fun ChildrenBuilder.replyCard(
     val canDeleteReply = (connectedGid != null && reply.authorGID == connectedGid) || canDeleteAsAdmin
     val showDeletePopover = canDeleteReply && deleteCandidateId == reply.id
     div {
-        key = reply.id
+        key = reply.id.unsafeCast<Key>()
         className = ClassName("reply-card")
         div {
             className = ClassName("reply-card__author-row")
@@ -1701,7 +1702,7 @@ private fun ChildrenBuilder.replyOriginCard(
     val authorName = authorVisuals.name.toString().trim()
     val timestamp = formatTimestamp(origin.storedAt)
     div {
-        key = origin.id
+        key = origin.id.unsafeCast<Key>()
         className = ClassName("reply-origin")
         span {
             className = ClassName("reply-origin__badge")
@@ -1787,7 +1788,7 @@ private fun ChildrenBuilder.postCard(
             translator.translate("connected.posts.filter.apply")
         }
     div {
-        key = entry.id
+        key = entry.id.unsafeCast<Key>()
         className = ClassName(cardClass)
         asDynamic()["data-post-id"] = entry.id
         onClick = { onSelect() }
@@ -1937,8 +1938,8 @@ private fun ChildrenBuilder.composerDialog(
                 value = text
                 disabled = isPublishing
                 rows = 5
-                onChange = { event: ChangeEvent<HTMLTextAreaElement> ->
-                    onTextChange(event.target.value)
+                onChange = { event: ChangeEvent<HTMLTextAreaElement, HTMLTextAreaElement> ->
+                    onTextChange(event.currentTarget.value)
                 }
             }
             if (errorText != null) {
