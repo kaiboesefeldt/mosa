@@ -991,13 +991,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     className = ClassName("connected-shell__inbox-button")
                     ariaLabel = translator.translate("connected.messages.inbox.button")
                     title = translator.translate("connected.messages.inbox.button")
-                    onClick = {
-                        if (isInboxOpen) {
-                            setInboxOpen(false)
-                        } else {
-                            loadInbox()
-                        }
-                    }
+                    onClick = { loadInbox() }
                     i {
                         className = ClassName("fa fa-solid fa-envelope")
                     }

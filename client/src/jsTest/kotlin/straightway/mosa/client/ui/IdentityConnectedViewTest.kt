@@ -80,6 +80,9 @@ import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
 import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
+import straightway.mosa.message.AdminMessage
+import straightway.mosa.message.AdminMessageListResult
+import straightway.mosa.message.CreateAdminMessageRequest
 
 class IdentityConnectedViewTest {
     private var originalPrompt: dynamic = null
@@ -662,6 +665,40 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `reloads inbox messages when clicking the inbox button again`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                inboxResponses =
+                    listOf(
+                        AdminMessageListResult(
+                            listOf(AdminMessage("message-1", "admin-a", 10, "First subject", "First body")),
+                        ),
+                        AdminMessageListResult(
+                            listOf(AdminMessage("message-2", "admin-a", 11, "Updated subject", "Updated body")),
+                        ),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+
+        user.click(inboxButton(view.container)).await()
+        waitForCondition { podAccess.messagesRequests.size == 1 }
+        waitForCondition { view.container.textContent?.contains("First subject") == true }
+
+        user.click(inboxButton(view.container)).await()
+        waitForCondition { podAccess.messagesRequests.size == 2 }
+        waitForCondition { view.container.textContent?.contains("Updated subject") == true }
+    }
+
+    @Test
     fun `deleting selected topic selects next`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val podAccess =
@@ -883,6 +920,9 @@ private fun scrollPostsToEnd(container: Element) {
     private fun composerButton(container: Element): Element =
         container.querySelector(".composer-button") ?: error("Composer button missing")
 
+    private fun inboxButton(container: Element): Element =
+        container.querySelector(".connected-shell__inbox-button") ?: error("Inbox button missing")
+
     private fun composerTextarea(container: Element): Element =
         container.querySelector(".composer-dialog__textarea") ?: error("Composer textarea missing")
 
@@ -1063,6 +1103,7 @@ private class RecordingPodAccess(
     responses: Map<String, QueryResult>,
     private val additionalResponses: Map<String, List<QueryResult>> = emptyMap(),
     replyResponses: Map<String, List<QueryResult>> = emptyMap(),
+    private val inboxResponses: List<AdminMessageListResult> = listOf(AdminMessageListResult(emptyList())),
     private val capabilities: ContentCapabilitiesResult = ContentCapabilitiesResult(isAdmin = false),
     private val capabilitiesByGid: Map<String, ContentCapabilitiesResult> = emptyMap(),
     private val deferredCapabilitiesByGid: Map<String, MutableList<CompletableDeferred<ContentCapabilitiesResult>>> = emptyMap(),
@@ -1072,7 +1113,9 @@ private class RecordingPodAccess(
     val queryInvocations get() = searchInvocations
     val publishRequests = mutableListOf<straightway.mosa.content.PublishRequest>()
     val replyRequests = mutableListOf<straightway.mosa.content.ReplyRequest>()
+    val messagesRequests = mutableListOf<String>()
     var shouldFailPublish = false
+    private val inboxResponseQueue = inboxResponses.toMutableList()
     private val responsesByTopic: MutableMap<String, MutableList<QueryResult>> =
         (responses.keys + additionalResponses.keys)
             .associateWith { topic ->
@@ -1116,6 +1159,18 @@ private class RecordingPodAccess(
 
     override suspend fun deletePost(postId: String, jwt: String): DeletePostsResult {
         error("Not implemented")
+    }
+
+    override suspend fun sendAdminMessage(
+        request: CreateAdminMessageRequest,
+        jwt: String,
+    ) {
+        error("Not implemented")
+    }
+
+    override suspend fun messages(jwt: String): AdminMessageListResult {
+        messagesRequests += jwt
+        return inboxResponseQueue.removeFirstOrNull() ?: AdminMessageListResult(emptyList())
     }
 
     override suspend fun exportPostsCsv(jwt: String): ByteArray {
