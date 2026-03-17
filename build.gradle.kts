@@ -3,11 +3,11 @@ import java.nio.file.attribute.PosixFilePermission
 
 plugins {
     id("base")
-    kotlin("jvm") version "2.3.20" apply false
-    kotlin("multiplatform") version "2.3.20" apply false
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.3.20" apply false
-    id("org.jmailen.kotlinter") version "5.4.2" apply false
-    id("com.gradleup.shadow") version "9.4.0" apply false
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.kotlin.multiplatform) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.kotlinter) apply false
+    alias(libs.plugins.shadow) apply false
 }
 
 val firefoxWorkspace = layout.projectDirectory.dir(".fx")

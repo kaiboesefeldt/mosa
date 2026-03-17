@@ -5,9 +5,9 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
-    kotlin("multiplatform")
-    id("org.jetbrains.kotlin.plugin.serialization")
-    id("org.jmailen.kotlinter")
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlinter)
 }
 
 group = "straightway.mosa"
@@ -22,9 +22,7 @@ val firefoxEnv = rootProject.extra["firefoxEnvironment"] as Map<String, String>
 val prepareFirefoxEnvironment = rootProject.tasks.named("prepareFirefoxEnvironment")
 
 kotlin {
-    val kotlinxSerializationVersion = "1.9.0"
-    val kotlinxCoroutinesVersion = "1.10.2"
-    jvm() 
+    jvm()
     js(IR) {
         browser {
             testTask {
@@ -39,13 +37,13 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
+                implementation(libs.kotlinx.serialization.json)
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinxCoroutinesVersion")
+                implementation(libs.kotlinx.coroutines.test)
             }
         }
     }

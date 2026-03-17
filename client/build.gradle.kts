@@ -3,8 +3,8 @@ import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("multiplatform")
-    id("org.jetbrains.kotlin.plugin.serialization")
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 group = "straightway.mosa"
@@ -46,52 +46,37 @@ kotlin {
     }
 
     sourceSets {
-        val koinVersion = "4.1.1"
-        val kotlinxCoroutinesVersion = "1.10.2"
-        val kotlinxSerializationJsonVersion = "1.9.0"
-        val ktorVersion = "3.3.1"
-        val kotlinReactWrappersVersion = "2026.3.12-19.2.4"
-        val kotlinBrowserWrappersVersion = "2026.3.12"
-        val diceBearVersion = "9.4.0"
-        val fontAwesomeVersion = "7.2.0"
-        val html2canvasVersion = "1.4.1"
-        val jspdfVersion = "4.2.0"
-
         jsMain {
             resources.srcDir(project(":shared").file("src/commonMain/resources"))
             dependencies {
                 implementation(kotlin("stdlib-js"))
-                implementation("io.insert-koin:koin-core:$koinVersion")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
-                implementation("io.ktor:ktor-client-js:$ktorVersion")
-                implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
-                implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
+                implementation(libs.koin.core)
+                implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.ktor.client.js)
+                implementation(libs.ktor.client.content.negotiation.js)
+                implementation(libs.ktor.serialization.kotlinx.json)
                 implementation(project(":shared"))
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
-                implementation("org.jetbrains.kotlin-wrappers:kotlin-react:$kotlinReactWrappersVersion")
-                implementation("org.jetbrains.kotlin-wrappers:kotlin-react-dom:$kotlinReactWrappersVersion")
-                implementation("org.jetbrains.kotlin-wrappers:kotlin-browser:$kotlinBrowserWrappersVersion")
-                implementation(npm("@dicebear/core", diceBearVersion))
-                implementation(npm("@dicebear/adventurer-neutral", diceBearVersion))
-                implementation(npm("@fortawesome/fontawesome-free", fontAwesomeVersion))
-                implementation(npm("html2canvas", html2canvasVersion))
-                implementation(npm("jspdf", jspdfVersion))
+                implementation(libs.kotlinx.serialization.json)
+                implementation(libs.kotlin.react)
+                implementation(libs.kotlin.react.dom)
+                implementation(libs.kotlin.browser)
+                implementation(npm("@dicebear/core", libs.versions.dicebear.get()))
+                implementation(npm("@dicebear/adventurer-neutral", libs.versions.dicebear.get()))
+                implementation(npm("@fortawesome/fontawesome-free", libs.versions.fontawesome.get()))
+                implementation(npm("html2canvas", libs.versions.html2canvas.get()))
+                implementation(npm("jspdf", libs.versions.jspdf.get()))
             }
         }
 
-        val karmaSourceMapSupportVersion = "1.4.0"
-        val testingLibReactVersion = "16.3.2"
-        val testingLibUserEventVersion = "14.6.1"
-        val testingLibDomVersion = "10.4.1"
         jsTest {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("io.ktor:ktor-client-mock:$ktorVersion")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test-js:$kotlinxCoroutinesVersion")
-                implementation(npm("karma-source-map-support", karmaSourceMapSupportVersion))
-                implementation(npm("@testing-library/react", testingLibReactVersion))
-                implementation(npm("@testing-library/user-event", testingLibUserEventVersion))
-                implementation(npm("@testing-library/dom", testingLibDomVersion))
+                implementation(libs.ktor.client.mock)
+                implementation(libs.kotlinx.coroutines.test.js)
+                implementation(npm("karma-source-map-support", libs.versions.karma.source.map.support.get()))
+                implementation(npm("@testing-library/react", libs.versions.testing.library.react.get()))
+                implementation(npm("@testing-library/user-event", libs.versions.testing.library.user.event.get()))
+                implementation(npm("@testing-library/dom", libs.versions.testing.library.dom.get()))
             }
         }
     }

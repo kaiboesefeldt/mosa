@@ -4,9 +4,9 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import org.gradle.api.file.DuplicatesStrategy
 
 plugins {
-    kotlin("jvm")
-    id("org.jmailen.kotlinter")
-    id("com.gradleup.shadow")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlinter)
+    alias(libs.plugins.shadow)
     application
 }
 
@@ -18,87 +18,51 @@ repositories {
 }
 
 dependencies {
-    val ktorVersion = "3.4.1"
-    val koinVersion = "4.1.1"
-    val jacksonVersion = "2.21.1"
-    val kotlinLoggingVersion = "8.0.01"
-    val logbackVersion = "1.5.32"
-    val djlVersion = "0.36.0"
-    val luceneVersion = "10.4.0"
-    val mockkVersion = "1.14.9"
-    val byteBuddyVersion = "1.18.7"
-    val auth0JwtVersion = "4.5.1"
-    val bouncyCastleVersion = "1.83"
-    val kotlinxCliVersion = "0.3.6"
-    val mordantVersion = "3.0.2"
-    val kotlinxCoroutinesVersion = "1.10.2"
-    val micrometerVersion = "1.16.4"
-    val jnaVersion = "5.18.1"
-    val commonsValidatorVersion = "1.10.1"
-
     implementation(project(":shared"))
 
-    // Ktor Server
-    implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
-    implementation("io.ktor:ktor-server-netty-jvm:$ktorVersion")
-    implementation("io.ktor:ktor-server-content-negotiation-jvm:$ktorVersion")
-    implementation("io.ktor:ktor-server-status-pages-jvm:$ktorVersion")
-    implementation("io.ktor:ktor-serialization-jackson-jvm:$ktorVersion")
-
-    // Ktor Auth
-    implementation("io.ktor:ktor-server-auth-jvm:$ktorVersion")
-
-    // Koin Dependency Injection
-    implementation("io.insert-koin:koin-ktor:$koinVersion")
-    implementation("io.insert-koin:koin-logger-slf4j:$koinVersion")
-
-    implementation("org.jetbrains.kotlinx:kotlinx-cli-jvm:$kotlinxCliVersion")
-    implementation("com.github.ajalt.mordant:mordant:$mordantVersion")
-    implementation("com.github.ajalt.mordant:mordant-markdown:$mordantVersion")
-
-    // Lucene as Vector Store for KNN search
-    implementation("org.apache.lucene:lucene-core:$luceneVersion")
-    implementation("org.apache.lucene:lucene-analysis-common:$luceneVersion")
-
-    // ONNX and djl Runtime for local embeddings
-    implementation(platform("ai.djl:bom:$djlVersion"))
-    implementation("ai.djl:api")
-    implementation("ai.djl:model-zoo")
-    implementation("ai.djl.onnxruntime:onnxruntime-engine")
-    implementation("ai.djl.huggingface:tokenizers")
-
-    // JSON & HTTP Client (for Embedding APIs etc.)
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
-    implementation("io.ktor:ktor-client-core-jvm:$ktorVersion")
-    implementation("io.ktor:ktor-client-cio-jvm:$ktorVersion")
-    implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
-
-    // Crypto
-    implementation("org.bouncycastle:bcprov-jdk18on:$bouncyCastleVersion")
-    implementation("org.bouncycastle:bcpkix-jdk18on:$bouncyCastleVersion")
-    implementation("com.auth0:java-jwt:${auth0JwtVersion}")
-
-    // Logging
-    implementation("io.github.oshai:kotlin-logging:$kotlinLoggingVersion")
-    implementation("ch.qos.logback:logback-classic:${logbackVersion}")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:$kotlinxCoroutinesVersion")
-    implementation("io.micrometer:micrometer-core:$micrometerVersion")
-    implementation("net.java.dev.jna:jna:$jnaVersion")
-    implementation("net.java.dev.jna:jna-platform:$jnaVersion")
-    implementation("commons-validator:commons-validator:$commonsValidatorVersion")
-
-    // Test
-    testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion") {
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.server.status.pages)
+    implementation(libs.ktor.serialization.jackson)
+    implementation(libs.ktor.server.auth)
+    implementation(libs.koin.ktor)
+    implementation(libs.koin.logger)
+    implementation(libs.kotlinx.cli)
+    implementation(libs.mordant)
+    implementation(libs.mordant.markdown)
+    implementation(libs.lucene.core)
+    implementation(libs.lucene.analysis.common)
+    implementation(platform(libs.djl.bom))
+    implementation(libs.djl.api)
+    implementation(libs.djl.model.zoo)
+    implementation(libs.djl.onnxruntime.engine)
+    implementation(libs.djl.tokenizers)
+    implementation(libs.jackson.module.kotlin)
+    implementation(libs.jackson.datatype.jsr310)
+    implementation(libs.jackson.dataformat.yaml)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.bcprov)
+    implementation(libs.bcpkix)
+    implementation(libs.auth0.jwt)
+    implementation(libs.kotlin.logging)
+    implementation(libs.logback.classic)
+    implementation(libs.kotlinx.coroutines.slf4j)
+    implementation(libs.micrometer.core)
+    implementation(libs.jna)
+    implementation(libs.jna.platform)
+    implementation(libs.commons.validator)
+    testImplementation(libs.ktor.server.test.host) {
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-debug")
     }
-    testImplementation("io.mockk:mockk:${mockkVersion}")
-    testImplementation("net.bytebuddy:byte-buddy:$byteBuddyVersion")
-    testImplementation("net.bytebuddy:byte-buddy-agent:$byteBuddyVersion")
+    testImplementation(libs.mockk)
+    testImplementation(libs.byte.buddy)
+    testImplementation(libs.byte.buddy.agent)
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter-api")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
 }
 
 application {
