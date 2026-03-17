@@ -450,6 +450,35 @@ class LuceneLocalVectorStoreSubIntegrationTest {
         @Test
         fun `searching for document id`() =
             test {
+                sut.writeAccess {
+                    add(
+                        id = "id0",
+                        text = "other",
+                        fields = emptyMap(),
+                        vector = vector(1.0, 0.0, 0.0),
+                    )
+                    add(
+                        id = "id1",
+                        text = "target",
+                        fields = mapOf("tag" to "value"),
+                        vector = vector(0.0, 1.0, 0.0),
+                    )
+                }
+
+                val searchResult = sut.query(Query(id = "id1"))
+
+                assertEquals(
+                    listOf(
+                        VectorStore.QueryResult(
+                            id = "id1",
+                            text = "target",
+                            similarity = 1.0f,
+                            fields = mapOf("tag" to "value"),
+                        ),
+                    ),
+                    searchResult.resultsPage,
+                )
+                assertNull(searchResult.queryOnId)
             }
     }
 
@@ -599,6 +628,62 @@ class LuceneLocalVectorStoreSubIntegrationTest {
                     searchResult.resultsPage.map { it.id },
                 )
                 assertNull(searchResult.queryOnId)
+            }
+    }
+
+    @Nested
+    inner class Fetch {
+        @Test
+        fun `fetch returns documents in requested id order`() =
+            test {
+                sut.writeAccess {
+                    add(
+                        id = "id1",
+                        text = "first",
+                        fields = mapOf("tag" to "a"),
+                        vector = vector,
+                    )
+                    testClock.advance(1.days)
+                    add(
+                        id = "id2",
+                        text = "second",
+                        fields = mapOf("tag" to "b"),
+                        vector = vector,
+                    )
+                }
+
+                val posts = sut.fetch(listOf("id2", "id1"))
+
+                assertEquals(
+                    listOf(
+                        VectorStore.PostDump("id2", "second", mapOf("tag" to "b")),
+                        VectorStore.PostDump("id1", "first", mapOf("tag" to "a")),
+                    ),
+                    posts,
+                )
+            }
+
+        @Test
+        fun `fetchByFieldValues returns all matching posts across multiple pages in time order`() =
+            test {
+                sut.writeAccess {
+                    (1..4).forEach {
+                        add(
+                            id = "id$it",
+                            text = "Text $it",
+                            fields = mapOf("tag" to "value"),
+                            vector = vector,
+                        )
+                        testClock.advance(1.days)
+                    }
+                }
+
+                val posts = sut.fetchByFieldValues("tag", setOf("value"))
+
+                assertEquals(
+                    listOf("id4", "id3", "id2", "id1"),
+                    posts.map { it.id },
+                )
             }
     }
 

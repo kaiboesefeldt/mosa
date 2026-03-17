@@ -320,7 +320,7 @@ class LuceneLocalVectorStore private constructor(
         return QueryResult(
             id = doc[ID_FIELD_NAME],
             text = doc[TEXT_FIELD_NAME],
-            similarity = this.score,
+            similarity = score.takeUnless(Float::isNaN) ?: 1.0f,
             fields = fields,
         )
     }
