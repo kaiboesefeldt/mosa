@@ -1,8 +1,8 @@
-Die JDK-/JVM-Toolchain des Repos soll von der aktuell konfigurierten Version `19` auf die nach aktuellem Stand neueste LTS-Version angehoben werden.
+Die JDK-/JVM-Toolchain des Repos soll auf die zum jeweiligen Bearbeitungszeitpunkt neueste sinnvolle Java-LTS-Version ausgerichtet werden.
 
 Ziel ist, Build und Laufzeit auf einen moderneren Java-Stand zu bringen, ohne das beobachtbare Verhalten des Systems, die Teststabilitaet oder die lokale Entwicklererfahrung unbeabsichtigt zu verschlechtern.
 
-Die Aufgabe ist bewusst separat von Bibliotheksupdates geschnitten, weil ein Toolchain-Upgrade andere Risiken und andere Rueckkopplungen hat als das Anheben einzelner Abhaengigkeiten.
+Die Aufgabe ist bewusst separat von Bibliotheksupdates geschnitten, weil ein Toolchain-Upgrade andere Risiken und andere Rueckkopplungen hat als das Anheben einzelner Abhaengigkeiten. Nach einer erfolgten Umstellung bleibt die Aufgabe als Wiedervorlage geeignet, um spaetere LTS-Wechsel oder Folgearbeiten erneut gesammelt zu betrachten.
 
 Das Upgrade der Kotlin-Version oder des Kotlin-Gradle-Plugins ist nicht Teil dieser Aufgabe und soll bewusst separat betrachtet werden. Wenn sich zeigt, dass die anvisierte Java-LTS-Version mit dem aktuell eingesetzten Kotlin-Stand nicht tragfaehig ist, ist das als Blocker oder Folgeaufgabe zu dokumentieren, statt innerhalb dieser Aufgabe stillschweigend auch Kotlin mit anzuheben.
 

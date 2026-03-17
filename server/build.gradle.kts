@@ -1,4 +1,6 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     kotlin("jvm")
@@ -106,8 +108,13 @@ application {
     mainClass.set("straightway.mosa.MainKt")
 }
 
+java {
+    sourceCompatibility = JavaVersion.toVersion(providers.gradleProperty("mosaJvmBytecodeTarget").get())
+    targetCompatibility = JavaVersion.toVersion(providers.gradleProperty("mosaJvmBytecodeTarget").get())
+}
+
 kotlin {
-    jvmToolchain(19)
+    jvmToolchain(providers.gradleProperty("mosaJvmToolchainVersion").get().toInt())
 }
 
 kotlinter {
@@ -118,8 +125,19 @@ tasks.withType<KotlinCompile> {
     dependsOn("formatKotlin")
 }
 
+tasks.withType<KotlinJvmCompile>().configureEach {
+    compilerOptions.jvmTarget.set(
+        JvmTarget.fromTarget(providers.gradleProperty("mosaJvmBytecodeTarget").get())
+    )
+}
+
 tasks.test {
     useJUnitPlatform()
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+}
+
+tasks.withType<JavaExec>().configureEach {
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
 val copyClientFiles = tasks.register<Copy>("copyClientFiles") {

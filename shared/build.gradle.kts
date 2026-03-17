@@ -1,6 +1,8 @@
 import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     kotlin("multiplatform")
@@ -47,7 +49,7 @@ kotlin {
             }
         }
     }
-    jvmToolchain(19)
+    jvmToolchain(providers.gradleProperty("mosaJvmToolchainVersion").get().toInt())
 }
 
 kotlinter {
@@ -56,6 +58,12 @@ kotlinter {
 
 tasks.withType<KotlinCompile> {
     dependsOn("formatKotlin")
+}
+
+tasks.withType<KotlinJvmCompile>().configureEach {
+    compilerOptions.jvmTarget.set(
+        JvmTarget.fromTarget(providers.gradleProperty("mosaJvmBytecodeTarget").get())
+    )
 }
 
 tasks.withType<KotlinJsTest>().configureEach {
