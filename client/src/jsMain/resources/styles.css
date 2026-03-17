@@ -789,12 +789,45 @@ button:disabled {
     border-radius: 16px;
     border: 1px solid rgba(148, 163, 184, 0.35);
     box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    position: relative;
 }
 
 .connected-shell__identity-name {
     font-weight: 600;
     font-size: 0.9rem;
     color: var(--color-text);
+}
+
+.connected-shell__inbox-button {
+    border: none;
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--color-primary);
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+    position: relative;
+}
+
+.connected-shell__inbox-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 0.25rem;
+    border-radius: 999px;
+    background: var(--color-danger);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .connected-shell__avatar-button {
@@ -862,6 +895,74 @@ button:disabled {
     text-transform: uppercase;
     box-shadow: 0 8px 16px rgba(146, 64, 14, 0.24);
     pointer-events: none;
+}
+
+.message-inbox {
+    position: absolute;
+    top: calc(100% + 0.65rem);
+    right: 0;
+    width: min(24rem, calc(100vw - 2rem));
+    max-height: min(32rem, 70vh);
+    overflow: auto;
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.9rem;
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+    z-index: 8;
+}
+
+.message-inbox__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.message-inbox__title {
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.message-inbox__close {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--color-muted);
+    font-size: 1.1rem;
+}
+
+.message-inbox__entry {
+    display: grid;
+    gap: 0.3rem;
+    padding: 0.75rem;
+    border-radius: 14px;
+    background: rgba(241, 245, 249, 0.72);
+}
+
+.message-inbox__subject {
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.message-inbox__meta,
+.message-inbox__timestamp,
+.message-inbox__empty {
+    color: var(--color-muted);
+    font-size: 0.84rem;
+}
+
+.message-inbox__body {
+    color: var(--color-text);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+}
+
+.message-inbox__error {
+    color: var(--color-danger);
+    font-size: 0.84rem;
 }
 
 .connected-shell__content {
@@ -1414,6 +1515,15 @@ button:disabled {
     box-shadow: var(--shadow-soft);
 }
 
+.post-card__avatar-button,
+.reply-card__avatar-button {
+    border: none;
+    background: transparent;
+    padding: 0;
+    display: inline-flex;
+    cursor: pointer;
+}
+
 .post-card__author-details {
     display: flex;
     flex-direction: column;
@@ -1694,6 +1804,63 @@ button:disabled {
     color: var(--color-text);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+}
+
+.message-compose {
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 0.75rem;
+    padding: 0.8rem;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+}
+
+.message-compose__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.message-compose__title {
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.message-compose__close {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--color-muted);
+    font-size: 1rem;
+}
+
+.message-compose__subject,
+.message-compose__body {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    padding: 0.7rem 0.8rem;
+    font: inherit;
+    color: var(--color-text);
+    background: rgba(255, 255, 255, 0.96);
+}
+
+.message-compose__body {
+    resize: vertical;
+}
+
+.message-compose__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.55rem;
+}
+
+.message-compose__error {
+    color: var(--color-danger);
+    font-size: 0.84rem;
 }
 
 .password-popover__backdrop {

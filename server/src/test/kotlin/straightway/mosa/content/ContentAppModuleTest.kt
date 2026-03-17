@@ -13,6 +13,8 @@ import straightway.mosa.HasherFactory
 import straightway.mosa.SignatureFactory
 import straightway.mosa.SignatureVerifierProvider
 import straightway.mosa.VectorStore
+import straightway.mosa.config.AdminAllowList
+import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.content.snapshot.FreezeSnapshotCryptoService
 import straightway.mosa.content.snapshot.FreezeSnapshotFormat
 import straightway.mosa.content.snapshot.FreezeSnapshotRestoreService
@@ -21,11 +23,14 @@ import straightway.mosa.content.snapshot.FreezeSnapshotSelectionService
 import straightway.mosa.content.snapshot.FreezeSnapshotService
 import straightway.mosa.content.snapshot.FreezeSnapshotSizePolicy
 import straightway.mosa.crypto.CryptoEd25519
+import straightway.mosa.defense.adminAllowList
+import java.nio.file.Path
 import java.security.MessageDigest
 import java.security.PublicKey
 import java.security.Signature
 import java.time.Clock
 import kotlin.test.assertSame
+import kotlin.time.Duration.Companion.seconds
 
 class ContentAppModuleTest {
     @Test
@@ -243,5 +248,19 @@ class ContentAppModuleTest {
             single<SignatureFactory> { signatureFactory }
             single<Crypto> { CryptoEd25519() }
             single<SignatureVerifierProvider> { SignatureVerifierProvider { Signature.getInstance("Ed25519") } }
+            single(adminAllowList) {
+                AutoRefreshingFileBackedContent(
+                    config =
+                        AutoRefreshingFileBackedContent.Config(
+                            path = Path.of("missing-admin-allow-list.yaml"),
+                            refreshInterval = 1.seconds,
+                        ),
+                    clock = get(),
+                    transformer =
+                        AutoRefreshingFileBackedContent.Transformer {
+                            AdminAllowList(emptyList())
+                        },
+                )
+            }
         }
 }

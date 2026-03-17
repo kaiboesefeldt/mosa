@@ -248,6 +248,53 @@ types:
         - 'AxY0b1p3...'
         - 'R0oTId42'
 
+  CreateAdminMessageRequest:
+    type: object
+    properties:
+      recipientGid:
+        type: string
+        description: MIS GID of the inbox recipient
+      subject:
+        type: string
+        description: Short message subject
+      body:
+        type: string
+        description: Message body text
+    example:
+      recipientGid: 'mZ0axz0t0z4IQsD4YBq1Hk3mQz0W9r1o'
+      subject: 'Moderation Notice'
+      body: 'Please review the latest community guidance.'
+
+  AdminMessage:
+    type: object
+    properties:
+      id: string
+      senderGid: string
+      createdAt:
+        type: integer
+        format: int64
+      subject: string
+      body: string
+    example:
+      id: '6a7b5e3c-1234-5678-9abc-def012345678'
+      senderGid: 'adminPodGid123'
+      createdAt: 1700000000
+      subject: 'Moderation Notice'
+      body: 'Please review the latest community guidance.'
+
+  AdminMessageListResult:
+    type: object
+    properties:
+      entries:
+        type: AdminMessage[]
+    example:
+      entries:
+        - id: '6a7b5e3c-1234-5678-9abc-def012345678'
+          senderGid: 'adminPodGid123'
+          createdAt: 1700000000
+          subject: 'Moderation Notice'
+          body: 'Please review the latest community guidance.'
+
   LegalDocumentChainResponse:
     type: object
     description: |
@@ -606,6 +653,48 @@ securitySchemes:
                 type: LegalDocumentChainResponse
           5xx:
             description: Server error
+
+  /admin:
+    /messages:
+      post:
+        is: [ rateLimited ]
+        securedBy: [ bearerAuth ]
+        displayName: Send Admin Message
+        description: |
+          Send a private admin message to one recipient inbox.
+          The authenticated sender must be listed as an admin.
+        body:
+          application/json:
+            type: CreateAdminMessageRequest
+        responses:
+          204:
+            description: Message accepted
+          400:
+            description: Invalid request (e.g., blank recipientGid, subject, or body)
+          401:
+            description: Missing or invalid bearer token
+          403:
+            description: Authenticated user is not allowed to send admin messages
+          5xx:
+            description: Server error
+
+  /messages:
+    get:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Get Admin Messages
+      description: |
+        Return private admin messages for the authenticated recipient.
+        Only messages for the caller's own identity are returned.
+      responses:
+        200:
+          body:
+            application/json:
+              type: AdminMessageListResult
+        401:
+          description: Missing or invalid bearer token
+        5xx:
+          description: Server error
 
   /publish:
     post:

@@ -30,6 +30,8 @@ import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.legal.ImprintService
 import straightway.mosa.legal.LegalController
 import straightway.mosa.legal.LegalService
+import straightway.mosa.message.AdminMessageController
+import straightway.mosa.message.AdminMessageService
 import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import straightway.mosa.webclient.WebClientCommandLineOptions.Companion.SERVE_SOURCE_MAPS
 import straightway.mosa.webclient.WebClientController
@@ -148,6 +150,11 @@ class AppModuleTest {
     }
 
     @Test
+    fun `provides admin message service singleton`() {
+        assertDoesNotThrow { koin.get<AdminMessageService>() }
+    }
+
+    @Test
     fun `provides pod certificate service singleton`() {
         assertDoesNotThrow { koin.get<PodCertificateService>() }
     }
@@ -175,6 +182,7 @@ class AppModuleTest {
             setOf(
                 ContentController::class,
                 PrivacySnapshotController::class,
+                AdminMessageController::class,
                 AuthenticationController::class,
                 LegalController::class,
                 WebClientController::class,

@@ -2,6 +2,7 @@ package straightway.mosa.content
 
 import org.koin.core.module.Module
 import org.koin.dsl.bind
+import org.koin.dsl.onClose
 import straightway.mosa.CommandLineArgumentStore
 import straightway.mosa.HasherFactory
 import straightway.mosa.SignatureFactory
@@ -23,9 +24,15 @@ import straightway.mosa.content.snapshot.FreezeSnapshotService
 import straightway.mosa.content.snapshot.FreezeSnapshotSizePolicy
 import straightway.mosa.content.snapshot.SecureRandomFreezeSnapshotNonceGenerator
 import straightway.mosa.defense.adminAllowList
+import straightway.mosa.message.AdminMessageCleanupJob
+import straightway.mosa.message.AdminMessageController
+import straightway.mosa.message.AdminMessageService
+import straightway.mosa.message.AdminMessageStore
+import straightway.mosa.message.FileBackedAdminMessageStore
 import java.nio.file.Path
 import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 
 fun Module.configureContentAppModule() {
     single { FileBackedFreezeSnapshotArchiveKeyStore(defaultFreezeSnapshotArchiveKeyPath(), get()) }
@@ -74,9 +81,27 @@ fun Module.configureContentAppModule() {
             (admins.get() ?: AdminAllowList(emptyList())).adminGids.contains(gid)
         }
     }
+    single<AdminMessageStore> { FileBackedAdminMessageStore(defaultAdminMessageStorePath()) }
+    single {
+        val admins = get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
+        AdminMessageService(
+            store = get(),
+            clock = get(),
+            isAdmin = { gid -> (admins.get() ?: AdminAllowList(emptyList())).adminGids.contains(gid) },
+            unretrievedTtl = 180.days,
+            retrievedTtl = 28.days,
+            idFactory = {
+                java.util.UUID
+                    .randomUUID()
+                    .toString()
+            },
+        )
+    }
+    single(createdAtStart = true) { AdminMessageCleanupJob(get(), cleanupInterval = 6.hours) } onClose { it?.close() }
     single { ContentSignatureVerifier(get(), get(), get()) }
     single { ContentController(get(), get(), get()) } bind BaseController::class
     single { PrivacySnapshotController(get(), get(), get()) } bind BaseController::class
+    single { AdminMessageController(get()) } bind BaseController::class
 }
 
 private fun defaultFreezeSnapshotPodId(
@@ -88,3 +113,5 @@ private fun defaultFreezeSnapshotPodId(
     )
 
 private fun defaultFreezeSnapshotArchiveKeyPath(): Path = Path.of(System.getProperty("user.dir"), "mosa_snapshot_archive_key.txt")
+
+private fun defaultAdminMessageStorePath(): Path = Path.of(System.getProperty("user.dir"), "mosa_admin_messages.json")

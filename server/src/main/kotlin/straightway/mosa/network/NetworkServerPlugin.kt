@@ -27,6 +27,7 @@ import straightway.mosa.content.ContentService.ContentNotFoundException
 import straightway.mosa.content.UnprocessableContentException
 import straightway.mosa.content.snapshot.InvalidFreezeSnapshotException
 import straightway.mosa.jackson.InstantJacksonSerializers
+import straightway.mosa.message.AdminMessageService.AdminMessageForbiddenException
 import java.util.TimeZone
 
 fun Application.installNetworkServerPlugins() {
@@ -46,6 +47,9 @@ fun Application.installNetworkServerPlugins() {
             call.respond(HttpStatusCode.NotFound, mapOf("message" to cause.message))
         }
         exception<ContentForbiddenException> { call, cause ->
+            call.respond(HttpStatusCode.Forbidden, mapOf("message" to cause.message))
+        }
+        exception<AdminMessageForbiddenException> { call, cause ->
             call.respond(HttpStatusCode.Forbidden, mapOf("message" to cause.message))
         }
         exception<InvalidFreezeSnapshotException> { call, cause ->

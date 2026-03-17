@@ -50,6 +50,8 @@ import straightway.mosa.client.content.ContentCapabilitiesService
 import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.AllPostsDeletionService
+import straightway.mosa.client.content.AdminMessageInboxService
+import straightway.mosa.client.content.AdminMessagePublisher
 import straightway.mosa.client.content.ContentSigner
 import straightway.mosa.client.content.ContentSignatureVerifier
 import straightway.mosa.client.content.PostsCsvDownloader
@@ -178,6 +180,8 @@ object AppModule : KoinComponent {
                         single<ReplyCache> { IndexedDbReplyCache(get(), get(), get()) }
                         single { TopicRepository(get(), get()) }
                         single { PostPublisher(get(), get()) }
+                        single { AdminMessageInboxService(get()) }
+                        single { AdminMessagePublisher(get()) }
                         single { ContentCapabilitiesService(get()) }
                         single { PostDeletionService(get(), get(), get()) }
                         single { AllPostsDeletionService(get(), get(), get()) }

@@ -35,6 +35,9 @@ import straightway.mosa.legal.imprint.ImprintAddress
 import straightway.mosa.legal.imprint.ImprintContactBlock
 import straightway.mosa.legal.imprint.ImprintDocument
 import straightway.mosa.legal.imprint.ImprintProviderBlock
+import straightway.mosa.message.AdminMessage
+import straightway.mosa.message.AdminMessageListResult
+import straightway.mosa.message.CreateAdminMessageRequest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -197,6 +200,42 @@ class PodAccessTest {
         val podAccess = podAccessResponding(HttpStatusCode.BadRequest)
 
         assertRestError("/v1/posts/id-1", HttpStatusCode.BadRequest) { podAccess.deletePost("id-1", "jwt-token") }
+    }
+
+    @Test
+    fun `sendAdminMessage posts request and accepts success`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.NoContent, capturedRequests)
+        val request = CreateAdminMessageRequest("recipient-gid", "Subject", "Body")
+
+        podAccess.sendAdminMessage(request, "jwt-token")
+
+        assertRequest(
+            capturedRequests.single(),
+            HttpMethod.Post,
+            route = "v1/admin/messages",
+            expectedPayload = request,
+            bearerToken = "jwt-token",
+        )
+    }
+
+    @Test
+    fun `messages sends authenticated get and returns inbox`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val expectedResult =
+            AdminMessageListResult(
+                listOf(AdminMessage("message-1", "admin-gid", 42, "Subject", "Body")),
+            )
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
+
+        val result = podAccess.messages("jwt-token")
+
+        assertEquals(expectedResult, result)
+        assertAuthenticatedGetRequest(
+            request = capturedRequests.single(),
+            route = "v1/messages",
+            bearerToken = "jwt-token",
+        )
     }
 
     @Test

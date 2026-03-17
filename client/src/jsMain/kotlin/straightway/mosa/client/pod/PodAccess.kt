@@ -14,18 +14,20 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import straightway.mosa.auth.AuthenticationApprovalRequest
 import straightway.mosa.auth.PodCertificateResponse
-import straightway.mosa.content.PublishRequest
-import straightway.mosa.content.QueryRequest
-import straightway.mosa.content.QueryOnRequest
-import straightway.mosa.content.ReplyRequest
-import straightway.mosa.content.FetchRequest
-import straightway.mosa.content.FetchResult
 import straightway.mosa.content.ContentCapabilitiesResult
 import straightway.mosa.content.DeletePostsResult
+import straightway.mosa.content.FetchRequest
+import straightway.mosa.content.FetchResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
+import straightway.mosa.content.PublishRequest
+import straightway.mosa.content.QueryOnRequest
+import straightway.mosa.content.QueryRequest
+import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.SearchResult
 import straightway.mosa.legal.LegalDocumentChainResponse
 import straightway.mosa.legal.imprint.ImprintDocument
+import straightway.mosa.message.AdminMessageListResult
+import straightway.mosa.message.CreateAdminMessageRequest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
@@ -36,6 +38,12 @@ interface PodAccess {
     suspend fun reply(request: ReplyRequest, jwt: String)
     suspend fun deletePosts(jwt: String): DeletePostsResult
     suspend fun deletePost(postId: String, jwt: String): DeletePostsResult
+    suspend fun sendAdminMessage(
+        request: CreateAdminMessageRequest,
+        jwt: String,
+    ): Unit = error("Admin message endpoint is not implemented for this PodAccess")
+    suspend fun messages(jwt: String): AdminMessageListResult =
+        error("Messages endpoint is not implemented for this PodAccess")
     suspend fun contentCapabilities(
         jwt: String,
         gid: String? = null,
@@ -126,6 +134,19 @@ class PodAccessImpl(
         val path = "/v1/posts/$postId"
         return delete(path, jwt).ensureSuccess(path, postId).body()
     }
+
+    override suspend fun sendAdminMessage(
+        request: CreateAdminMessageRequest,
+        jwt: String,
+    ) {
+        val path = "/v1/admin/messages"
+        post(path, request, jwt).ensureSuccess(path, request)
+    }
+
+    override suspend fun messages(jwt: String): AdminMessageListResult =
+        get("/v1/messages", jwt)
+            .ensureSuccess("/v1/messages", Unit)
+            .body()
 
     override suspend fun contentCapabilities(
         jwt: String,

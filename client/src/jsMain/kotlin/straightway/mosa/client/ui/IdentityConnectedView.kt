@@ -23,6 +23,7 @@ import react.dom.html.ReactHTML.button
 import react.dom.html.ReactHTML.div
 import react.dom.html.ReactHTML.img
 import react.dom.html.ReactHTML.i
+import react.dom.html.ReactHTML.input
 import react.dom.html.ReactHTML.span
 import react.dom.html.ReactHTML.textarea
 import react.dom.events.ChangeEvent
@@ -48,14 +49,18 @@ import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.ContentCapabilitiesService
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.AllPostsDeletionService
+import straightway.mosa.client.content.AdminMessageInboxService
+import straightway.mosa.client.content.AdminMessagePublisher
 import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.TopicFilters
 import straightway.mosa.client.content.ReplySearchService
 import straightway.mosa.client.content.ThreadReplies
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
+import straightway.mosa.message.AdminMessage
 import web.cssom.ClassName
 import web.html.HTMLTextAreaElement
+import web.html.HTMLInputElement
 
 external interface IdentityConnectedViewProps : Props {
     var identityName: String
@@ -107,6 +112,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val postDeletionService = ConnectedViewInjector.get<PostDeletionService>()
     val allPostsDeletionService = ConnectedViewInjector.get<AllPostsDeletionService>()
     val replyPublisher = ConnectedViewInjector.get<ReplyPublisher>()
+    val adminMessageInboxService = ConnectedViewInjector.get<AdminMessageInboxService>()
+    val adminMessagePublisher = ConnectedViewInjector.get<AdminMessagePublisher>()
     val visualsFactory =
         useMemo(nameGenerator, avatarGenerator) {
             IdentityVisualsFactory(nameGenerator, avatarGenerator)
@@ -140,6 +147,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (publishError, setPublishError) = useState<String?>(null)
     val (toastMessage, setToastMessage) = useState<String?>(null)
     val toastTimerRef = useRef<Int>()
+    val (isInboxOpen, setInboxOpen) = useState(false)
+    val (isInboxLoading, setInboxLoading) = useState(false)
+    val (inboxEntries, setInboxEntries) = useState<List<AdminMessage>>(emptyList())
+    val (inboxError, setInboxError) = useState<String?>(null)
     val (deleteCandidate, setDeleteCandidate) = useState<QueryResult.Entry?>(null)
     val (isDeletingPost, setDeletingPost) = useState(false)
     val (isDeletingAllPosts, setDeletingAllPosts) = useState(false)
@@ -148,6 +159,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (replyComposerText, setReplyComposerText) = useState("")
     val (isReplyPublishing, setReplyPublishing) = useState(false)
     val (replyPublishError, setReplyPublishError) = useState<String?>(null)
+    val (adminMessageComposeAnchorId, setAdminMessageComposeAnchorId) = useState<String?>(null)
+    val (adminMessageRecipientGid, setAdminMessageRecipientGid) = useState<String?>(null)
+    val (adminMessageRecipientName, setAdminMessageRecipientName) = useState<String?>(null)
+    val (adminMessageSubject, setAdminMessageSubject) = useState("")
+    val (adminMessageBody, setAdminMessageBody) = useState("")
+    val (isAdminMessageSending, setAdminMessageSending) = useState(false)
+    val (adminMessageError, setAdminMessageError) = useState<String?>(null)
     val (isMobile, setIsMobile) = useState(false)
     val (isTouchDevice, setIsTouchDevice) = useState(false)
     val (mobilePane, setMobilePane) = useState(MobilePane.Topics)
@@ -196,6 +214,47 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 setToastMessage(null)
             }, 3200)
         toastTimerRef.current = timerId
+    }
+
+    fun closeAdminMessageCompose() {
+        if (isAdminMessageSending) return
+        setAdminMessageComposeAnchorId(null)
+        setAdminMessageRecipientGid(null)
+        setAdminMessageRecipientName(null)
+        setAdminMessageSubject("")
+        setAdminMessageBody("")
+        setAdminMessageError(null)
+    }
+
+    fun openAdminMessageCompose(
+        anchorId: String,
+        recipientGid: String,
+        recipientName: String,
+    ) {
+        if (!adminPresentation.canDeleteAsAdmin) return
+        setAdminMessageComposeAnchorId(anchorId)
+        setAdminMessageRecipientGid(recipientGid)
+        setAdminMessageRecipientName(recipientName)
+        setAdminMessageSubject("")
+        setAdminMessageBody("")
+        setAdminMessageError(null)
+    }
+
+    fun loadInbox() {
+        if (isInboxLoading) return
+        setInboxOpen(true)
+        setInboxLoading(true)
+        setInboxError(null)
+        scope.launch {
+            val entries = runCatching { adminMessageInboxService.fetch() }.getOrNull()
+            setInboxLoading(false)
+            if (entries == null) {
+                setInboxEntries(emptyList())
+                setInboxError(translator.translate("connected.messages.inbox.error"))
+            } else {
+                setInboxEntries(entries)
+            }
+        }
     }
 
     fun updateTopicFilterState(filters: Map<String, Float>) {
@@ -928,6 +987,27 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             }
             div {
                 className = ClassName("connected-shell__profile")
+                button {
+                    className = ClassName("connected-shell__inbox-button")
+                    ariaLabel = translator.translate("connected.messages.inbox.button")
+                    title = translator.translate("connected.messages.inbox.button")
+                    onClick = {
+                        if (isInboxOpen) {
+                            setInboxOpen(false)
+                        } else {
+                            loadInbox()
+                        }
+                    }
+                    i {
+                        className = ClassName("fa fa-solid fa-envelope")
+                    }
+                    if (inboxEntries.isNotEmpty()) {
+                        span {
+                            className = ClassName("connected-shell__inbox-badge")
+                            +inboxEntries.size.toString()
+                        }
+                    }
+                }
                 span {
                     className = ClassName("connected-shell__identity-name")
                     +props.identityName
@@ -963,6 +1043,15 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                             +translator.translate("identity.admin.badge")
                         }
                     }
+                }
+                if (isInboxOpen) {
+                    adminMessageInboxPopover(
+                        translator = translator,
+                        entries = inboxEntries,
+                        isLoading = isInboxLoading,
+                        errorText = inboxError,
+                        onClose = { setInboxOpen(false) },
+                    )
                 }
             }
         }
@@ -1125,6 +1214,39 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onRequestDelete = ::requestDelete,
                     onCancelDelete = ::clearDeleteCandidate,
                     onConfirmDelete = ::confirmDelete,
+                    canComposeAdminMessage = adminPresentation.canDeleteAsAdmin,
+                    adminMessageComposeAnchorId = adminMessageComposeAnchorId,
+                    adminMessageRecipientName = adminMessageRecipientName,
+                    adminMessageSubject = adminMessageSubject,
+                    adminMessageBody = adminMessageBody,
+                    isAdminMessageSending = isAdminMessageSending,
+                    adminMessageError = adminMessageError,
+                    onOpenAdminMessageComposer = ::openAdminMessageCompose,
+                    onAdminMessageSubjectChange = { value -> setAdminMessageSubject(value) },
+                    onAdminMessageBodyChange = { value -> setAdminMessageBody(value) },
+                    onCloseAdminMessageComposer = ::closeAdminMessageCompose,
+                    onSendAdminMessage = {
+                        val recipientGid = adminMessageRecipientGid ?: return@postsColumn
+                        scope.launch {
+                            setAdminMessageSending(true)
+                            setAdminMessageError(null)
+                            val wasSent =
+                                runCatching {
+                                    adminMessagePublisher.send(
+                                        recipientGid,
+                                        adminMessageSubject,
+                                        adminMessageBody,
+                                    )
+                                }.getOrDefault(false)
+                            setAdminMessageSending(false)
+                            if (wasSent) {
+                                closeAdminMessageCompose()
+                                showToast(translator.translate("connected.messages.compose.success"))
+                            } else {
+                                setAdminMessageError(translator.translate("connected.messages.compose.error"))
+                            }
+                        }
+                    },
                     showBackToTopics = showBackButtons && mobilePane != MobilePane.Topics,
                     onBackToTopics = { setMobilePane(MobilePane.Topics) },
                     containerRef = postsContainerRef,
@@ -1164,6 +1286,39 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onCloseComposer = ::closeReplyComposer,
                     onReplyTextChange = { next -> setReplyComposerText(next) },
                     onSendReply = ::sendReply,
+                    canComposeAdminMessage = adminPresentation.canDeleteAsAdmin,
+                    adminMessageComposeAnchorId = adminMessageComposeAnchorId,
+                    adminMessageRecipientName = adminMessageRecipientName,
+                    adminMessageSubject = adminMessageSubject,
+                    adminMessageBody = adminMessageBody,
+                    isAdminMessageSending = isAdminMessageSending,
+                    adminMessageError = adminMessageError,
+                    onOpenAdminMessageComposer = ::openAdminMessageCompose,
+                    onAdminMessageSubjectChange = { value -> setAdminMessageSubject(value) },
+                    onAdminMessageBodyChange = { value -> setAdminMessageBody(value) },
+                    onCloseAdminMessageComposer = ::closeAdminMessageCompose,
+                    onSendAdminMessage = {
+                        val recipientGid = adminMessageRecipientGid ?: return@repliesColumn
+                        scope.launch {
+                            setAdminMessageSending(true)
+                            setAdminMessageError(null)
+                            val wasSent =
+                                runCatching {
+                                    adminMessagePublisher.send(
+                                        recipientGid,
+                                        adminMessageSubject,
+                                        adminMessageBody,
+                                    )
+                                }.getOrDefault(false)
+                            setAdminMessageSending(false)
+                            if (wasSent) {
+                                closeAdminMessageCompose()
+                                showToast(translator.translate("connected.messages.compose.success"))
+                            } else {
+                                setAdminMessageError(translator.translate("connected.messages.compose.error"))
+                            }
+                        }
+                    },
                 )
             }
         }
@@ -1289,6 +1444,18 @@ private fun ChildrenBuilder.postsColumn(
     onRequestDelete: (QueryResult.Entry) -> Unit,
     onCancelDelete: () -> Unit,
     onConfirmDelete: (QueryResult.Entry) -> Unit,
+    canComposeAdminMessage: Boolean,
+    adminMessageComposeAnchorId: String?,
+    adminMessageRecipientName: String?,
+    adminMessageSubject: String,
+    adminMessageBody: String,
+    isAdminMessageSending: Boolean,
+    adminMessageError: String?,
+    onOpenAdminMessageComposer: (String, String, String) -> Unit,
+    onAdminMessageSubjectChange: (String) -> Unit,
+    onAdminMessageBodyChange: (String) -> Unit,
+    onCloseAdminMessageComposer: () -> Unit,
+    onSendAdminMessage: () -> Unit,
     showBackToTopics: Boolean,
     onBackToTopics: () -> Unit,
     containerRef: Ref<HTMLDivElement>,
@@ -1394,6 +1561,18 @@ private fun ChildrenBuilder.postsColumn(
                         onRequestDelete = { onRequestDelete(entry) },
                         onCancelDelete = { onCancelDelete() },
                         onConfirmDelete = { onConfirmDelete(entry) },
+                        canComposeAdminMessage = canComposeAdminMessage,
+                        isAdminMessageComposerOpen = adminMessageComposeAnchorId == entry.id,
+                        adminMessageRecipientName = adminMessageRecipientName,
+                        adminMessageSubject = adminMessageSubject,
+                        adminMessageBody = adminMessageBody,
+                        isAdminMessageSending = isAdminMessageSending,
+                        adminMessageError = adminMessageError,
+                        onOpenAdminMessageComposer = onOpenAdminMessageComposer,
+                        onAdminMessageSubjectChange = onAdminMessageSubjectChange,
+                        onAdminMessageBodyChange = onAdminMessageBodyChange,
+                        onCloseAdminMessageComposer = onCloseAdminMessageComposer,
+                        onSendAdminMessage = onSendAdminMessage,
                     )
                 }
             }
@@ -1429,6 +1608,18 @@ private fun ChildrenBuilder.repliesColumn(
     onCloseComposer: () -> Unit,
     onReplyTextChange: (String) -> Unit,
     onSendReply: () -> Unit,
+    canComposeAdminMessage: Boolean,
+    adminMessageComposeAnchorId: String?,
+    adminMessageRecipientName: String?,
+    adminMessageSubject: String,
+    adminMessageBody: String,
+    isAdminMessageSending: Boolean,
+    adminMessageError: String?,
+    onOpenAdminMessageComposer: (String, String, String) -> Unit,
+    onAdminMessageSubjectChange: (String) -> Unit,
+    onAdminMessageBodyChange: (String) -> Unit,
+    onCloseAdminMessageComposer: () -> Unit,
+    onSendAdminMessage: () -> Unit,
     isMobile: Boolean,
     showBackToPosts: Boolean,
     onBackToPosts: () -> Unit,
@@ -1494,6 +1685,18 @@ private fun ChildrenBuilder.repliesColumn(
                     onRequestDelete = { onRequestDelete(reply) },
                     onCancelDelete = onCancelDelete,
                     onConfirmDelete = { onConfirmDelete(reply) },
+                    canComposeAdminMessage = canComposeAdminMessage,
+                    isAdminMessageComposerOpen = adminMessageComposeAnchorId == reply.id,
+                    adminMessageRecipientName = adminMessageRecipientName,
+                    adminMessageSubject = adminMessageSubject,
+                    adminMessageBody = adminMessageBody,
+                    isAdminMessageSending = isAdminMessageSending,
+                    adminMessageError = adminMessageError,
+                    onOpenAdminMessageComposer = onOpenAdminMessageComposer,
+                    onAdminMessageSubjectChange = onAdminMessageSubjectChange,
+                    onAdminMessageBodyChange = onAdminMessageBodyChange,
+                    onCloseAdminMessageComposer = onCloseAdminMessageComposer,
+                    onSendAdminMessage = onSendAdminMessage,
                 )
             }
         }
@@ -1608,6 +1811,18 @@ private fun ChildrenBuilder.replyCard(
     onRequestDelete: () -> Unit,
     onCancelDelete: () -> Unit,
     onConfirmDelete: () -> Unit,
+    canComposeAdminMessage: Boolean,
+    isAdminMessageComposerOpen: Boolean,
+    adminMessageRecipientName: String?,
+    adminMessageSubject: String,
+    adminMessageBody: String,
+    isAdminMessageSending: Boolean,
+    adminMessageError: String?,
+    onOpenAdminMessageComposer: (String, String, String) -> Unit,
+    onAdminMessageSubjectChange: (String) -> Unit,
+    onAdminMessageBodyChange: (String) -> Unit,
+    onCloseAdminMessageComposer: () -> Unit,
+    onSendAdminMessage: () -> Unit,
 ) {
     val authorVisuals = visualsFactory.createFromGid(reply.authorGID)
     val authorName = authorVisuals.name.toString().trim()
@@ -1618,10 +1833,26 @@ private fun ChildrenBuilder.replyCard(
         className = ClassName("reply-card")
         div {
             className = ClassName("reply-card__author-row")
-            img {
-                className = ClassName("reply-card__avatar")
-                src = authorVisuals.avatar
-                alt = authorName
+            if (canComposeAdminMessage) {
+                button {
+                    className = ClassName("reply-card__avatar-button")
+                    ariaLabel = translator.translate("connected.messages.compose.avatarAction")
+                    title = translator.translate("connected.messages.compose.avatarAction")
+                    onClick = {
+                        onOpenAdminMessageComposer(reply.id, reply.authorGID, authorName)
+                    }
+                    img {
+                        className = ClassName("reply-card__avatar")
+                        src = authorVisuals.avatar
+                        alt = authorName
+                    }
+                }
+            } else {
+                img {
+                    className = ClassName("reply-card__avatar")
+                    src = authorVisuals.avatar
+                    alt = authorName
+                }
             }
             div {
                 className = ClassName("reply-card__details")
@@ -1689,6 +1920,20 @@ private fun ChildrenBuilder.replyCard(
                     }
                 }
             }
+        }
+        if (isAdminMessageComposerOpen) {
+            adminMessageComposePopover(
+                translator = translator,
+                recipientName = adminMessageRecipientName ?: authorName,
+                subject = adminMessageSubject,
+                body = adminMessageBody,
+                isSending = isAdminMessageSending,
+                errorText = adminMessageError,
+                onSubjectChange = onAdminMessageSubjectChange,
+                onBodyChange = onAdminMessageBodyChange,
+                onClose = onCloseAdminMessageComposer,
+                onSend = onSendAdminMessage,
+            )
         }
     }
 }
@@ -1768,6 +2013,18 @@ private fun ChildrenBuilder.postCard(
     onRequestDelete: () -> Unit,
     onCancelDelete: () -> Unit,
     onConfirmDelete: () -> Unit,
+    canComposeAdminMessage: Boolean,
+    isAdminMessageComposerOpen: Boolean,
+    adminMessageRecipientName: String?,
+    adminMessageSubject: String,
+    adminMessageBody: String,
+    isAdminMessageSending: Boolean,
+    adminMessageError: String?,
+    onOpenAdminMessageComposer: (String, String, String) -> Unit,
+    onAdminMessageSubjectChange: (String) -> Unit,
+    onAdminMessageBodyChange: (String) -> Unit,
+    onCloseAdminMessageComposer: () -> Unit,
+    onSendAdminMessage: () -> Unit,
 ) {
     val authorVisuals = visualsFactory.createFromGid(entry.authorGID)
     val authorName = authorVisuals.name.toString().trim()
@@ -1794,10 +2051,27 @@ private fun ChildrenBuilder.postCard(
         onClick = { onSelect() }
         div {
             className = ClassName("post-card__author-row")
-            img {
-                className = ClassName("post-card__avatar")
-                src = authorVisuals.avatar
-                alt = authorName
+            if (canComposeAdminMessage) {
+                button {
+                    className = ClassName("post-card__avatar-button")
+                    ariaLabel = translator.translate("connected.messages.compose.avatarAction")
+                    title = translator.translate("connected.messages.compose.avatarAction")
+                    onClick = { event: MouseEvent<*, *> ->
+                        event.stopPropagation()
+                        onOpenAdminMessageComposer(entry.id, entry.authorGID, authorName)
+                    }
+                    img {
+                        className = ClassName("post-card__avatar")
+                        src = authorVisuals.avatar
+                        alt = authorName
+                    }
+                }
+            } else {
+                img {
+                    className = ClassName("post-card__avatar")
+                    src = authorVisuals.avatar
+                    alt = authorName
+                }
             }
             div {
                 className = ClassName("post-card__author-details")
@@ -1890,6 +2164,155 @@ private fun ChildrenBuilder.postCard(
                     }
                 }
             }
+        }
+        if (isAdminMessageComposerOpen) {
+            adminMessageComposePopover(
+                translator = translator,
+                recipientName = adminMessageRecipientName ?: authorName,
+                subject = adminMessageSubject,
+                body = adminMessageBody,
+                isSending = isAdminMessageSending,
+                errorText = adminMessageError,
+                onSubjectChange = onAdminMessageSubjectChange,
+                onBodyChange = onAdminMessageBodyChange,
+                onClose = onCloseAdminMessageComposer,
+                onSend = onSendAdminMessage,
+            )
+        }
+    }
+}
+
+private fun ChildrenBuilder.adminMessageInboxPopover(
+    translator: Translator,
+    entries: List<AdminMessage>,
+    isLoading: Boolean,
+    errorText: String?,
+    onClose: () -> Unit,
+) = div {
+    className = ClassName("message-inbox")
+    div {
+        className = ClassName("message-inbox__header")
+        span {
+            className = ClassName("message-inbox__title")
+            +translator.translate("connected.messages.inbox.title")
+        }
+        button {
+            className = ClassName("message-inbox__close")
+            ariaLabel = translator.translate("connected.messages.inbox.close")
+            onClick = { onClose() }
+            +"×"
+        }
+    }
+    when {
+        isLoading ->
+            div {
+                className = ClassName("message-inbox__empty")
+                +translator.translate("connected.messages.inbox.loading")
+            }
+        errorText != null ->
+            div {
+                className = ClassName("message-inbox__error")
+                +errorText
+            }
+        entries.isEmpty() ->
+            div {
+                className = ClassName("message-inbox__empty")
+                +translator.translate("connected.messages.inbox.empty")
+            }
+        else ->
+            entries.forEach { entry ->
+                div {
+                    key = entry.id.unsafeCast<Key>()
+                    className = ClassName("message-inbox__entry")
+                    span {
+                        className = ClassName("message-inbox__subject")
+                        +entry.subject
+                    }
+                    span {
+                        className = ClassName("message-inbox__meta")
+                        +translator.translate(
+                            "connected.messages.inbox.from",
+                            mapOf("gid" to entry.senderGid),
+                        )
+                    }
+                    span {
+                        className = ClassName("message-inbox__timestamp")
+                        +formatTimestamp(entry.createdAt)
+                    }
+                    div {
+                        className = ClassName("message-inbox__body")
+                        +entry.body
+                    }
+                }
+            }
+    }
+}
+
+private fun ChildrenBuilder.adminMessageComposePopover(
+    translator: Translator,
+    recipientName: String,
+    subject: String,
+    body: String,
+    isSending: Boolean,
+    errorText: String?,
+    onSubjectChange: (String) -> Unit,
+    onBodyChange: (String) -> Unit,
+    onClose: () -> Unit,
+    onSend: () -> Unit,
+) = div {
+    className = ClassName("message-compose")
+    onClick = { event: MouseEvent<*, *> -> event.stopPropagation() }
+    div {
+        className = ClassName("message-compose__header")
+        span {
+            className = ClassName("message-compose__title")
+            +translator.translate("connected.messages.compose.title", mapOf("name" to recipientName))
+        }
+        button {
+            className = ClassName("message-compose__close")
+            ariaLabel = translator.translate("connected.messages.compose.close")
+            onClick = { onClose() }
+            +"×"
+        }
+    }
+    input {
+        className = ClassName("message-compose__subject")
+        placeholder = translator.translate("connected.messages.compose.subject")
+        value = subject
+        disabled = isSending
+        onChange = { event: ChangeEvent<HTMLInputElement, HTMLInputElement> ->
+            onSubjectChange(event.currentTarget.value)
+        }
+    }
+    textarea {
+        className = ClassName("message-compose__body")
+        placeholder = translator.translate("connected.messages.compose.body")
+        value = body
+        disabled = isSending
+        rows = 4
+        onChange = { event: ChangeEvent<HTMLTextAreaElement, HTMLTextAreaElement> ->
+            onBodyChange(event.currentTarget.value)
+        }
+    }
+    if (errorText != null) {
+        div {
+            className = ClassName("message-compose__error")
+            +errorText
+        }
+    }
+    div {
+        className = ClassName("message-compose__actions")
+        button {
+            className = ClassName("button button--secondary message-compose__cancel")
+            disabled = isSending
+            onClick = { onClose() }
+            +translator.translate("connected.messages.compose.cancel")
+        }
+        button {
+            className = ClassName("button button--primary message-compose__send")
+            disabled = subject.isBlank() || body.isBlank() || isSending
+            onClick = { onSend() }
+            +translator.translate("connected.messages.compose.send")
         }
     }
 }
