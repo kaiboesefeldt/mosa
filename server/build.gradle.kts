@@ -20,8 +20,6 @@ repositories {
 dependencies {
     val ktorVersion = "3.4.1"
     val koinVersion = "4.1.1"
-    val exposedVersion = "1.0.0-beta-2"
-    val sqliteVersion = "3.51.3.0"
     val jacksonVersion = "2.21.1"
     val kotlinLoggingVersion = "8.0.01"
     val logbackVersion = "1.5.32"
@@ -56,12 +54,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-cli-jvm:$kotlinxCliVersion")
     implementation("com.github.ajalt.mordant:mordant:$mordantVersion")
     implementation("com.github.ajalt.mordant:mordant-markdown:$mordantVersion")
-
-    // Exposed ORM + SQLite
-    implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
-    implementation("org.xerial:sqlite-jdbc:$sqliteVersion")
 
     // Lucene as Vector Store for KNN search
     implementation("org.apache.lucene:lucene-core:$luceneVersion")
