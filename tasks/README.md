@@ -76,8 +76,8 @@ Beispiel: Aus `tasks/1-open/003-NewTask/` wird bei Arbeitsbeginn `tasks/2-in-pro
 
 1. Neue Aufgabe anlegen: Ordner unter `1-open` erstellen und `Description.md` schreiben.
 2. Arbeit starten: Ordner nach `2-in-progres` verschieben.
-3. Arbeit abschließen: Ordner nach `3-done` verschieben.
-4. Aufgabe verwerfen: Ordner nach `4-discarded` verschieben.
+3. Arbeit abschließen: Ordner nach `3-done` oder `5-follow-up` verschieben. Das erfolgt erst nach Freigabe durch einen Menschen.
+4. Aufgabe verwerfen: Ordner nach `4-discarded` verschieben. Das erfolgt nur durch Freigabe durch einen Menschen.
 5. Wiedervorlage vormerken: Ordner nach `5-follow-up` verschieben, wenn die Aufgabe spaeter bewusst erneut aufgegriffen werden soll.
 
 Wenn sich der Zuschnitt einer Aufgabe wesentlich ändert, wird die Beschreibung aktualisiert. Wenn daraus eigentlich zwei Aufgaben werden, bleibt die ursprüngliche Aufgabe klein und es wird eine neue Aufgabe mit neuer Nummer angelegt. Falls es pragmatischer ist, duerfen im Aufgabenordner auch Subtasks als weitere Markdown-Dateien oder Unterordner abgelegt werden, solange klar bleibt, was die Hauptaufgabe ist und was nur Teil davon ist.
