@@ -2,6 +2,7 @@
 
 package straightway.mosa.client.ui
 
+import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.awaitCancellation
@@ -59,6 +60,7 @@ import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.message.AdminMessage
 import web.cssom.ClassName
+import web.html.HTMLButtonElement
 import web.html.HTMLTextAreaElement
 import web.html.HTMLInputElement
 
@@ -177,6 +179,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (swipeOffsetPercent, setSwipeOffsetPercent) = useState(0.0)
     val snapshotRefreshVersionRef = useRef(props.profile.snapshotRefreshVersion)
     val connectedIdentityGidRef = useRef(props.profile.connectedIdentityGid)
+    val isInboxOpenRef = useRef(false)
+    val inboxButtonRef = useRef<HTMLButtonElement>()
+    val inboxPopoverRef = useRef<HTMLDivElement>()
+    isInboxOpenRef.current = isInboxOpen
 
     useEffect(sessionStore) {
         scope.launch {
@@ -260,6 +266,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
 
     fun loadInbox() {
         refreshInbox(openAfterLoad = true)
+    }
+
+    fun closeInbox() {
+        setInboxOpen(false)
     }
 
     fun updateTopicFilterState(filters: Map<String, Float>) {
@@ -557,9 +567,20 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     useEffect(*noDependencies) {
+        val inboxOutsideClickListener: (Event) -> Unit = listener@{ event ->
+            if (isInboxOpenRef.current != true) return@listener
+            val target = event.target?.unsafeCast<Element?>() ?: return@listener
+            val clickedInboxButton = inboxButtonRef.current?.contains(target) == true
+            val clickedInboxPopover = inboxPopoverRef.current?.contains(target) == true
+            if (!clickedInboxButton && !clickedInboxPopover) {
+                closeInbox()
+            }
+        }
+        document.addEventListener("mousedown", inboxOutsideClickListener)
         try {
             awaitCancellation()
         } finally {
+            document.removeEventListener("mousedown", inboxOutsideClickListener)
             clearProfileExitTimer()
             clearProfileEntryTimer()
             clearToastTimer()
@@ -1007,10 +1028,17 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             div {
                 className = ClassName("connected-shell__profile")
                 button {
+                    ref = inboxButtonRef
                     className = ClassName("connected-shell__inbox-button")
                     ariaLabel = translator.translate("connected.messages.inbox.button")
                     title = translator.translate("connected.messages.inbox.button")
-                    onClick = { loadInbox() }
+                    onClick = {
+                        if (isInboxOpen) {
+                            closeInbox()
+                        } else {
+                            loadInbox()
+                        }
+                    }
                     i {
                         className = ClassName("fa fa-solid fa-bullhorn")
                     }
@@ -1063,7 +1091,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                         entries = inboxEntries,
                         isLoading = isInboxLoading,
                         errorText = inboxError,
-                        onClose = { setInboxOpen(false) },
+                        popoverRef = inboxPopoverRef,
+                        onClose = { closeInbox() },
                     )
                 }
             }
@@ -2200,8 +2229,10 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
     entries: List<AdminMessage>,
     isLoading: Boolean,
     errorText: String?,
+    popoverRef: Ref<HTMLDivElement>,
     onClose: () -> Unit,
 ) = div {
+    ref = popoverRef
     className = ClassName("message-inbox")
     div {
         className = ClassName("message-inbox__header")

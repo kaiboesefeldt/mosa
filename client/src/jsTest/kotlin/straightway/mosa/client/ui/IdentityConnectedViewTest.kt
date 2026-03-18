@@ -665,7 +665,7 @@ class IdentityConnectedViewTest {
     }
 
     @Test
-    fun `reloads inbox messages when clicking the inbox button again`() = runTest {
+    fun `closes inbox when clicking the inbox button again`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val podAccess =
             RecordingPodAccess(
@@ -674,9 +674,6 @@ class IdentityConnectedViewTest {
                     listOf(
                         AdminMessageListResult(
                             listOf(AdminMessage("message-1", "admin-a", 10, "First subject", "First body")),
-                        ),
-                        AdminMessageListResult(
-                            listOf(AdminMessage("message-2", "admin-a", 11, "Updated subject", "Updated body")),
                         ),
                     ),
             )
@@ -694,8 +691,8 @@ class IdentityConnectedViewTest {
         waitForCondition { view.container.textContent?.contains("First subject") == true }
 
         user.click(inboxButton(view.container)).await()
-        waitForCondition { podAccess.messagesRequests.size == 2 }
-        waitForCondition { view.container.textContent?.contains("Updated subject") == true }
+        waitForCondition { view.container.querySelector(".message-inbox") == null }
+        assertEquals(1, podAccess.messagesRequests.size)
     }
 
     @Test
@@ -728,6 +725,34 @@ class IdentityConnectedViewTest {
         user.click(inboxButton(view.container)).await()
         waitForCondition { podAccess.messagesRequests.size == 2 }
         waitForCondition { view.container.textContent?.contains("Second profile refreshed") == true }
+    }
+
+    @Test
+    fun `closes inbox when clicking outside`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                inboxResponses =
+                    listOf(
+                        AdminMessageListResult(
+                            listOf(AdminMessage("message-1", "admin-a", 10, "First subject", "First body")),
+                        ),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+        user.click(inboxButton(view.container)).await()
+        waitForCondition { view.container.querySelector(".message-inbox") != null }
+
+        user.click(view.container.querySelector(".post-card") ?: error("Post card missing")).await()
+        waitForCondition { view.container.querySelector(".message-inbox") == null }
     }
 
     @Test
