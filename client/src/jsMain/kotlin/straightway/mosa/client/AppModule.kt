@@ -77,6 +77,8 @@ import straightway.mosa.client.legal.LegalImprintService
 import straightway.mosa.client.legal.LegalPrivacyPolicyService
 import straightway.mosa.client.legal.PrivacyClearTermsContentProvider
 import straightway.mosa.client.ui.BrowserIdentitySessionStore
+import straightway.mosa.client.ui.BrowserAdminMessageInboxStateStore
+import straightway.mosa.client.ui.AdminMessageInboxStateStore
 import straightway.mosa.client.ui.IdentitySessionStore
 import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.legal.clearterms.ClearTermsBrowserHashProvider
@@ -130,6 +132,7 @@ object AppModule : KoinComponent {
                         single<PasswordPrompter> { BrowserPasswordPrompter() }
                         single<IdentitySelectionRepository> { IdentityRepository(get(), get<IdentityProvider>(), get()) }
                         single<IdentitySessionStore> { BrowserIdentitySessionStore(get(), get(), get()) }
+                        single<AdminMessageInboxStateStore> { BrowserAdminMessageInboxStateStore() }
                         single {
                             HttpClient {
                                 install(ContentNegotiation) { json() }

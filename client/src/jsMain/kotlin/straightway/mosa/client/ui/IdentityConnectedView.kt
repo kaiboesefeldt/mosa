@@ -56,6 +56,7 @@ import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.TopicFilters
 import straightway.mosa.client.content.ReplySearchService
 import straightway.mosa.client.content.ThreadReplies
+import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.message.AdminMessage
@@ -99,10 +100,17 @@ private data class SwipeTargets(
     var post: QueryResult.Entry?,
 )
 
+private val emptyInboxStateSnapshot =
+    AdminMessageInboxStateSnapshot(
+        knownMessageIds = emptyList(),
+        seenMessageIds = emptyList(),
+    )
+
 val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val translator = ConnectedViewInjector.get<Translator>()
     val repository = ConnectedViewInjector.get<TopicRepository>()
     val sessionStore = ConnectedViewInjector.get<IdentitySessionStore>()
+    val inboxStateStore = ConnectedViewInjector.get<AdminMessageInboxStateStore>()
     val searchService = ConnectedViewInjector.get<TopicSearchService>()
     val postCache = ConnectedViewInjector.get<PostCache>()
     val replyCache = ConnectedViewInjector.get<ReplyCache>()
@@ -116,6 +124,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val replyPublisher = ConnectedViewInjector.get<ReplyPublisher>()
     val adminMessageInboxService = ConnectedViewInjector.get<AdminMessageInboxService>()
     val adminMessagePublisher = ConnectedViewInjector.get<AdminMessagePublisher>()
+    val podBaseProvider = ConnectedViewInjector.get<PodBaseProvider>()
     val visualsFactory =
         useMemo(nameGenerator, avatarGenerator) {
             IdentityVisualsFactory(nameGenerator, avatarGenerator)
@@ -153,6 +162,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (isInboxLoading, setInboxLoading) = useState(false)
     val (inboxEntries, setInboxEntries) = useState<List<AdminMessage>>(emptyList())
     val (inboxError, setInboxError) = useState<String?>(null)
+    val (unreadInboxCount, setUnreadInboxCount) = useState(0)
     val (deleteCandidate, setDeleteCandidate) = useState<QueryResult.Entry?>(null)
     val (isDeletingPost, setDeletingPost) = useState(false)
     val (isDeletingAllPosts, setDeletingAllPosts) = useState(false)
@@ -247,9 +257,49 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         setAdminMessageError(null)
     }
 
+    fun currentInboxStateKey(): Pair<String, String>? {
+        val podBase = podBaseProvider.base()?.trim()?.takeUnless(String::isEmpty) ?: return null
+        val gid = props.profile.connectedIdentityGid?.trim()?.takeUnless(String::isEmpty) ?: return null
+        return podBase to gid
+    }
+
+    fun loadInboxStateSnapshot(): AdminMessageInboxStateSnapshot {
+        val key = currentInboxStateKey() ?: return emptyInboxStateSnapshot
+        return inboxStateStore.load(key.first, key.second) ?: emptyInboxStateSnapshot
+    }
+
+    fun persistInboxStateSnapshot(snapshot: AdminMessageInboxStateSnapshot) {
+        val key = currentInboxStateKey() ?: return
+        inboxStateStore.store(key.first, key.second, snapshot)
+    }
+
+    fun unreadCount(snapshot: AdminMessageInboxStateSnapshot): Int {
+        val seen = snapshot.seenMessageIds.toSet()
+        return snapshot.knownMessageIds.count { it !in seen }
+    }
+
+    fun mergedInboxState(
+        entries: List<AdminMessage>,
+        markAsSeen: Boolean,
+    ): AdminMessageInboxStateSnapshot {
+        val currentSnapshot = loadInboxStateSnapshot()
+        val knownMessageIds = entries.map(AdminMessage::id).distinct()
+        val seenMessageIds =
+            if (markAsSeen) {
+                knownMessageIds
+            } else {
+                currentSnapshot.seenMessageIds.filter(knownMessageIds::contains)
+            }
+        return AdminMessageInboxStateSnapshot(
+            knownMessageIds = knownMessageIds,
+            seenMessageIds = seenMessageIds,
+        )
+    }
+
     fun refreshInbox(openAfterLoad: Boolean) {
         if (isInboxLoading) return
-        setInboxOpen(openAfterLoad || isInboxOpen)
+        val willBeOpen = openAfterLoad || isInboxOpenRef.current == true
+        setInboxOpen(willBeOpen)
         setInboxLoading(true)
         setInboxError(null)
         scope.launch {
@@ -260,6 +310,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 setInboxError(translator.translate("connected.messages.inbox.error"))
             } else {
                 setInboxEntries(entries)
+                val nextSnapshot = mergedInboxState(entries, markAsSeen = willBeOpen)
+                persistInboxStateSnapshot(nextSnapshot)
+                setUnreadInboxCount(unreadCount(nextSnapshot))
             }
         }
     }
@@ -481,11 +534,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     useEffect(props.profile.connectedIdentityGid) {
+        val storedSnapshot = loadInboxStateSnapshot()
+        setUnreadInboxCount(unreadCount(storedSnapshot))
+        setInboxEntries(emptyList())
+        setInboxError(null)
         val nextConnectedIdentityGid = props.profile.connectedIdentityGid
         if (nextConnectedIdentityGid == connectedIdentityGidRef.current) return@useEffect
         connectedIdentityGidRef.current = nextConnectedIdentityGid
-        setInboxEntries(emptyList())
-        setInboxError(null)
         if (nextConnectedIdentityGid == null) {
             setInboxLoading(false)
             setInboxOpen(false)
@@ -1042,10 +1097,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     i {
                         className = ClassName("fa fa-solid fa-bullhorn")
                     }
-                    if (inboxEntries.isNotEmpty()) {
+                    if (unreadInboxCount > 0) {
                         span {
                             className = ClassName("connected-shell__inbox-badge")
-                            +inboxEntries.size.toString()
+                            +unreadInboxCount.toString()
                         }
                     }
                 }

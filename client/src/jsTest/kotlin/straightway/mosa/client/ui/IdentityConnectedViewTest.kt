@@ -89,6 +89,7 @@ class IdentityConnectedViewTest {
     private var originalPrompt: dynamic = null
     private var originalObserver: dynamic = null
     private lateinit var sessionStore: ConnectedViewIdentitySessionStore
+    private lateinit var inboxStateStore: InMemoryAdminMessageInboxStateStore
 
     @BeforeTest
     fun setUp() {
@@ -103,6 +104,7 @@ class IdentityConnectedViewTest {
         window.asDynamic().prompt = originalPrompt
         window.asDynamic().IntersectionObserver = originalObserver
         sessionStore.prime(IdentitySessionSnapshot(null, false))
+        inboxStateStore.clear()
         window.asDynamic().MOSA_POD_BASE = null
         stopKoin()
     }
@@ -690,10 +692,52 @@ class IdentityConnectedViewTest {
         user.click(inboxButton(view.container)).await()
         waitForCondition { podAccess.messagesRequests.size == 1 }
         waitForCondition { view.container.textContent?.contains("First subject") == true }
+        waitForCondition { inboxBadge(view.container) == null }
 
         user.click(inboxButton(view.container)).await()
         waitForCondition { view.container.querySelector(".message-inbox") == null }
         assertEquals(1, podAccess.messagesRequests.size)
+    }
+
+    @Test
+    fun `hides unread badge after inbox messages were seen`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                inboxResponses =
+                    listOf(
+                        AdminMessageListResult(
+                            listOf(
+                                AdminMessage("message-1", adminSenderGid, 10, "First subject", "First body"),
+                                AdminMessage("message-2", adminSenderGid, 11, "Second subject", "Second body"),
+                            ),
+                        ),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        inboxStateStore.store(
+            "https://pod.example",
+            identityForTests.gid,
+            AdminMessageInboxStateSnapshot(
+                knownMessageIds = listOf("message-1", "message-2"),
+                seenMessageIds = emptyList(),
+            ),
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { unreadBadgeCount(view.container) == "2" }
+        user.click(inboxButton(view.container)).await()
+        waitForCondition { view.container.textContent?.contains("First subject") == true }
+        waitForCondition { inboxBadge(view.container) == null }
+        assertEquals(
+            listOf("message-1", "message-2"),
+            inboxStateStore.load("https://pod.example", identityForTests.gid)?.seenMessageIds,
+        )
     }
 
     @Test
@@ -796,6 +840,29 @@ class IdentityConnectedViewTest {
             (view.container.querySelector(".message-inbox__sender-avatar") as? HTMLImageElement)?.getAttribute("src"),
         )
         assertTrue(view.container.textContent?.contains(adminSenderGid) != true)
+    }
+
+    @Test
+    fun `shows unread badge from local inbox state before pod reports messages`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess = RecordingPodAccess(responses = mapOf("Alpha" to queryResult("p1")))
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        inboxStateStore.store(
+            "https://pod.example",
+            identityForTests.gid,
+            AdminMessageInboxStateSnapshot(
+                knownMessageIds = listOf("message-1", "message-2", "message-3"),
+                seenMessageIds = listOf("message-1"),
+            ),
+        )
+
+        val view = renderConnectedView()
+
+        waitForCondition { unreadBadgeCount(view.container) == "2" }
+        assertTrue(podAccess.messagesRequests.isEmpty())
     }
 
     @Test
@@ -953,6 +1020,7 @@ private fun scrollPostsToEnd(container: Element) {
             module {
                 single { Translator(emptyList()) }
                 single<IdentitySessionStore> { ConnectedViewIdentitySessionStore() }
+                single<AdminMessageInboxStateStore> { InMemoryAdminMessageInboxStateStore() }
                 single { FictionalNameGenerator() }
                 single { DiceBearAvatarGenerator() }
                 single<TopicStore> { InMemoryTopicStore(topics) }
@@ -1011,6 +1079,8 @@ private fun scrollPostsToEnd(container: Element) {
                 startKoin { modules(module) }
         sessionStore = ConnectedViewTestInjector.get<IdentitySessionStore>() as ConnectedViewIdentitySessionStore
         sessionStore.prime(IdentitySessionSnapshot(null, false))
+        inboxStateStore = ConnectedViewTestInjector.get<AdminMessageInboxStateStore>() as InMemoryAdminMessageInboxStateStore
+        inboxStateStore.clear()
     }
 
     private fun avatarButton(container: Element): Element =
@@ -1022,6 +1092,12 @@ private fun scrollPostsToEnd(container: Element) {
 
     private fun inboxButton(container: Element): Element =
         container.querySelector(".connected-shell__inbox-button") ?: error("Inbox button missing")
+
+    private fun inboxBadge(container: Element): Element? =
+        container.querySelector(".connected-shell__inbox-badge")
+
+    private fun unreadBadgeCount(container: Element): String? =
+        inboxBadge(container)?.textContent?.trim()
 
     private fun composerTextarea(container: Element): Element =
         container.querySelector(".composer-dialog__textarea") ?: error("Composer textarea missing")
@@ -1199,6 +1275,27 @@ private class ConnectedViewIdentitySessionStore : IdentitySessionStore {
     }
 
     fun current(): IdentitySessionSnapshot? = snapshot
+}
+
+private class InMemoryAdminMessageInboxStateStore : AdminMessageInboxStateStore {
+    private val snapshots = mutableMapOf<Pair<String, String>, AdminMessageInboxStateSnapshot>()
+
+    override fun load(
+        podBase: String,
+        gid: String,
+    ): AdminMessageInboxStateSnapshot? = snapshots[podBase to gid]
+
+    override fun store(
+        podBase: String,
+        gid: String,
+        snapshot: AdminMessageInboxStateSnapshot,
+    ) {
+        snapshots[podBase to gid] = snapshot
+    }
+
+    fun clear() {
+        snapshots.clear()
+    }
 }
 
 private class RecordingPodAccess(
