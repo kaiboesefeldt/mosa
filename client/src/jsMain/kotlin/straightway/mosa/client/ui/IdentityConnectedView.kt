@@ -171,13 +171,15 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (replyComposerText, setReplyComposerText) = useState("")
     val (isReplyPublishing, setReplyPublishing) = useState(false)
     val (replyPublishError, setReplyPublishError) = useState<String?>(null)
-    val (adminMessageComposeAnchorId, setAdminMessageComposeAnchorId) = useState<String?>(null)
+    val (adminUserCardAnchorId, setAdminUserCardAnchorId) = useState<String?>(null)
     val (adminMessageRecipientGid, setAdminMessageRecipientGid) = useState<String?>(null)
     val (adminMessageRecipientName, setAdminMessageRecipientName) = useState<String?>(null)
+    val (adminMessageRecipientAvatar, setAdminMessageRecipientAvatar) = useState<String?>(null)
     val (adminMessageSubject, setAdminMessageSubject) = useState("")
     val (adminMessageBody, setAdminMessageBody) = useState("")
     val (isAdminMessageSending, setAdminMessageSending) = useState(false)
     val (adminMessageError, setAdminMessageError) = useState<String?>(null)
+    val (isAdminMessageComposerOpen, setAdminMessageComposerOpen) = useState(false)
     val (isMobile, setIsMobile) = useState(false)
     val (isTouchDevice, setIsTouchDevice) = useState(false)
     val (mobilePane, setMobilePane) = useState(MobilePane.Topics)
@@ -190,9 +192,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val snapshotRefreshVersionRef = useRef(props.profile.snapshotRefreshVersion)
     val connectedIdentityGidRef = useRef(props.profile.connectedIdentityGid)
     val isInboxOpenRef = useRef(false)
+    val adminUserCardAnchorIdRef = useRef("")
     val inboxButtonRef = useRef<HTMLButtonElement>()
     val inboxPopoverRef = useRef<HTMLDivElement>()
     isInboxOpenRef.current = isInboxOpen
+    adminUserCardAnchorIdRef.current = adminUserCardAnchorId ?: ""
 
     useEffect(sessionStore) {
         scope.launch {
@@ -233,28 +237,43 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         toastTimerRef.current = timerId
     }
 
-    fun closeAdminMessageCompose() {
+    fun closeAdminUserCard() {
         if (isAdminMessageSending) return
-        setAdminMessageComposeAnchorId(null)
+        setAdminUserCardAnchorId(null)
         setAdminMessageRecipientGid(null)
         setAdminMessageRecipientName(null)
+        setAdminMessageRecipientAvatar(null)
         setAdminMessageSubject("")
         setAdminMessageBody("")
         setAdminMessageError(null)
+        setAdminMessageComposerOpen(false)
     }
 
-    fun openAdminMessageCompose(
+    fun toggleAdminUserCard(
         anchorId: String,
         recipientGid: String,
         recipientName: String,
+        recipientAvatar: String,
     ) {
         if (!adminPresentation.canDeleteAsAdmin) return
-        setAdminMessageComposeAnchorId(anchorId)
+        if (adminUserCardAnchorId == anchorId) {
+            closeAdminUserCard()
+            return
+        }
+        setAdminUserCardAnchorId(anchorId)
         setAdminMessageRecipientGid(recipientGid)
         setAdminMessageRecipientName(recipientName)
+        setAdminMessageRecipientAvatar(recipientAvatar)
         setAdminMessageSubject("")
         setAdminMessageBody("")
         setAdminMessageError(null)
+        setAdminMessageComposerOpen(false)
+    }
+
+    fun openAdminMessageCompose() {
+        if (adminUserCardAnchorId == null || adminMessageRecipientGid == null) return
+        setAdminMessageError(null)
+        setAdminMessageComposerOpen(true)
     }
 
     fun currentInboxStateKey(): Pair<String, String>? {
@@ -632,10 +651,21 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             }
         }
         document.addEventListener("mousedown", inboxOutsideClickListener)
+        val adminUserCardOutsideClickListener: (Event) -> Unit = listener@{ event ->
+            if ((adminUserCardAnchorIdRef.current ?: "").isEmpty()) return@listener
+            val target = event.target?.unsafeCast<Element?>() ?: return@listener
+            val clickedTrigger = target.asDynamic().closest(".admin-user-trigger") != null
+            val clickedCard = target.asDynamic().closest(".admin-user-card") != null
+            if (!clickedTrigger && !clickedCard) {
+                closeAdminUserCard()
+            }
+        }
+        document.addEventListener("mousedown", adminUserCardOutsideClickListener)
         try {
             awaitCancellation()
         } finally {
             document.removeEventListener("mousedown", inboxOutsideClickListener)
+            document.removeEventListener("mousedown", adminUserCardOutsideClickListener)
             clearProfileExitTimer()
             clearProfileEntryTimer()
             clearToastTimer()
@@ -1313,16 +1343,18 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onCancelDelete = ::clearDeleteCandidate,
                     onConfirmDelete = ::confirmDelete,
                     canComposeAdminMessage = adminPresentation.canDeleteAsAdmin,
-                    adminMessageComposeAnchorId = adminMessageComposeAnchorId,
+                    adminUserCardAnchorId = adminUserCardAnchorId,
                     adminMessageRecipientName = adminMessageRecipientName,
                     adminMessageSubject = adminMessageSubject,
                     adminMessageBody = adminMessageBody,
                     isAdminMessageSending = isAdminMessageSending,
                     adminMessageError = adminMessageError,
+                    isAdminMessageComposerOpen = isAdminMessageComposerOpen,
+                    onToggleAdminUserCard = ::toggleAdminUserCard,
                     onOpenAdminMessageComposer = ::openAdminMessageCompose,
                     onAdminMessageSubjectChange = { value -> setAdminMessageSubject(value) },
                     onAdminMessageBodyChange = { value -> setAdminMessageBody(value) },
-                    onCloseAdminMessageComposer = ::closeAdminMessageCompose,
+                    onCloseAdminMessageComposer = ::closeAdminUserCard,
                     onSendAdminMessage = {
                         val recipientGid = adminMessageRecipientGid ?: return@postsColumn
                         scope.launch {
@@ -1338,7 +1370,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                                 }.getOrDefault(false)
                             setAdminMessageSending(false)
                             if (wasSent) {
-                                closeAdminMessageCompose()
+                                closeAdminUserCard()
                                 showToast(translator.translate("connected.messages.compose.success"))
                             } else {
                                 setAdminMessageError(translator.translate("connected.messages.compose.error"))
@@ -1385,16 +1417,18 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onReplyTextChange = { next -> setReplyComposerText(next) },
                     onSendReply = ::sendReply,
                     canComposeAdminMessage = adminPresentation.canDeleteAsAdmin,
-                    adminMessageComposeAnchorId = adminMessageComposeAnchorId,
+                    adminUserCardAnchorId = adminUserCardAnchorId,
                     adminMessageRecipientName = adminMessageRecipientName,
                     adminMessageSubject = adminMessageSubject,
                     adminMessageBody = adminMessageBody,
                     isAdminMessageSending = isAdminMessageSending,
                     adminMessageError = adminMessageError,
+                    isAdminMessageComposerOpen = isAdminMessageComposerOpen,
+                    onToggleAdminUserCard = ::toggleAdminUserCard,
                     onOpenAdminMessageComposer = ::openAdminMessageCompose,
                     onAdminMessageSubjectChange = { value -> setAdminMessageSubject(value) },
                     onAdminMessageBodyChange = { value -> setAdminMessageBody(value) },
-                    onCloseAdminMessageComposer = ::closeAdminMessageCompose,
+                    onCloseAdminMessageComposer = ::closeAdminUserCard,
                     onSendAdminMessage = {
                         val recipientGid = adminMessageRecipientGid ?: return@repliesColumn
                         scope.launch {
@@ -1410,7 +1444,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                                 }.getOrDefault(false)
                             setAdminMessageSending(false)
                             if (wasSent) {
-                                closeAdminMessageCompose()
+                                closeAdminUserCard()
                                 showToast(translator.translate("connected.messages.compose.success"))
                             } else {
                                 setAdminMessageError(translator.translate("connected.messages.compose.error"))
@@ -1463,6 +1497,45 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             className = ClassName("connected-toast")
             +message
         }
+    }
+
+    if (adminUserCardAnchorId != null && adminMessageRecipientName != null && adminMessageRecipientAvatar != null) {
+        adminUserActionCardOverlay(
+            translator = translator,
+            recipientAvatar = adminMessageRecipientAvatar,
+            recipientName = adminMessageRecipientName,
+            isComposerOpen = isAdminMessageComposerOpen,
+            subject = adminMessageSubject,
+            body = adminMessageBody,
+            isSending = isAdminMessageSending,
+            errorText = adminMessageError,
+            onOpenComposer = ::openAdminMessageCompose,
+            onSubjectChange = { value -> setAdminMessageSubject(value) },
+            onBodyChange = { value -> setAdminMessageBody(value) },
+            onClose = ::closeAdminUserCard,
+            onSend = {
+                val recipientGid = adminMessageRecipientGid ?: return@adminUserActionCardOverlay
+                scope.launch {
+                    setAdminMessageSending(true)
+                    setAdminMessageError(null)
+                    val wasSent =
+                        runCatching {
+                            adminMessagePublisher.send(
+                                recipientGid,
+                                adminMessageSubject,
+                                adminMessageBody,
+                            )
+                        }.getOrDefault(false)
+                    setAdminMessageSending(false)
+                    if (wasSent) {
+                        closeAdminUserCard()
+                        showToast(translator.translate("connected.messages.compose.success"))
+                    } else {
+                        setAdminMessageError(translator.translate("connected.messages.compose.error"))
+                    }
+                }
+            },
+        )
     }
 }
 
@@ -1543,13 +1616,15 @@ private fun ChildrenBuilder.postsColumn(
     onCancelDelete: () -> Unit,
     onConfirmDelete: (QueryResult.Entry) -> Unit,
     canComposeAdminMessage: Boolean,
-    adminMessageComposeAnchorId: String?,
+    adminUserCardAnchorId: String?,
     adminMessageRecipientName: String?,
     adminMessageSubject: String,
     adminMessageBody: String,
     isAdminMessageSending: Boolean,
     adminMessageError: String?,
-    onOpenAdminMessageComposer: (String, String, String) -> Unit,
+    isAdminMessageComposerOpen: Boolean,
+    onToggleAdminUserCard: (String, String, String, String) -> Unit,
+    onOpenAdminMessageComposer: () -> Unit,
     onAdminMessageSubjectChange: (String) -> Unit,
     onAdminMessageBodyChange: (String) -> Unit,
     onCloseAdminMessageComposer: () -> Unit,
@@ -1660,17 +1735,7 @@ private fun ChildrenBuilder.postsColumn(
                         onCancelDelete = { onCancelDelete() },
                         onConfirmDelete = { onConfirmDelete(entry) },
                         canComposeAdminMessage = canComposeAdminMessage,
-                        isAdminMessageComposerOpen = adminMessageComposeAnchorId == entry.id,
-                        adminMessageRecipientName = adminMessageRecipientName,
-                        adminMessageSubject = adminMessageSubject,
-                        adminMessageBody = adminMessageBody,
-                        isAdminMessageSending = isAdminMessageSending,
-                        adminMessageError = adminMessageError,
-                        onOpenAdminMessageComposer = onOpenAdminMessageComposer,
-                        onAdminMessageSubjectChange = onAdminMessageSubjectChange,
-                        onAdminMessageBodyChange = onAdminMessageBodyChange,
-                        onCloseAdminMessageComposer = onCloseAdminMessageComposer,
-                        onSendAdminMessage = onSendAdminMessage,
+                        onToggleAdminUserCard = onToggleAdminUserCard,
                     )
                 }
             }
@@ -1707,13 +1772,15 @@ private fun ChildrenBuilder.repliesColumn(
     onReplyTextChange: (String) -> Unit,
     onSendReply: () -> Unit,
     canComposeAdminMessage: Boolean,
-    adminMessageComposeAnchorId: String?,
+    adminUserCardAnchorId: String?,
     adminMessageRecipientName: String?,
     adminMessageSubject: String,
     adminMessageBody: String,
     isAdminMessageSending: Boolean,
     adminMessageError: String?,
-    onOpenAdminMessageComposer: (String, String, String) -> Unit,
+    isAdminMessageComposerOpen: Boolean,
+    onToggleAdminUserCard: (String, String, String, String) -> Unit,
+    onOpenAdminMessageComposer: () -> Unit,
     onAdminMessageSubjectChange: (String) -> Unit,
     onAdminMessageBodyChange: (String) -> Unit,
     onCloseAdminMessageComposer: () -> Unit,
@@ -1784,17 +1851,7 @@ private fun ChildrenBuilder.repliesColumn(
                     onCancelDelete = onCancelDelete,
                     onConfirmDelete = { onConfirmDelete(reply) },
                     canComposeAdminMessage = canComposeAdminMessage,
-                    isAdminMessageComposerOpen = adminMessageComposeAnchorId == reply.id,
-                    adminMessageRecipientName = adminMessageRecipientName,
-                    adminMessageSubject = adminMessageSubject,
-                    adminMessageBody = adminMessageBody,
-                    isAdminMessageSending = isAdminMessageSending,
-                    adminMessageError = adminMessageError,
-                    onOpenAdminMessageComposer = onOpenAdminMessageComposer,
-                    onAdminMessageSubjectChange = onAdminMessageSubjectChange,
-                    onAdminMessageBodyChange = onAdminMessageBodyChange,
-                    onCloseAdminMessageComposer = onCloseAdminMessageComposer,
-                    onSendAdminMessage = onSendAdminMessage,
+                    onToggleAdminUserCard = onToggleAdminUserCard,
                 )
             }
         }
@@ -1910,20 +1967,11 @@ private fun ChildrenBuilder.replyCard(
     onCancelDelete: () -> Unit,
     onConfirmDelete: () -> Unit,
     canComposeAdminMessage: Boolean,
-    isAdminMessageComposerOpen: Boolean,
-    adminMessageRecipientName: String?,
-    adminMessageSubject: String,
-    adminMessageBody: String,
-    isAdminMessageSending: Boolean,
-    adminMessageError: String?,
-    onOpenAdminMessageComposer: (String, String, String) -> Unit,
-    onAdminMessageSubjectChange: (String) -> Unit,
-    onAdminMessageBodyChange: (String) -> Unit,
-    onCloseAdminMessageComposer: () -> Unit,
-    onSendAdminMessage: () -> Unit,
+    onToggleAdminUserCard: (String, String, String, String) -> Unit,
 ) {
     val authorVisuals = visualsFactory.createFromGid(reply.authorGID)
     val authorName = authorVisuals.name.toString().trim()
+    val canOpenAdminUserCard = canComposeAdminMessage && connectedGid != null && reply.authorGID != connectedGid
     val canDeleteReply = (connectedGid != null && reply.authorGID == connectedGid) || canDeleteAsAdmin
     val showDeletePopover = canDeleteReply && deleteCandidateId == reply.id
     div {
@@ -1931,49 +1979,57 @@ private fun ChildrenBuilder.replyCard(
         className = ClassName("reply-card")
         div {
             className = ClassName("reply-card__author-row")
-            if (canComposeAdminMessage) {
+            if (canOpenAdminUserCard) {
                 button {
-                    className = ClassName("reply-card__avatar-button")
-                    ariaLabel = translator.translate("connected.messages.compose.avatarAction")
-                    title = translator.translate("connected.messages.compose.avatarAction")
-                    onClick = {
-                        onOpenAdminMessageComposer(reply.id, reply.authorGID, authorName)
+                    className = ClassName("admin-user-trigger")
+                    ariaLabel = translator.translate("connected.messages.actions.open")
+                    title = translator.translate("connected.messages.actions.open")
+                    onClick = { event: MouseEvent<*, *> ->
+                        event.stopPropagation()
+                        onToggleAdminUserCard(reply.id, reply.authorGID, authorName, authorVisuals.avatar)
                     }
                     img {
                         className = ClassName("reply-card__avatar")
                         src = authorVisuals.avatar
                         alt = authorName
                     }
+                    div {
+                        className = ClassName("reply-card__details")
+                        span {
+                            className = ClassName("reply-card__author-name")
+                            +authorName
+                        }
+                    }
                 }
-            } else {
+            }
+            if (!canOpenAdminUserCard) {
                 img {
                     className = ClassName("reply-card__avatar")
                     src = authorVisuals.avatar
                     alt = authorName
                 }
+                div {
+                    span {
+                        className = ClassName("reply-card__author-name")
+                        +authorName
+                    }
+                }
             }
             div {
-                className = ClassName("reply-card__details")
+                className = ClassName("reply-card__meta")
                 span {
-                    className = ClassName("reply-card__author-name")
-                    +authorName
+                    className = ClassName("reply-card__timestamp")
+                    +formatTimestamp(reply.storedAt)
                 }
-                div {
-                    className = ClassName("reply-card__meta")
-                    span {
-                        className = ClassName("reply-card__timestamp")
-                        +formatTimestamp(reply.storedAt)
-                    }
-                    if (canDeleteReply) {
-                        val deleteLabel = translator.translate("connected.posts.delete.action")
-                        button {
-                            className = ClassName("post-card__delete reply-card__delete")
-                            ariaLabel = deleteLabel
-                            title = deleteLabel
-                            onClick = { onRequestDelete() }
-                            i {
-                                className = ClassName("fa fa-solid fa-trash")
-                            }
+                if (canDeleteReply) {
+                    val deleteLabel = translator.translate("connected.posts.delete.action")
+                    button {
+                        className = ClassName("post-card__delete reply-card__delete")
+                        ariaLabel = deleteLabel
+                        title = deleteLabel
+                        onClick = { onRequestDelete() }
+                        i {
+                            className = ClassName("fa fa-solid fa-trash")
                         }
                     }
                 }
@@ -2018,20 +2074,6 @@ private fun ChildrenBuilder.replyCard(
                     }
                 }
             }
-        }
-        if (isAdminMessageComposerOpen) {
-            adminMessageComposePopover(
-                translator = translator,
-                recipientName = adminMessageRecipientName ?: authorName,
-                subject = adminMessageSubject,
-                body = adminMessageBody,
-                isSending = isAdminMessageSending,
-                errorText = adminMessageError,
-                onSubjectChange = onAdminMessageSubjectChange,
-                onBodyChange = onAdminMessageBodyChange,
-                onClose = onCloseAdminMessageComposer,
-                onSend = onSendAdminMessage,
-            )
         }
     }
 }
@@ -2112,22 +2154,13 @@ private fun ChildrenBuilder.postCard(
     onCancelDelete: () -> Unit,
     onConfirmDelete: () -> Unit,
     canComposeAdminMessage: Boolean,
-    isAdminMessageComposerOpen: Boolean,
-    adminMessageRecipientName: String?,
-    adminMessageSubject: String,
-    adminMessageBody: String,
-    isAdminMessageSending: Boolean,
-    adminMessageError: String?,
-    onOpenAdminMessageComposer: (String, String, String) -> Unit,
-    onAdminMessageSubjectChange: (String) -> Unit,
-    onAdminMessageBodyChange: (String) -> Unit,
-    onCloseAdminMessageComposer: () -> Unit,
-    onSendAdminMessage: () -> Unit,
+    onToggleAdminUserCard: (String, String, String, String) -> Unit,
 ) {
     val authorVisuals = visualsFactory.createFromGid(entry.authorGID)
     val authorName = authorVisuals.name.toString().trim()
     val timestamp = formatTimestamp(entry.storedAt)
     val similarity = formatSimilarity(entry.similarity)
+    val canOpenAdminUserCard = canComposeAdminMessage && connectedGid != null && entry.authorGID != connectedGid
     val canDeletePost = (connectedGid != null && entry.authorGID == connectedGid) || canDeleteAsAdmin
     val showDeletePopover = canDeletePost && deleteCandidateId == entry.id
     val cardClass =
@@ -2149,74 +2182,82 @@ private fun ChildrenBuilder.postCard(
         onClick = { onSelect() }
         div {
             className = ClassName("post-card__author-row")
-            if (canComposeAdminMessage) {
+            if (canOpenAdminUserCard) {
                 button {
-                    className = ClassName("post-card__avatar-button")
-                    ariaLabel = translator.translate("connected.messages.compose.avatarAction")
-                    title = translator.translate("connected.messages.compose.avatarAction")
+                    className = ClassName("admin-user-trigger")
+                    ariaLabel = translator.translate("connected.messages.actions.open")
+                    title = translator.translate("connected.messages.actions.open")
                     onClick = { event: MouseEvent<*, *> ->
                         event.stopPropagation()
-                        onOpenAdminMessageComposer(entry.id, entry.authorGID, authorName)
+                        onToggleAdminUserCard(entry.id, entry.authorGID, authorName, authorVisuals.avatar)
                     }
                     img {
                         className = ClassName("post-card__avatar")
                         src = authorVisuals.avatar
                         alt = authorName
                     }
+                    div {
+                        className = ClassName("post-card__author-details")
+                        span {
+                            className = ClassName("post-card__author-name")
+                            +authorName
+                        }
+                    }
                 }
-            } else {
+            }
+            if (!canOpenAdminUserCard) {
                 img {
                     className = ClassName("post-card__avatar")
                     src = authorVisuals.avatar
                     alt = authorName
                 }
+                div {
+                    className = ClassName("post-card__author-details")
+                    span {
+                        className = ClassName("post-card__author-name")
+                        +authorName
+                    }
+                }
             }
             div {
-                className = ClassName("post-card__author-details")
+                className = ClassName("post-card__meta")
                 span {
-                    className = ClassName("post-card__author-name")
-                    +authorName
+                    className = ClassName("post-card__timestamp")
+                    +timestamp
                 }
-                div {
-                    className = ClassName("post-card__meta")
-                    span {
-                        className = ClassName("post-card__timestamp")
-                        +timestamp
+                span {
+                    className = ClassName("post-card__similarity")
+                    +similarity
+                }
+                button {
+                    className =
+                        if (isFilterEntry) {
+                            ClassName("post-card__filter post-card__filter--active")
+                        } else {
+                            ClassName("post-card__filter")
+                        }
+                    ariaLabel = filterLabel
+                    title = filterLabel
+                    onClick = { event: MouseEvent<*, *> ->
+                        event.stopPropagation()
+                        onToggleFilter(topic, entry)
                     }
-                    span {
-                        className = ClassName("post-card__similarity")
-                        +similarity
+                    i {
+                        className = ClassName("fa fa-solid fa-arrows-up-to-line")
                     }
+                }
+                if (canDeletePost) {
+                    val deleteLabel = translator.translate("connected.posts.delete.action")
                     button {
-                        className =
-                            if (isFilterEntry) {
-                                ClassName("post-card__filter post-card__filter--active")
-                            } else {
-                                ClassName("post-card__filter")
-                            }
-                        ariaLabel = filterLabel
-                        title = filterLabel
+                        className = ClassName("post-card__delete")
+                        ariaLabel = deleteLabel
+                        title = deleteLabel
                         onClick = { event: MouseEvent<*, *> ->
                             event.stopPropagation()
-                            onToggleFilter(topic, entry)
+                            onRequestDelete()
                         }
                         i {
-                            className = ClassName("fa fa-solid fa-arrows-up-to-line")
-                        }
-                    }
-                    if (canDeletePost) {
-                        val deleteLabel = translator.translate("connected.posts.delete.action")
-                        button {
-                            className = ClassName("post-card__delete")
-                            ariaLabel = deleteLabel
-                            title = deleteLabel
-                            onClick = { event: MouseEvent<*, *> ->
-                                event.stopPropagation()
-                                onRequestDelete()
-                            }
-                            i {
-                                className = ClassName("fa fa-solid fa-trash")
-                            }
+                            className = ClassName("fa fa-solid fa-trash")
                         }
                     }
                 }
@@ -2262,20 +2303,6 @@ private fun ChildrenBuilder.postCard(
                     }
                 }
             }
-        }
-        if (isAdminMessageComposerOpen) {
-            adminMessageComposePopover(
-                translator = translator,
-                recipientName = adminMessageRecipientName ?: authorName,
-                subject = adminMessageSubject,
-                body = adminMessageBody,
-                isSending = isAdminMessageSending,
-                errorText = adminMessageError,
-                onSubjectChange = onAdminMessageSubjectChange,
-                onBodyChange = onAdminMessageBodyChange,
-                onClose = onCloseAdminMessageComposer,
-                onSend = onSendAdminMessage,
-            )
         }
     }
 }
@@ -2359,6 +2386,115 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
                     }
                 }
             }
+    }
+}
+
+private fun ChildrenBuilder.adminUserActionCardOverlay(
+    translator: Translator,
+    recipientAvatar: String,
+    recipientName: String,
+    isComposerOpen: Boolean,
+    subject: String,
+    body: String,
+    isSending: Boolean,
+    errorText: String?,
+    onOpenComposer: () -> Unit,
+    onSubjectChange: (String) -> Unit,
+    onBodyChange: (String) -> Unit,
+    onClose: () -> Unit,
+    onSend: () -> Unit,
+) = div {
+    className = ClassName("admin-user-card-overlay")
+    onClick = { event: MouseEvent<*, *> ->
+        if (event.target == event.currentTarget) {
+            onClose()
+        }
+    }
+    adminUserActionCard(
+        translator = translator,
+        recipientAvatar = recipientAvatar,
+        recipientName = recipientName,
+        isComposerOpen = isComposerOpen,
+        subject = subject,
+        body = body,
+        isSending = isSending,
+        errorText = errorText,
+        onOpenComposer = onOpenComposer,
+        onSubjectChange = onSubjectChange,
+        onBodyChange = onBodyChange,
+        onClose = onClose,
+        onSend = onSend,
+    )
+}
+
+private fun ChildrenBuilder.adminUserActionCard(
+    translator: Translator,
+    recipientAvatar: String,
+    recipientName: String,
+    isComposerOpen: Boolean,
+    subject: String,
+    body: String,
+    isSending: Boolean,
+    errorText: String?,
+    onOpenComposer: () -> Unit,
+    onSubjectChange: (String) -> Unit,
+    onBodyChange: (String) -> Unit,
+    onClose: () -> Unit,
+    onSend: () -> Unit,
+) = div {
+    className = ClassName("admin-user-card")
+    onClick = { event: MouseEvent<*, *> -> event.stopPropagation() }
+    div {
+        className = ClassName("admin-user-card__header")
+        div {
+            className = ClassName("admin-user-card__identity")
+            img {
+                className = ClassName("admin-user-card__avatar")
+                src = recipientAvatar
+                alt = recipientName
+            }
+            div {
+                className = ClassName("admin-user-card__identity-text")
+                span {
+                    className = ClassName("admin-user-card__eyebrow")
+                    +translator.translate("connected.messages.actions.cardEyebrow")
+                }
+                span {
+                    className = ClassName("admin-user-card__name")
+                    +recipientName
+                }
+            }
+        }
+        button {
+            className = ClassName("admin-user-card__close")
+            ariaLabel = translator.translate("connected.messages.actions.close")
+            onClick = { onClose() }
+            +"×"
+        }
+    }
+    span {
+        className = ClassName("admin-user-card__hint")
+        +translator.translate("connected.messages.actions.hint")
+    }
+    if (!isComposerOpen) {
+        button {
+            className = ClassName("button button--primary admin-user-card__primary-action")
+            onClick = { onOpenComposer() }
+            +translator.translate("connected.messages.actions.send")
+        }
+    } else {
+        adminMessageComposePopover(
+            translator = translator,
+            recipientName = recipientName,
+            subject = subject,
+            body = body,
+            isSending = isSending,
+            errorText = errorText,
+            onSubjectChange = onSubjectChange,
+            onBodyChange = onBodyChange,
+            onClose = onClose,
+            onSend = onSend,
+        )
     }
 }
 

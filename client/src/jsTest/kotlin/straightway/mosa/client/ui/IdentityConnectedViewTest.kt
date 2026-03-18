@@ -866,6 +866,110 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `opens admin action card from foreign post author`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val recipientGid = fetchedAuthorGid("p1")
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+        val expectedName =
+            IdentityVisualsFactory(FictionalNameGenerator(), DiceBearAvatarGenerator())
+                .createFromGid(recipientGid)
+                .name
+                .toString()
+                .trim()
+
+        waitForCondition { adminUserTrigger(view.container) != null }
+        user.click(adminUserTrigger(view.container)!!).await()
+
+        waitForCondition { view.container.querySelector(".admin-user-card") != null }
+        assertTrue(view.container.querySelector(".admin-user-card-overlay") != null)
+        assertEquals(null, adminUserCard(view.container)?.closest(".post-card"))
+        assertEquals(null, adminUserCard(view.container)?.closest(".reply-card"))
+        assertEquals(expectedName, adminUserCardName(view.container)?.textContent?.trim())
+        assertEquals(
+            text("connected.messages.actions.send"),
+            adminUserCardSendButton(view.container).textContent?.trim(),
+        )
+    }
+
+    @Test
+    fun `does not show admin action trigger for own post`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val ownGid = fetchedAuthorGid("p1")
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1", authorGid = ownGid)),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        sessionStore.prime(IdentitySessionSnapshot(ownGid, false))
+
+        val view =
+            render(
+                FC<Props> {
+                    IdentityConnectedView {
+                        identityName = "Tester"
+                        profile = placeholderProfile(identityGid = ownGid, connectedIdentityGid = ownGid)
+                    }
+                }.create(),
+            )
+
+        waitForCondition { view.container.querySelector(".post-card") != null }
+        assertEquals(null, adminUserTrigger(view.container))
+    }
+
+    @Test
+    fun `sends admin message for selected user through existing flow`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val recipientGid = fetchedAuthorGid("p1")
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { adminUserTrigger(view.container) != null }
+        user.click(adminUserTrigger(view.container)!!).await()
+        waitForCondition { view.container.querySelector(".admin-user-card") != null }
+
+        user.click(adminUserCardSendButton(view.container)).await()
+        waitForCondition { view.container.querySelector(".message-compose") != null }
+        user.type(adminMessageSubjectInput(view.container), "Betreff").await()
+        user.type(adminMessageBodyInput(view.container), "Hinweistext").await()
+        user.click(adminMessageSendButton(view.container)).await()
+
+        waitForCondition { podAccess.adminMessageRequests.size == 1 }
+        assertEquals(
+            CreateAdminMessageRequest(
+                recipientGid = recipientGid,
+                subject = "Betreff",
+                body = "Hinweistext",
+            ),
+            podAccess.adminMessageRequests.single(),
+        )
+    }
+
+    @Test
     fun `deleting selected topic selects next`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val podAccess =
@@ -1099,6 +1203,31 @@ private fun scrollPostsToEnd(container: Element) {
     private fun unreadBadgeCount(container: Element): String? =
         inboxBadge(container)?.textContent?.trim()
 
+    private fun adminUserTrigger(container: Element): Element? =
+        container.querySelector(".admin-user-trigger")
+
+    private fun adminUserCardName(container: Element): Element? =
+        container.querySelector(".admin-user-card__name")
+
+    private fun adminUserCard(container: Element): Element? =
+        container.querySelector(".admin-user-card")
+
+    private fun adminUserCardSendButton(container: Element): Element =
+        container.querySelector(".admin-user-card__primary-action")
+            ?: error("Admin user card send button missing")
+
+    private fun adminMessageSubjectInput(container: Element): Element =
+        container.querySelector(".message-compose__subject")
+            ?: error("Admin message subject missing")
+
+    private fun adminMessageBodyInput(container: Element): Element =
+        container.querySelector(".message-compose__body")
+            ?: error("Admin message body missing")
+
+    private fun adminMessageSendButton(container: Element): Element =
+        container.querySelector(".message-compose__send")
+            ?: error("Admin message send button missing")
+
     private fun composerTextarea(container: Element): Element =
         container.querySelector(".composer-dialog__textarea") ?: error("Composer textarea missing")
 
@@ -1312,6 +1441,7 @@ private class RecordingPodAccess(
     val queryInvocations get() = searchInvocations
     val publishRequests = mutableListOf<straightway.mosa.content.PublishRequest>()
     val replyRequests = mutableListOf<straightway.mosa.content.ReplyRequest>()
+    val adminMessageRequests = mutableListOf<CreateAdminMessageRequest>()
     val messagesRequests = mutableListOf<String>()
     var shouldFailPublish = false
     private val inboxResponseQueue = inboxResponses.toMutableList()
@@ -1364,7 +1494,7 @@ private class RecordingPodAccess(
         request: CreateAdminMessageRequest,
         jwt: String,
     ) {
-        error("Not implemented")
+        adminMessageRequests += request
     }
 
     override suspend fun messages(jwt: String): AdminMessageListResult {
@@ -1654,3 +1784,5 @@ private fun QueryResult.toSearchResult(): SearchResult =
         entries = entries.map { SearchResult.Entry(it.id, it.similarity) },
         queryOnId = queryOnId,
     )
+
+private fun fetchedAuthorGid(entryId: String): String = "pub:$entryId".encodeToByteArray().toBase64Url()
