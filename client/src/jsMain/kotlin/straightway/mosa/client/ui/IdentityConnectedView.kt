@@ -2472,10 +2472,6 @@ private fun ChildrenBuilder.adminUserActionCard(
             +"×"
         }
     }
-    span {
-        className = ClassName("admin-user-card__hint")
-        +translator.translate("connected.messages.actions.hint")
-    }
     if (!isComposerOpen) {
         button {
             className = ClassName("button button--primary admin-user-card__primary-action")

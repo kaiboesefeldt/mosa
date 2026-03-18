@@ -62,7 +62,6 @@
   "connected.messages.inbox.from": "Von {{name}}",
   "connected.messages.actions.open": "Admin-Aktionen für diesen Nutzer öffnen",
   "connected.messages.actions.cardEyebrow": "Admin-Aktionen",
-  "connected.messages.actions.hint": "Diese Funktion sendet eine Admin-Nachricht direkt an diese Identität und ist nicht an den sichtbaren Beitrag gebunden.",
   "connected.messages.actions.send": "Admin-Nachricht senden",
   "connected.messages.actions.close": "Admin-Aktionskarte schließen",
   "connected.messages.compose.title": "Admin-Nachricht an {{name}}",

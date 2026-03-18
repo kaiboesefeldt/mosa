@@ -62,7 +62,6 @@
   "connected.messages.inbox.from": "From {{name}}",
   "connected.messages.actions.open": "Open admin actions for this user",
   "connected.messages.actions.cardEyebrow": "Admin actions",
-  "connected.messages.actions.hint": "This sends an admin message directly to this identity and is not tied to the visible post or reply.",
   "connected.messages.actions.send": "Send admin message",
   "connected.messages.actions.close": "Close admin action card",
   "connected.messages.compose.title": "Admin message to {{name}}",
