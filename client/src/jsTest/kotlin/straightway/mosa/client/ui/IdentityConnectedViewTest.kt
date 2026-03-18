@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Int8Array
+import org.w3c.dom.HTMLImageElement
 import kotlin.js.unsafeCast
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
@@ -673,7 +674,7 @@ class IdentityConnectedViewTest {
                 inboxResponses =
                     listOf(
                         AdminMessageListResult(
-                            listOf(AdminMessage("message-1", "admin-a", 10, "First subject", "First body")),
+                            listOf(AdminMessage("message-1", adminSenderGid, 10, "First subject", "First body")),
                         ),
                     ),
             )
@@ -704,10 +705,10 @@ class IdentityConnectedViewTest {
                 inboxResponses =
                     listOf(
                         AdminMessageListResult(
-                            listOf(AdminMessage("message-1", "admin-a", 10, "Second profile subject", "Second body")),
+                            listOf(AdminMessage("message-1", adminSenderGid, 10, "Second profile subject", "Second body")),
                         ),
                         AdminMessageListResult(
-                            listOf(AdminMessage("message-2", "admin-a", 11, "Second profile refreshed", "Second body refreshed")),
+                            listOf(AdminMessage("message-2", adminSenderGid, 11, "Second profile refreshed", "Second body refreshed")),
                         ),
                     ),
             )
@@ -736,7 +737,7 @@ class IdentityConnectedViewTest {
                 inboxResponses =
                     listOf(
                         AdminMessageListResult(
-                            listOf(AdminMessage("message-1", "admin-a", 10, "First subject", "First body")),
+                            listOf(AdminMessage("message-1", adminSenderGid, 10, "First subject", "First body")),
                         ),
                     ),
             )
@@ -753,6 +754,48 @@ class IdentityConnectedViewTest {
 
         user.click(view.container.querySelector(".post-card") ?: error("Post card missing")).await()
         waitForCondition { view.container.querySelector(".message-inbox") == null }
+    }
+
+    @Test
+    fun `shows admin notice sender with avatar and fictional name`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                inboxResponses =
+                    listOf(
+                        AdminMessageListResult(
+                            listOf(AdminMessage("message-1", adminSenderGid, 10, "First subject", "First body")),
+                        ),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+        val senderVisuals = IdentityVisualsFactory(FictionalNameGenerator(), DiceBearAvatarGenerator()).createFromGid(adminSenderGid)
+        val expectedSenderName = senderVisuals.name.toString().trim()
+        val expectedSenderLabel =
+            ConnectedViewTestInjector.get<Translator>().translate(
+                "connected.messages.inbox.from",
+                mapOf("name" to expectedSenderName),
+            )
+
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+        user.click(inboxButton(view.container)).await()
+
+        waitForCondition { view.container.querySelector(".message-inbox__sender-name") != null }
+        assertEquals(
+            expectedSenderLabel,
+            view.container.querySelector(".message-inbox__sender-name")?.textContent?.trim(),
+        )
+        assertEquals(
+            senderVisuals.avatar,
+            (view.container.querySelector(".message-inbox__sender-avatar") as? HTMLImageElement)?.getAttribute("src"),
+        )
+        assertTrue(view.container.textContent?.contains(adminSenderGid) != true)
     }
 
     @Test
@@ -1139,6 +1182,8 @@ private val identityForTests =
                     })"""
             ).unsafeCast<CryptoKeyPair>(),
     )
+
+private val adminSenderGid = byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8).toBase64Url()
 
 private class ConnectedViewIdentitySessionStore : IdentitySessionStore {
     private var snapshot: IdentitySessionSnapshot? = null

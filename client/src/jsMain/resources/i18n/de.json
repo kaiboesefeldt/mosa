@@ -59,7 +59,7 @@
   "connected.messages.inbox.loading": "Nachrichten werden geladen...",
   "connected.messages.inbox.empty": "Keine Nachrichten vorhanden.",
   "connected.messages.inbox.error": "Nachrichten konnten nicht geladen werden. Bitte versuche es erneut.",
-  "connected.messages.inbox.from": "Von {{gid}}",
+  "connected.messages.inbox.from": "Von {{name}}",
   "connected.messages.compose.avatarAction": "Admin-Nachricht schreiben",
   "connected.messages.compose.title": "Nachricht an {{name}}",
   "connected.messages.compose.subject": "Betreff",

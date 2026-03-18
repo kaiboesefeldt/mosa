@@ -1087,12 +1087,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 }
                 if (isInboxOpen) {
                     adminMessageInboxPopover(
-                        translator = translator,
-                        entries = inboxEntries,
-                        isLoading = isInboxLoading,
-                        errorText = inboxError,
-                        popoverRef = inboxPopoverRef,
-                        onClose = { closeInbox() },
+                        translator,
+                        visualsFactory,
+                        inboxEntries,
+                        isInboxLoading,
+                        inboxError,
+                        inboxPopoverRef,
+                        { closeInbox() },
                     )
                 }
             }
@@ -2226,6 +2227,7 @@ private fun ChildrenBuilder.postCard(
 
 private fun ChildrenBuilder.adminMessageInboxPopover(
     translator: Translator,
+    identityVisualsFactory: IdentityVisualsFactory,
     entries: List<AdminMessage>,
     isLoading: Boolean,
     errorText: String?,
@@ -2265,23 +2267,36 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
             }
         else ->
             entries.forEach { entry ->
+                val senderVisuals = identityVisualsFactory.createFromGid(entry.senderGid)
+                val senderName = senderVisuals.name.toString().trim()
                 div {
                     key = entry.id.unsafeCast<Key>()
                     className = ClassName("message-inbox__entry")
+                    div {
+                        className = ClassName("message-inbox__sender")
+                        img {
+                            className = ClassName("message-inbox__sender-avatar")
+                            src = senderVisuals.avatar
+                            alt = senderName
+                        }
+                        div {
+                            className = ClassName("message-inbox__sender-details")
+                            span {
+                                className = ClassName("message-inbox__sender-name")
+                                +translator.translate(
+                                    "connected.messages.inbox.from",
+                                    mapOf("name" to senderName),
+                                )
+                            }
+                            span {
+                                className = ClassName("message-inbox__timestamp")
+                                +formatTimestamp(entry.createdAt)
+                            }
+                        }
+                    }
                     span {
                         className = ClassName("message-inbox__subject")
                         +entry.subject
-                    }
-                    span {
-                        className = ClassName("message-inbox__meta")
-                        +translator.translate(
-                            "connected.messages.inbox.from",
-                            mapOf("gid" to entry.senderGid),
-                        )
-                    }
-                    span {
-                        className = ClassName("message-inbox__timestamp")
-                        +formatTimestamp(entry.createdAt)
                     }
                     div {
                         className = ClassName("message-inbox__body")

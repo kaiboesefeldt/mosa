@@ -59,7 +59,7 @@
   "connected.messages.inbox.loading": "Loading messages...",
   "connected.messages.inbox.empty": "No messages.",
   "connected.messages.inbox.error": "Messages could not be loaded. Please try again.",
-  "connected.messages.inbox.from": "From {{gid}}",
+  "connected.messages.inbox.from": "From {{name}}",
   "connected.messages.compose.avatarAction": "Write admin message",
   "connected.messages.compose.title": "Message to {{name}}",
   "connected.messages.compose.subject": "Subject",

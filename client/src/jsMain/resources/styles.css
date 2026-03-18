@@ -946,6 +946,33 @@ button:disabled {
     color: var(--color-text);
 }
 
+.message-inbox__sender {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.message-inbox__sender-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-soft);
+}
+
+.message-inbox__sender-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.message-inbox__sender-name {
+    color: var(--color-text);
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+
 .message-inbox__meta,
 .message-inbox__timestamp,
 .message-inbox__empty {
