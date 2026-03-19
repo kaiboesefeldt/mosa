@@ -32,7 +32,6 @@
 - For documentation-only or other non-code changes, `./gradlew check` is not required.
 
 ## 3. Code Design Rules
-- Prefer the latest stable Kotlin version unless a task explicitly requires a narrower compatibility window.
 - Formatting/linting: ktlint via `org.jmailen.kotlinter`.
 - Use expressive naming instead of comments. Do not write code comments.
 - Keep one top-level class per file.
@@ -41,9 +40,15 @@
 - Minimize nullable types where reasonable.
 - Keep package naming aligned with `straightway.mosa.*`.
 - Keep file names aligned with top-level declarations.
-- Use English for identifiers and test names.
-- Prefer explicit comparison operators such as `<`, `<=`, `>`, `>=`.
+- Use solely English language within code.
+- Prefer explicit comparison operators such as `<`, `<=`, avoid `>` and `>=`.
+- Apply Clean Code principles pragmatically.
 - Apply SOLID principles pragmatically.
+- Write code that is: 
+  - simple
+  - thoroughly designed
+  - easily maintainable
+  - intuitively understandable
 
 ## 4. UI vs Business Logic
 - Keep UI-specific code as small as possible and clearly separated from non-UI logic.
@@ -59,9 +64,10 @@
 - Prevent false-positive tests caused by unmet preconditions.
 - Test names must use Kotlin backticks, e.g. `fun \`invokes connect handler when interaction finishes\`()`.
 - Functionally neutral production changes to improve testability are allowed.
-- Target high coverage (ideally 100%), but interpret coverage carefully:
+- Target full branch coverage (ideally 100%), but interpret coverage carefully:
   - Kotlin data classes and `@Serializable` code may report inaccurately.
   - Kotlin/JS coverage is currently not measured.
+  - Verify the coverage if possible. If not possible, double check manually, if you have tested all branches.
 
 ## 6. Build and Verification Commands
 - Full quality gate: `./gradlew check`
