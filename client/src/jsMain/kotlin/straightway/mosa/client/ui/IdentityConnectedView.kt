@@ -2202,6 +2202,10 @@ private fun ChildrenBuilder.postCard(
                             className = ClassName("post-card__author-name")
                             +authorName
                         }
+                        span {
+                            className = ClassName("post-card__timestamp")
+                            +timestamp
+                        }
                     }
                 }
             }
@@ -2217,14 +2221,14 @@ private fun ChildrenBuilder.postCard(
                         className = ClassName("post-card__author-name")
                         +authorName
                     }
+                    span {
+                        className = ClassName("post-card__timestamp")
+                        +timestamp
+                    }
                 }
             }
             div {
                 className = ClassName("post-card__meta")
-                span {
-                    className = ClassName("post-card__timestamp")
-                    +timestamp
-                }
                 span {
                     className = ClassName("post-card__similarity")
                     +similarity

@@ -1529,7 +1529,7 @@ button:disabled {
 
 .post-card__author-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.55rem;
 }
 
@@ -1556,7 +1556,7 @@ button:disabled {
     background: transparent;
     padding: 0;
     display: inline-flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.55rem;
     cursor: pointer;
     text-align: left;
@@ -1595,11 +1595,14 @@ button:disabled {
 .post-card__meta {
     display: flex;
     align-items: center;
+    margin-left: auto;
     gap: 0.35rem;
     line-height: 1;
 }
 
 .post-card__similarity {
+    display: inline-flex;
+    align-items: center;
     font-size: 0.8rem;
     color: var(--color-muted);
     font-weight: 600;
@@ -1620,6 +1623,13 @@ button:disabled {
     justify-content: center;
     font-size: 0.8rem;
     transition: color 0.2s ease, background 0.2s ease;
+}
+
+.post-card__filter i,
+.post-card__delete i,
+.reply-card__delete i {
+    display: block;
+    line-height: 1;
 }
 
 .post-card__filter:hover {
