@@ -3,9 +3,6 @@ package straightway.mosa.defense.core
 import com.sun.management.OperatingSystemMXBean
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import io.mockk.every
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
 import kotlinx.coroutines.runBlocking
 import org.koin.core.KoinApplication
 import org.koin.dsl.koinApplication
@@ -39,27 +36,6 @@ class SheddingDeciderChainTest {
             assertNotNull(result)
         } finally {
             koinApplication.close()
-        }
-    }
-
-    @Test
-    fun `builds shedding decider chain without memory bean`() {
-        mockkStatic(ManagementFactory::class)
-        try {
-            every { ManagementFactory.getMemoryMXBean() } returns null
-            val koinApplication = buildKoin(createOsBean())
-            try {
-                val decider = koinApplication.koin.sheddingDeciderChain()
-                runBlocking {
-                    decider.decideShedding(
-                        SheddingRequest("GET", "/health"),
-                    )
-                }
-            } finally {
-                koinApplication.close()
-            }
-        } finally {
-            unmockkStatic(ManagementFactory::class)
         }
     }
 

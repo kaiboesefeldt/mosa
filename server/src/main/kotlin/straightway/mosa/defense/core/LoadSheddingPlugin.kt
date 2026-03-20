@@ -19,6 +19,7 @@ import straightway.mosa.defense.cpu.ProcessCpuTimeSampler
 import straightway.mosa.defense.cpu.SmoothedCpuLoadSampler
 import straightway.mosa.defense.memory.GenericMemoryUsageSampler
 import straightway.mosa.defense.memory.MemorySheddingDecider
+import straightway.mosa.defense.memory.NonHeapMemoryPoolUsageSampler
 import straightway.mosa.defense.memory.SystemMemoryUsageSampler
 import straightway.mosa.defense.requestduration.RequestDurationSheddingDecider
 import java.lang.management.ManagementFactory
@@ -151,14 +152,17 @@ private fun Koin.requestDurationSheddingDecider() = RequestDurationSheddingDecid
 
 private fun Koin.nonHeapMemorySheddingDecider() =
     with(get<LoadSheddingConfig>()) {
-        ManagementFactory.getMemoryMXBean()?.let { memoryBean ->
-            MemorySheddingDecider(
-                nonHeapMemorySheddingConfig,
-                GenericMemoryUsageSampler("NonHeapMemory") { memoryBean.nonHeapMemoryUsage },
-            )
-        } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
+        ManagementFactory
+            .getMemoryPoolMXBeans()
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { memoryPools ->
+                MemorySheddingDecider(
+                    nonHeapMemorySheddingConfig,
+                    NonHeapMemoryPoolUsageSampler { memoryPools },
+                )
+            } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
             .also {
-                localLogger.warn { "Memory shedding by non-heap size not available" }
+                localLogger.warn { "Memory shedding by non-heap pools not available" }
             }
     }
 
@@ -167,7 +171,7 @@ private fun Koin.heapMemorySheddingDecider() =
         ManagementFactory.getMemoryMXBean()?.let { memoryBean ->
             MemorySheddingDecider(
                 heapMemorySheddingConfig,
-                GenericMemoryUsageSampler("NonHeapMemory") { memoryBean.heapMemoryUsage },
+                GenericMemoryUsageSampler("HeapMemory") { memoryBean.heapMemoryUsage },
             )
         } ?: SheddingDecider { SheddingDecider.Result.NO_SHEDDING }
             .also {
