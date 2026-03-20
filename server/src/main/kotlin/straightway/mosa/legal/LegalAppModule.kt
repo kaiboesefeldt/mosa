@@ -17,7 +17,7 @@ import java.nio.file.Path
 fun Module.configureLegalAppModule() {
     single(legalPrivacyProfilePathQualifier) { Path.of("mosa_privacy.yaml") }
     single(legalTermsProfilePathQualifier) { Path.of("mosa_terms.yaml") }
-    single(legalImprintPathQualifier) { Path.of("imprint.yaml") }
+    single(legalImprintPathQualifier) { Path.of("mosa_imprint.yaml") }
     single {
         ClearTermsYamlCanonicalJsonConverter()
     }

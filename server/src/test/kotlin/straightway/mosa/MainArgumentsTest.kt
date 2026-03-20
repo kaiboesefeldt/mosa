@@ -9,8 +9,12 @@ import straightway.mosa.content.ContentCommandLineOptions
 import straightway.mosa.defense.DefenseCommandLineOptions
 import straightway.mosa.network.NetworkCommandLineOptions
 import straightway.mosa.webclient.WebClientCommandLineOptions.Companion.SERVE_SOURCE_MAPS
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 @OptIn(ExperimentalCli::class)
 class MainArgumentsTest {
@@ -201,6 +205,28 @@ class MainArgumentsTest {
         assertEquals(250, store?.getInt(ContentCommandLineOptions.MAX_FETCH_ITEMS))
     }
 
+    @Test
+    fun `serve doc prints current top level runtime artifacts`() {
+        val output =
+            captureStdout {
+                val parser = ArgParser("mosa")
+                val serveCommand = spyk(ServeCommand())
+                every { serveCommand.startMosaServer(any()) } answers {
+                    throw IllegalStateException("serve should not start for --doc")
+                }
+
+                parser.subcommands(serveCommand)
+                parser.parse(arrayOf("serve", "--doc"))
+            }
+
+        assertContains(output, "File name: mosa_imprint.yaml")
+        assertContains(output, "File name: mosa_admin_messages.json")
+        assertContains(output, "File name: mosa_snapshot_archive_key.txt")
+        assertContains(output, "File name: mosa_pod_keypair.pem")
+        assertContains(output, "Directory name: mosa_lucene_index")
+        assertFalse(output.contains("File name: imprint.yaml"), output)
+    }
+
     private fun parseStore(vararg args: String): CommandLineArgumentStore? {
         var capturedStore: CommandLineArgumentStore? = null
         val parser = ArgParser("mosa")
@@ -213,5 +239,20 @@ class MainArgumentsTest {
         parser.parse(args)
 
         return capturedStore
+    }
+
+    private fun captureStdout(block: () -> Unit): String {
+        val output = ByteArrayOutputStream()
+        val originalOut = System.out
+        val printStream = PrintStream(output, true, Charsets.UTF_8)
+        System.setOut(printStream)
+        try {
+            block()
+        } finally {
+            System.setOut(originalOut)
+        }
+        return output
+            .toString(Charsets.UTF_8)
+            .replace(Regex("\\u001B\\[[;\\d]*m"), "")
     }
 }

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.koin.core.Koin
 import org.koin.core.KoinApplication
+import org.koin.core.error.InstanceCreationException
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import straightway.mosa.VectorStore.Transaction
@@ -40,7 +41,9 @@ import java.nio.file.Path
 import java.time.Clock
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
@@ -82,10 +85,12 @@ class AppModuleTest {
         testWorkingDir?.resolve("mosa_snapshot_archive_key.txt")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.resolve("mosa_privacy.yaml")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.resolve("mosa_terms.yaml")?.let { Files.deleteIfExists(it) }
+        testWorkingDir?.resolve("mosa_imprint.yaml")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.resolve("imprint.yaml")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.let { Files.deleteIfExists(it) }
         Files.deleteIfExists(moduleWorkingDir.resolve("mosa_privacy.yaml"))
         Files.deleteIfExists(moduleWorkingDir.resolve("mosa_terms.yaml"))
+        Files.deleteIfExists(moduleWorkingDir.resolve("mosa_imprint.yaml"))
         Files.deleteIfExists(moduleWorkingDir.resolve("imprint.yaml"))
         originalUserDir?.let { System.setProperty("user.dir", it) }
     }
@@ -162,6 +167,21 @@ class AppModuleTest {
     @Test
     fun `provides imprint service singleton`() {
         assertDoesNotThrow { koin.get<ImprintService>() }
+    }
+
+    @Test
+    fun `requires mosa imprint config for startup`() {
+        koinApplication?.close()
+        koinApplication = null
+        Files.deleteIfExists(moduleWorkingDir.resolve("mosa_imprint.yaml"))
+        writeLegacyImprintConfig(moduleWorkingDir)
+
+        val exception =
+            assertFailsWith<InstanceCreationException> {
+                createKoinApplication()
+            }
+
+        assertContains(exception.cause?.message.orEmpty(), "mosa_imprint.yaml")
     }
 
     @Test
@@ -261,6 +281,23 @@ class AppModuleTest {
     }
 
     private fun writeImprintConfig(directory: Path) {
+        Files.writeString(
+            directory.resolve("mosa_imprint.yaml"),
+            """
+            provider:
+              name: "Example Pod GmbH"
+            address:
+              street: "Main Street 1"
+              postal_code: "12345"
+              city: "Berlin"
+              country: "Deutschland"
+            contact:
+              email: "legal@example.invalid"
+            """.trimIndent(),
+        )
+    }
+
+    private fun writeLegacyImprintConfig(directory: Path) {
         Files.writeString(
             directory.resolve("imprint.yaml"),
             """
