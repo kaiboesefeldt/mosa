@@ -2,12 +2,22 @@ package straightway.mosa.client.content
 
 import straightway.mosa.client.pod.PodSessionProvider
 import straightway.mosa.message.AdminMessage
+import straightway.mosa.message.AdminMessageListResult
 
 class AdminMessageInboxService(
     private val podSessionProvider: PodSessionProvider,
 ) {
-    suspend fun fetch(): List<AdminMessage> =
+    suspend fun fetch(page: Int): AdminMessageListResult? {
+        if (page < 1) {
+            return null
+        }
+        return podSessionProvider.execute("messages") { session ->
+            session.podAccess.messages(session.jwt, page)
+        }
+    }
+
+    suspend fun fetchEntries(page: Int): List<AdminMessage> =
         podSessionProvider.execute("messages") { session ->
-            session.podAccess.messages(session.jwt).entries
+            session.podAccess.messages(session.jwt, page).entries
         } ?: emptyList()
 }

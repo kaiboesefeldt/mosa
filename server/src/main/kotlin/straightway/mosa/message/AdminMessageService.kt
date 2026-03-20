@@ -10,6 +10,7 @@ class AdminMessageService(
     private val isAdmin: suspend (String) -> Boolean,
     private val unretrievedTtl: Duration,
     private val retrievedTtl: Duration,
+    private val pageSize: Int,
     private val idFactory: () -> String,
 ) {
     class AdminMessageForbiddenException : RuntimeException("not allowed to send admin messages")
@@ -39,30 +40,79 @@ class AdminMessageService(
         )
     }
 
-    suspend fun listForRecipient(recipientGid: String): AdminMessageListResult {
+    suspend fun listInboxForRecipient(
+        recipientGid: String,
+        page: Int,
+    ): AdminMessageListResult {
         val now = clock.instant().epochSecond
-        val records =
+        return pagedResult(
             store.loadVisibleAndShortenExpiry(
                 recipientGid = recipientGid,
                 nowEpochSeconds = now,
                 retrievedExpiryUpperBoundEpochSeconds = now + retrievedTtl.inWholeSeconds,
-            )
+            ),
+            now = now,
+            page = page,
+        )
+    }
+
+    suspend fun listAdminMessagesForRecipient(
+        requesterGid: String,
+        recipientGid: String,
+        page: Int,
+    ): AdminMessageListResult {
+        if (!isAdmin(requesterGid)) {
+            throw AdminMessageForbiddenException()
+        }
+        val now = clock.instant().epochSecond
+        return pagedResult(
+            store.loadVisibleForRecipient(
+                recipientGid = recipientGid,
+                nowEpochSeconds = now,
+            ),
+            now = now,
+            page = page,
+        )
+    }
+
+    suspend fun deleteExpired(): Int = store.deleteExpired(clock.instant().epochSecond)
+
+    private fun pagedResult(
+        records: List<AdminMessageRecord>,
+        now: Long,
+        page: Int,
+    ): AdminMessageListResult {
+        requirePage(page)
+        val sorted = records.sortedByDescending { it.createdAt }
+        val offset = (page - 1) * pageSize
+        val pageRecords = sorted.drop(offset).take(pageSize)
         return AdminMessageListResult(
-            records
-                .sortedByDescending { it.createdAt }
-                .map { record ->
+            entries =
+                pageRecords.map { record ->
                     AdminMessage(
                         id = record.id,
                         senderGid = record.senderGid,
                         createdAt = record.createdAt,
                         subject = record.subject,
                         body = record.body,
+                        remainingLifetimeDays = remainingLifetimeDays(record.expiresAt, now),
                     )
                 },
+            page = page,
+            hasMore = offset + pageRecords.size < sorted.size,
         )
     }
 
-    suspend fun deleteExpired(): Int = store.deleteExpired(clock.instant().epochSecond)
+    private fun remainingLifetimeDays(
+        expiresAt: Long,
+        now: Long,
+    ): Int = ((expiresAt - now + SECONDS_PER_DAY - 1) / SECONDS_PER_DAY).toInt()
+
+    private fun requirePage(page: Int) {
+        if (page < 1) {
+            throw BadRequestException("page must be at least 1")
+        }
+    }
 
     private fun requireText(
         value: String,
@@ -71,5 +121,9 @@ class AdminMessageService(
         if (value.isBlank()) {
             throw BadRequestException("$fieldName must not be blank")
         }
+    }
+
+    private companion object {
+        const val SECONDS_PER_DAY = 86_400L
     }
 }

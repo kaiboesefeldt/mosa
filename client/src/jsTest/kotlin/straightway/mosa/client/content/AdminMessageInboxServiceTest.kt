@@ -69,13 +69,30 @@ class AdminMessageInboxServiceTest {
         podAccess.messagesResult =
             AdminMessageListResult(
                 listOf(AdminMessage("message-1", "admin-gid", 42, "Subject", "Body")),
+        )
+        val service = AdminMessageInboxService(sessionProvider())
+
+        val result = service.fetchEntries(page = 1)
+
+        assertEquals(podAccess.messagesResult.entries, result)
+        assertEquals(listOf(1), podAccess.messagesRequests.map { it.page })
+    }
+
+    @Test
+    fun `loads inbox page metadata from pod session`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        podAccess.messagesResult =
+            AdminMessageListResult(
+                listOf(AdminMessage("message-1", "admin-gid", 42, "Subject", "Body", 6)),
+                page = 2,
+                hasMore = true,
             )
         val service = AdminMessageInboxService(sessionProvider())
 
-        val result = service.fetch()
+        val result = service.fetch(page = 2)
 
-        assertEquals(podAccess.messagesResult.entries, result)
-        assertEquals(listOf("jwt-token"), podAccess.messagesRequests)
+        assertEquals(podAccess.messagesResult, result)
+        assertEquals(listOf(2), podAccess.messagesRequests.map { it.page })
     }
 
     private fun sessionProvider(): PodSessionProvider =
@@ -92,7 +109,7 @@ class AdminMessageInboxServiceTest {
 
 private class RecordingAdminMessagePodAccess : PodAccess {
     var messagesResult = AdminMessageListResult(emptyList())
-    val messagesRequests = mutableListOf<String>()
+    val messagesRequests = mutableListOf<MessageRequest>()
 
     override suspend fun approveGid(gid: String): PodCertificateResponse =
         PodCertificateResponse(
@@ -115,10 +132,19 @@ private class RecordingAdminMessagePodAccess : PodAccess {
         jwt: String,
     ) = error("not used")
 
-    override suspend fun messages(jwt: String): AdminMessageListResult {
-        messagesRequests += jwt
+    override suspend fun messages(
+        jwt: String,
+        page: Int,
+    ): AdminMessageListResult {
+        messagesRequests += MessageRequest(jwt = jwt, page = page)
         return messagesResult
     }
+
+    override suspend fun adminMessages(
+        recipientGid: String,
+        jwt: String,
+        page: Int,
+    ): AdminMessageListResult = error("not used")
 
     override suspend fun contentCapabilities(
         jwt: String,
@@ -158,6 +184,11 @@ private class RecordingAdminMessagePodAccess : PodAccess {
 
     override suspend fun termsServiceClearTerms(): String = error("not used")
 }
+
+private data class MessageRequest(
+    val jwt: String,
+    val page: Int,
+)
 
 class StaticAdminMessageIdentityRepository(
     private val identity: Identity,

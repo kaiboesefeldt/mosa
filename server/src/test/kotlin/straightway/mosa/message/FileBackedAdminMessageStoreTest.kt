@@ -75,6 +75,44 @@ class FileBackedAdminMessageStoreTest {
         }
 
     @Test
+    fun `loadVisibleForRecipient removes expired messages without shortening ttl`() =
+        runTest {
+            val directory = Files.createTempDirectory("admin-message-store")
+            val path = directory.resolve("messages.json")
+            val sut = FileBackedAdminMessageStore(path)
+
+            try {
+                sut.append(AdminMessageRecord("expired", "recipient-a", "admin-a", 1, "S1", "B1", 10))
+                sut.append(AdminMessageRecord("visible", "recipient-a", "admin-a", 2, "S2", "B2", 90))
+                sut.append(AdminMessageRecord("foreign", "recipient-b", "admin-a", 3, "S3", "B3", 90))
+
+                val visible =
+                    sut.loadVisibleForRecipient(
+                        recipientGid = "recipient-a",
+                        nowEpochSeconds = 20,
+                    )
+
+                assertEquals(
+                    listOf(AdminMessageRecord("visible", "recipient-a", "admin-a", 2, "S2", "B2", 90)),
+                    visible,
+                )
+                val secondRead =
+                    sut.loadVisibleAndShortenExpiry(
+                        recipientGid = "recipient-a",
+                        nowEpochSeconds = 21,
+                        retrievedExpiryUpperBoundEpochSeconds = 40,
+                    )
+                assertEquals(
+                    listOf(AdminMessageRecord("visible", "recipient-a", "admin-a", 2, "S2", "B2", 40)),
+                    secondRead,
+                )
+            } finally {
+                Files.deleteIfExists(path)
+                Files.deleteIfExists(directory)
+            }
+        }
+
+    @Test
     fun `deleteExpired returns number of removed messages`() =
         runTest {
             val directory = Files.createTempDirectory("admin-message-store")

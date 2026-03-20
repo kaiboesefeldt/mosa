@@ -51,6 +51,7 @@ import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.AllPostsDeletionService
 import straightway.mosa.client.content.AdminMessageInboxService
+import straightway.mosa.client.content.AdminMessageHistoryService
 import straightway.mosa.client.content.AdminMessagePublisher
 import straightway.mosa.client.content.ContentSigner
 import straightway.mosa.client.content.ContentSignatureVerifier
@@ -184,6 +185,7 @@ object AppModule : KoinComponent {
                         single { TopicRepository(get(), get()) }
                         single { PostPublisher(get(), get()) }
                         single { AdminMessageInboxService(get()) }
+                        single { AdminMessageHistoryService(get()) }
                         single { AdminMessagePublisher(get()) }
                         single { ContentCapabilitiesService(get()) }
                         single { PostDeletionService(get(), get(), get()) }

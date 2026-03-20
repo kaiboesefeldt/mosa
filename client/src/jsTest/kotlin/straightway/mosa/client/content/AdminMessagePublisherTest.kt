@@ -127,7 +127,16 @@ private class RecordingAdminPublisherPodAccess : PodAccess {
         sendRequests += request
     }
 
-    override suspend fun messages(jwt: String): AdminMessageListResult = error("not used")
+    override suspend fun messages(
+        jwt: String,
+        page: Int,
+    ): AdminMessageListResult = error("not used")
+
+    override suspend fun adminMessages(
+        recipientGid: String,
+        jwt: String,
+        page: Int,
+    ): AdminMessageListResult = error("not used")
 
     override suspend fun contentCapabilities(
         jwt: String,

@@ -224,16 +224,37 @@ class PodAccessTest {
         val capturedRequests = mutableListOf<HttpRequestData>()
         val expectedResult =
             AdminMessageListResult(
-                listOf(AdminMessage("message-1", "admin-gid", 42, "Subject", "Body")),
+                listOf(AdminMessage("message-1", "admin-gid", 42, "Subject", "Body", 4)),
             )
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
 
-        val result = podAccess.messages("jwt-token")
+        val result = podAccess.messages("jwt-token", page = 3)
 
         assertEquals(expectedResult, result)
         assertAuthenticatedGetRequest(
             request = capturedRequests.single(),
-            route = "v1/messages",
+            route = "v1/messages?page=3",
+            bearerToken = "jwt-token",
+        )
+    }
+
+    @Test
+    fun `adminMessages sends authenticated get with gid and page`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val expectedResult =
+            AdminMessageListResult(
+                listOf(AdminMessage("message-1", "admin-gid", 42, "Subject", "Body", 4)),
+                page = 2,
+                hasMore = true,
+            )
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
+
+        val result = podAccess.adminMessages("recipient-gid", "jwt-token", page = 2)
+
+        assertEquals(expectedResult, result)
+        assertAuthenticatedGetRequest(
+            request = capturedRequests.single(),
+            route = "v1/admin/messages?gid=recipient-gid&page=2",
             bearerToken = "jwt-token",
         )
     }

@@ -30,6 +30,28 @@ class FileBackedAdminMessageStore(
             records.size - retained.size
         }
 
+    override suspend fun loadVisibleForRecipient(
+        recipientGid: String,
+        nowEpochSeconds: Long,
+    ): List<AdminMessageRecord> =
+        mutex.withLock {
+            val visible = mutableListOf<AdminMessageRecord>()
+            val retained =
+                readRecords().mapNotNull { record ->
+                    if (record.expiresAt <= nowEpochSeconds) {
+                        null
+                    } else {
+                        record.also {
+                            if (record.recipientGid == recipientGid) {
+                                visible += it
+                            }
+                        }
+                    }
+                }
+            writeRecords(retained)
+            visible
+        }
+
     override suspend fun loadVisibleAndShortenExpiry(
         recipientGid: String,
         nowEpochSeconds: Long,

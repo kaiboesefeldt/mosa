@@ -50,6 +50,7 @@ import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.ContentCapabilitiesService
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.AllPostsDeletionService
+import straightway.mosa.client.content.AdminMessageHistoryService
 import straightway.mosa.client.content.AdminMessageInboxService
 import straightway.mosa.client.content.AdminMessagePublisher
 import straightway.mosa.client.content.ReplyPublisher
@@ -60,6 +61,7 @@ import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.message.AdminMessage
+import straightway.mosa.message.AdminMessageListResult
 import web.cssom.ClassName
 import web.html.HTMLButtonElement
 import web.html.HTMLTextAreaElement
@@ -122,6 +124,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val postDeletionService = ConnectedViewInjector.get<PostDeletionService>()
     val allPostsDeletionService = ConnectedViewInjector.get<AllPostsDeletionService>()
     val replyPublisher = ConnectedViewInjector.get<ReplyPublisher>()
+    val adminMessageHistoryService = ConnectedViewInjector.get<AdminMessageHistoryService>()
     val adminMessageInboxService = ConnectedViewInjector.get<AdminMessageInboxService>()
     val adminMessagePublisher = ConnectedViewInjector.get<AdminMessagePublisher>()
     val podBaseProvider = ConnectedViewInjector.get<PodBaseProvider>()
@@ -160,8 +163,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val toastTimerRef = useRef<Int>()
     val (isInboxOpen, setInboxOpen) = useState(false)
     val (isInboxLoading, setInboxLoading) = useState(false)
+    val (isInboxAppending, setInboxAppending) = useState(false)
     val (inboxEntries, setInboxEntries) = useState<List<AdminMessage>>(emptyList())
     val (inboxError, setInboxError) = useState<String?>(null)
+    val (inboxPage, setInboxPage) = useState(1)
+    val (inboxHasMore, setInboxHasMore) = useState(false)
     val (unreadInboxCount, setUnreadInboxCount) = useState(0)
     val (deleteCandidate, setDeleteCandidate) = useState<QueryResult.Entry?>(null)
     val (isDeletingPost, setDeletingPost) = useState(false)
@@ -180,6 +186,12 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (isAdminMessageSending, setAdminMessageSending) = useState(false)
     val (adminMessageError, setAdminMessageError) = useState<String?>(null)
     val (isAdminMessageComposerOpen, setAdminMessageComposerOpen) = useState(false)
+    val (adminHistoryEntries, setAdminHistoryEntries) = useState<List<AdminMessage>>(emptyList())
+    val (isAdminHistoryLoading, setAdminHistoryLoading) = useState(false)
+    val (isAdminHistoryAppending, setAdminHistoryAppending) = useState(false)
+    val (adminHistoryError, setAdminHistoryError) = useState<String?>(null)
+    val (adminHistoryPage, setAdminHistoryPage) = useState(1)
+    val (adminHistoryHasMore, setAdminHistoryHasMore) = useState(false)
     val (isMobile, setIsMobile) = useState(false)
     val (isTouchDevice, setIsTouchDevice) = useState(false)
     val (mobilePane, setMobilePane) = useState(MobilePane.Topics)
@@ -195,6 +207,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val adminUserCardAnchorIdRef = useRef("")
     val inboxButtonRef = useRef<HTMLButtonElement>()
     val inboxPopoverRef = useRef<HTMLDivElement>()
+    val adminHistoryListRef = useRef<HTMLDivElement>()
+    val inboxScrollRestoreRef = useRef<Double>()
+    val adminHistoryScrollRestoreRef = useRef<Double>()
     isInboxOpenRef.current = isInboxOpen
     adminUserCardAnchorIdRef.current = adminUserCardAnchorId ?: ""
 
@@ -247,6 +262,12 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         setAdminMessageBody("")
         setAdminMessageError(null)
         setAdminMessageComposerOpen(false)
+        setAdminHistoryEntries(emptyList())
+        setAdminHistoryLoading(false)
+        setAdminHistoryAppending(false)
+        setAdminHistoryError(null)
+        setAdminHistoryPage(1)
+        setAdminHistoryHasMore(false)
     }
 
     fun toggleAdminUserCard(
@@ -268,6 +289,24 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         setAdminMessageBody("")
         setAdminMessageError(null)
         setAdminMessageComposerOpen(false)
+        setAdminHistoryLoading(true)
+        setAdminHistoryAppending(false)
+        setAdminHistoryError(null)
+        scope.launch {
+            val result: AdminMessageListResult? =
+                runCatching { adminMessageHistoryService.fetch(recipientGid, page = 1) }.getOrNull()
+            setAdminHistoryLoading(false)
+            if (result == null) {
+                setAdminHistoryEntries(emptyList())
+                setAdminHistoryPage(1)
+                setAdminHistoryHasMore(false)
+                setAdminHistoryError(translator.translate("connected.messages.actions.history.error"))
+            } else {
+                setAdminHistoryEntries(result.entries)
+                setAdminHistoryPage(result.page)
+                setAdminHistoryHasMore(result.hasMore)
+            }
+        }
     }
 
     fun openAdminMessageCompose() {
@@ -315,23 +354,61 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         )
     }
 
+    fun applyInboxPage(
+        result: AdminMessageListResult,
+        append: Boolean,
+        markAsSeen: Boolean,
+    ) {
+        val mergedEntries =
+            if (append) {
+                (inboxEntries + result.entries).distinctBy(AdminMessage::id)
+            } else {
+                result.entries
+            }
+        setInboxEntries(mergedEntries)
+        setInboxPage(result.page)
+        setInboxHasMore(result.hasMore)
+        val nextSnapshot = mergedInboxState(mergedEntries, markAsSeen = markAsSeen)
+        persistInboxStateSnapshot(nextSnapshot)
+        setUnreadInboxCount(unreadCount(nextSnapshot))
+    }
+
     fun refreshInbox(openAfterLoad: Boolean) {
-        if (isInboxLoading) return
+        if (isInboxLoading || isInboxAppending) return
         val willBeOpen = openAfterLoad || isInboxOpenRef.current == true
         setInboxOpen(willBeOpen)
         setInboxLoading(true)
+        setInboxAppending(false)
         setInboxError(null)
         scope.launch {
-            val entries = runCatching { adminMessageInboxService.fetch() }.getOrNull()
+            val result: AdminMessageListResult? =
+                runCatching { adminMessageInboxService.fetch(page = 1) }.getOrNull()
             setInboxLoading(false)
-            if (entries == null) {
+            if (result == null) {
                 setInboxEntries(emptyList())
+                setInboxPage(1)
+                setInboxHasMore(false)
                 setInboxError(translator.translate("connected.messages.inbox.error"))
             } else {
-                setInboxEntries(entries)
-                val nextSnapshot = mergedInboxState(entries, markAsSeen = willBeOpen)
-                persistInboxStateSnapshot(nextSnapshot)
-                setUnreadInboxCount(unreadCount(nextSnapshot))
+                applyInboxPage(result, append = false, markAsSeen = willBeOpen)
+            }
+        }
+    }
+
+    fun loadMoreInbox() {
+        if (!isInboxOpen || isInboxLoading || isInboxAppending || !inboxHasMore) return
+        inboxScrollRestoreRef.current = inboxPopoverRef.current?.scrollTop
+        setInboxAppending(true)
+        setInboxError(null)
+        val nextPage = inboxPage + 1
+        scope.launch {
+            val result: AdminMessageListResult? =
+                runCatching { adminMessageInboxService.fetch(page = nextPage) }.getOrNull()
+            setInboxAppending(false)
+            if (result == null) {
+                setInboxError(translator.translate("connected.messages.inbox.error"))
+            } else {
+                applyInboxPage(result, append = true, markAsSeen = true)
             }
         }
     }
@@ -342,6 +419,75 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
 
     fun closeInbox() {
         setInboxOpen(false)
+    }
+
+    fun refreshAdminHistory(recipientGid: String) {
+        setAdminHistoryLoading(true)
+        setAdminHistoryAppending(false)
+        setAdminHistoryError(null)
+        scope.launch {
+            val result: AdminMessageListResult? =
+                runCatching { adminMessageHistoryService.fetch(recipientGid, page = 1) }.getOrNull()
+            setAdminHistoryLoading(false)
+            if (result == null) {
+                setAdminHistoryEntries(emptyList())
+                setAdminHistoryPage(1)
+                setAdminHistoryHasMore(false)
+                setAdminHistoryError(translator.translate("connected.messages.actions.history.error"))
+            } else {
+                setAdminHistoryEntries(result.entries)
+                setAdminHistoryPage(result.page)
+                setAdminHistoryHasMore(result.hasMore)
+            }
+        }
+    }
+
+    fun loadMoreAdminHistory() {
+        val recipientGid = adminMessageRecipientGid ?: return
+        if (isAdminHistoryLoading || isAdminHistoryAppending || !adminHistoryHasMore) return
+        adminHistoryScrollRestoreRef.current = adminHistoryListRef.current?.scrollTop
+        setAdminHistoryAppending(true)
+        setAdminHistoryError(null)
+        val nextPage = adminHistoryPage + 1
+        scope.launch {
+            val result: AdminMessageListResult? =
+                runCatching { adminMessageHistoryService.fetch(recipientGid, page = nextPage) }.getOrNull()
+            setAdminHistoryAppending(false)
+            if (result == null) {
+                setAdminHistoryError(translator.translate("connected.messages.actions.history.error"))
+            } else {
+                setAdminHistoryEntries((adminHistoryEntries + result.entries).distinctBy(AdminMessage::id))
+                setAdminHistoryPage(result.page)
+                setAdminHistoryHasMore(result.hasMore)
+            }
+        }
+    }
+
+    fun sendAdminMessageToCurrentRecipient() {
+        val recipientGid = adminMessageRecipientGid ?: return
+        scope.launch {
+            setAdminMessageSending(true)
+            setAdminMessageError(null)
+            val wasSent =
+                runCatching {
+                    adminMessagePublisher.send(
+                        recipientGid,
+                        adminMessageSubject,
+                        adminMessageBody,
+                    )
+                }.getOrDefault(false)
+            setAdminMessageSending(false)
+            if (wasSent) {
+                setAdminMessageSubject("")
+                setAdminMessageBody("")
+                setAdminMessageError(null)
+                setAdminMessageComposerOpen(false)
+                refreshAdminHistory(recipientGid)
+                showToast(translator.translate("connected.messages.compose.success"))
+            } else {
+                setAdminMessageError(translator.translate("connected.messages.compose.error"))
+            }
+        }
     }
 
     fun updateTopicFilterState(filters: Map<String, Float>) {
@@ -1077,6 +1223,22 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
+    useEffect(arrayOf(inboxEntries, isInboxAppending)) {
+        val scrollTop = inboxScrollRestoreRef.current ?: return@useEffect
+        inboxPopoverRef.current?.scrollTop = scrollTop
+        if (!isInboxAppending) {
+            inboxScrollRestoreRef.current = null
+        }
+    }
+
+    useEffect(arrayOf(adminHistoryEntries, isAdminHistoryAppending)) {
+        val scrollTop = adminHistoryScrollRestoreRef.current ?: return@useEffect
+        adminHistoryListRef.current?.scrollTop = scrollTop
+        if (!isAdminHistoryAppending) {
+            adminHistoryScrollRestoreRef.current = null
+        }
+    }
+
     useEffect(*noDependencies) {
         val coarsePointer = window.matchMedia("(pointer: coarse)").matches
         val hasTouch = js("('ontouchstart' in window)") as Boolean
@@ -1176,9 +1338,12 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                         visualsFactory,
                         inboxEntries,
                         isInboxLoading,
+                        isInboxAppending,
                         inboxError,
+                        inboxHasMore,
                         inboxPopoverRef,
                         { closeInbox() },
+                        ::loadMoreInbox,
                     )
                 }
             }
@@ -1355,28 +1520,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onAdminMessageSubjectChange = { value -> setAdminMessageSubject(value) },
                     onAdminMessageBodyChange = { value -> setAdminMessageBody(value) },
                     onCloseAdminMessageComposer = ::closeAdminUserCard,
-                    onSendAdminMessage = {
-                        val recipientGid = adminMessageRecipientGid ?: return@postsColumn
-                        scope.launch {
-                            setAdminMessageSending(true)
-                            setAdminMessageError(null)
-                            val wasSent =
-                                runCatching {
-                                    adminMessagePublisher.send(
-                                        recipientGid,
-                                        adminMessageSubject,
-                                        adminMessageBody,
-                                    )
-                                }.getOrDefault(false)
-                            setAdminMessageSending(false)
-                            if (wasSent) {
-                                closeAdminUserCard()
-                                showToast(translator.translate("connected.messages.compose.success"))
-                            } else {
-                                setAdminMessageError(translator.translate("connected.messages.compose.error"))
-                            }
-                        }
-                    },
+                    onSendAdminMessage = ::sendAdminMessageToCurrentRecipient,
                     showBackToTopics = showBackButtons && mobilePane != MobilePane.Topics,
                     onBackToTopics = { setMobilePane(MobilePane.Topics) },
                     containerRef = postsContainerRef,
@@ -1429,28 +1573,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onAdminMessageSubjectChange = { value -> setAdminMessageSubject(value) },
                     onAdminMessageBodyChange = { value -> setAdminMessageBody(value) },
                     onCloseAdminMessageComposer = ::closeAdminUserCard,
-                    onSendAdminMessage = {
-                        val recipientGid = adminMessageRecipientGid ?: return@repliesColumn
-                        scope.launch {
-                            setAdminMessageSending(true)
-                            setAdminMessageError(null)
-                            val wasSent =
-                                runCatching {
-                                    adminMessagePublisher.send(
-                                        recipientGid,
-                                        adminMessageSubject,
-                                        adminMessageBody,
-                                    )
-                                }.getOrDefault(false)
-                            setAdminMessageSending(false)
-                            if (wasSent) {
-                                closeAdminUserCard()
-                                showToast(translator.translate("connected.messages.compose.success"))
-                            } else {
-                                setAdminMessageError(translator.translate("connected.messages.compose.error"))
-                            }
-                        }
-                    },
+                    onSendAdminMessage = ::sendAdminMessageToCurrentRecipient,
                 )
             }
         }
@@ -1502,6 +1625,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     if (adminUserCardAnchorId != null && adminMessageRecipientName != null && adminMessageRecipientAvatar != null) {
         adminUserActionCardOverlay(
             translator = translator,
+            identityVisualsFactory = visualsFactory,
             recipientAvatar = adminMessageRecipientAvatar,
             recipientName = adminMessageRecipientName,
             isComposerOpen = isAdminMessageComposerOpen,
@@ -1509,32 +1633,18 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             body = adminMessageBody,
             isSending = isAdminMessageSending,
             errorText = adminMessageError,
+            historyEntries = adminHistoryEntries,
+            isHistoryLoading = isAdminHistoryLoading,
+            isHistoryAppending = isAdminHistoryAppending,
+            historyErrorText = adminHistoryError,
+            historyHasMore = adminHistoryHasMore,
+            historyListRef = adminHistoryListRef,
             onOpenComposer = ::openAdminMessageCompose,
             onSubjectChange = { value -> setAdminMessageSubject(value) },
             onBodyChange = { value -> setAdminMessageBody(value) },
             onClose = ::closeAdminUserCard,
-            onSend = {
-                val recipientGid = adminMessageRecipientGid ?: return@adminUserActionCardOverlay
-                scope.launch {
-                    setAdminMessageSending(true)
-                    setAdminMessageError(null)
-                    val wasSent =
-                        runCatching {
-                            adminMessagePublisher.send(
-                                recipientGid,
-                                adminMessageSubject,
-                                adminMessageBody,
-                            )
-                        }.getOrDefault(false)
-                    setAdminMessageSending(false)
-                    if (wasSent) {
-                        closeAdminUserCard()
-                        showToast(translator.translate("connected.messages.compose.success"))
-                    } else {
-                        setAdminMessageError(translator.translate("connected.messages.compose.error"))
-                    }
-                }
-            },
+            onSend = ::sendAdminMessageToCurrentRecipient,
+            onHistoryScroll = ::loadMoreAdminHistory,
         )
     }
 }
@@ -2316,12 +2426,21 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
     identityVisualsFactory: IdentityVisualsFactory,
     entries: List<AdminMessage>,
     isLoading: Boolean,
+    isAppending: Boolean,
     errorText: String?,
+    hasMore: Boolean,
     popoverRef: Ref<HTMLDivElement>,
     onClose: () -> Unit,
+    onScrollToEnd: () -> Unit,
 ) = div {
     ref = popoverRef
     className = ClassName("message-inbox")
+    onScroll = { event ->
+        val target = event.currentTarget
+        if (hasMore && isScrolledNearBottom(target)) {
+            onScrollToEnd()
+        }
+    }
     div {
         className = ClassName("message-inbox__header")
         span {
@@ -2351,7 +2470,7 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
                 className = ClassName("message-inbox__empty")
                 +translator.translate("connected.messages.inbox.empty")
             }
-        else ->
+        else -> {
             entries.forEach { entry ->
                 val senderVisuals = identityVisualsFactory.createFromGid(entry.senderGid)
                 val senderName = senderVisuals.name.toString().trim()
@@ -2390,11 +2509,19 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
                     }
                 }
             }
+            if (isAppending) {
+                div {
+                    className = ClassName("message-inbox__meta")
+                    +translator.translate("connected.messages.inbox.loadingMore")
+                }
+            }
+        }
     }
 }
 
 private fun ChildrenBuilder.adminUserActionCardOverlay(
     translator: Translator,
+    identityVisualsFactory: IdentityVisualsFactory,
     recipientAvatar: String,
     recipientName: String,
     isComposerOpen: Boolean,
@@ -2402,11 +2529,18 @@ private fun ChildrenBuilder.adminUserActionCardOverlay(
     body: String,
     isSending: Boolean,
     errorText: String?,
+    historyEntries: List<AdminMessage>,
+    isHistoryLoading: Boolean,
+    isHistoryAppending: Boolean,
+    historyErrorText: String?,
+    historyHasMore: Boolean,
+    historyListRef: Ref<HTMLDivElement>,
     onOpenComposer: () -> Unit,
     onSubjectChange: (String) -> Unit,
     onBodyChange: (String) -> Unit,
     onClose: () -> Unit,
     onSend: () -> Unit,
+    onHistoryScroll: () -> Unit,
 ) = div {
     className = ClassName("admin-user-card-overlay")
     onClick = { event: MouseEvent<*, *> ->
@@ -2416,6 +2550,7 @@ private fun ChildrenBuilder.adminUserActionCardOverlay(
     }
     adminUserActionCard(
         translator = translator,
+        identityVisualsFactory = identityVisualsFactory,
         recipientAvatar = recipientAvatar,
         recipientName = recipientName,
         isComposerOpen = isComposerOpen,
@@ -2423,16 +2558,24 @@ private fun ChildrenBuilder.adminUserActionCardOverlay(
         body = body,
         isSending = isSending,
         errorText = errorText,
+        historyEntries = historyEntries,
+        isHistoryLoading = isHistoryLoading,
+        isHistoryAppending = isHistoryAppending,
+        historyErrorText = historyErrorText,
+        historyHasMore = historyHasMore,
+        historyListRef = historyListRef,
         onOpenComposer = onOpenComposer,
         onSubjectChange = onSubjectChange,
         onBodyChange = onBodyChange,
         onClose = onClose,
         onSend = onSend,
+        onHistoryScroll = onHistoryScroll,
     )
 }
 
 private fun ChildrenBuilder.adminUserActionCard(
     translator: Translator,
+    identityVisualsFactory: IdentityVisualsFactory,
     recipientAvatar: String,
     recipientName: String,
     isComposerOpen: Boolean,
@@ -2440,11 +2583,18 @@ private fun ChildrenBuilder.adminUserActionCard(
     body: String,
     isSending: Boolean,
     errorText: String?,
+    historyEntries: List<AdminMessage>,
+    isHistoryLoading: Boolean,
+    isHistoryAppending: Boolean,
+    historyErrorText: String?,
+    historyHasMore: Boolean,
+    historyListRef: Ref<HTMLDivElement>,
     onOpenComposer: () -> Unit,
     onSubjectChange: (String) -> Unit,
     onBodyChange: (String) -> Unit,
     onClose: () -> Unit,
     onSend: () -> Unit,
+    onHistoryScroll: () -> Unit,
 ) = div {
     className = ClassName("admin-user-card")
     onClick = { event: MouseEvent<*, *> -> event.stopPropagation() }
@@ -2482,7 +2632,19 @@ private fun ChildrenBuilder.adminUserActionCard(
             onClick = { onOpenComposer() }
             +translator.translate("connected.messages.actions.send")
         }
-    } else {
+    }
+    adminMessageHistorySection(
+        translator = translator,
+        identityVisualsFactory = identityVisualsFactory,
+        historyEntries = historyEntries,
+        isLoading = isHistoryLoading,
+        isAppending = isHistoryAppending,
+        errorText = historyErrorText,
+        hasMore = historyHasMore,
+        listRef = historyListRef,
+        onScrollToEnd = onHistoryScroll,
+    )
+    if (isComposerOpen) {
         adminMessageComposePopover(
             translator = translator,
             recipientName = recipientName,
@@ -2495,6 +2657,107 @@ private fun ChildrenBuilder.adminUserActionCard(
             onClose = onClose,
             onSend = onSend,
         )
+    }
+}
+
+private fun ChildrenBuilder.adminMessageHistorySection(
+    translator: Translator,
+    identityVisualsFactory: IdentityVisualsFactory,
+    historyEntries: List<AdminMessage>,
+    isLoading: Boolean,
+    isAppending: Boolean,
+    errorText: String?,
+    hasMore: Boolean,
+    listRef: Ref<HTMLDivElement>,
+    onScrollToEnd: () -> Unit,
+) = div {
+    className = ClassName("admin-user-card__history")
+    div {
+        className = ClassName("admin-user-card__history-header")
+        span {
+            className = ClassName("admin-user-card__history-title")
+            +translator.translate("connected.messages.actions.history.title")
+        }
+    }
+    div {
+        ref = listRef
+        className = ClassName("admin-user-card__history-list")
+        onScroll = { event ->
+            val target = event.currentTarget
+            if (hasMore && isScrolledNearBottom(target)) {
+                onScrollToEnd()
+            }
+        }
+        when {
+            isLoading ->
+                div {
+                    className = ClassName("admin-user-card__history-empty")
+                    +translator.translate("connected.messages.actions.history.loading")
+                }
+            errorText != null ->
+                div {
+                    className = ClassName("admin-user-card__history-error")
+                    +errorText
+                }
+            historyEntries.isEmpty() ->
+                div {
+                    className = ClassName("admin-user-card__history-empty")
+                    +translator.translate("connected.messages.actions.history.empty")
+                }
+            else -> {
+                historyEntries.forEach { entry ->
+                    val senderVisuals = identityVisualsFactory.createFromGid(entry.senderGid)
+                    val senderName = senderVisuals.name.toString().trim()
+                    div {
+                        key = entry.id.unsafeCast<Key>()
+                        className = ClassName("admin-user-card__history-entry")
+                        div {
+                            className = ClassName("admin-user-card__history-meta")
+                            div {
+                                className = ClassName("admin-user-card__history-sender")
+                                img {
+                                    className = ClassName("admin-user-card__history-sender-avatar")
+                                    src = senderVisuals.avatar
+                                    alt = senderName
+                                }
+                                span {
+                                    className = ClassName("admin-user-card__history-sender-name")
+                                    +translator.translate(
+                                        "connected.messages.inbox.from",
+                                        mapOf("name" to senderName),
+                                    )
+                                }
+                            }
+                            span {
+                                className = ClassName("admin-user-card__history-timestamp")
+                                +formatTimestamp(entry.createdAt)
+                            }
+                        }
+                        span {
+                            className = ClassName("admin-user-card__history-subject")
+                            +entry.subject
+                        }
+                        div {
+                            className = ClassName("admin-user-card__history-body")
+                            +entry.body
+                        }
+                        span {
+                            className = ClassName("admin-user-card__history-lifetime")
+                            +translator.translate(
+                                "connected.messages.actions.history.lifetime",
+                                mapOf("days" to entry.remainingLifetimeDays.toString()),
+                            )
+                        }
+                    }
+                }
+                if (isAppending) {
+                    div {
+                        className = ClassName("admin-user-card__history-empty")
+                        +translator.translate("connected.messages.actions.history.loadingMore")
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -2637,6 +2900,11 @@ private fun ChildrenBuilder.composerDialog(
 private object ConnectedViewInjector : KoinComponent
 
 private val noDependencies: Array<dynamic> = emptyArray()
+
+private fun isScrolledNearBottom(element: HTMLDivElement): Boolean {
+    val thresholdPx = 24
+    return element.scrollTop + element.clientHeight >= element.scrollHeight - thresholdPx
+}
 
 private fun formatTimestamp(epochSeconds: Long): String =
     Date(epochSeconds.toDouble() * 1000).toLocaleString()

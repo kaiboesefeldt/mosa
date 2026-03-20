@@ -9,4 +9,5 @@ data class AdminMessage(
     val createdAt: Long,
     val subject: String,
     val body: String,
+    val remainingLifetimeDays: Int = 0,
 )

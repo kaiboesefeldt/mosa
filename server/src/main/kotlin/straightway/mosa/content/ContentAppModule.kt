@@ -90,6 +90,7 @@ fun Module.configureContentAppModule() {
             isAdmin = { gid -> (admins.get() ?: AdminAllowList(emptyList())).adminGids.contains(gid) },
             unretrievedTtl = 180.days,
             retrievedTtl = 28.days,
+            pageSize = 10,
             idFactory = {
                 java.util.UUID
                     .randomUUID()

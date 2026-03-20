@@ -5,6 +5,11 @@ interface AdminMessageStore {
 
     suspend fun deleteExpired(nowEpochSeconds: Long): Int
 
+    suspend fun loadVisibleForRecipient(
+        recipientGid: String,
+        nowEpochSeconds: Long,
+    ): List<AdminMessageRecord>
+
     suspend fun loadVisibleAndShortenExpiry(
         recipientGid: String,
         nowEpochSeconds: Long,

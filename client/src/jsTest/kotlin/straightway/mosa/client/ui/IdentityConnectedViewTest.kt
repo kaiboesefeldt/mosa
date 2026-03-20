@@ -63,6 +63,7 @@ import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.AllPostsDeletionService
 import straightway.mosa.client.content.AdminMessageInboxService
+import straightway.mosa.client.content.AdminMessageHistoryService
 import straightway.mosa.client.content.AdminMessagePublisher
 import straightway.mosa.client.content.ContentSigner
 import straightway.mosa.client.content.ContentSignatureVerifier
@@ -970,6 +971,148 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `shows admin message history for selected profile`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val senderVisuals = IdentityVisualsFactory(FictionalNameGenerator(), DiceBearAvatarGenerator()).createFromGid("admin-a")
+        val expectedSenderName = senderVisuals.name.toString().trim()
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+                adminHistoryResponses =
+                    listOf(
+                        AdminMessageListResult(
+                            entries =
+                                listOf(
+                                    AdminMessage(
+                                        id = "message-1",
+                                        senderGid = "admin-a",
+                                        createdAt = 10,
+                                        subject = "Frueherer Betreff",
+                                        body = "Frueherer Hinweis",
+                                        remainingLifetimeDays = 6,
+                                    ),
+                                ),
+                        ),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { adminUserTrigger(view.container) != null }
+        user.click(adminUserTrigger(view.container)!!).await()
+
+        waitForCondition { view.container.textContent?.contains("Frueherer Betreff") == true }
+        assertEquals(1, podAccess.adminMessagesRequests.size)
+        assertEquals(1, podAccess.adminMessagesRequests.single().page)
+        assertEquals(
+            ConnectedViewTestInjector.get<Translator>().translate(
+                "connected.messages.inbox.from",
+                mapOf("name" to expectedSenderName),
+            ),
+            view.container.querySelector(".admin-user-card__history-sender-name")?.textContent?.trim(),
+        )
+        assertEquals(
+            senderVisuals.avatar,
+            (view.container.querySelector(".admin-user-card__history-sender-avatar") as? HTMLImageElement)?.getAttribute("src"),
+        )
+        assertTrue(
+            view.container.querySelector(".admin-user-card__history-lifetime")?.textContent?.contains("6") == true,
+        )
+    }
+
+    @Test
+    fun `loads more admin history when history list is scrolled to the end`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+                adminHistoryResponses =
+                    listOf(
+                        AdminMessageListResult(
+                            entries =
+                                listOf(
+                                    AdminMessage("message-2", "admin-a", 20, "Neuer Hinweis", "Body 2", 8),
+                                ),
+                            page = 1,
+                            hasMore = true,
+                        ),
+                        AdminMessageListResult(
+                            entries =
+                                listOf(
+                                    AdminMessage("message-1", "admin-b", 10, "Aelterer Hinweis", "Body 1", 5),
+                                ),
+                            page = 2,
+                            hasMore = false,
+                        ),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { adminUserTrigger(view.container) != null }
+        user.click(adminUserTrigger(view.container)!!).await()
+        waitForCondition { view.container.textContent?.contains("Neuer Hinweis") == true }
+
+        scrollAdminHistoryToEnd(view.container)
+        val preservedScrollTopBeforeLoad = adminHistoryScrollTop(view.container)
+
+        waitForCondition { view.container.textContent?.contains("Aelterer Hinweis") == true }
+        assertEquals(listOf(1, 2), podAccess.adminMessagesRequests.map(AdminHistoryRequest::page))
+        assertEquals(preservedScrollTopBeforeLoad, adminHistoryScrollTop(view.container))
+    }
+
+    @Test
+    fun `keeps inbox scroll position when loading more inbox messages`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                inboxResponses =
+                    listOf(
+                        AdminMessageListResult(
+                            entries = listOf(AdminMessage("message-2", adminSenderGid, 20, "Neuer", "Body 2", 8)),
+                            page = 1,
+                            hasMore = true,
+                        ),
+                        AdminMessageListResult(
+                            entries = listOf(AdminMessage("message-1", adminSenderGid, 10, "Aelterer", "Body 1", 5)),
+                            page = 2,
+                            hasMore = false,
+                        ),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+        user.click(inboxButton(view.container)).await()
+        waitForCondition { view.container.textContent?.contains("Neuer") == true }
+
+        scrollInboxToEnd(view.container)
+        val preservedScrollTopBeforeLoad = inboxScrollTop(view.container)
+
+        waitForCondition { view.container.textContent?.contains("Aelterer") == true }
+        assertEquals(listOf(1, 2), podAccess.messagesRequests.map(MessageRequest::page))
+        assertEquals(preservedScrollTopBeforeLoad, inboxScrollTop(view.container))
+    }
+
+    @Test
     fun `deleting selected topic selects next`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val podAccess =
@@ -1062,6 +1205,28 @@ private fun scrollPostsToEnd(container: Element) {
     column.setAttribute("data-mosa-scroll-ready", "true")
     column.asDynamic().scrollTop = 10
 }
+
+private fun scrollAdminHistoryToEnd(container: Element) {
+    val history = container.querySelector(".admin-user-card__history-list") ?: error("Admin history missing")
+    history.asDynamic().scrollTop = 180
+    history.asDynamic().dispatchEvent(org.w3c.dom.events.Event("scroll"))
+}
+
+private fun adminHistoryScrollTop(container: Element): Double =
+    (container.querySelector(".admin-user-card__history-list") ?: error("Admin history missing"))
+        .asDynamic()
+        .scrollTop as Double
+
+private fun scrollInboxToEnd(container: Element) {
+    val inbox = container.querySelector(".message-inbox") ?: error("Inbox missing")
+    inbox.asDynamic().scrollTop = 180
+    inbox.asDynamic().dispatchEvent(org.w3c.dom.events.Event("scroll"))
+}
+
+private fun inboxScrollTop(container: Element): Double =
+    (container.querySelector(".message-inbox") ?: error("Inbox missing"))
+        .asDynamic()
+        .scrollTop as Double
 
     private fun addButton(container: Element): Element =
         container.querySelector(".topic-board__add-button") ?: error("Add button missing")
@@ -1171,6 +1336,7 @@ private fun scrollPostsToEnd(container: Element) {
                 }
                 single { PostPublisher(get(), get()) }
                 single { AdminMessageInboxService(get()) }
+                single { AdminMessageHistoryService(get()) }
                 single { AdminMessagePublisher(get()) }
                 single { ContentCapabilitiesService(get()) }
                 single { PostDeletionService(get(), get(), get()) }
@@ -1432,6 +1598,7 @@ private class RecordingPodAccess(
     private val additionalResponses: Map<String, List<QueryResult>> = emptyMap(),
     replyResponses: Map<String, List<QueryResult>> = emptyMap(),
     private val inboxResponses: List<AdminMessageListResult> = listOf(AdminMessageListResult(emptyList())),
+    private val adminHistoryResponses: List<AdminMessageListResult> = listOf(AdminMessageListResult(emptyList())),
     private val capabilities: ContentCapabilitiesResult = ContentCapabilitiesResult(isAdmin = false),
     private val capabilitiesByGid: Map<String, ContentCapabilitiesResult> = emptyMap(),
     private val deferredCapabilitiesByGid: Map<String, MutableList<CompletableDeferred<ContentCapabilitiesResult>>> = emptyMap(),
@@ -1442,9 +1609,11 @@ private class RecordingPodAccess(
     val publishRequests = mutableListOf<straightway.mosa.content.PublishRequest>()
     val replyRequests = mutableListOf<straightway.mosa.content.ReplyRequest>()
     val adminMessageRequests = mutableListOf<CreateAdminMessageRequest>()
-    val messagesRequests = mutableListOf<String>()
+    val messagesRequests = mutableListOf<MessageRequest>()
+    val adminMessagesRequests = mutableListOf<AdminHistoryRequest>()
     var shouldFailPublish = false
     private val inboxResponseQueue = inboxResponses.toMutableList()
+    private val adminHistoryResponseQueue = adminHistoryResponses.toMutableList()
     private val responsesByTopic: MutableMap<String, MutableList<QueryResult>> =
         (responses.keys + additionalResponses.keys)
             .associateWith { topic ->
@@ -1497,9 +1666,21 @@ private class RecordingPodAccess(
         adminMessageRequests += request
     }
 
-    override suspend fun messages(jwt: String): AdminMessageListResult {
-        messagesRequests += jwt
+    override suspend fun messages(
+        jwt: String,
+        page: Int,
+    ): AdminMessageListResult {
+        messagesRequests += MessageRequest(jwt = jwt, page = page)
         return inboxResponseQueue.removeFirstOrNull() ?: AdminMessageListResult(emptyList())
+    }
+
+    override suspend fun adminMessages(
+        recipientGid: String,
+        jwt: String,
+        page: Int,
+    ): AdminMessageListResult {
+        adminMessagesRequests += AdminHistoryRequest(recipientGid = recipientGid, jwt = jwt, page = page)
+        return adminHistoryResponseQueue.removeFirstOrNull() ?: AdminMessageListResult(emptyList())
     }
 
     override suspend fun exportPostsCsv(jwt: String): ByteArray {
@@ -1628,6 +1809,17 @@ private class RecordingPodAccess(
         error("Not implemented")
     }
 }
+
+private data class MessageRequest(
+    val jwt: String,
+    val page: Int,
+)
+
+private data class AdminHistoryRequest(
+    val recipientGid: String,
+    val jwt: String,
+    val page: Int,
+)
 
 private class InMemoryTopicStore(
     private var topics: List<Topic>,

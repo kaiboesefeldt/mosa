@@ -275,18 +275,28 @@ types:
         format: int64
       subject: string
       body: string
+      remainingLifetimeDays:
+        type: integer
+        description: Remaining server-side lifetime in full or partial days, rounded up
     example:
       id: '6a7b5e3c-1234-5678-9abc-def012345678'
       senderGid: 'adminPodGid123'
       createdAt: 1700000000
       subject: 'Moderation Notice'
       body: 'Please review the latest community guidance.'
+      remainingLifetimeDays: 28
 
   AdminMessageListResult:
     type: object
     properties:
       entries:
         type: AdminMessage[]
+      page:
+        type: integer
+        description: Delivered 1-based page number
+      hasMore:
+        type: boolean
+        description: Whether additional pages are available
     example:
       entries:
         - id: '6a7b5e3c-1234-5678-9abc-def012345678'
@@ -294,6 +304,9 @@ types:
           createdAt: 1700000000
           subject: 'Moderation Notice'
           body: 'Please review the latest community guidance.'
+          remainingLifetimeDays: 28
+      page: 1
+      hasMore: false
 
   LegalDocumentChainResponse:
     type: object
@@ -677,6 +690,36 @@ securitySchemes:
             description: Authenticated user is not allowed to send admin messages
           5xx:
             description: Server error
+      get:
+        is: [ rateLimited ]
+        securedBy: [ bearerAuth ]
+        displayName: Get Admin Message History
+        description: |
+          Return paged private admin messages that admins have sent to one recipient.
+          The authenticated caller must be listed as an admin. Reading this history is read-only and does not shorten TTL.
+        queryParameters:
+          gid:
+            type: string
+            required: true
+            description: MIS GID of the recipient whose admin-message history should be returned
+          page?:
+            type: integer
+            minimum: 1
+            default: 1
+            description: 1-based page number with a fixed server-side page size of 10
+        responses:
+          200:
+            body:
+              application/json:
+                type: AdminMessageListResult
+          400:
+            description: Invalid request (e.g., missing gid or page < 1)
+          401:
+            description: Missing or invalid bearer token
+          403:
+            description: Authenticated user is not allowed to read admin message history
+          5xx:
+            description: Server error
 
   /messages:
     get:
@@ -684,13 +727,21 @@ securitySchemes:
       securedBy: [ bearerAuth ]
       displayName: Get Admin Messages
       description: |
-        Return private admin messages for the authenticated recipient.
-        Only messages for the caller's own identity are returned.
+        Return paged private admin messages for the authenticated recipient inbox.
+        Only messages for the caller's own identity are returned. Reading this inbox may shorten the remaining TTL.
+      queryParameters:
+        page?:
+          type: integer
+          minimum: 1
+          default: 1
+          description: 1-based page number with a fixed server-side page size of 10
       responses:
         200:
           body:
             application/json:
               type: AdminMessageListResult
+        400:
+          description: Invalid request (e.g., page < 1)
         401:
           description: Missing or invalid bearer token
         5xx:

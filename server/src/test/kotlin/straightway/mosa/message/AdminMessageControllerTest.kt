@@ -3,6 +3,7 @@ package straightway.mosa.message
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.http.HttpStatusCode
 import io.mockk.coEvery
@@ -41,18 +42,65 @@ class AdminMessageControllerTest {
         runTest {
             val result =
                 AdminMessageListResult(
-                    listOf(AdminMessage("message-1", "admin-gid", 42, "Subject", "Body")),
+                    listOf(AdminMessage("message-1", "admin-gid", 42, "Subject", "Body", 5)),
+                    page = 3,
+                    hasMore = true,
                 )
-            coEvery { service.listForRecipient(env.gid) } returns result
+            coEvery { service.listInboxForRecipient(env.gid, 3) } returns result
 
             env {
                 val response =
                     client.get("/v1/messages") {
                         bearerAuth(env.bearerToken)
+                        parameter("page", "3")
                     }
 
                 assertEquals(HttpStatusCode.OK, response.status)
                 assertEquals(result, response.body<AdminMessageListResult>())
+            }
+        }
+
+    @Test
+    fun `get admin messages returns paged history for authenticated admin`() =
+        runTest {
+            val result =
+                AdminMessageListResult(
+                    listOf(AdminMessage("message-1", "admin-gid", 42, "Subject", "Body", 5)),
+                    page = 2,
+                    hasMore = false,
+                )
+            coEvery {
+                service.listAdminMessagesForRecipient(
+                    requesterGid = env.gid,
+                    recipientGid = "recipient-gid",
+                    page = 2,
+                )
+            } returns result
+
+            env {
+                val response =
+                    client.get("/v1/admin/messages") {
+                        bearerAuth(env.bearerToken)
+                        parameter("gid", "recipient-gid")
+                        parameter("page", "2")
+                    }
+
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals(result, response.body<AdminMessageListResult>())
+            }
+        }
+
+    @Test
+    fun `get messages rejects non numeric page`() =
+        runTest {
+            env {
+                val response =
+                    client.get("/v1/messages") {
+                        bearerAuth(env.bearerToken)
+                        parameter("page", "abc")
+                    }
+
+                assertEquals(HttpStatusCode.BadRequest, response.status)
             }
         }
 }
