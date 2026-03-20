@@ -9,7 +9,6 @@ import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
-import java.time.Clock
 
 class FreezeSnapshotRestoreService(
     private val format: FreezeSnapshotFormat,
@@ -17,7 +16,6 @@ class FreezeSnapshotRestoreService(
     private val validator: FreezeSnapshotRestoreValidator,
     private val embeddingService: EmbeddingService,
     private val vectorStore: VectorStore,
-    private val clock: Clock,
     private val policy: FreezeSnapshotPolicy,
 ) {
     suspend fun restore(
@@ -25,7 +23,7 @@ class FreezeSnapshotRestoreService(
         snapshotBytes: ByteArray,
     ): FreezeSnapshotRestoreResult {
         val (header, encryptedPayload) = format.parseFramed(snapshotBytes)
-        validator.validateHeader(header, encryptedPayload, snapshotBytes.size, clock.instant(), policy.podId)
+        validator.validateHeader(header, encryptedPayload, snapshotBytes.size, policy.podId)
         val payload = cryptoService.decrypt(header, encryptedPayload)
         validator.validatePayloadSize(payload.size)
         val (manifest, records) = format.parsePayload(payload)

@@ -47,7 +47,6 @@ fun Module.configureContentAppModule() {
     single {
         FreezeSnapshotPolicy(
             podId = defaultFreezeSnapshotPodId(get(), get()),
-            snapshotLifetime = 365.days,
         )
     }
     single {
@@ -69,7 +68,6 @@ fun Module.configureContentAppModule() {
             validator = get(),
             embeddingService = get(),
             vectorStore = get(),
-            clock = get(),
             policy = get(),
         )
     }
@@ -113,6 +111,6 @@ private fun defaultFreezeSnapshotPodId(
         hasherFactory().digest(signatureFactory.publicKey.encoded),
     )
 
-private fun defaultFreezeSnapshotArchiveKeyPath(): Path = Path.of(System.getProperty("user.dir"), "mosa_snapshot_archive_key.txt")
+private fun defaultFreezeSnapshotArchiveKeyPath(): Path = Path.of(System.getProperty("user.dir"), "mosa_snapshot_archive_keys.json")
 
 private fun defaultAdminMessageStorePath(): Path = Path.of(System.getProperty("user.dir"), "mosa_admin_messages.json")

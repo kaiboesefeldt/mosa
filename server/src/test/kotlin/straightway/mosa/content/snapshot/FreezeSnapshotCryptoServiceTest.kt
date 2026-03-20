@@ -40,7 +40,7 @@ class FreezeSnapshotCryptoServiceTest {
         val payload = "snapshot-payload".encodeToByteArray()
         val service = FreezeSnapshotCryptoService(FixedArchiveKeyStore(sampleKey(header.keyId)), format)
         val encrypted = service.encrypt(header, payload)
-        val tamperedHeader = header.copy(expiresAt = header.expiresAt.plusSeconds(1))
+        val tamperedHeader = header.copy(createdAt = header.createdAt.plusSeconds(1))
 
         assertFailsWith<InvalidFreezeSnapshotException> {
             service.decrypt(tamperedHeader, encrypted)
@@ -113,7 +113,6 @@ class FreezeSnapshotCryptoServiceTest {
             podId = "pod-1",
             keyId = "archive-2026",
             createdAt = java.time.Instant.ofEpochSecond(1_700_000_000),
-            expiresAt = java.time.Instant.ofEpochSecond(1_731_536_000),
             nonce = nonce(),
         )
 

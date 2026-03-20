@@ -1,5 +1,7 @@
 package straightway.mosa.content.snapshot
 
+import io.mockk.coEvery
+import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
@@ -13,13 +15,14 @@ import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
 import java.nio.ByteBuffer
+import java.nio.file.Files
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.UUID
+import kotlin.io.encoding.Base64
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.time.Duration.Companion.days
 
 class FreezeSnapshotRestoreServiceTest {
     private val format = FreezeSnapshotFormat()
@@ -28,7 +31,7 @@ class FreezeSnapshotRestoreServiceTest {
     private val embeddingService = RecordingEmbeddingService()
     private val vectorStore = RecordingVectorStore()
     private val clock = Clock.fixed(Instant.parse("2026-03-09T10:15:30Z"), ZoneOffset.UTC)
-    private val policy = FreezeSnapshotPolicy(podId = "pod-1", snapshotLifetime = 365.days)
+    private val policy = FreezeSnapshotPolicy(podId = "pod-1")
 
     @Test
     fun `valid snapshot restores all records`() =
@@ -47,14 +50,6 @@ class FreezeSnapshotRestoreServiceTest {
                 vectorStore.entries(),
             )
             assertEquals(listOf("Root", "Reply", "Other reply"), embeddingService.embeddedTexts)
-        }
-
-    @Test
-    fun `expired snapshot is rejected`() =
-        runTest {
-            val snapshot = snapshot(header = validHeader(expiresAt = clock.instant().minusSeconds(1)))
-
-            assertRejected(snapshot, "Snapshot has expired")
         }
 
     @Test
@@ -260,6 +255,76 @@ class FreezeSnapshotRestoreServiceTest {
         }
 
     @Test
+    fun `snapshot encrypted before key rotation is restored with historical archive key after rotation`() =
+        runTest {
+            val directory = Files.createTempDirectory("snapshot-key-store")
+            val path = directory.resolve("archive-keys.json")
+            val freezeClock = Clock.fixed(Instant.parse("2026-03-09T10:15:30Z"), ZoneOffset.UTC)
+            val restoreClock = Clock.fixed(Instant.parse("2027-04-02T08:00:00Z"), ZoneOffset.UTC)
+
+            try {
+                val freezeKeyStore = FileBackedFreezeSnapshotArchiveKeyStore(path, freezeClock)
+                val freezeService =
+                    FreezeSnapshotService(
+                        selectionService =
+                            mockk<FreezeSnapshotSelectionService>().also {
+                                coEvery { it.resolveFor("gid-owner") } returns listOf(rootRecord(), replyRecord())
+                            },
+                        activeArchiveKeyProvider = freezeKeyStore,
+                        nonceGenerator = StaticNonceGenerator("AQIDBAUGBwgJCgsM"),
+                        format = format,
+                        cryptoService = FreezeSnapshotCryptoService(freezeKeyStore, format),
+                        vectorStore = NoOpVectorStore(),
+                        clock = freezeClock,
+                        policy = policy,
+                    )
+                val snapshot = freezeService.freeze("gid-owner")
+                val historicalKey = freezeKeyStore.activeKey()
+
+                Files.writeString(
+                    path,
+                    rotatedArchiveKeysJson(
+                        activeKeyId = "archive-2027",
+                        activeSecret = ByteArray(16) { (it + 16).toByte() },
+                        historicalKey = historicalKey,
+                    ),
+                )
+
+                val rotatedKeyStore = FileBackedFreezeSnapshotArchiveKeyStore(path, restoreClock)
+                val restoreVectorStore = RecordingVectorStore()
+                val restoreEmbeddingService = RecordingEmbeddingService()
+                val restoreService =
+                    FreezeSnapshotRestoreService(
+                        format = format,
+                        cryptoService = FreezeSnapshotCryptoService(rotatedKeyStore, format),
+                        validator = FreezeSnapshotRestoreValidator(FreezeSnapshotSizePolicy()),
+                        embeddingService = restoreEmbeddingService,
+                        vectorStore = restoreVectorStore,
+                        policy = policy,
+                    )
+
+                val result = restoreService.restore("gid-owner", snapshot)
+
+                assertEquals("archive-2026", format.parseFramed(snapshot).first.keyId)
+                assertEquals("archive-2027", rotatedKeyStore.activeKey().keyId)
+                assertEquals(historicalKey, rotatedKeyStore.findByKeyId("archive-2026"))
+                assertEquals(2, result.restoredCount)
+                assertEquals(listOf("root-1", "reply-1"), result.restoredIds)
+                assertEquals(
+                    listOf(
+                        StoredEntry("root-1", "Root", "gid-owner", "public-key-root", "signature-root", 7, 100, null),
+                        StoredEntry("reply-1", "Reply", "gid-owner", "public-key-reply-1", "signature-reply-1", 11, 101, "root-1"),
+                    ),
+                    restoreVectorStore.entries(),
+                )
+                assertEquals(listOf("Root", "Reply"), restoreEmbeddingService.embeddedTexts)
+            } finally {
+                Files.deleteIfExists(path)
+                Files.deleteIfExists(directory)
+            }
+        }
+
+    @Test
     fun `reply on existing pod reply is rejected`() =
         runTest {
             val existing =
@@ -302,7 +367,6 @@ class FreezeSnapshotRestoreServiceTest {
             validator = FreezeSnapshotRestoreValidator(sizePolicy),
             embeddingService = embeddingService,
             vectorStore = vectorStore,
-            clock = clock,
             policy = policy,
         )
 
@@ -333,23 +397,39 @@ class FreezeSnapshotRestoreServiceTest {
         return format.serializeFramed(header, encryptedPayload)
     }
 
-    private fun validHeader(
-        podId: String = "pod-1",
-        expiresAt: Instant = clock.instant().plusSeconds(365.days.inWholeSeconds),
-    ) = FreezeSnapshotHeader(
-        formatVersion = FreezeSnapshotFormat.CURRENT_FORMAT_VERSION,
-        podId = podId,
-        keyId = archiveKey.keyId,
-        createdAt = clock.instant(),
-        expiresAt = expiresAt,
-        nonce = "AQIDBAUGBwgJCgsM",
-    )
+    private fun validHeader(podId: String = "pod-1") =
+        FreezeSnapshotHeader(
+            formatVersion = FreezeSnapshotFormat.CURRENT_FORMAT_VERSION,
+            podId = podId,
+            keyId = archiveKey.keyId,
+            createdAt = clock.instant(),
+            nonce = "AQIDBAUGBwgJCgsM",
+        )
 
     private fun validHeaderJson(): String = format.serializeHeader(validHeader())
 
     private fun snapshotWithRawHeader(rawHeader: String): ByteArray {
         val (_, payload) = format.parseFramed(validSnapshot())
         return frame(rawHeader.encodeToByteArray(), payload)
+    }
+
+    private fun rotatedArchiveKeysJson(
+        activeKeyId: String,
+        activeSecret: ByteArray,
+        historicalKey: FreezeSnapshotArchiveKey,
+    ): String {
+        val encoder = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
+        val encodedActiveSecret = encoder.encode(activeSecret)
+        val encodedHistoricalSecret = encoder.encode(historicalKey.secret)
+        return """
+            {
+              "activeKeyId": "$activeKeyId",
+              "keys": [
+                {"keyId": "$activeKeyId", "secret": "$encodedActiveSecret"},
+                {"keyId": "${historicalKey.keyId}", "secret": "$encodedHistoricalSecret"}
+              ]
+            }
+            """.trimIndent()
     }
 
     private fun frame(
@@ -411,6 +491,12 @@ class FreezeSnapshotRestoreServiceTest {
         private val keysById = keys.associateBy { it.keyId }
 
         override fun findByKeyId(keyId: String): FreezeSnapshotArchiveKey? = keysById[keyId]
+    }
+
+    private class StaticNonceGenerator(
+        private val nonce: String,
+    ) : FreezeSnapshotNonceGenerator {
+        override fun generate(): ByteArray = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).decode(nonce)
     }
 
     private class RecordingEmbeddingService : EmbeddingService {
@@ -480,6 +566,40 @@ class FreezeSnapshotRestoreServiceTest {
         }
 
         fun entries(): List<StoredEntry> = items.values.toList()
+    }
+
+    private class NoOpVectorStore : VectorStore {
+        override suspend fun writeAccess(transactionBlock: suspend VectorStore.Transaction.() -> Unit) {
+            transactionBlock(
+                object : VectorStore.Transaction {
+                    override suspend fun add(
+                        id: String,
+                        text: String,
+                        fields: Map<String, String>,
+                        vector: FloatArray,
+                    ) = error("unexpected")
+
+                    override suspend fun remove(id: String) {
+                    }
+                },
+            )
+        }
+
+        override suspend fun query(query: VectorStore.Query): VectorStore.QueryResults = VectorStore.QueryResults(emptyList(), null)
+
+        override suspend fun queryOn(queryOnId: UUID?): VectorStore.QueryResults = VectorStore.QueryResults(emptyList(), null)
+
+        override suspend fun fetch(ids: List<String>): List<VectorStore.PostDump> = emptyList()
+
+        override suspend fun fetchByFieldValues(
+            fieldName: String,
+            values: Set<String>,
+        ): List<VectorStore.PostDump> = emptyList()
+
+        override fun dumpAll(): Flow<VectorStore.PostDump> = emptyFlow()
+
+        override fun close() {
+        }
     }
 }
 

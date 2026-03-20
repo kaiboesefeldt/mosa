@@ -114,14 +114,16 @@ artifacts.
 This file contains private key material and must be protected accordingly. If
 the file is deleted, the server creates a new identity on the next startup.
 
-### Snapshot archive key
-Freeze-snapshot archives use a persisted symmetric archive key.
+### Snapshot archive keys
+Freeze-snapshot archives use persisted symmetric archive keys.
 
-**File name:** `mosa_snapshot_archive_key.txt`  
+**File name:** `mosa_snapshot_archive_keys.json`  
 **Managed by:** Automatically created on first startup unless already present  
 **Reload:** Loaded during startup. Restart after replacement.
 
-This file contains secret key material and must be protected accordingly.
+This file contains secret key material and must be protected accordingly. It
+stores the active archive key separately from historical keys so older
+snapshots remain restorable after future key rotation.
 
 ### Vector store index
 The Lucene vector store persists its local index in a directory under the

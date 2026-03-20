@@ -36,7 +36,7 @@
   "identity.posts.delete.error": "Beiträge konnten nicht gelöscht werden. Bitte versuche es erneut.",
   "identity.posts.delete.success": "Alle Beiträge und Antworten wurden gelöscht.",
   "identity.snapshot.freeze.title": "Beiträge wirklich einfrieren?",
-  "identity.snapshot.freeze.body": "Es wird eine Snapshot-Datei zum Herunterladen erzeugt. Danach werden die exportierten Beiträge und Antworten von diesem Pod gelöscht. Bewahre die Datei selbst sicher auf: Wiederherstellung geht nur auf demselben Pod und nur bis zum Ablaufdatum. Wenn du die Datei verlierst, sind die Daten verloren.",
+  "identity.snapshot.freeze.body": "Es wird eine Snapshot-Datei zum Herunterladen erzeugt. Danach werden die exportierten Beiträge und Antworten von diesem Pod gelöscht. Bewahre die Datei selbst sicher auf: Wiederherstellung geht nur auf demselben Pod. Wenn du die Datei verlierst, sind die Daten verloren.",
   "identity.snapshot.freeze.confirm": "Snapshot erzeugen und löschen",
   "identity.snapshot.freeze.cancel": "Abbrechen",
   "identity.snapshot.freeze.inProgress": "Snapshot wird erstellt...",

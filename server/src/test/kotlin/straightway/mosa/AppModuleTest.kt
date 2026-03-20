@@ -82,7 +82,7 @@ class AppModuleTest {
         OnnxLocalEmbeddingService.embeddingServiceFactory = null
         unmockkObject(LuceneLocalVectorStore.Companion)
         testWorkingDir?.resolve("mosa_pod_keypair.pem")?.let { Files.deleteIfExists(it) }
-        testWorkingDir?.resolve("mosa_snapshot_archive_key.txt")?.let { Files.deleteIfExists(it) }
+        testWorkingDir?.resolve("mosa_snapshot_archive_keys.json")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.resolve("mosa_privacy.yaml")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.resolve("mosa_terms.yaml")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.resolve("mosa_imprint.yaml")?.let { Files.deleteIfExists(it) }

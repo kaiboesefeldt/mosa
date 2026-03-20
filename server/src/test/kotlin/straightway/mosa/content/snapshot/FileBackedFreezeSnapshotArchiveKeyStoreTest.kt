@@ -17,7 +17,7 @@ class FileBackedFreezeSnapshotArchiveKeyStoreTest {
     @Test
     fun `creates and persists archive key when file is missing`() {
         val directory = Files.createTempDirectory("snapshot-key-store")
-        val path = directory.resolve("archive-key.txt")
+        val path = directory.resolve("archive-keys.json")
         val sut = FileBackedFreezeSnapshotArchiveKeyStore(path, fixedClock())
 
         try {
@@ -26,6 +26,7 @@ class FileBackedFreezeSnapshotArchiveKeyStoreTest {
             assertEquals("archive-2026", activeKey.keyId)
             assertEquals(16, activeKey.secret.size)
             assertTrue(Files.exists(path))
+            assertEquals(activeKey, sut.findByKeyId(activeKey.keyId))
         } finally {
             Files.deleteIfExists(path)
             Files.deleteIfExists(directory)
@@ -33,20 +34,34 @@ class FileBackedFreezeSnapshotArchiveKeyStoreTest {
     }
 
     @Test
-    fun `reuses persisted key for lookup and active key`() {
+    fun `reuses persisted keys for active key and historical lookup`() {
         val directory = Files.createTempDirectory("snapshot-key-store")
-        val path = directory.resolve("archive-key.txt")
-        val first = FileBackedFreezeSnapshotArchiveKeyStore(path, fixedClock())
+        val path = directory.resolve("archive-keys.json")
+        val activeSecret = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(ByteArray(16) { it.toByte() })
+        val historicalSecret = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(ByteArray(16) { (it + 16).toByte() })
+        Files.writeString(
+            path,
+            """
+            {
+              "activeKeyId": "archive-2027",
+              "keys": [
+                {"keyId": "archive-2027", "secret": "$activeSecret"},
+                {"keyId": "archive-2026", "secret": "$historicalSecret"}
+              ]
+            }
+            """.trimIndent(),
+        )
 
         try {
-            val created = first.activeKey()
-            val second = FileBackedFreezeSnapshotArchiveKeyStore(path, fixedClock())
-            val loaded = second.activeKey()
+            val sut = FileBackedFreezeSnapshotArchiveKeyStore(path, fixedClock())
+            val active = sut.activeKey()
+            val historical = sut.findByKeyId("archive-2026")
 
-            assertEquals(created.keyId, loaded.keyId)
-            assertContentEquals(created.secret, loaded.secret)
-            assertEquals(loaded, second.findByKeyId(loaded.keyId))
-            assertNull(second.findByKeyId("archive-other"))
+            assertEquals("archive-2027", active.keyId)
+            assertContentEquals(ByteArray(16) { it.toByte() }, active.secret)
+            assertEquals("archive-2026", historical?.keyId)
+            assertContentEquals(ByteArray(16) { (it + 16).toByte() }, historical?.secret)
+            assertNull(sut.findByKeyId("archive-other"))
         } finally {
             Files.deleteIfExists(path)
             Files.deleteIfExists(directory)
@@ -54,10 +69,10 @@ class FileBackedFreezeSnapshotArchiveKeyStoreTest {
     }
 
     @Test
-    fun `rejects malformed archive key file`() {
+    fun `rejects legacy archive key file format`() {
         val directory = Files.createTempDirectory("snapshot-key-store")
-        val path = directory.resolve("archive-key.txt")
-        Files.write(path, listOf("archive-2026"))
+        val path = directory.resolve("archive-keys.json")
+        Files.write(path, listOf("archive-2026", Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(ByteArray(16))))
 
         try {
             val sut = FileBackedFreezeSnapshotArchiveKeyStore(path, fixedClock())
@@ -74,9 +89,48 @@ class FileBackedFreezeSnapshotArchiveKeyStoreTest {
     @Test
     fun `rejects archive key file with invalid key length`() {
         val directory = Files.createTempDirectory("snapshot-key-store")
-        val path = directory.resolve("archive-key.txt")
+        val path = directory.resolve("archive-keys.json")
         val invalidSecret = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(ByteArray(15))
-        Files.write(path, listOf("archive-2026", invalidSecret))
+        Files.writeString(
+            path,
+            """
+            {
+              "activeKeyId": "archive-2026",
+              "keys": [
+                {"keyId": "archive-2026", "secret": "$invalidSecret"}
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        try {
+            val sut = FileBackedFreezeSnapshotArchiveKeyStore(path, fixedClock())
+
+            assertFailsWith<IllegalArgumentException> {
+                sut.activeKey()
+            }
+        } finally {
+            Files.deleteIfExists(path)
+            Files.deleteIfExists(directory)
+        }
+    }
+
+    @Test
+    fun `rejects archive key file when active key is missing from key list`() {
+        val directory = Files.createTempDirectory("snapshot-key-store")
+        val path = directory.resolve("archive-keys.json")
+        val secret = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(ByteArray(16))
+        Files.writeString(
+            path,
+            """
+            {
+              "activeKeyId": "archive-2027",
+              "keys": [
+                {"keyId": "archive-2026", "secret": "$secret"}
+              ]
+            }
+            """.trimIndent(),
+        )
 
         try {
             val sut = FileBackedFreezeSnapshotArchiveKeyStore(path, fixedClock())
@@ -92,7 +146,7 @@ class FileBackedFreezeSnapshotArchiveKeyStoreTest {
 
     @Test
     fun `creates archive key for relative path without parent`() {
-        val path = Path.of("build", "tmp", "relative-archive-key.txt").fileName
+        val path = Path.of("build", "tmp", "relative-archive-keys.json").fileName
 
         try {
             val sut = FileBackedFreezeSnapshotArchiveKeyStore(path, fixedClock())

@@ -55,7 +55,7 @@ overrides:
           - Daten, die auf Ihrem eigenen Gerät gespeichert sind, bleiben dort, bis sie entfernt werden (durch Funktionen in {{string:SERVICE_DISPLAY_NAME}}, durch den Browser oder durch Löschen der Browserdaten). Ohne aktives Löschen können Beiträge zeitlich unbegrenzt auf Ihrem Gerät bleiben.
           - Sie können eigene Inhalte in eine verschlüsselte Snapshot-Datei einfrieren. Nach erfolgreichem Einfrieren werden die exportierten Daten von diesem Pod gelöscht.
           - Sie müssen die Snapshot-Datei selbst sicher aufbewahren. Wenn Sie sie verlieren, sind die eingefrorenen Daten verloren.
-          - Ein Snapshot kann nur auf demselben Pod wiederhergestellt werden, der ihn erstellt hat, und nur bis zum Ablaufdatum.
+          - Ein Snapshot kann nur auf demselben Pod wiederhergestellt werden, der ihn erstellt hat.
 
         provision-obligation-slot-service: |
           Damit Sie geschützte Funktionen von {{string:SERVICE_DISPLAY_NAME}} nutzen können, sind einige Angaben erforderlich:
@@ -67,4 +67,4 @@ overrides:
         rights-portability-action-slot-service: "Ebenfalls über „Beiträge exportieren (CSV)” in {{string:SERVICE_DISPLAY_NAME}}"
         rights-rectification-action-slot-service: "Inhalte in {{string:SERVICE_DISPLAY_NAME}} löschen und richtig neu veröffentlichen"
         rights-erasure-action-slot-service: "Beiträge und Antworten selbst in {{string:SERVICE_DISPLAY_NAME}} löschen"
-        rights-restriction-action-slot-service: "Beiträge und Antworten über den Freeze-Mechanismus in {{string:SERVICE_DISPLAY_NAME}} einfrieren. Danach werden sie auf diesem Pod bis zur Wiederherstellung nicht weiter verarbeitet"
+        rights-restriction-action-slot-service: "Beiträge und Antworten über den Freeze-Mechanismus in {{string:SERVICE_DISPLAY_NAME}} einfrieren. Danach werden sie auf diesem Pod nicht weiter verarbeitet, solange sie nicht wiederhergestellt werden"

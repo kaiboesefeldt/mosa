@@ -13,7 +13,6 @@ import java.time.ZoneOffset
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.time.Duration.Companion.days
 
 class FreezeSnapshotServiceTest {
     private val selectionService = mockk<FreezeSnapshotSelectionService>()
@@ -23,7 +22,7 @@ class FreezeSnapshotServiceTest {
     private val archiveKey = FreezeSnapshotArchiveKey("archive-2026", ByteArray(16) { (it + 1).toByte() })
     private val cryptoService = FreezeSnapshotCryptoService(FixedArchiveKeyStore(archiveKey), format)
     private val clock = Clock.fixed(Instant.parse("2026-03-09T10:15:30Z"), ZoneOffset.UTC)
-    private val policy = FreezeSnapshotPolicy(podId = "pod-1", snapshotLifetime = 365.days)
+    private val policy = FreezeSnapshotPolicy(podId = "pod-1")
     private val removedIds = mutableListOf<String>()
 
     @Test
@@ -41,7 +40,6 @@ class FreezeSnapshotServiceTest {
             assertEquals("pod-1", header.podId)
             assertEquals("archive-2026", header.keyId)
             assertEquals(clock.instant(), header.createdAt)
-            assertEquals(clock.instant().plusSeconds(365.days.inWholeSeconds), header.expiresAt)
             assertEquals("AQIDBAUGBwgJCgsM", header.nonce)
             assertEquals(FreezeSnapshotManifest("gid-owner", 2, 1), manifest)
             assertContentEquals(records.toTypedArray(), payloadRecords.toTypedArray())

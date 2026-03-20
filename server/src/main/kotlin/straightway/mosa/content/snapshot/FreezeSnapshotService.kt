@@ -3,7 +3,6 @@ package straightway.mosa.content.snapshot
 import straightway.mosa.VectorStore
 import java.time.Clock
 import kotlin.io.encoding.Base64
-import kotlin.time.toJavaDuration
 
 class FreezeSnapshotService(
     private val selectionService: FreezeSnapshotSelectionService,
@@ -26,17 +25,14 @@ class FreezeSnapshotService(
         return snapshot
     }
 
-    private fun createHeader(): FreezeSnapshotHeader {
-        val createdAt = clock.instant()
-        return FreezeSnapshotHeader(
+    private fun createHeader(): FreezeSnapshotHeader =
+        FreezeSnapshotHeader(
             formatVersion = FreezeSnapshotFormat.CURRENT_FORMAT_VERSION,
             podId = policy.podId,
             keyId = activeArchiveKeyProvider.activeKey().keyId,
-            createdAt = createdAt,
-            expiresAt = createdAt.plus(policy.snapshotLifetime.toJavaDuration()),
+            createdAt = clock.instant(),
             nonce = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(nonceGenerator.generate()),
         )
-    }
 
     private suspend fun deleteRecords(records: List<FreezeSnapshotRecord>) {
         vectorStore.writeAccess {

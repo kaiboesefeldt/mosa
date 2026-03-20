@@ -1,7 +1,6 @@
 package straightway.mosa.content.snapshot
 
 import straightway.mosa.content.MAX_POST_LENGTH
-import java.time.Instant
 
 class FreezeSnapshotRestoreValidator(
     private val sizePolicy: FreezeSnapshotSizePolicy,
@@ -10,11 +9,9 @@ class FreezeSnapshotRestoreValidator(
         header: FreezeSnapshotHeader,
         encryptedPayload: ByteArray,
         snapshotSize: Int,
-        now: Instant,
         expectedPodId: String,
     ) {
         requirePodId(header, expectedPodId)
-        requireNotExpired(header, now)
         requireSnapshotSize(snapshotSize)
         requireEncryptedPayloadSize(encryptedPayload.size)
     }
@@ -44,15 +41,6 @@ class FreezeSnapshotRestoreValidator(
     ) {
         if (header.podId != expectedPodId) {
             throw InvalidFreezeSnapshotException("Snapshot pod binding does not match this pod")
-        }
-    }
-
-    private fun requireNotExpired(
-        header: FreezeSnapshotHeader,
-        now: Instant,
-    ) {
-        if (now > header.expiresAt) {
-            throw InvalidFreezeSnapshotException("Snapshot has expired")
         }
     }
 

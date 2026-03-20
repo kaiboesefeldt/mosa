@@ -188,7 +188,6 @@ class FreezeSnapshotFormatTest {
             podId = "pod-1",
             keyId = "archive-2026",
             createdAt = Instant.ofEpochSecond(1_700_000_000),
-            expiresAt = Instant.ofEpochSecond(1_731_536_000),
             nonce = "nonce-123",
         )
 
