@@ -8,9 +8,9 @@ class ClearTermsCanonicalNodeRenderer(
         when (node) {
             is ClearTermsJsonNode.ObjectNode -> renderObject(node)
             is ClearTermsJsonNode.ArrayNode -> renderArray(node)
-            is ClearTermsJsonNode.ScalarNode.StringNode -> renderString(node.value)
-            is ClearTermsJsonNode.ScalarNode.NumberNode -> numberRenderer.render(node.value)
-            is ClearTermsJsonNode.ScalarNode.BooleanNode -> node.value.toString()
+            is ClearTermsJsonNode.ScalarNode.StringNode -> renderString(node)
+            is ClearTermsJsonNode.ScalarNode.NumberNode -> renderNumber(node)
+            is ClearTermsJsonNode.ScalarNode.BooleanNode -> renderBoolean(node)
             ClearTermsJsonNode.ScalarNode.NullNode -> "null"
         }
 
@@ -28,5 +28,13 @@ class ClearTermsCanonicalNodeRenderer(
         return "[$items]"
     }
 
+    private fun renderString(node: ClearTermsJsonNode.ScalarNode.StringNode): String = renderString(node.value)
+
     private fun renderString(value: String): String = "\"${stringEscaper.render(value)}\""
+
+    private fun renderNumber(node: ClearTermsJsonNode.ScalarNode.NumberNode): String =
+        numberRenderer.render(node.value)
+
+    private fun renderBoolean(node: ClearTermsJsonNode.ScalarNode.BooleanNode): String =
+        node.value.toString()
 }
