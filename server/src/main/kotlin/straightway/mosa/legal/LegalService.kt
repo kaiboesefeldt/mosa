@@ -1,65 +1,21 @@
 package straightway.mosa.legal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import straightway.mosa.legal.clearterms.ClearTermsCanonicalJson
-import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
 import straightway.mosa.legal.clearterms.ClearTermsJsonNode
-import straightway.mosa.legal.clearterms.ClearTermsJsonParser
-import straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker
-import straightway.mosa.legal.clearterms.ClearTermsProfileValidator
 import straightway.mosa.legal.clearterms.ClearTermsValidationException
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
-import straightway.mosa.legal.clearterms.ClearTermsYamlLanguageFragmentMerger
 import java.nio.file.Path
 
-class LegalService(
-    private val canonicalJsonConverter: ClearTermsYamlCanonicalJsonConverter,
+class LegalService internal constructor(
     private val operatorProfilePath: Path,
     private val termsOperatorProfilePath: Path,
-    private val completenessChecker: ClearTermsProfileChainCompletenessChecker,
-    private val parser: ClearTermsJsonParser,
-    private val reader: ClearTermsDocumentReader,
-    private val profileValidator: ClearTermsProfileValidator,
-    private val canonicalJson: ClearTermsCanonicalJson,
-    private val languageFragmentMerger: ClearTermsYamlLanguageFragmentMerger = ClearTermsYamlLanguageFragmentMerger(),
-    private val templateCompletenessChecker: ClearTermsProfileChainCompletenessChecker = ClearTermsProfileChainCompletenessChecker(),
+    private val profileSource: LegalProfileSource,
+    private val chainValidator: LegalChainValidator,
+    private val templateWriter: LegalOperatorProfileTemplateWriter,
+    private val documentFactory: LegalDocumentFactory,
     private val privacyResourceDirectory: String = LegalDocumentKind.Privacy.resourceDirectory,
     private val termsResourceDirectory: String = LegalDocumentKind.Terms.resourceDirectory,
-    private val resourceTextReader: (String) -> String? = { path ->
-        LegalService::class.java.classLoader
-            .getResourceAsStream(path)
-            ?.bufferedReader(Charsets.UTF_8)
-            ?.use { it.readText() }
-    },
-    private val resourceDirectoryEntriesProvider: (String) -> List<String>? = { _ -> null },
 ) {
-    private val profileSource =
-        LegalProfileSource(
-            canonicalJsonConverter = canonicalJsonConverter,
-            languageFragmentMerger = languageFragmentMerger,
-            resourceTextReader = resourceTextReader,
-            resourceDirectoryEntriesProvider = resourceDirectoryEntriesProvider,
-        )
-    private val chainValidator =
-        LegalChainValidator(
-            completenessChecker = completenessChecker,
-            parser = parser,
-            reader = reader,
-            profileValidator = profileValidator,
-            profileSource = profileSource,
-        )
-    private val templateWriter =
-        LegalOperatorProfileTemplateWriter(
-            templateCompletenessChecker = templateCompletenessChecker,
-        )
-    private val documentFactory =
-        LegalDocumentFactory(
-            parser = parser,
-            reader = reader,
-            profileValidator = profileValidator,
-            canonicalJson = canonicalJson,
-        )
-
     private val privacyDocuments: LegalDocuments by lazy {
         loadDocuments(
             kind = LegalDocumentKind.Privacy,
@@ -218,7 +174,7 @@ class LegalService(
         kind: LegalDocumentKind,
         reason: String,
         affectedProfilePath: Path,
-        operatorValuesOverride: Map<String, ClearTermsJsonNode.ScalarNode> = emptyMap(),
+        operatorValuesOverride: Map<String, ClearTermsJsonNode.ScalarNode>,
     ): LegalDocuments {
         logMissingOrIncompleteOperatorProfiles(
             reason = "$reason Falling back to mosa service profile.",

@@ -88,6 +88,18 @@ class LegalProfileSourceTest {
                 languageFragmentMerger =
                     straightway.mosa.legal.clearterms
                         .ClearTermsYamlLanguageFragmentMerger(),
+                resourceTextReader =
+                    ResourceTextReader { path ->
+                        LegalProfileSource::class.java.classLoader
+                            .getResourceAsStream(path)
+                            ?.bufferedReader(Charsets.UTF_8)
+                            ?.use { it.readText() }
+                    },
+                resourceDirectoryEntriesProvider = ResourceDirectoryEntriesProvider { null },
+                resourceUrlsProvider =
+                    ResourceUrlsProvider { path ->
+                        LegalProfileSource::class.java.classLoader.getResources(path)
+                    },
             )
 
         val context = source.loadMandatoryChainContext(LegalDocumentKind.Privacy)
@@ -107,6 +119,18 @@ class LegalProfileSourceTest {
                 languageFragmentMerger =
                     straightway.mosa.legal.clearterms
                         .ClearTermsYamlLanguageFragmentMerger(),
+                resourceTextReader =
+                    ResourceTextReader { path ->
+                        LegalProfileSource::class.java.classLoader
+                            .getResourceAsStream(path)
+                            ?.bufferedReader(Charsets.UTF_8)
+                            ?.use { it.readText() }
+                    },
+                resourceDirectoryEntriesProvider = ResourceDirectoryEntriesProvider { null },
+                resourceUrlsProvider =
+                    ResourceUrlsProvider { path ->
+                        LegalProfileSource::class.java.classLoader.getResources(path)
+                    },
             )
 
         val exception =
@@ -162,10 +186,11 @@ class LegalProfileSourceTest {
             )
         val source =
             createLegalProfileSource(
-                resourceTextReader = resources::get,
-                resourceDirectoryEntriesProvider = { directory ->
-                    if (directory == "custom") listOf("custom/baseline.yaml") else null
-                },
+                resourceTextReader = ResourceTextReader(resources::get),
+                resourceDirectoryEntriesProvider =
+                    ResourceDirectoryEntriesProvider { directory ->
+                        if (directory == "custom") listOf("custom/baseline.yaml") else null
+                    },
             )
 
         val exception =
@@ -191,10 +216,11 @@ class LegalProfileSourceTest {
             )
         val source =
             createLegalProfileSource(
-                resourceTextReader = resources::get,
-                resourceDirectoryEntriesProvider = { directory ->
-                    if (directory == "custom") resources.keys.sorted() else null
-                },
+                resourceTextReader = ResourceTextReader(resources::get),
+                resourceDirectoryEntriesProvider =
+                    ResourceDirectoryEntriesProvider { directory ->
+                        if (directory == "custom") resources.keys.sorted() else null
+                    },
             )
 
         val exception =
@@ -243,14 +269,15 @@ class LegalProfileSourceTest {
             )
         val source =
             createLegalProfileSource(
-                resourceTextReader = resources::get,
-                resourceUrlsProvider = { directory ->
-                    if (directory == "jar") {
-                        Collections.enumeration(listOf(directoryUrl))
-                    } else {
-                        Collections.emptyEnumeration()
-                    }
-                },
+                resourceTextReader = ResourceTextReader(resources::get),
+                resourceUrlsProvider =
+                    ResourceUrlsProvider { directory ->
+                        if (directory == "jar") {
+                            Collections.enumeration(listOf(directoryUrl))
+                        } else {
+                            Collections.emptyEnumeration()
+                        }
+                    },
             )
 
         val context =
@@ -273,28 +300,30 @@ class LegalProfileSourceTest {
             )
         val source =
             createLegalProfileSource(
-                resourceTextReader = resources::get,
-                resourceDirectoryEntriesProvider = { directory ->
-                    if (directory == "custom") resources.keys.sorted() else null
-                },
-                resourceUrlsProvider = { directory ->
-                    if (directory == "custom") {
-                        Collections.enumeration(
-                            listOf(
-                                java.net.URL(
-                                    null,
-                                    "memory:/custom",
-                                    object : java.net.URLStreamHandler() {
-                                        override fun openConnection(url: java.net.URL): java.net.URLConnection =
-                                            throw UnsupportedOperationException("not used")
-                                    },
+                resourceTextReader = ResourceTextReader(resources::get),
+                resourceDirectoryEntriesProvider =
+                    ResourceDirectoryEntriesProvider { directory ->
+                        if (directory == "custom") resources.keys.sorted() else null
+                    },
+                resourceUrlsProvider =
+                    ResourceUrlsProvider { directory ->
+                        if (directory == "custom") {
+                            Collections.enumeration(
+                                listOf(
+                                    java.net.URL(
+                                        null,
+                                        "memory:/custom",
+                                        object : java.net.URLStreamHandler() {
+                                            override fun openConnection(url: java.net.URL): java.net.URLConnection =
+                                                throw UnsupportedOperationException("not used")
+                                        },
+                                    ),
                                 ),
-                            ),
-                        )
-                    } else {
-                        Collections.emptyEnumeration()
-                    }
-                },
+                            )
+                        } else {
+                            Collections.emptyEnumeration()
+                        }
+                    },
             )
 
         val context =
@@ -321,14 +350,15 @@ class LegalProfileSourceTest {
         }
         val source =
             createLegalProfileSource(
-                resourceTextReader = resources::get,
-                resourceUrlsProvider = { directory ->
-                    if (directory.isEmpty()) {
-                        Collections.enumeration(listOf(directoryUrl))
-                    } else {
-                        Collections.emptyEnumeration()
-                    }
-                },
+                resourceTextReader = ResourceTextReader(resources::get),
+                resourceUrlsProvider =
+                    ResourceUrlsProvider { directory ->
+                        if (directory.isEmpty()) {
+                            Collections.enumeration(listOf(directoryUrl))
+                        } else {
+                            Collections.emptyEnumeration()
+                        }
+                    },
             )
 
         val context =
@@ -345,10 +375,11 @@ class LegalProfileSourceTest {
     fun `load mandatory chain context fails when required resource is missing`() {
         val source =
             createLegalProfileSource(
-                resourceTextReader = { _ -> null },
-                resourceDirectoryEntriesProvider = { directory ->
-                    if (directory == "custom") listOf("custom/default.yaml") else null
-                },
+                resourceTextReader = ResourceTextReader { null },
+                resourceDirectoryEntriesProvider =
+                    ResourceDirectoryEntriesProvider { directory ->
+                        if (directory == "custom") listOf("custom/default.yaml") else null
+                    },
             )
 
         val exception =
@@ -372,10 +403,11 @@ class LegalProfileSourceTest {
             )
         val source =
             createLegalProfileSource(
-                resourceTextReader = resources::get,
-                resourceDirectoryEntriesProvider = { directory ->
-                    if (directory == "custom") resources.keys.sorted() else null
-                },
+                resourceTextReader = ResourceTextReader(resources::get),
+                resourceDirectoryEntriesProvider =
+                    ResourceDirectoryEntriesProvider { directory ->
+                        if (directory == "custom") resources.keys.sorted() else null
+                    },
             )
 
         val exception =
@@ -406,10 +438,11 @@ class LegalProfileSourceTest {
             )
         val source =
             createLegalProfileSource(
-                resourceTextReader = resources::get,
-                resourceDirectoryEntriesProvider = { directory ->
-                    if (directory == "custom") resources.keys.sorted() else null
-                },
+                resourceTextReader = ResourceTextReader(resources::get),
+                resourceDirectoryEntriesProvider =
+                    ResourceDirectoryEntriesProvider { directory ->
+                        if (directory == "custom") resources.keys.sorted() else null
+                    },
             )
 
         val exception =

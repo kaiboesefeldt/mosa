@@ -4,21 +4,25 @@ import straightway.mosa.legal.clearterms.ClearTermsCanonicalJson
 import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
 import straightway.mosa.legal.clearterms.ClearTermsJsonParser
 import straightway.mosa.legal.clearterms.ClearTermsPlaceholderParser
+import straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker
 import straightway.mosa.legal.clearterms.ClearTermsProfileValidator
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
 import straightway.mosa.legal.clearterms.ClearTermsYamlLanguageFragmentMerger
 
 internal fun createLegalProfileSource(
-    resourceTextReader: (String) -> String? = { path ->
-        LegalProfileSource::class.java.classLoader
-            .getResourceAsStream(path)
-            ?.bufferedReader(Charsets.UTF_8)
-            ?.use { it.readText() }
-    },
-    resourceDirectoryEntriesProvider: (String) -> List<String>? = { _ -> null },
-    resourceUrlsProvider: (String) -> java.util.Enumeration<java.net.URL> = { path ->
-        LegalProfileSource::class.java.classLoader.getResources(path)
-    },
+    resourceTextReader: ResourceTextReader =
+        ResourceTextReader { path ->
+            LegalProfileSource::class.java.classLoader
+                .getResourceAsStream(path)
+                ?.bufferedReader(Charsets.UTF_8)
+                ?.use { it.readText() }
+        },
+    resourceDirectoryEntriesProvider: ResourceDirectoryEntriesProvider =
+        ResourceDirectoryEntriesProvider { null },
+    resourceUrlsProvider: ResourceUrlsProvider =
+        ResourceUrlsProvider { path ->
+            LegalProfileSource::class.java.classLoader.getResources(path)
+        },
 ) = LegalProfileSource(
     canonicalJsonConverter = ClearTermsYamlCanonicalJsonConverter(),
     languageFragmentMerger = ClearTermsYamlLanguageFragmentMerger(),
@@ -45,6 +49,50 @@ internal fun createLegalDocumentFactory() =
         profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
         canonicalJson = ClearTermsCanonicalJson(),
     )
+
+internal fun createLegalService(
+    operatorProfilePath: java.nio.file.Path,
+    termsOperatorProfilePath: java.nio.file.Path,
+    completenessChecker: ClearTermsProfileChainCompletenessChecker,
+    canonicalJsonConverter: ClearTermsYamlCanonicalJsonConverter = ClearTermsYamlCanonicalJsonConverter(),
+    resourceTextReader: ResourceTextReader =
+        ResourceTextReader { path ->
+            LegalService::class.java.classLoader
+                .getResourceAsStream(path)
+                ?.bufferedReader(Charsets.UTF_8)
+                ?.use { it.readText() }
+        },
+    resourceDirectoryEntriesProvider: ResourceDirectoryEntriesProvider =
+        ResourceDirectoryEntriesProvider { null },
+    resourceUrlsProvider: ResourceUrlsProvider =
+        ResourceUrlsProvider { path ->
+            LegalService::class.java.classLoader.getResources(path)
+        },
+): LegalService {
+    val profileSource =
+        LegalProfileSource(
+            canonicalJsonConverter = canonicalJsonConverter,
+            languageFragmentMerger = ClearTermsYamlLanguageFragmentMerger(),
+            resourceTextReader = resourceTextReader,
+            resourceDirectoryEntriesProvider = resourceDirectoryEntriesProvider,
+            resourceUrlsProvider = resourceUrlsProvider,
+        )
+    return LegalService(
+        operatorProfilePath = operatorProfilePath,
+        termsOperatorProfilePath = termsOperatorProfilePath,
+        profileSource = profileSource,
+        chainValidator =
+            LegalChainValidator(
+                completenessChecker = completenessChecker,
+                parser = ClearTermsJsonParser(),
+                reader = ClearTermsDocumentReader(),
+                profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
+                profileSource = profileSource,
+            ),
+        templateWriter = LegalOperatorProfileTemplateWriter(ClearTermsProfileChainCompletenessChecker()),
+        documentFactory = createLegalDocumentFactory(),
+    )
+}
 
 internal fun operatorProfileYaml(): String =
     """

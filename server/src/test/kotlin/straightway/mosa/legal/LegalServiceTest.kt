@@ -765,16 +765,13 @@ class LegalServiceTest {
         val missingPath = Files.createTempDirectory("legal-service-synthetic-missing").resolve("mosa_privacy.yaml")
         val exception =
             assertFailsWith<IllegalStateException> {
-                LegalService(
-                    canonicalJsonConverter = canonicalJsonConverter,
-                    operatorProfilePath = missingPath,
-                    termsOperatorProfilePath = writeTermsOperatorProfile(),
-                    completenessChecker = completenessChecker(complete = true),
-                    parser = ClearTermsJsonParser(),
-                    reader = ClearTermsDocumentReader(),
-                    profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
-                    canonicalJson = ClearTermsCanonicalJson(),
-                ).privacyServiceCanonicalJson()
+                straightway.mosa.legal
+                    .createLegalService(
+                        operatorProfilePath = missingPath,
+                        termsOperatorProfilePath = writeTermsOperatorProfile(),
+                        completenessChecker = completenessChecker(complete = true),
+                        canonicalJsonConverter = canonicalJsonConverter,
+                    ).privacyServiceCanonicalJson()
             }
 
         assertTrue(exception.message?.contains("missing or incomplete")!!)
@@ -801,16 +798,13 @@ class LegalServiceTest {
             captureLegalServiceLogs {
                 assertFailsWith<IllegalStateException> {
                     captureStdout(stdout) {
-                        LegalService(
-                            canonicalJsonConverter = canonicalJsonConverter,
-                            operatorProfilePath = missingPath,
-                            termsOperatorProfilePath = writeTermsOperatorProfile(),
-                            completenessChecker = completenessChecker(complete = true),
-                            parser = ClearTermsJsonParser(),
-                            reader = ClearTermsDocumentReader(),
-                            profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
-                            canonicalJson = ClearTermsCanonicalJson(),
-                        ).privacyServiceCanonicalJson()
+                        straightway.mosa.legal
+                            .createLegalService(
+                                operatorProfilePath = missingPath,
+                                termsOperatorProfilePath = writeTermsOperatorProfile(),
+                                completenessChecker = completenessChecker(complete = true),
+                                canonicalJsonConverter = canonicalJsonConverter,
+                            ).privacyServiceCanonicalJson()
                     }
                 }
             }
@@ -845,15 +839,11 @@ class LegalServiceTest {
         Files.writeString(operatorPath, operatorProfileYaml())
 
         val service =
-            LegalService(
-                canonicalJsonConverter = canonicalJsonConverter,
+            straightway.mosa.legal.createLegalService(
                 operatorProfilePath = operatorPath,
                 termsOperatorProfilePath = writeTermsOperatorProfile(),
                 completenessChecker = completenessChecker(complete = true),
-                parser = ClearTermsJsonParser(),
-                reader = ClearTermsDocumentReader(),
-                profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
-                canonicalJson = ClearTermsCanonicalJson(),
+                canonicalJsonConverter = canonicalJsonConverter,
             )
         val exception =
             assertFailsWith<IllegalStateException> {
@@ -888,15 +878,11 @@ class LegalServiceTest {
         Files.writeString(operatorPath, operatorProfileYaml())
 
         val service =
-            LegalService(
-                canonicalJsonConverter = canonicalJsonConverter,
+            straightway.mosa.legal.createLegalService(
                 operatorProfilePath = operatorPath,
                 termsOperatorProfilePath = writeTermsOperatorProfile(),
                 completenessChecker = completenessChecker(complete = true),
-                parser = ClearTermsJsonParser(),
-                reader = ClearTermsDocumentReader(),
-                profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
-                canonicalJson = ClearTermsCanonicalJson(),
+                canonicalJsonConverter = canonicalJsonConverter,
             )
         val exception =
             assertFailsWith<IllegalStateException> {
@@ -910,15 +896,10 @@ class LegalServiceTest {
         operatorProfilePath: Path? = null,
         termsOperatorProfilePath: Path? = null,
         completenessChecker: ClearTermsProfileChainCompletenessChecker? = null,
-    ) = LegalService(
-        canonicalJsonConverter = ClearTermsYamlCanonicalJsonConverter(),
+    ) = straightway.mosa.legal.createLegalService(
         operatorProfilePath = operatorProfilePath ?: writeOperatorProfile(),
         termsOperatorProfilePath = termsOperatorProfilePath ?: writeTermsOperatorProfile(),
         completenessChecker = completenessChecker ?: completenessChecker(complete = true),
-        parser = ClearTermsJsonParser(),
-        reader = ClearTermsDocumentReader(),
-        profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
-        canonicalJson = ClearTermsCanonicalJson(),
     )
 
     private fun sha256(value: String): String {

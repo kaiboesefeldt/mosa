@@ -6,22 +6,15 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
 import straightway.mosa.legal.clearterms.ClearTermsYamlLanguageFragmentMerger
 import java.net.JarURLConnection
-import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.Enumeration
 
 internal class LegalProfileSource(
     private val canonicalJsonConverter: ClearTermsYamlCanonicalJsonConverter,
     private val languageFragmentMerger: ClearTermsYamlLanguageFragmentMerger,
-    private val resourceTextReader: (String) -> String? = { path ->
-        LegalProfileSource::class.java.classLoader
-            .getResourceAsStream(path)
-            ?.bufferedReader(Charsets.UTF_8)
-            ?.use { it.readText() }
-    },
-    private val resourceDirectoryEntriesProvider: (String) -> List<String>? = { _ -> null },
-    private val resourceUrlsProvider: (String) -> Enumeration<URL> = { path -> javaClass.classLoader.getResources(path) },
+    private val resourceTextReader: ResourceTextReader,
+    private val resourceDirectoryEntriesProvider: ResourceDirectoryEntriesProvider,
+    private val resourceUrlsProvider: ResourceUrlsProvider,
 ) {
     fun loadMandatoryChainContext(
         kind: LegalDocumentKind,
@@ -99,7 +92,7 @@ internal class LegalProfileSource(
     private fun readRequiredResourceWithoutFragments(path: String): String =
         readResource(path) ?: throw IllegalStateException("Missing resource '$path'")
 
-    private fun readResource(path: String): String? = resourceTextReader(path)
+    private fun readResource(path: String): String? = resourceTextReader.read(path)
 
     private fun listSiblingFileFragments(basePath: Path): List<Path> {
         val baseFileName = basePath.fileName.toString()
@@ -129,7 +122,7 @@ internal class LegalProfileSource(
         }
         val directoryPath = basePath.substringBeforeLast('/', "")
         val discovered = linkedSetOf<String>()
-        val resources = resourceUrlsProvider(directoryPath)
+        val resources = resourceUrlsProvider.list(directoryPath)
         while (resources.hasMoreElements()) {
             val directoryUrl = resources.nextElement()
             val fragments =
@@ -250,11 +243,11 @@ internal class LegalProfileSource(
             }.sorted()
 
     private fun listResourceFiles(directoryPath: String): List<String> {
-        resourceDirectoryEntriesProvider(directoryPath)?.let { entries ->
+        resourceDirectoryEntriesProvider.list(directoryPath)?.let { entries ->
             return entries.sorted()
         }
         val discovered = linkedSetOf<String>()
-        val resources = resourceUrlsProvider(directoryPath)
+        val resources = resourceUrlsProvider.list(directoryPath)
         while (resources.hasMoreElements()) {
             val directoryUrl = resources.nextElement()
             when (directoryUrl.protocol) {

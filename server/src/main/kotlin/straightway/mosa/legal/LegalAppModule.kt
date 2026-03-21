@@ -12,6 +12,7 @@ import straightway.mosa.legal.clearterms.ClearTermsPlaceholderParser
 import straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker
 import straightway.mosa.legal.clearterms.ClearTermsProfileValidator
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
+import straightway.mosa.legal.clearterms.ClearTermsYamlLanguageFragmentMerger
 import java.nio.file.Path
 
 fun Module.configureLegalAppModule() {
@@ -20,6 +21,9 @@ fun Module.configureLegalAppModule() {
     single(legalImprintPathQualifier) { Path.of("mosa_imprint.yaml") }
     single {
         ClearTermsYamlCanonicalJsonConverter()
+    }
+    single {
+        ClearTermsYamlLanguageFragmentMerger()
     }
     single {
         ClearTermsProfileChainCompletenessChecker()
@@ -39,19 +43,62 @@ fun Module.configureLegalAppModule() {
     single {
         ClearTermsCanonicalJson()
     }
+    single<ResourceTextReader> {
+        ResourceTextReader { path ->
+            LegalService::class.java.classLoader
+                .getResourceAsStream(path)
+                ?.bufferedReader(Charsets.UTF_8)
+                ?.use { it.readText() }
+        }
+    }
+    single<ResourceDirectoryEntriesProvider> {
+        ResourceDirectoryEntriesProvider { null }
+    }
+    single<ResourceUrlsProvider> {
+        ResourceUrlsProvider { path ->
+            LegalService::class.java.classLoader.getResources(path)
+        }
+    }
+    single {
+        LegalProfileSource(
+            canonicalJsonConverter = get(),
+            languageFragmentMerger = get(),
+            resourceTextReader = get(),
+            resourceDirectoryEntriesProvider = get(),
+            resourceUrlsProvider = get(),
+        )
+    }
+    single {
+        LegalChainValidator(
+            completenessChecker = get(),
+            parser = get(),
+            reader = get(),
+            profileValidator = get(),
+            profileSource = get(),
+        )
+    }
+    single {
+        LegalOperatorProfileTemplateWriter(templateCompletenessChecker = get())
+    }
+    single {
+        LegalDocumentFactory(
+            parser = get(),
+            reader = get(),
+            profileValidator = get(),
+            canonicalJson = get(),
+        )
+    }
     single(createdAtStart = true) {
         ImprintService(path = get(legalImprintPathQualifier)).also { it.validateStartup() }
     }
     single(createdAtStart = true) {
         LegalService(
-            canonicalJsonConverter = get(),
-            completenessChecker = get(),
             operatorProfilePath = get(legalPrivacyProfilePathQualifier),
             termsOperatorProfilePath = get(legalTermsProfilePathQualifier),
-            parser = get(),
-            reader = get(),
-            profileValidator = get(),
-            canonicalJson = get(),
+            profileSource = get(),
+            chainValidator = get(),
+            templateWriter = get(),
+            documentFactory = get(),
         ).also { it.validateStartup() }
     }
     single { LegalController(get(), get()) } bind BaseController::class
