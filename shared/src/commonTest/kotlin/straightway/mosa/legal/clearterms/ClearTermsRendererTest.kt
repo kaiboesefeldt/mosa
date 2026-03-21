@@ -12,7 +12,7 @@ class ClearTermsRendererTest {
     private val renderer = ClearTermsRenderer(ClearTermsJsonParser(), hasher, encoder, localeProvider = localeProvider)
 
     @Test
-    fun `renders baseline default and deviation`() =
+    fun `renders baseline with two profile steps`() =
         runTest {
             val baseline =
                 """
@@ -28,31 +28,33 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": {
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": {
                     "retention_period": null,
                     "operator_name": "Example Organization"
                   }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val profileB =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en")
 
             val expected =
                 """
@@ -63,7 +65,7 @@ class ClearTermsRendererTest {
         }
 
     @Test
-    fun `applies deviation value overrides`() =
+    fun `applies later profile value overrides`() =
         runTest {
             val baseline =
                 """
@@ -78,28 +80,30 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "retention_period": "30d" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "retention_period": "30d" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val profileB =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": { "retention_period": "infinite" } }
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en")
 
             val expected =
                 """
@@ -127,23 +131,25 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "support_day": "mon" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "support_day": "mon" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": {
                     "values": {},
                     "texts": {
@@ -168,7 +174,7 @@ class ClearTermsRendererTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             val expected =
                 """
@@ -180,7 +186,7 @@ class ClearTermsRendererTest {
         }
 
     @Test
-    fun `allows fallback placeholders in deviation replacement text`() =
+    fun `allows fallback placeholders in later profile replacement text`() =
         runTest {
             val baseline =
                 baselineJson(
@@ -190,9 +196,9 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "max_records": 5 }""")
-            val deviation =
-                deviationJson(
+            val firstProfile = firstProfileJson(valuesJson = """{ "max_records": 5 }""")
+            val profileB =
+                secondProfileJson(
                     valuesJson = """{ }""",
                     textsJson =
                         """
@@ -202,7 +208,7 @@ class ClearTermsRendererTest {
                         """.trimIndent(),
                 )
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en")
 
             assertEquals("Limit: 5.", result)
         }
@@ -223,34 +229,36 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": {}
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": {}
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
     @Test
-    fun `renders when default omits value and deviation provides it`() =
+    fun `renders when first profile omits value and later profile provides it`() =
         runTest {
             val baseline =
                 """
@@ -265,34 +273,36 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": {}
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": {}
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val profileB =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": { "operator_name": "Example Organization" } }
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en")
 
             assertEquals("Operator: Example Organization.", result)
         }
 
     @Test
-    fun `ignores unused default values`() =
+    fun `ignores unused first profile values`() =
         runTest {
             val baseline =
                 baselineJson(
@@ -302,10 +312,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "operator_name": "Example Org", "unused": "extra" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "operator_name": "Example Org", "unused": "extra" }""")
+            val profileB = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en")
 
             assertEquals("Operator: Example Org.", result)
         }
@@ -326,28 +336,30 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "operator_name": "Example Organization", "extra_value": 12 }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "operator_name": "Example Organization", "extra_value": 12 }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Operator: Example Organization.", result)
         }
@@ -368,29 +380,31 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:FFFF" },
-                  "values": { "operator_name": "Example Organization" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:FFFF" },
+                  "overrides": {
+                    "values": { "operator_name": "Example Organization" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -409,29 +423,31 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": {}
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": {}
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -450,37 +466,39 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": {}
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": {}
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
             val result =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
                 }
 
             assertEquals("Baseline block ids must be unique for 'de'", result.message)
         }
 
     @Test
-    fun `supports deviation texts for subset of languages`() =
+    fun `supports later profile texts for subset of languages`() =
         runTest {
             val baseline =
                 """
@@ -494,23 +512,25 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "support_day": "mon" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "support_day": "mon" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": {
                     "values": {},
                     "texts": {
@@ -520,10 +540,10 @@ class ClearTermsRendererTest {
                 }
                 """.trimIndent()
 
-            val renderedEn = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val renderedEn = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             val exception =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, defaultProfile, deviation, "de")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "de")
                 }
 
             assertEquals("Support: Monday.", renderedEn)
@@ -544,23 +564,25 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "support_day": "mon" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "support_day": "mon" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": {
                     "values": {},
                     "texts": { "en": { "replace": { "missing": "X" }, "append": [] } }
@@ -569,7 +591,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -587,23 +609,25 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "support_day": "mon" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "support_day": "mon" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": {
                     "values": {},
                     "texts": {
@@ -617,7 +641,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -635,23 +659,25 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "support_day": "mon" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "support_day": "mon" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": {
                     "values": {},
                     "texts": {
@@ -665,7 +691,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -683,23 +709,25 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "support_day": "mon" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "support_day": "mon" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": {
                     "values": {},
                     "texts": {
@@ -717,7 +745,7 @@ class ClearTermsRendererTest {
 
             val result =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
                 }
 
             assertEquals("Append block ids must be unique", result.message)
@@ -737,29 +765,31 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "max_records": "not-a-number" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "max_records": "not-a-number" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -777,29 +807,31 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "retention_period": null }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "retention_period": null }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -819,28 +851,30 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "operator_name": "Example" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "operator_name": "Example" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             val expected = "Literal {{ and }} then Example."
             assertEquals(expected, result)
@@ -860,29 +894,31 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "start_time": "2025-01-02T10:00:00" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "start_time": "2025-01-02T10:00:00" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -900,29 +936,31 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "start_time": "2025-13-02T10:00:00Z" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "start_time": "2025-13-02T10:00:00Z" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -940,29 +978,31 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "start_time": "2025-01-00T10:00:00Z" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "start_time": "2025-01-00T10:00:00Z" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -980,29 +1020,31 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "start_time": "2025-01-02T25:00:00Z" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "start_time": "2025-01-02T25:00:00Z" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1020,29 +1062,31 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "start_time": "2025-01-02T10:00:60Z" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "start_time": "2025-01-02T10:00:60Z" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1050,11 +1094,11 @@ class ClearTermsRendererTest {
     fun `rejects unavailable language`() =
         runTest {
             val baseline = baselineJson("""{ "en": [ { "id": "one", "text": "One" } ] }""")
-            val defaultProfile = defaultJson(valuesJson = """{ }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "fr")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "fr")
             }
         }
 
@@ -1062,15 +1106,15 @@ class ClearTermsRendererTest {
     fun `rejects baseline reference id mismatch`() =
         runTest {
             val baseline = baselineJson("""{ "en": [ { "id": "one", "text": "One" } ] }""", id = "baseline-a")
-            val defaultProfile =
-                defaultJson(
+            val firstProfile =
+                firstProfileJson(
                     baselineId = "baseline-b",
                     valuesJson = """{ }""",
                 )
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1082,72 +1126,72 @@ class ClearTermsRendererTest {
                     """{ "en": [ { "id": "one", "text": "One" } ] }""",
                     version = "1.1",
                 )
-            val defaultProfile =
-                defaultJson(
+            val firstProfile =
+                firstProfileJson(
                     baselineVersion = "1.0",
                     valuesJson = """{ }""",
                 )
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
     @Test
-    fun `rejects default reference hash mismatch`() =
+    fun `rejects parent reference hash mismatch for later profile`() =
         runTest {
             val baseline = baselineJson("""{ "en": [ { "id": "one", "text": "One" } ] }""")
-            val defaultProfile = defaultJson(valuesJson = """{ }""")
-            val deviation =
+            val firstProfile = firstProfileJson(valuesJson = """{ }""")
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:FFFF" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:FFFF" },
                   "overrides": { "values": { } }
                 }
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
     @Test
-    fun `rejects default reference id mismatch`() =
+    fun `rejects parent reference id mismatch for later profile`() =
         runTest {
             val baseline = baselineJson("""{ "en": [ { "id": "one", "text": "One" } ] }""")
-            val defaultProfile = defaultJson(valuesJson = """{ }""", id = "default-a")
-            val deviation =
-                deviationJson(
+            val firstProfile = firstProfileJson(valuesJson = """{ }""", id = "default-a")
+            val secondProfile =
+                secondProfileJson(
                     valuesJson = """{ }""",
-                    defaultId = "default-b",
+                    parentProfileId = "default-b",
                 )
 
             val result =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
                 }
 
             assertEquals("Reference id mismatch", result.message)
         }
 
     @Test
-    fun `rejects default reference version mismatch`() =
+    fun `rejects parent reference version mismatch for later profile`() =
         runTest {
             val baseline = baselineJson("""{ "en": [ { "id": "one", "text": "One" } ] }""")
-            val defaultProfile = defaultJson(valuesJson = """{ }""", version = "1.0")
-            val deviation =
-                deviationJson(
+            val firstProfile = firstProfileJson(valuesJson = """{ }""", version = "1.0")
+            val secondProfile =
+                secondProfileJson(
                     valuesJson = """{ }""",
-                    defaultVersion = "2.0",
+                    parentProfileVersion = "2.0",
                 )
 
             val result =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
                 }
 
             assertEquals("Reference version mismatch", result.message)
@@ -1165,12 +1209,12 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile =
-                defaultJson(
+            val firstProfile =
+                firstProfileJson(
                     valuesJson = """{ "level": "basic" }""",
                 )
-            val deviation =
-                deviationJson(
+            val secondProfile =
+                secondProfileJson(
                     valuesJson = """{ }""",
                     textsJson =
                         """
@@ -1182,7 +1226,7 @@ class ClearTermsRendererTest {
                 )
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1198,12 +1242,12 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile =
-                defaultJson(
+            val firstProfile =
+                firstProfileJson(
                     valuesJson = """{ "level": "basic" }""",
                 )
-            val deviation =
-                deviationJson(
+            val secondProfile =
+                secondProfileJson(
                     valuesJson = """{ }""",
                     textsJson =
                         """
@@ -1215,7 +1259,7 @@ class ClearTermsRendererTest {
                 )
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1233,9 +1277,9 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ }""")
-            val deviation =
-                deviationJson(
+            val firstProfile = firstProfileJson(valuesJson = """{ }""")
+            val secondProfile =
+                secondProfileJson(
                     valuesJson = """{ }""",
                     textsJson =
                         """
@@ -1245,13 +1289,13 @@ class ClearTermsRendererTest {
                         """.trimIndent(),
                 )
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Uno.Two.", result)
         }
 
     @Test
-    fun `allows fallbacks in deviation text`() =
+    fun `allows fallbacks in secondProfile text`() =
         runTest {
             val baseline =
                 baselineJson(
@@ -1261,12 +1305,12 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile =
-                defaultJson(
+            val firstProfile =
+                firstProfileJson(
                     valuesJson = """{ "level": "basic" }""",
                 )
-            val deviation =
-                deviationJson(
+            val secondProfile =
+                secondProfileJson(
                     valuesJson = """{ }""",
                     textsJson =
                         """
@@ -1276,7 +1320,7 @@ class ClearTermsRendererTest {
                         """.trimIndent(),
                 )
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Support: basic", result)
         }
@@ -1295,11 +1339,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "text" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "text" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1314,10 +1358,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "max_records": null }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "max_records": null }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Limit: unknown.", result)
         }
@@ -1333,10 +1377,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "operator_name": null }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "operator_name": null }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Operator: unspecified.", result)
         }
@@ -1352,10 +1396,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "max_records": 10 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "max_records": 10 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Limit: 10.", result)
         }
@@ -1371,10 +1415,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "max_records": 10.5 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "max_records": 10.5 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Limit: 10.5.", result)
         }
@@ -1390,10 +1434,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "max_records": -10.25 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "max_records": -10.25 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Limit: -10.25.", result)
         }
@@ -1409,11 +1453,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "name": 12 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "name": 12 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1428,11 +1472,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "period": 12 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "period": 12 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1447,11 +1491,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "period": "1x" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "period": "1x" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1466,11 +1510,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "period": "s" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "period": "s" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1485,11 +1529,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "period": "as" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "period": "as" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1504,11 +1548,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "period": "\"30d" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "period": "\"30d" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1523,10 +1567,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "period": "  \"30d\"  " }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "period": "  \"30d\"  " }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Retention: 30 days.", result)
         }
@@ -1542,10 +1586,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-01-02T10:00:00Z" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-01-02T10:00:00Z" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on January 2, 2025 at 10:00:00Z.", result)
         }
@@ -1561,10 +1605,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-01-02T10:30Z" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-01-02T10:30Z" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on January 2, 2025 at 10:30Z.", result)
         }
@@ -1580,10 +1624,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-01-02T10:00-05:00" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-01-02T10:00-05:00" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on January 2, 2025 at 10:00-05:00.", result)
         }
@@ -1599,10 +1643,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": null }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": null }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: soon.", result)
         }
@@ -1618,11 +1662,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": 10 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": 10 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -1637,10 +1681,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "support_day": "mon" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "support_day": "mon" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Support: Monday.", result)
         }
@@ -1656,10 +1700,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-*-15T12:00:00+01:00" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-*-15T12:00:00+01:00" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on day 15 of every month at 12:00:00+01:00.", result)
         }
@@ -1675,10 +1719,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-02-*" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-02-*" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: in February 2025.", result)
         }
@@ -1694,10 +1738,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-*-05" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-*-05" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on day 5 of every month in 2025.", result)
         }
@@ -1713,10 +1757,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-*-*" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-*-*" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: in 2025.", result)
         }
@@ -1732,10 +1776,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-02-05" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-02-05" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on February 5 every year.", result)
         }
@@ -1751,10 +1795,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-02-*" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-02-*" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: every day in February.", result)
         }
@@ -1770,10 +1814,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-*-15" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-*-15" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on day 15 of every month.", result)
         }
@@ -1789,10 +1833,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-*-*" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-*-*" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: every day.", result)
         }
@@ -1808,10 +1852,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-02-31" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-02-31" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on the last day of February every year.", result)
         }
@@ -1827,10 +1871,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-02-31" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-02-31" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on the last day of February 2025.", result)
         }
@@ -1855,10 +1899,10 @@ class ClearTermsRendererTest {
                 )
 
             monthByNumber.forEach { (month, monthName) ->
-                val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-${month.toString().padStart(2, '0')}-31" }""")
-                val deviation = deviationJson(valuesJson = """{ }""")
+                val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-${month.toString().padStart(2, '0')}-31" }""")
+                val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-                val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
                 assertEquals("Start: on the last day of $monthName 2025.", result)
             }
@@ -1892,10 +1936,10 @@ class ClearTermsRendererTest {
                 )
 
             expectedByMonth.forEach { (month, expectedText) ->
-                val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-${month.toString().padStart(2, '0')}-31" }""")
-                val deviation = deviationJson(valuesJson = """{ }""")
+                val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-${month.toString().padStart(2, '0')}-31" }""")
+                val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-                val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
                 assertEquals(expectedText, result)
             }
@@ -1912,10 +1956,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2024-02-29" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2024-02-29" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on February 29, 2024.", result)
         }
@@ -1931,10 +1975,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2023-02-29" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2023-02-29" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on the last day of February 2023.", result)
         }
@@ -1950,10 +1994,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "1900-02-29" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "1900-02-29" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on the last day of February 1900.", result)
         }
@@ -1969,10 +2013,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "2025-*-31" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-*-31" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on the last day of every month in 2025.", result)
         }
@@ -1988,10 +2032,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "start_time": "*-*-31" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-*-31" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Start: on the last day of every month.", result)
         }
@@ -2007,10 +2051,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "amount": 1234.5 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "amount": 1234.5 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Price: 1,234.50.", result)
         }
@@ -2026,10 +2070,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "count": 1234.6 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "count": 1234.6 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Count: 1235.", result)
         }
@@ -2045,10 +2089,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "count": -1.5 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "count": -1.5 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Count: -2.", result)
         }
@@ -2064,10 +2108,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "count": 1200.4 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "count": 1200.4 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Count: 1,200.", result)
         }
@@ -2083,10 +2127,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "count": 1234.5 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "count": 1234.5 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Count: 1234.50.", result)
         }
@@ -2102,10 +2146,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "count": 1e7 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "count": 1e7 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Count: 10000000.00.", result)
         }
@@ -2121,10 +2165,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "count": 999.0 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "count": 999.0 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Count: 999.", result)
         }
@@ -2140,10 +2184,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "ratio": 1.25 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "ratio": 1.25 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Ratio: 1.25.", result)
         }
@@ -2159,10 +2203,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "support_day": null }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "support_day": null }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Support: weekdays.", result)
         }
@@ -2234,10 +2278,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "support_day": "sun" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "support_day": "sun" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Support: sun.", result)
         }
@@ -2256,28 +2300,30 @@ class ClearTermsRendererTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "example-policy-default",
                   "version": "1.0",
-                  "baseline": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
-                  "values": { "support_day": "mon" }
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "support_day": "mon" }
+                  }
                 }
                 """.trimIndent()
-            val deviation =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
+                  "kind": "profile",
                   "id": "example-policy-operator",
                   "version": "1.0",
-                  "default": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
+                  "parent": { "id": "example-policy-default", "version": "1.0", "hash": "sha256:0102" },
                   "overrides": { "values": {} }
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "fr")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "fr")
 
             assertEquals("Support: Monday.", result)
         }
@@ -2293,11 +2339,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "support_day": 2 }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "support_day": 2 }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -2312,16 +2358,16 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "support_day": "monday" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "support_day": "monday" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
     @Test
-    fun `rejects missing values for placeholders introduced by deviations`() =
+    fun `rejects missing values for placeholders introduced by later profiles`() =
         runTest {
             val baseline =
                 baselineJson(
@@ -2331,9 +2377,9 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "level": "basic" }""")
-            val deviation =
-                deviationJson(
+            val firstProfile = firstProfileJson(valuesJson = """{ "level": "basic" }""")
+            val secondProfile =
+                secondProfileJson(
                     valuesJson = """{ }""",
                     textsJson =
                         """
@@ -2344,7 +2390,7 @@ class ClearTermsRendererTest {
                 )
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -2359,11 +2405,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{string:inner}}" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{string:inner}}" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -2378,10 +2424,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{number:inner?}}" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{number:inner?}}" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Value: {{number:inner?}}.", result)
         }
@@ -2397,11 +2443,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{number:inner?format}}" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{number:inner?format}}" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -2416,11 +2462,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{number:inner}}" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{number:inner}}" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -2435,11 +2481,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{duration:inner}}" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{duration:inner}}" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -2454,11 +2500,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{time:inner}}" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{time:inner}}" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -2473,11 +2519,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{weekday:inner}}" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{weekday:inner}}" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -2492,11 +2538,11 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{string:inner" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{string:inner" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
             }
         }
 
@@ -2511,10 +2557,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{bogus:inner}}" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{bogus:inner}}" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Value: {{bogus:inner}}.", result)
         }
@@ -2530,10 +2576,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{string:bad key}}" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{string:bad key}}" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Value: {{string:bad key}}.", result)
         }
@@ -2549,10 +2595,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{string:}}" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{string:}}" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Value: {{string:}}.", result)
         }
@@ -2568,10 +2614,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ "value": "{{not_placeholder}}" }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{not_placeholder}}" }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
 
             assertEquals("Value: {{not_placeholder}}.", result)
         }
@@ -2590,12 +2636,12 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             val result =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, defaultProfile, deviation, "en")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
                 }
 
             assertEquals("Baseline block ids must be unique", result.message)
@@ -2619,10 +2665,10 @@ class ClearTermsRendererTest {
                     }
                     """.trimIndent(),
                 )
-            val defaultProfile = defaultJson(valuesJson = """{ }""")
-            val deviation = deviationJson(valuesJson = """{ }""")
+            val firstProfile = firstProfileJson(valuesJson = """{ }""")
+            val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderAll(baseline, defaultProfile, deviation)
+            val result = renderer.renderAll(baseline, listOf(firstProfile, secondProfile))
             val blocks = result.blocksByLanguage.getValue("en")
 
             assertEquals(true, blocks[0].inlineWithNext)
@@ -2643,7 +2689,7 @@ class ClearTermsRendererTest {
         }
         """.trimIndent()
 
-    private fun defaultJson(
+    private fun firstProfileJson(
         valuesJson: String,
         baselineId: String = "example-policy",
         baselineVersion: String = "1.0",
@@ -2652,18 +2698,20 @@ class ClearTermsRendererTest {
     ): String =
         """
         {
-          "kind": "default",
+          "kind": "profile",
           "id": "$id",
           "version": "$version",
-          "baseline": { "id": "$baselineId", "version": "$baselineVersion", "hash": "sha256:0102" },
-          "values": $valuesJson
+          "parent": { "id": "$baselineId", "version": "$baselineVersion", "hash": "sha256:0102" },
+          "overrides": {
+            "values": $valuesJson
+          }
         }
         """.trimIndent()
 
-    private fun deviationJson(
+    private fun secondProfileJson(
         valuesJson: String,
-        defaultId: String = "example-policy-default",
-        defaultVersion: String = "1.0",
+        parentProfileId: String = "example-policy-default",
+        parentProfileVersion: String = "1.0",
         textsJson: String? = null,
     ): String {
         val textsPart =
@@ -2677,10 +2725,10 @@ class ClearTermsRendererTest {
             }
         return """
             {
-              "kind": "deviation",
+              "kind": "profile",
               "id": "example-policy-operator",
               "version": "1.0",
-              "default": { "id": "$defaultId", "version": "$defaultVersion", "hash": "sha256:0102" },
+              "parent": { "id": "$parentProfileId", "version": "$parentProfileVersion", "hash": "sha256:0102" },
               "overrides": {
                 "values": $valuesJson$textsPart
               }

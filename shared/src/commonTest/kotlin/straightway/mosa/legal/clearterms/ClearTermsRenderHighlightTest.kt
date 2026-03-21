@@ -535,7 +535,7 @@ class ClearTermsRenderHighlightTest {
         }
 
     @Test
-    fun `supports legacy default deviation overload and returns highlighted result`() =
+    fun `returns highlighted result for two profile overrides`() =
         runTest {
             val baseline =
                 """
@@ -550,25 +550,27 @@ class ClearTermsRenderHighlightTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "policy-default",
                   "version": "1",
-                  "baseline": { "id": "policy", "version": "1", "hash": "sha256:01" },
-                  "values": {
-                    "operator_name": "Org A"
+                  "parent": { "id": "policy", "version": "1", "hash": "sha256:01" },
+                  "overrides": {
+                    "values": {
+                      "operator_name": "Org A"
+                    }
                   }
                 }
                 """.trimIndent()
-            val deviationProfile =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
-                  "id": "policy-deviation",
+                  "kind": "profile",
+                  "id": "policy-secondProfile",
                   "version": "1",
-                  "default": { "id": "policy-default", "version": "1", "hash": "sha256:02" },
+                  "parent": { "id": "policy-default", "version": "1", "hash": "sha256:02" },
                   "overrides": {
                     "values": {
                       "operator_name": "Org B"
@@ -577,7 +579,7 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, defaultProfile, deviationProfile)
+            val result = renderer.renderAll(baseline, listOf(firstProfile, secondProfile))
             val segments =
                 result.blocksByLanguage
                     .getValue("en")
@@ -596,7 +598,7 @@ class ClearTermsRenderHighlightTest {
         }
 
     @Test
-    fun `throws in legacy overload when requested language is unavailable`() =
+    fun `throws when requested language is unavailable in profile chain`() =
         runTest {
             val baseline =
                 """
@@ -611,25 +613,27 @@ class ClearTermsRenderHighlightTest {
                   }
                 }
                 """.trimIndent()
-            val defaultProfile =
+            val firstProfile =
                 """
                 {
-                  "kind": "default",
+                  "kind": "profile",
                   "id": "policy-default",
                   "version": "1",
-                  "baseline": { "id": "policy", "version": "1", "hash": "sha256:01" },
-                  "values": {
-                    "operator_name": "Org A"
+                  "parent": { "id": "policy", "version": "1", "hash": "sha256:01" },
+                  "overrides": {
+                    "values": {
+                      "operator_name": "Org A"
+                    }
                   }
                 }
                 """.trimIndent()
-            val deviationProfile =
+            val secondProfile =
                 """
                 {
-                  "kind": "deviation",
-                  "id": "policy-deviation",
+                  "kind": "profile",
+                  "id": "policy-secondProfile",
                   "version": "1",
-                  "default": { "id": "policy-default", "version": "1", "hash": "sha256:02" },
+                  "parent": { "id": "policy-default", "version": "1", "hash": "sha256:02" },
                   "overrides": {
                     "values": {
                       "operator_name": "Org B"
@@ -640,7 +644,7 @@ class ClearTermsRenderHighlightTest {
 
             val exception =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, defaultProfile, deviationProfile, "de")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "de")
                 }
 
             assertEquals("Language 'de' not available", exception.message)

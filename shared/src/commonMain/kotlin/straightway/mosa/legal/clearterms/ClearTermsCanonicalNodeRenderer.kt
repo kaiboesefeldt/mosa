@@ -32,9 +32,7 @@ class ClearTermsCanonicalNodeRenderer(
 
     private fun renderString(value: String): String = "\"${stringEscaper.render(value)}\""
 
-    private fun renderNumber(node: ClearTermsJsonNode.ScalarNode.NumberNode): String =
-        numberRenderer.render(node.value)
+    private fun renderNumber(node: ClearTermsJsonNode.ScalarNode.NumberNode): String = numberRenderer.render(node.value)
 
-    private fun renderBoolean(node: ClearTermsJsonNode.ScalarNode.BooleanNode): String =
-        node.value.toString()
+    private fun renderBoolean(node: ClearTermsJsonNode.ScalarNode.BooleanNode): String = node.value.toString()
 }

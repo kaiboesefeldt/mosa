@@ -38,75 +38,12 @@ class ClearTermsRenderer(
         return renderWithParsedProfiles(baseline, baselineHash, parsedProfiles)
     }
 
-    suspend fun renderAll(
-        baselineJson: String,
-        defaultJson: String,
-        deviationJson: String,
-    ): ClearTermsRenderResult {
-        val baselineNode = parser.parse(baselineJson)
-        val defaultNode = parser.parse(defaultJson)
-        val deviationNode = parser.parse(deviationJson)
-
-        val baselineHash = hashFor(baselineNode)
-        val defaultHash = hashFor(defaultNode)
-        val deviationHash = hashFor(deviationNode)
-
-        val baseline = reader.readBaseline(baselineNode)
-        val defaultProfile = reader.readDefault(defaultNode)
-        val deviationProfile = reader.readDeviation(deviationNode)
-        profileValidator.validateBaselineStructure(baseline)
-
-        val parsedProfiles =
-            listOf(
-                ParsedProfile(
-                    profile =
-                        ClearTermsProfile(
-                            id = defaultProfile.id,
-                            version = defaultProfile.version,
-                            parent = defaultProfile.baseline,
-                            overrides = ClearTermsProfile.Overrides(defaultProfile.values, null),
-                        ),
-                    hash = defaultHash,
-                ),
-                ParsedProfile(
-                    profile =
-                        ClearTermsProfile(
-                            id = deviationProfile.id,
-                            version = deviationProfile.version,
-                            parent = deviationProfile.default,
-                            overrides =
-                                ClearTermsProfile.Overrides(
-                                    values = deviationProfile.overrides.values,
-                                    texts =
-                                        deviationProfile.overrides.texts?.mapValues { (_, value) ->
-                                            ClearTermsProfile.TextOverrides(value.replace, value.append)
-                                        },
-                                ),
-                        ),
-                    hash = deviationHash,
-                ),
-            )
-
-        return renderWithParsedProfiles(baseline, baselineHash, parsedProfiles)
-    }
-
     suspend fun renderLanguage(
         baselineJson: String,
         profileJsons: List<String>,
         languageTag: String,
     ): String {
         val result = renderAll(baselineJson, profileJsons)
-        return result.textsByLanguage[languageTag]
-            ?: throw ClearTermsValidationException("Language '$languageTag' not available")
-    }
-
-    suspend fun renderLanguage(
-        baselineJson: String,
-        defaultJson: String,
-        deviationJson: String,
-        languageTag: String,
-    ): String {
-        val result = renderAll(baselineJson, defaultJson, deviationJson)
         return result.textsByLanguage[languageTag]
             ?: throw ClearTermsValidationException("Language '$languageTag' not available")
     }

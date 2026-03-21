@@ -32,7 +32,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
-import kotlin.text.StringBuilder
 
 class LegalServiceTest {
     private val parser = ClearTermsJsonParser()
@@ -174,7 +173,7 @@ class LegalServiceTest {
                 ).validateStartup()
             }
 
-        assertTrue(exception.message?.contains("missing or incomplete") == true)
+        assertTrue(exception.message?.contains("missing or incomplete")!!)
     }
 
     @Test
@@ -212,7 +211,7 @@ class LegalServiceTest {
                 ).validateStartup()
             }
 
-        assertTrue(exception.message?.contains("ORG_CONTROLLER_NAME") == true)
+        assertTrue(exception.message?.contains("ORG_CONTROLLER_NAME")!!)
     }
 
     @Test
@@ -234,7 +233,9 @@ class LegalServiceTest {
 
         assertTrue(Files.exists(missingPrivacyPath))
         assertEquals(originalTermsContent, Files.readString(existingTermsPath))
-        assertTrue(exception.message?.contains(missingPrivacyPath.toAbsolutePath().normalize().toString()) == true)
+        assertTrue(
+            exception.message?.contains(missingPrivacyPath.toAbsolutePath().normalize().toString())!!,
+        )
     }
 
     @Test
@@ -256,7 +257,9 @@ class LegalServiceTest {
 
         assertTrue(Files.exists(missingTermsPath))
         assertEquals(originalPrivacyContent, Files.readString(existingPrivacyPath))
-        assertTrue(exception.message?.contains(missingTermsPath.toAbsolutePath().normalize().toString()) == true)
+        assertTrue(
+            exception.message?.contains(missingTermsPath.toAbsolutePath().normalize().toString())!!,
+        )
     }
 
     @Test
@@ -525,7 +528,7 @@ class LegalServiceTest {
                 ).privacyServiceCanonicalJson()
             }
 
-        assertTrue(exception.message?.contains("missing or incomplete") == true)
+        assertTrue(exception.message?.contains("missing or incomplete")!!)
     }
 
     @Test
@@ -541,8 +544,8 @@ class LegalServiceTest {
                 ).privacyServiceCanonicalJson()
             }
 
-        assertTrue(exception.message?.contains(path.toAbsolutePath().normalize().toString()) == true)
-        assertTrue(exception.message?.contains("missing or incomplete") == true)
+        assertTrue(exception.message?.contains(path.toAbsolutePath().normalize().toString())!!)
+        assertTrue(exception.message?.contains("missing or incomplete")!!)
     }
 
     @Test
@@ -580,7 +583,7 @@ class LegalServiceTest {
                 ).privacyServiceCanonicalJson()
             }
 
-        assertTrue(exception.message?.contains("invalid placeholder values") == true)
+        assertTrue(exception.message?.contains("invalid placeholder values")!!)
     }
 
     @Test
@@ -760,7 +763,7 @@ class LegalServiceTest {
                 ).privacyServiceCanonicalJson()
             }
 
-        assertTrue(exception.message?.contains("missing or incomplete") == true)
+        assertTrue(exception.message?.contains("missing or incomplete")!!)
     }
 
     @Test
@@ -843,7 +846,7 @@ class LegalServiceTest {
                 service.privacyServiceCanonicalJson()
             }
 
-        assertTrue(exception.message?.contains("missing or incomplete") == true)
+        assertTrue(exception.message?.contains("missing or incomplete")!!)
     }
 
     @Test
@@ -886,7 +889,7 @@ class LegalServiceTest {
                 service.privacyServiceCanonicalJson()
             }
 
-        assertTrue(exception.message?.contains("missing or incomplete") == true)
+        assertTrue(exception.message?.contains("missing or incomplete")!!)
     }
 
     private fun createLegalService(
@@ -971,7 +974,7 @@ class LegalServiceTest {
     private fun minimallyFilledTemplateYaml(templateYaml: String): String =
         templateYaml
             .lineSequence()
-            .map { line ->
+            .joinToString("\n") { line ->
                 when {
                     line.contains(": null # type: string") -> {
                         line.replace(": null # type: string", """: "Filled value"""")
@@ -1001,7 +1004,7 @@ class LegalServiceTest {
                         line
                     }
                 }
-            }.joinToString("\n")
+            }
 
     private fun operatorProfileYaml(): String =
         """
@@ -1201,35 +1204,6 @@ class LegalServiceTest {
           version: "1.0.0"
         overrides: {}
         """.trimIndent()
-
-    private fun validOperatorProfileYaml(values: Map<String, straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode>): String {
-        val builder = StringBuilder()
-        builder.appendLine("kind: profile")
-        builder.appendLine("id: privacy-operator-service")
-        builder.appendLine("version: \"1.0.0-draft2\"")
-        builder.appendLine("parent:")
-        builder.appendLine("  id: mosa-privacy-gdpr-service")
-        builder.appendLine("  version: \"1.0.0-draft2\"")
-        builder.appendLine("overrides:")
-        builder.appendLine("  values:")
-        values.forEach { (key, value) ->
-            val yamlValue =
-                when (value) {
-                    is straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.StringNode -> "\"${value.value.replace(
-                        "\"",
-                        "\\\"",
-                    )}\""
-
-                    is straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.NumberNode -> value.value.toString()
-
-                    is straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.BooleanNode -> value.value.toString()
-
-                    is straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.NullNode -> "null"
-                }
-            builder.appendLine("    $key: $yamlValue")
-        }
-        return builder.toString().trimEnd()
-    }
 }
 
 private class Sha256HashProvider : ClearTermsHashProvider {
