@@ -103,6 +103,9 @@
 - Embeddings/vector storage: ONNX local embeddings + Lucene local vector store.
 - Snapshot workflow: freeze export and restore application services live in `server/src/main/kotlin/straightway/mosa/content/snapshot`.
 - Client assets are copied into server static resources for packaging.
+- Legal document loading is split across dedicated helpers in `server/src/main/kotlin/straightway/mosa/legal`:
+  `LegalProfileSource` handles YAML/resource loading, `LegalChainValidator` validates full chains,
+  `LegalOperatorProfileTemplateWriter` creates operator templates, and `LegalDocumentFactory` builds canonical/fallback documents.
 - ClearTerms YAML loading supports optional language fragment files:
   - Baseline: `<name>.<lang>.yaml` fragments contribute to root `texts`.
   - Profile: `<name>.<lang>.yaml` fragments contribute to `overrides.texts`.

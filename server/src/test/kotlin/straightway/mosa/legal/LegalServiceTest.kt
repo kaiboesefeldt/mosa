@@ -8,6 +8,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.jsonPrimitive
 import org.slf4j.LoggerFactory
 import straightway.mosa.legal.clearterms.ClearTermsCanonicalJson
 import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
@@ -61,6 +62,19 @@ class LegalServiceTest {
         assertEquals("privacy-gdpr-default", default.id)
         assertEquals("mosa-privacy-gdpr-service", mosa.id)
         assertEquals("privacy-operator-service", operator.id)
+    }
+
+    @Test
+    fun `provides document chain responses for privacy and terms`() {
+        val service = createLegalService()
+
+        val privacyResponse = service.privacyDocumentChainResponse()
+        val termsResponse = service.termsDocumentChainResponse()
+
+        assertEquals("privacy-gdpr-baseline", privacyResponse.baseline["id"]?.jsonPrimitive?.content)
+        assertEquals(3, privacyResponse.profiles.size)
+        assertEquals("terms-baseline", termsResponse.baseline["id"]?.jsonPrimitive?.content)
+        assertEquals(3, termsResponse.profiles.size)
     }
 
     @Test
