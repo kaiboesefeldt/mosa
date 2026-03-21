@@ -427,65 +427,91 @@ class LegalService(
         if (!baseFileName.endsWith(".yaml")) {
             return emptyList()
         }
-        val prefix = "${baseFileName.removeSuffix(".yaml")}."
         val directoryPath = basePath.substringBeforeLast('/', "")
         val discovered = linkedSetOf<String>()
         val resources = javaClass.classLoader.getResources(directoryPath)
         while (resources.hasMoreElements()) {
             val directoryUrl = resources.nextElement()
-            when (directoryUrl.protocol) {
-                "file" -> {
-                    val directory = Path.of(directoryUrl.toURI())
-                    Files
-                        .list(directory)
-                        .use { stream ->
-                            stream
-                                .filter { candidate ->
-                                    Files.isRegularFile(candidate) &&
-                                        candidate.fileName.toString() != baseFileName &&
-                                        candidate.fileName.toString().startsWith(prefix) &&
-                                        candidate.fileName.toString().endsWith(".yaml")
-                                }.map { candidate ->
-                                    if (directoryPath.isEmpty()) {
-                                        candidate.fileName.toString()
-                                    } else {
-                                        "$directoryPath/${candidate.fileName}"
-                                    }
-                                }.sorted()
-                                .forEach { candidatePath -> discovered.add(candidatePath) }
-                        }
-                }
+            val fragments =
+                when (directoryUrl.protocol) {
+                    "file" -> {
+                        listFileResourceFragments(directoryUrl.toURI(), directoryPath, baseFileName)
+                    }
 
-                "jar" -> {
-                    val connection = directoryUrl.openConnection() as JarURLConnection
-                    val directoryEntryPrefix = connection.entryName.trimEnd('/') + "/"
-                    val siblingNames =
-                        connection
-                            .jarFile
-                            .entries()
-                            .asSequence()
-                            .map { entry -> entry.name }
-                            .filter { entryName ->
-                                entryName.startsWith(directoryEntryPrefix) &&
-                                    !entryName.removePrefix(directoryEntryPrefix).contains("/")
-                            }.map { entryName -> entryName.removePrefix(directoryEntryPrefix) }
-                            .filter { name ->
-                                name != baseFileName &&
-                                    name.startsWith(prefix) &&
-                                    name.endsWith(".yaml")
-                            }.sorted()
-                    siblingNames.forEach { name ->
-                        if (directoryPath.isEmpty()) {
-                            discovered.add(name)
-                        } else {
-                            discovered.add("$directoryPath/$name")
-                        }
+                    "jar" -> {
+                        listJarResourceFragments(
+                            directoryUrl.openConnection() as JarURLConnection,
+                            directoryPath,
+                            baseFileName,
+                        )
+                    }
+
+                    else -> {
+                        emptyList()
                     }
                 }
-            }
+            fragments.forEach(discovered::add)
         }
         return discovered.toList()
     }
+
+    private fun listFileResourceFragments(
+        directoryUri: java.net.URI,
+        directoryPath: String,
+        baseFileName: String,
+    ): List<String> {
+        val directory = Path.of(directoryUri)
+        return Files
+            .list(directory)
+            .use { stream ->
+                stream
+                    .filter { candidate ->
+                        Files.isRegularFile(candidate) && isMatchingFragmentName(candidate.fileName.toString(), baseFileName)
+                    }.map { candidate -> toResourcePath(directoryPath, candidate.fileName.toString()) }
+                    .sorted()
+                    .toList()
+            }
+    }
+
+    private fun listJarResourceFragments(
+        connection: JarURLConnection,
+        directoryPath: String,
+        baseFileName: String,
+    ): List<String> {
+        val directoryEntryPrefix = connection.entryName.trimEnd('/') + "/"
+        return connection
+            .jarFile
+            .entries()
+            .asSequence()
+            .map { entry -> entry.name }
+            .filter { entryName ->
+                entryName.startsWith(directoryEntryPrefix) &&
+                    !entryName.removePrefix(directoryEntryPrefix).contains("/")
+            }.map { entryName -> entryName.removePrefix(directoryEntryPrefix) }
+            .filter { name -> isMatchingFragmentName(name, baseFileName) }
+            .map { name -> toResourcePath(directoryPath, name) }
+            .sorted()
+            .toList()
+    }
+
+    private fun isMatchingFragmentName(
+        candidateFileName: String,
+        baseFileName: String,
+    ): Boolean =
+        candidateFileName != baseFileName && candidateFileName.startsWith(fragmentPrefix(baseFileName)) &&
+            candidateFileName.endsWith(".yaml")
+
+    private fun fragmentPrefix(baseFileName: String): String = "${baseFileName.removeSuffix(".yaml")}."
+
+    private fun toResourcePath(
+        directoryPath: String,
+        fileName: String,
+    ): String =
+        if (directoryPath.isEmpty()) {
+            fileName
+        } else {
+            "$directoryPath/$fileName"
+        }
 
     private fun resolveResourceProfileChain(
         baselineResource: String,
