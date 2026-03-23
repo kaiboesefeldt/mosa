@@ -10,15 +10,12 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonPrimitive
 import org.slf4j.LoggerFactory
-import straightway.mosa.legal.clearterms.ClearTermsCanonicalJson
 import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
 import straightway.mosa.legal.clearterms.ClearTermsHashProvider
 import straightway.mosa.legal.clearterms.ClearTermsJsonParser
 import straightway.mosa.legal.clearterms.ClearTermsLocale
 import straightway.mosa.legal.clearterms.ClearTermsLocaleProvider
-import straightway.mosa.legal.clearterms.ClearTermsPlaceholderParser
 import straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker
-import straightway.mosa.legal.clearterms.ClearTermsProfileValidator
 import straightway.mosa.legal.clearterms.ClearTermsRenderer
 import straightway.mosa.legal.clearterms.ClearTermsTextEncoder
 import straightway.mosa.legal.clearterms.ClearTermsValidationException
@@ -765,13 +762,12 @@ class LegalServiceTest {
         val missingPath = Files.createTempDirectory("legal-service-synthetic-missing").resolve("mosa_privacy.yaml")
         val exception =
             assertFailsWith<IllegalStateException> {
-                straightway.mosa.legal
-                    .createLegalService(
-                        operatorProfilePath = missingPath,
-                        termsOperatorProfilePath = writeTermsOperatorProfile(),
-                        completenessChecker = completenessChecker(complete = true),
-                        canonicalJsonConverter = canonicalJsonConverter,
-                    ).privacyServiceCanonicalJson()
+                createLegalService(
+                    operatorProfilePath = missingPath,
+                    termsOperatorProfilePath = writeTermsOperatorProfile(),
+                    completenessChecker = completenessChecker(complete = true),
+                    canonicalJsonConverter = canonicalJsonConverter,
+                ).privacyServiceCanonicalJson()
             }
 
         assertTrue(exception.message?.contains("missing or incomplete")!!)
@@ -798,13 +794,12 @@ class LegalServiceTest {
             captureLegalServiceLogs {
                 assertFailsWith<IllegalStateException> {
                     captureStdout(stdout) {
-                        straightway.mosa.legal
-                            .createLegalService(
-                                operatorProfilePath = missingPath,
-                                termsOperatorProfilePath = writeTermsOperatorProfile(),
-                                completenessChecker = completenessChecker(complete = true),
-                                canonicalJsonConverter = canonicalJsonConverter,
-                            ).privacyServiceCanonicalJson()
+                        createLegalService(
+                            operatorProfilePath = missingPath,
+                            termsOperatorProfilePath = writeTermsOperatorProfile(),
+                            completenessChecker = completenessChecker(complete = true),
+                            canonicalJsonConverter = canonicalJsonConverter,
+                        ).privacyServiceCanonicalJson()
                     }
                 }
             }
@@ -839,7 +834,7 @@ class LegalServiceTest {
         Files.writeString(operatorPath, operatorProfileYaml())
 
         val service =
-            straightway.mosa.legal.createLegalService(
+            createLegalService(
                 operatorProfilePath = operatorPath,
                 termsOperatorProfilePath = writeTermsOperatorProfile(),
                 completenessChecker = completenessChecker(complete = true),
@@ -878,7 +873,7 @@ class LegalServiceTest {
         Files.writeString(operatorPath, operatorProfileYaml())
 
         val service =
-            straightway.mosa.legal.createLegalService(
+            createLegalService(
                 operatorProfilePath = operatorPath,
                 termsOperatorProfilePath = writeTermsOperatorProfile(),
                 completenessChecker = completenessChecker(complete = true),

@@ -41,7 +41,7 @@ data class ClearTermsLocaleDefinition(
         )
 
         private companion object {
-            private val defaultDurationUnits: Map<String, UnitTexts> =
+            val defaultDurationUnits: Map<String, UnitTexts> =
                 mapOf(
                     "s" to UnitTexts("second", "seconds"),
                     "m" to UnitTexts("minute", "minutes"),

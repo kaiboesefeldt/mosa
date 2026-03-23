@@ -42,7 +42,7 @@ class ClearTermsJsonValueReader(
             expect(':')
             entries[key] = parseValue()
             skipWhitespace()
-            if (!consumeListDelimiter(',', '}', "Unterminated object", "Expected ',' or '}'")) {
+            if (!consumeListDelimiterUntil('}', "Unterminated object", "Expected ',' or '}'")) {
                 break
             }
         }
@@ -59,7 +59,7 @@ class ClearTermsJsonValueReader(
         while (true) {
             items += parseValue()
             skipWhitespace()
-            if (!consumeListDelimiter(',', ']', "Unterminated array", "Expected ',' or ']' ")) {
+            if (!consumeListDelimiterUntil(']', "Unterminated array", "Expected ',' or ']' ")) {
                 break
             }
         }
@@ -174,6 +174,7 @@ class ClearTermsJsonValueReader(
         index += 1
     }
 
+    @Suppress("SameParameterValue")
     private fun expectSequence(sequence: String) {
         if (!text.startsWith(sequence, index)) {
             throw ClearTermsValidationException("Expected '$sequence'")
@@ -199,12 +200,12 @@ class ClearTermsJsonValueReader(
         return parseString()
     }
 
-    private fun consumeListDelimiter(
-        continueToken: Char,
+    private fun consumeListDelimiterUntil(
         endToken: Char,
         unterminatedMessage: String,
         invalidDelimiterMessage: String,
     ): Boolean {
+        val continueToken = ','
         if (!hasRemaining()) {
             throw ClearTermsValidationException(unterminatedMessage)
         }

@@ -57,7 +57,7 @@ class ClearTermsDocumentReader {
 
     private fun readScalarMap(
         node: ClearTermsJsonNode.ObjectNode,
-        errorMessage: String,
+        @Suppress("SameParameterValue") errorMessage: String,
     ): Map<String, ClearTermsJsonNode.ScalarNode> =
         node.entries.mapValues { (_, value) ->
             val scalar =
@@ -123,9 +123,8 @@ class ClearTermsDocumentReader {
                 ?: throw ClearTermsValidationException(errorMessage)
         val blockKeys = if (allowHints) textBlockKeys else textBlockCoreKeys
         val blockContract = blockMap.contractWithRequiredKeys(blockKeys, setOf("id", "text"))
-        val textNode = blockMap.entries.getValue("text")
         val text =
-            when (textNode) {
+            when (val textNode = blockMap.entries.getValue("text")) {
                 is ClearTermsJsonNode.ScalarNode.StringNode -> {
                     textNode.value
                 }

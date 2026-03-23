@@ -89,15 +89,15 @@ class LegalProfileSourceTest {
                     straightway.mosa.legal.clearterms
                         .ClearTermsYamlLanguageFragmentMerger(),
                 resourceTextReader =
-                    ResourceTextReader { path ->
+                    { path ->
                         LegalProfileSource::class.java.classLoader
                             .getResourceAsStream(path)
                             ?.bufferedReader(Charsets.UTF_8)
                             ?.use { it.readText() }
                     },
-                resourceDirectoryEntriesProvider = ResourceDirectoryEntriesProvider { null },
+                resourceDirectoryEntriesProvider = { null },
                 resourceUrlsProvider =
-                    ResourceUrlsProvider { path ->
+                    { path ->
                         LegalProfileSource::class.java.classLoader.getResources(path)
                     },
             )
@@ -120,15 +120,15 @@ class LegalProfileSourceTest {
                     straightway.mosa.legal.clearterms
                         .ClearTermsYamlLanguageFragmentMerger(),
                 resourceTextReader =
-                    ResourceTextReader { path ->
+                    { path ->
                         LegalProfileSource::class.java.classLoader
                             .getResourceAsStream(path)
                             ?.bufferedReader(Charsets.UTF_8)
                             ?.use { it.readText() }
                     },
-                resourceDirectoryEntriesProvider = ResourceDirectoryEntriesProvider { null },
+                resourceDirectoryEntriesProvider = { null },
                 resourceUrlsProvider =
-                    ResourceUrlsProvider { path ->
+                    { path ->
                         LegalProfileSource::class.java.classLoader.getResources(path)
                     },
             )
@@ -188,7 +188,7 @@ class LegalProfileSourceTest {
             createLegalProfileSource(
                 resourceTextReader = ResourceTextReader(resources::get),
                 resourceDirectoryEntriesProvider =
-                    ResourceDirectoryEntriesProvider { directory ->
+                    { directory ->
                         if (directory == "custom") listOf("custom/baseline.yaml") else null
                     },
             )
@@ -218,7 +218,7 @@ class LegalProfileSourceTest {
             createLegalProfileSource(
                 resourceTextReader = ResourceTextReader(resources::get),
                 resourceDirectoryEntriesProvider =
-                    ResourceDirectoryEntriesProvider { directory ->
+                    { directory ->
                         if (directory == "custom") resources.keys.sorted() else null
                     },
             )
@@ -232,7 +232,7 @@ class LegalProfileSourceTest {
                 )
             }
 
-        assertTrue(exception.message?.contains("do not form a single deterministic parent chain") == true)
+        assertTrue(exception.message?.contains("do not form a single deterministic parent chain")!!)
     }
 
     @Test
@@ -302,22 +302,20 @@ class LegalProfileSourceTest {
             createLegalProfileSource(
                 resourceTextReader = ResourceTextReader(resources::get),
                 resourceDirectoryEntriesProvider =
-                    ResourceDirectoryEntriesProvider { directory ->
+                    { directory ->
                         if (directory == "custom") resources.keys.sorted() else null
                     },
                 resourceUrlsProvider =
-                    ResourceUrlsProvider { directory ->
+                    { directory ->
                         if (directory == "custom") {
+                            val streamHandler =
+                                object : java.net.URLStreamHandler() {
+                                    override fun openConnection(url: java.net.URL): java.net.URLConnection =
+                                        throw UnsupportedOperationException("not used")
+                                }
                             Collections.enumeration(
                                 listOf(
-                                    java.net.URL(
-                                        null,
-                                        "memory:/custom",
-                                        object : java.net.URLStreamHandler() {
-                                            override fun openConnection(url: java.net.URL): java.net.URLConnection =
-                                                throw UnsupportedOperationException("not used")
-                                        },
-                                    ),
+                                    java.net.URL.of(java.net.URI("memory:/custom"), streamHandler),
                                 ),
                             )
                         } else {
@@ -375,9 +373,9 @@ class LegalProfileSourceTest {
     fun `load mandatory chain context fails when required resource is missing`() {
         val source =
             createLegalProfileSource(
-                resourceTextReader = ResourceTextReader { null },
+                resourceTextReader = { null },
                 resourceDirectoryEntriesProvider =
-                    ResourceDirectoryEntriesProvider { directory ->
+                    { directory ->
                         if (directory == "custom") listOf("custom/default.yaml") else null
                     },
             )
@@ -405,7 +403,7 @@ class LegalProfileSourceTest {
             createLegalProfileSource(
                 resourceTextReader = ResourceTextReader(resources::get),
                 resourceDirectoryEntriesProvider =
-                    ResourceDirectoryEntriesProvider { directory ->
+                    { directory ->
                         if (directory == "custom") resources.keys.sorted() else null
                     },
             )
@@ -419,7 +417,7 @@ class LegalProfileSourceTest {
                 )
             }
 
-        assertTrue(exception.message?.contains("Expected text key 'id'") == true)
+        assertTrue(exception.message?.contains("Expected text key 'id'")!!)
     }
 
     @Test
@@ -440,7 +438,7 @@ class LegalProfileSourceTest {
             createLegalProfileSource(
                 resourceTextReader = ResourceTextReader(resources::get),
                 resourceDirectoryEntriesProvider =
-                    ResourceDirectoryEntriesProvider { directory ->
+                    { directory ->
                         if (directory == "custom") resources.keys.sorted() else null
                     },
             )
@@ -454,9 +452,10 @@ class LegalProfileSourceTest {
                 )
             }
 
-        assertTrue(exception.message?.contains("Expected object key 'parent'") == true)
+        assertTrue(exception.message?.contains("Expected object key 'parent'")!!)
     }
 
+    @Suppress("SameParameterValue")
     private fun baselineYaml(
         id: String,
         version: String,
@@ -470,6 +469,7 @@ class LegalProfileSourceTest {
               text: "Base"
         """.trimIndent()
 
+    @Suppress("SameParameterValue")
     private fun profileYaml(
         id: String,
         parentId: String,

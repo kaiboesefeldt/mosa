@@ -32,7 +32,7 @@ internal fun createLegalProfileSource(
 )
 
 internal fun createLegalChainValidator(
-    completenessChecker: straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker,
+    completenessChecker: ClearTermsProfileChainCompletenessChecker,
     profileSource: LegalProfileSource,
 ) = LegalChainValidator(
     completenessChecker = completenessChecker,
@@ -116,21 +116,6 @@ internal fun operatorProfileYaml(): String =
         RECIPIENTS_PROCESSORS_INFO: "No processors"
         SERVICE_DISPLAY_NAME: "Operator Service"
         URL_CONTROLLER_WEBSITE: "https://operator.example"
-    """.trimIndent()
-
-internal fun validTermsOperatorProfileYaml(): String =
-    """
-    kind: profile
-    id: terms-operator-service
-    version: "1.0.0-draft2"
-    parent:
-      id: mosa-terms-service
-      version: "1.0.0-draft1"
-    overrides:
-      values:
-        ORG_CONTROLLER_NAME: "Operator Corp"
-        CONTACT_CONTROLLER_EMAIL: "legal@operator.example"
-        DOC_EFFECTIVE_DATE: "2026-03-13T00:00:00Z"
     """.trimIndent()
 
 internal fun operatorProfileYamlWithInvalidValueType(): String =
