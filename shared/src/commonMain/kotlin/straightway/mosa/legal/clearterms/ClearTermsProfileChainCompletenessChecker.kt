@@ -7,6 +7,13 @@ class ClearTermsProfileChainCompletenessChecker(
     private val profileValidator: ClearTermsProfileValidator =
         ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
 ) {
+    data class Result(
+        val complete: Boolean,
+        val missingPlaceholderKeys: List<String>,
+        val unresolvedRequiredBlockIdsByLanguage: Map<String, List<String>>,
+        val skeletonYaml: String,
+    )
+
     fun analyze(
         baselineCanonicalJson: String,
         profileChainCanonicalJsons: List<String>,
@@ -14,46 +21,21 @@ class ClearTermsProfileChainCompletenessChecker(
         val baseline = reader.readBaseline(parser.parse(baselineCanonicalJson))
         profileValidator.validateBaselineStructure(baseline)
         val requiredBlockIds = requiredBlockIds(baseline)
-
-        var effectiveTexts = baseline.textsByLanguage
-        val mergedValues = linkedMapOf<String, ClearTermsJsonNode.ScalarNode>()
-
         val profileChain = profileChainCanonicalJsons.map { reader.readProfile(parser.parse(it)) }
-        profileChain.forEach { profile ->
-            mergedValues.putAll(profile.overrides.values ?: emptyMap())
-            effectiveTexts = profileValidator.applyTextOverrides(effectiveTexts, profile.overrides.texts)
-        }
-        if (effectiveTexts.isEmpty()) {
-            throw ClearTermsValidationException("No languages available after applying profile chain")
-        }
-
-        val unresolvedRequiredBlockIdsByLanguage = unresolvedRequiredBlocks(effectiveTexts, requiredBlockIds)
-        val placeholders = placeholderRequirements(effectiveTexts)
+        val chainState = applyProfileChain(baseline, profileChain)
+        val unresolvedRequiredBlockIdsByLanguage = unresolvedRequiredBlocks(chainState.effectiveTexts, requiredBlockIds)
         val missingPlaceholdersByKey =
-            placeholders
-                .filter { (key, requirement) ->
-                    val rawValue = mergedValues[key]
-                    rawValue == null || (rawValue is ClearTermsJsonNode.ScalarNode.NullNode && !requirement.nullAllowed)
-                }.mapValues { (_, requirement) -> requirement.type }
-                .toList()
-                .sortedBy { (key, _) -> key }
-                .toMap()
+            missingPlaceholdersByKey(
+                textsByLanguage = chainState.effectiveTexts,
+                mergedValues = chainState.mergedValues,
+            )
         val missingPlaceholderKeys = missingPlaceholdersByKey.keys.toList()
-        val complete =
-            unresolvedRequiredBlockIdsByLanguage.values.all { ids -> ids.isEmpty() } &&
-                missingPlaceholderKeys.isEmpty()
-
-        val (parentId, parentVersion) =
-            if (profileChain.isEmpty()) {
-                baseline.id to baseline.version
-            } else {
-                val parentProfile = profileChain.last()
-                parentProfile.id to parentProfile.version
-            }
+        val complete = isComplete(unresolvedRequiredBlockIdsByLanguage, missingPlaceholderKeys)
+        val parentReference = parentReference(baseline, profileChain)
         val skeletonYaml =
             skeletonYaml(
-                parentId = parentId,
-                parentVersion = parentVersion,
+                parentId = parentReference.id,
+                parentVersion = parentReference.version,
                 requiredBlocksByLanguage = requiredBlocksByLanguage(baseline, requiredBlockIds),
                 missingPlaceholdersByKey = missingPlaceholdersByKey,
             )
@@ -63,6 +45,28 @@ class ClearTermsProfileChainCompletenessChecker(
             missingPlaceholderKeys = missingPlaceholderKeys,
             unresolvedRequiredBlockIdsByLanguage = unresolvedRequiredBlockIdsByLanguage,
             skeletonYaml = skeletonYaml,
+        )
+    }
+
+    private fun applyProfileChain(
+        baseline: ClearTermsBaseline,
+        profileChain: List<ClearTermsProfile>,
+    ): ChainState {
+        var effectiveTexts = baseline.textsByLanguage
+        val mergedValues = linkedMapOf<String, ClearTermsJsonNode.ScalarNode>()
+
+        profileChain.forEach { profile ->
+            mergedValues.putAll(profile.overrides.values ?: emptyMap())
+            effectiveTexts = profileValidator.applyTextOverrides(effectiveTexts, profile.overrides.texts)
+        }
+
+        if (effectiveTexts.isEmpty()) {
+            throw ClearTermsValidationException("No languages available after applying profile chain")
+        }
+
+        return ChainState(
+            effectiveTexts = effectiveTexts,
+            mergedValues = mergedValues,
         )
     }
 
@@ -98,6 +102,25 @@ class ClearTermsProfileChainCompletenessChecker(
                 }
         }
 
+    private fun missingPlaceholdersByKey(
+        textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
+        mergedValues: Map<String, ClearTermsJsonNode.ScalarNode>,
+    ): Map<String, ClearTermsPlaceholderType> =
+        placeholderRequirements(textsByLanguage)
+            .filter { (key, requirement) -> mergedValues.isMissingRequiredValue(key, requirement) }
+            .mapValues { (_, requirement) -> requirement.type }
+            .toList()
+            .sortedBy { (key, _) -> key }
+            .toMap()
+
+    private fun Map<String, ClearTermsJsonNode.ScalarNode>.isMissingRequiredValue(
+        key: String,
+        requirement: PlaceholderRequirement,
+    ): Boolean {
+        val rawValue = this[key]
+        return rawValue == null || (rawValue is ClearTermsJsonNode.ScalarNode.NullNode && !requirement.nullAllowed)
+    }
+
     private fun placeholderRequirements(textsByLanguage: Map<String, List<ClearTermsTextBlock>>): Map<String, PlaceholderRequirement> {
         val requirements = linkedMapOf<String, PlaceholderRequirement>()
         textsByLanguage.values.flatten().forEach { block ->
@@ -105,24 +128,54 @@ class ClearTermsProfileChainCompletenessChecker(
             placeholderParser
                 .parse(text)
                 .filterIsInstance<ClearTermsPlaceholderParser.Segment.Placeholder>()
-                .forEach { segment ->
-                    val placeholder = segment.placeholder
-                    val existing = requirements[placeholder.key]
-                    if (existing == null) {
-                        requirements[placeholder.key] = PlaceholderRequirement(placeholder.type, placeholder.fallback != null)
-                    } else {
-                        if (existing.type != placeholder.type) {
-                            throw ClearTermsValidationException("Placeholder type mismatch for '${placeholder.key}'")
-                        }
-                        requirements[placeholder.key] =
-                            PlaceholderRequirement(
-                                type = existing.type,
-                                nullAllowed = existing.nullAllowed && placeholder.fallback != null,
-                            )
-                    }
+                .map { segment -> segment.placeholder }
+                .forEach { placeholder ->
+                    requirements[placeholder.key] = mergeRequirement(requirements[placeholder.key], placeholder)
                 }
         }
         return requirements
+    }
+
+    private fun mergeRequirement(
+        existing: PlaceholderRequirement?,
+        placeholder: ClearTermsPlaceholder,
+    ): PlaceholderRequirement {
+        val nullAllowed = placeholder.fallback != null
+        if (existing == null) {
+            return PlaceholderRequirement(placeholder.type, nullAllowed)
+        }
+        if (existing.type != placeholder.type) {
+            throw ClearTermsValidationException("Placeholder type mismatch for '${placeholder.key}'")
+        }
+        return PlaceholderRequirement(
+            type = existing.type,
+            nullAllowed = existing.nullAllowed && nullAllowed,
+        )
+    }
+
+    private fun isComplete(
+        unresolvedRequiredBlockIdsByLanguage: Map<String, List<String>>,
+        missingPlaceholderKeys: List<String>,
+    ): Boolean =
+        unresolvedRequiredBlockIdsByLanguage.values.all { ids -> ids.isEmpty() } &&
+            missingPlaceholderKeys.isEmpty()
+
+    private fun parentReference(
+        baseline: ClearTermsBaseline,
+        profileChain: List<ClearTermsProfile>,
+    ): ParentReference {
+        val parentProfile = profileChain.lastOrNull()
+        return if (parentProfile == null) {
+            ParentReference(
+                id = baseline.id,
+                version = baseline.version,
+            )
+        } else {
+            ParentReference(
+                id = parentProfile.id,
+                version = parentProfile.version,
+            )
+        }
     }
 
     private fun buildTodoHint(block: ClearTermsTextBlock): String {
@@ -179,11 +232,14 @@ class ClearTermsProfileChainCompletenessChecker(
 
     private fun String.singleLine(): String = replace("\n", " ").replace("\r", " ").trim()
 
-    data class Result(
-        val complete: Boolean,
-        val missingPlaceholderKeys: List<String>,
-        val unresolvedRequiredBlockIdsByLanguage: Map<String, List<String>>,
-        val skeletonYaml: String,
+    private data class ChainState(
+        val effectiveTexts: Map<String, List<ClearTermsTextBlock>>,
+        val mergedValues: Map<String, ClearTermsJsonNode.ScalarNode>,
+    )
+
+    private data class ParentReference(
+        val id: String,
+        val version: String,
     )
 
     private data class RequiredTextBlockTemplate(
