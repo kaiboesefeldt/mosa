@@ -17,8 +17,9 @@ import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.SearchResult
 import straightway.mosa.legal.LegalDocumentChainResponse
 import straightway.mosa.legal.clearterms.ClearTermsRenderBackground
-import straightway.mosa.legal.clearterms.ClearTermsRenderResult
+import straightway.mosa.legal.clearterms.ClearTermsRenderedLanguage
 import straightway.mosa.legal.clearterms.ClearTermsRenderedBlock
+import straightway.mosa.legal.clearterms.ClearTermsValidationException
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -99,7 +100,10 @@ class LegalPrivacyPolicyServiceTest {
 
     @Test
     fun `keeps full profile chain including duplicate operator profile`() = runTest {
-        val podAccess = RecordingPrivacyPodAccess(operator = "mosa")
+        val podAccess =
+            RecordingPrivacyPodAccess(
+                operator = minimalEmptyProfileCanonicalJson(id = "mosa", parentId = "mosa"),
+            )
         val seenProfiles = mutableListOf<List<String>>()
         val service =
             LegalPrivacyPolicyService(
@@ -108,12 +112,13 @@ class LegalPrivacyPolicyServiceTest {
                 preferredLanguageTagsProvider = { listOf("de") },
                 clearTermsContentProvider =
                     object : PrivacyClearTermsContentProvider {
-                        override suspend fun renderedTextsByLanguage(
+                        override suspend fun renderedLanguage(
                             baselineJson: String,
                             profileJsons: List<String>,
-                        ): ClearTermsRenderResult {
+                            languageTag: String,
+                        ): ClearTermsRenderedLanguage {
                             seenProfiles += profileJsons
-                            return renderResultOf(mapOf("de" to "# Datenschutz"))
+                            return renderResultOf(mapOf("de" to "# Datenschutz")).forLanguage(languageTag)
                         }
                     },
             )
@@ -121,7 +126,7 @@ class LegalPrivacyPolicyServiceTest {
         val html = service.loadPrivacyPolicyHtml()
 
         assertContains(html, "<h1>Datenschutz</h1>")
-        assertContains(seenProfiles, listOf("default", "mosa", "mosa"))
+        assertContains(seenProfiles.map { profiles -> profiles.map(::profileIdOf) }, listOf("default", "mosa", "mosa"))
     }
 
     @Test
@@ -202,21 +207,29 @@ class LegalPrivacyPolicyServiceTest {
     }
 
     @Test
-    fun `fails when clearterms provider returns no texts`() = runTest {
+    fun `fails when no language remains after profile text overrides`() = runTest {
         val service =
             LegalPrivacyPolicyService(
                 podBaseProvider = fixedPodBaseProvider("https://pod.example"),
-                podAccessFactory = { RecordingPrivacyPodAccess() },
+                podAccessFactory =
+                    {
+                        RecordingPrivacyPodAccess(
+                            baseline = baselineWithLanguages("en"),
+                            default = emptyLanguageOverrideProfile(id = "default", parentId = "baseline"),
+                            mosa = emptyLanguageOverrideProfile(id = "mosa", parentId = "default"),
+                            operator = emptyLanguageOverrideProfile(id = "operator", parentId = "mosa"),
+                        )
+                    },
                 preferredLanguageTagsProvider = { listOf("de") },
-                clearTermsContentProvider = fixedContentProvider(renderResultOf(emptyMap())),
+                clearTermsContentProvider = fixedContentProvider(renderResultOf(mapOf("en" to "# Privacy"))),
             )
 
         val exception =
-            assertFailsWith<IllegalStateException> {
+            assertFailsWith<ClearTermsValidationException> {
                 service.loadPrivacyPolicyHtml()
             }
 
-        assertEquals("No ClearTerms text available", exception.message)
+        assertEquals("No languages available after applying profile chain", exception.message)
     }
 
     @Test
@@ -239,7 +252,15 @@ class LegalPrivacyPolicyServiceTest {
         val service =
             LegalPrivacyPolicyService(
                 podBaseProvider = fixedPodBaseProvider("https://pod.example"),
-                podAccessFactory = { RecordingPrivacyPodAccess() },
+                podAccessFactory =
+                    {
+                        RecordingPrivacyPodAccess(
+                            baseline = baselineWithLanguages("fr", "de"),
+                            default = minimalEmptyProfileCanonicalJson(id = "default", parentId = "baseline"),
+                            mosa = minimalEmptyProfileCanonicalJson(id = "mosa", parentId = "default"),
+                            operator = minimalEmptyProfileCanonicalJson(id = "operator", parentId = "mosa"),
+                        )
+                    },
                 preferredLanguageTagsProvider = { listOf("it-IT") },
                 clearTermsContentProvider =
                     fixedContentProvider(
@@ -414,10 +435,11 @@ class LegalPrivacyPolicyServiceTest {
     fun `returns uncritical comparison text from state before first highlighted state`() = runTest {
         val contentProvider =
             object : PrivacyClearTermsContentProvider {
-                override suspend fun renderedTextsByLanguage(
+                override suspend fun renderedLanguage(
                     baselineJson: String,
                     profileJsons: List<String>,
-                ): ClearTermsRenderResult =
+                    languageTag: String,
+                ): ClearTermsRenderedLanguage =
                     when (profileJsons.size) {
                         0,
                         1 ->
@@ -439,7 +461,7 @@ class LegalPrivacyPolicyServiceTest {
                                                 ),
                                             ),
                                     ),
-                            )
+                            ).forLanguage(languageTag)
 
                         else ->
                             renderResultOf(
@@ -460,13 +482,21 @@ class LegalPrivacyPolicyServiceTest {
                                                 ),
                                             ),
                                     ),
-                            )
+                            ).forLanguage(languageTag)
                     }
             }
         val service =
             LegalPrivacyPolicyService(
                 podBaseProvider = fixedPodBaseProvider("https://pod.example"),
-                podAccessFactory = { RecordingPrivacyPodAccess(baseline = "baseline", default = "profile-a", mosa = "profile-b", operator = "profile-b") },
+                podAccessFactory =
+                    {
+                        RecordingPrivacyPodAccess(
+                            baseline = minimalBaselineCanonicalJson(),
+                            default = minimalDefaultProfileCanonicalJson(),
+                            mosa = minimalMosaProfileCanonicalJson(),
+                            operator = minimalMosaProfileCanonicalJson(),
+                        )
+                    },
                 preferredLanguageTagsProvider = { listOf("en") },
                 clearTermsContentProvider = contentProvider,
             )
@@ -480,10 +510,11 @@ class LegalPrivacyPolicyServiceTest {
     fun `uses baseline block text when block is already highlighted in first profile step`() = runTest {
         val contentProvider =
             object : PrivacyClearTermsContentProvider {
-                override suspend fun renderedTextsByLanguage(
+                override suspend fun renderedLanguage(
                     baselineJson: String,
                     profileJsons: List<String>,
-                ): ClearTermsRenderResult =
+                    languageTag: String,
+                ): ClearTermsRenderedLanguage =
                     when (profileJsons.size) {
                         1 ->
                             renderResultOf(
@@ -504,7 +535,7 @@ class LegalPrivacyPolicyServiceTest {
                                                 ),
                                             ),
                                     ),
-                            )
+                            ).forLanguage(languageTag)
 
                         2,
                         3 ->
@@ -526,7 +557,7 @@ class LegalPrivacyPolicyServiceTest {
                                                 ),
                                             ),
                                     ),
-                            )
+                            ).forLanguage(languageTag)
 
                         else -> throw IllegalStateException("unexpected profile count")
                     }
@@ -534,7 +565,15 @@ class LegalPrivacyPolicyServiceTest {
         val service =
             LegalPrivacyPolicyService(
                 podBaseProvider = fixedPodBaseProvider("https://pod.example"),
-                podAccessFactory = { RecordingPrivacyPodAccess(baseline = "baseline", default = "profile-a", mosa = "profile-b", operator = "profile-c") },
+                podAccessFactory =
+                    {
+                        RecordingPrivacyPodAccess(
+                            baseline = minimalBaselineCanonicalJson(),
+                            default = minimalDefaultProfileCanonicalJson(),
+                            mosa = minimalMosaProfileCanonicalJson(),
+                            operator = minimalOperatorProfileCanonicalJson(),
+                        )
+                    },
                 preferredLanguageTagsProvider = { listOf("en") },
                 clearTermsContentProvider = contentProvider,
             )
@@ -549,10 +588,11 @@ class LegalPrivacyPolicyServiceTest {
         val calls = mutableListOf<Int>()
         val contentProvider =
             object : PrivacyClearTermsContentProvider {
-                override suspend fun renderedTextsByLanguage(
+                override suspend fun renderedLanguage(
                     baselineJson: String,
                     profileJsons: List<String>,
-                ): ClearTermsRenderResult {
+                    languageTag: String,
+                ): ClearTermsRenderedLanguage {
                     calls += profileJsons.size
                     if (profileJsons.size != 3) {
                         throw IllegalStateException("intermediate render not available")
@@ -575,7 +615,7 @@ class LegalPrivacyPolicyServiceTest {
                                         ),
                                     ),
                             ),
-                    )
+                    ).forLanguage(languageTag)
                 }
             }
         val service =
@@ -596,7 +636,7 @@ class LegalPrivacyPolicyServiceTest {
 
         val document = service.loadPrivacyPolicyDocument()
 
-        assertEquals(listOf(3), calls)
+        assertEquals(listOf(3, 1, 2), calls)
         assertEquals("Service: Mosa", document.uncriticalTextByBlockId["service"])
     }
 
@@ -604,10 +644,11 @@ class LegalPrivacyPolicyServiceTest {
     fun `renders localized duration in uncritical text from profile chain`() = runTest {
         val contentProvider =
             object : PrivacyClearTermsContentProvider {
-                override suspend fun renderedTextsByLanguage(
+                override suspend fun renderedLanguage(
                     baselineJson: String,
                     profileJsons: List<String>,
-                ): ClearTermsRenderResult {
+                    languageTag: String,
+                ): ClearTermsRenderedLanguage {
                     if (profileJsons.size != 3) {
                         throw IllegalStateException("intermediate render not available")
                     }
@@ -629,7 +670,7 @@ class LegalPrivacyPolicyServiceTest {
                                         ),
                                     ),
                             ),
-                    )
+                    ).forLanguage(languageTag)
                 }
             }
         val service =
@@ -692,10 +733,11 @@ class LegalPrivacyPolicyServiceTest {
     fun `replaces unresolved placeholders in uncritical text with ellipsis`() = runTest {
         val contentProvider =
             object : PrivacyClearTermsContentProvider {
-                override suspend fun renderedTextsByLanguage(
+                override suspend fun renderedLanguage(
                     baselineJson: String,
                     profileJsons: List<String>,
-                ): ClearTermsRenderResult =
+                    languageTag: String,
+                ): ClearTermsRenderedLanguage =
                     when (profileJsons.size) {
                         0,
                         1 ->
@@ -717,7 +759,7 @@ class LegalPrivacyPolicyServiceTest {
                                                 ),
                                             ),
                                     ),
-                            )
+                            ).forLanguage(languageTag)
 
                         else ->
                             renderResultOf(
@@ -738,13 +780,21 @@ class LegalPrivacyPolicyServiceTest {
                                                 ),
                                             ),
                                     ),
-                            )
+                            ).forLanguage(languageTag)
                     }
             }
         val service =
             LegalPrivacyPolicyService(
                 podBaseProvider = fixedPodBaseProvider("https://pod.example"),
-                podAccessFactory = { RecordingPrivacyPodAccess(baseline = "baseline", default = "profile-a", mosa = "profile-b", operator = "profile-b") },
+                podAccessFactory =
+                    {
+                        RecordingPrivacyPodAccess(
+                            baseline = minimalBaselineCanonicalJson(),
+                            default = minimalDefaultProfileCanonicalJson(),
+                            mosa = minimalMosaProfileCanonicalJson(),
+                            operator = minimalMosaProfileCanonicalJson(),
+                        )
+                    },
                 preferredLanguageTagsProvider = { listOf("en") },
                 clearTermsContentProvider = contentProvider,
             )
@@ -758,10 +808,11 @@ class LegalPrivacyPolicyServiceTest {
     fun `keeps final rendering stable when intermediate chain step cannot be rendered`() = runTest {
         val contentProvider =
             object : PrivacyClearTermsContentProvider {
-                override suspend fun renderedTextsByLanguage(
+                override suspend fun renderedLanguage(
                     baselineJson: String,
                     profileJsons: List<String>,
-                ): ClearTermsRenderResult {
+                    languageTag: String,
+                ): ClearTermsRenderedLanguage {
                     if (profileJsons.size == 1) {
                         throw IllegalStateException("Text block 'service-description-slot-service' is unresolved for 'de'")
                     }
@@ -783,13 +834,21 @@ class LegalPrivacyPolicyServiceTest {
                                         ),
                                     ),
                             ),
-                    )
+                    ).forLanguage(languageTag)
                 }
             }
         val service =
             LegalPrivacyPolicyService(
                 podBaseProvider = fixedPodBaseProvider("https://pod.example"),
-                podAccessFactory = { RecordingPrivacyPodAccess(baseline = "baseline", default = "profile-a", mosa = "profile-b", operator = "profile-b") },
+                podAccessFactory =
+                    {
+                        RecordingPrivacyPodAccess(
+                            baseline = baselineWithLanguages("de"),
+                            default = minimalEmptyProfileCanonicalJson(id = "default", parentId = "baseline"),
+                            mosa = minimalEmptyProfileCanonicalJson(id = "mosa", parentId = "default"),
+                            operator = minimalEmptyProfileCanonicalJson(id = "operator", parentId = "mosa"),
+                        )
+                    },
                 preferredLanguageTagsProvider = { listOf("de") },
                 clearTermsContentProvider = contentProvider,
             )
@@ -808,18 +867,60 @@ private fun fixedPodBaseProvider(base: String): PodBaseProvider =
         null
     }
 
-private fun fixedContentProvider(result: ClearTermsRenderResult): PrivacyClearTermsContentProvider =
+private fun fixedContentProvider(result: StubRenderedLanguageSet): PrivacyClearTermsContentProvider =
     object : PrivacyClearTermsContentProvider {
-        override suspend fun renderedTextsByLanguage(
+        override suspend fun renderedLanguage(
             baselineJson: String,
             profileJsons: List<String>,
-        ): ClearTermsRenderResult = result
+            languageTag: String,
+        ): ClearTermsRenderedLanguage = result.forLanguage(languageTag)
     }
 
 private fun renderResultOf(
     textsByLanguage: Map<String, String>,
     blocksByLanguage: Map<String, List<ClearTermsRenderedBlock>> = emptyMap(),
-): ClearTermsRenderResult = ClearTermsRenderResult(textsByLanguage, blocksByLanguage)
+): StubRenderedLanguageSet = StubRenderedLanguageSet(textsByLanguage, blocksByLanguage)
+
+private data class StubRenderedLanguageSet(
+    val textsByLanguage: Map<String, String>,
+    val blocksByLanguage: Map<String, List<ClearTermsRenderedBlock>> = emptyMap(),
+)
+
+private fun StubRenderedLanguageSet.forLanguage(languageTag: String): ClearTermsRenderedLanguage {
+    val normalizedLanguageTag = languageTag.trim().lowercase()
+    val textEntry =
+        textsByLanguage.entries.firstOrNull { (tag, _) -> tag.trim().lowercase() == normalizedLanguageTag }
+            ?: textsByLanguage.entries.singleOrNull()
+            ?: error("No stubbed ClearTerms text for '$languageTag'")
+    val blocks =
+        blocksByLanguage.entries.firstOrNull { (tag, _) -> tag.trim().lowercase() == normalizedLanguageTag }?.value
+            ?: emptyList()
+    return ClearTermsRenderedLanguage(textEntry.key, textEntry.value, blocks)
+}
+
+private fun profileIdOf(profileJson: String): String =
+    Regex(""""id"\s*:\s*"([^"]+)"""").find(profileJson)?.groupValues?.get(1) ?: profileJson
+
+private fun baselineWithLanguages(vararg languages: String): String =
+    """
+    {"kind":"baseline","id":"baseline","version":"1","texts":{${languages.joinToString(",") { language -> """"$language":[{"id":"main","text":"# ${language.uppercase()}"}]""" }}}}
+    """.trimIndent()
+
+private fun minimalEmptyProfileCanonicalJson(
+    id: String,
+    parentId: String,
+): String =
+    """
+    {"kind":"profile","id":"$id","version":"1","parent":{"id":"$parentId","version":"1","hash":"sha256:$parentId"},"overrides":{"values":{}}}
+    """.trimIndent()
+
+private fun emptyLanguageOverrideProfile(
+    id: String,
+    parentId: String,
+): String =
+    """
+    {"kind":"profile","id":"$id","version":"1","parent":{"id":"$parentId","version":"1","hash":"sha256:$parentId"},"overrides":{"texts":{}}}
+    """.trimIndent()
 
 private fun minimalBaselineCanonicalJson(): String =
     """
@@ -862,10 +963,10 @@ private fun minimalDurationOperatorProfileCanonicalJson(): String =
     """.trimIndent()
 
 private class RecordingPrivacyPodAccess(
-    private val baseline: String = "baseline",
-    private val default: String = "default",
-    private val mosa: String = "mosa",
-    private val operator: String = "operator",
+    private val baseline: String = baselineWithLanguages("de", "en"),
+    private val default: String = minimalEmptyProfileCanonicalJson(id = "default", parentId = "baseline"),
+    private val mosa: String = minimalEmptyProfileCanonicalJson(id = "mosa", parentId = "default"),
+    private val operator: String = minimalEmptyProfileCanonicalJson(id = "operator", parentId = "mosa"),
 ) : PodAccess {
     val privacyCalls = mutableListOf<String>()
     val termsCalls = mutableListOf<String>()

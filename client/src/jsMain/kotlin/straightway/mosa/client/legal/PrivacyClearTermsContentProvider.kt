@@ -1,20 +1,22 @@
 package straightway.mosa.client.legal
 
 import straightway.mosa.legal.clearterms.ClearTermsRenderer
-import straightway.mosa.legal.clearterms.ClearTermsRenderResult
+import straightway.mosa.legal.clearterms.ClearTermsRenderedLanguage
 
 fun interface PrivacyClearTermsContentProvider {
-    suspend fun renderedTextsByLanguage(
+    suspend fun renderedLanguage(
         baselineJson: String,
         profileJsons: List<String>,
-    ): ClearTermsRenderResult
+        languageTag: String,
+    ): ClearTermsRenderedLanguage
 }
 
 class ClearTermsPrivacyContentProvider(
     private val clearTermsRenderer: ClearTermsRenderer,
 ) : PrivacyClearTermsContentProvider {
-    override suspend fun renderedTextsByLanguage(
+    override suspend fun renderedLanguage(
         baselineJson: String,
         profileJsons: List<String>,
-    ): ClearTermsRenderResult = clearTermsRenderer.renderAll(baselineJson, profileJsons)
+        languageTag: String,
+    ): ClearTermsRenderedLanguage = clearTermsRenderer.renderLanguage(baselineJson, profileJsons, languageTag)
 }

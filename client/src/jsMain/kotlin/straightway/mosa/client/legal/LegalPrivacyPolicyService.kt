@@ -10,7 +10,7 @@ import straightway.mosa.legal.clearterms.ClearTermsPlaceholderParser
 import straightway.mosa.legal.clearterms.ClearTermsProfile
 import straightway.mosa.legal.clearterms.ClearTermsProfileValidator
 import straightway.mosa.legal.clearterms.ClearTermsRenderBackground
-import straightway.mosa.legal.clearterms.ClearTermsRenderResult
+import straightway.mosa.legal.clearterms.ClearTermsRenderedLanguage
 import straightway.mosa.legal.clearterms.ClearTermsRenderedBlock
 import straightway.mosa.legal.clearterms.ClearTermsTextBlock
 import straightway.mosa.legal.clearterms.ClearTermsTextOverrideSeverity
@@ -62,23 +62,11 @@ class LegalPrivacyPolicyService(
         val chain = chainLoader(podAccess)
         val baseline = chain.baseline.toCanonicalJson()
         val profiles = chain.profiles.map { profile -> profile.toCanonicalJson() }
-        val renderResult = clearTermsContentProvider.renderedTextsByLanguage(baseline, profiles)
-        val normalizedTexts =
-            renderResult.textsByLanguage.entries.associateBy(
-                keySelector = { entry -> normalizeLanguageTag(entry.key) },
-                valueTransform = { entry -> entry.value },
-            )
-        val normalizedBlocks =
-            renderResult.blocksByLanguage.entries.associateBy(
-                keySelector = { entry -> normalizeLanguageTag(entry.key) },
-                valueTransform = { entry -> entry.value },
-            )
-        val languageTag = selectLanguageTag(normalizedTexts, preferredLanguageTagsProvider())
-        val renderedBlocks = normalizedBlocks[languageTag]
-        if (renderedBlocks == null) {
-            val markdown = normalizedTexts.getValue(languageTag)
+        val languageTag = selectLanguageTag(availableLanguageTags(baseline, profiles), preferredLanguageTagsProvider())
+        val renderResult = clearTermsContentProvider.renderedLanguage(baseline, profiles, languageTag)
+        if (renderResult.blocks.isEmpty()) {
             return LegalPrivacyPolicyDocument(
-                html = markdownToHtmlRenderer.render(markdown),
+                html = markdownToHtmlRenderer.render(renderResult.text),
                 uncriticalTextByBlockId = emptyMap(),
             )
         }
@@ -87,21 +75,19 @@ class LegalPrivacyPolicyService(
                 languageTag = languageTag,
                 baselineJson = baseline,
                 profileJsons = profiles,
-                renderedBlocks = renderedBlocks,
+                renderedBlocks = renderResult.blocks,
             )
         return LegalPrivacyPolicyDocument(
-            html = renderBlocks(renderedBlocks),
+            html = renderBlocks(renderResult.blocks),
             uncriticalTextByBlockId = uncriticalTextByBlockId,
         )
     }
 
     private fun selectLanguageTag(
-        textsByLanguage: Map<String, String>,
+        languageTags: Set<String>,
         preferredLanguageTags: List<String>,
     ): String {
-        check(textsByLanguage.isNotEmpty()) { "No ClearTerms text available" }
-
-        val normalizedTexts = textsByLanguage.entries.associateBy({ normalizeLanguageTag(it.key) }, { it.value })
+        check(languageTags.isNotEmpty()) { "No ClearTerms text available" }
         val candidates =
             buildList {
                 preferredLanguageTags.forEach { tag ->
@@ -118,21 +104,39 @@ class LegalPrivacyPolicyService(
             }.distinct()
 
         candidates.forEach { candidate ->
-            if (normalizedTexts[candidate] != null) {
+            if (candidate in languageTags) {
                 return candidate
             }
         }
 
-        if (normalizedTexts["en"] != null) {
+        if ("en" in languageTags) {
             return "en"
         }
 
-        return normalizeLanguageTag(textsByLanguage.keys.minBy { it.lowercase() })
+        return languageTags.minBy { it.lowercase() }
     }
 
     private fun normalizeLanguageTag(languageTag: String): String = languageTag.trim().lowercase()
 
     private fun JsonObject.toCanonicalJson(): String = this["canonicalJson"]?.jsonPrimitive?.content ?: toString()
+
+    private fun availableLanguageTags(
+        baselineJson: String,
+        profileJsons: List<String>,
+    ): Set<String> {
+        val baseline = clearTermsDocumentReader.readBaseline(clearTermsJsonParser.parse(baselineJson))
+        clearTermsProfileValidator.validateBaselineStructure(baseline)
+        var textsByLanguage =
+            baseline.textsByLanguage.entries.associate { (language, blocks) ->
+                normalizeLanguageTag(language) to blocks
+            }
+        profileJsons.forEach { profileJson ->
+            val profile = clearTermsDocumentReader.readProfile(clearTermsJsonParser.parse(profileJson))
+            textsByLanguage = clearTermsProfileValidator.applyTextOverrides(textsByLanguage, profile.overrides.texts)
+        }
+        clearTermsProfileValidator.validateFinalTextsResolved(textsByLanguage)
+        return textsByLanguage.keys
+    }
 
     private fun renderBlock(
         block: ClearTermsRenderedBlock,
@@ -221,46 +225,40 @@ class LegalPrivacyPolicyService(
         profileJsons: List<String>,
         renderedBlocks: List<ClearTermsRenderedBlock>,
     ): Map<String, String> {
-        try {
-            return resolveUncriticalTextByBlockIdFromChain(
+        val renderResultsByChainStep = linkedMapOf<Int, ClearTermsRenderedLanguage>()
+        renderResultsByChainStep[profileJsons.size] = ClearTermsRenderedLanguage(languageTag = languageTag, text = "", blocks = renderedBlocks)
+        for (profileCount in 1 until profileJsons.size) {
+            runCatching {
+                clearTermsContentProvider.renderedLanguage(baselineJson, profileJsons.take(profileCount), languageTag)
+            }.onSuccess { partial ->
+                renderResultsByChainStep[profileCount] = partial
+            }
+        }
+        if (renderResultsByChainStep.size > 1) {
+            return resolveUncriticalTextByBlockIdFromRenderResults(renderResultsByChainStep)
+        }
+        return try {
+            resolveUncriticalTextByBlockIdFromChain(
                 languageTag = languageTag,
                 baselineJson = baselineJson,
                 profileJsons = profileJsons,
                 renderedBlocks = renderedBlocks,
             )
         } catch (_: Throwable) {
+            resolveUncriticalTextByBlockIdFromRenderResults(renderResultsByChainStep)
         }
-        val renderResultsByChainStep = linkedMapOf<Int, ClearTermsRenderResult>()
-        renderResultsByChainStep[profileJsons.size] = clearTermsContentProvider.renderedTextsByLanguage(baselineJson, profileJsons)
-        for (profileCount in 1 until profileJsons.size) {
-            runCatching {
-                clearTermsContentProvider.renderedTextsByLanguage(baselineJson, profileJsons.take(profileCount))
-            }.onSuccess { partial ->
-                renderResultsByChainStep[profileCount] = partial
-            }
-        }
-        return resolveUncriticalTextByBlockIdFromRenderResults(languageTag, renderResultsByChainStep)
     }
 
-    private suspend fun resolveUncriticalTextByBlockIdFromRenderResults(
-        languageTag: String,
-        renderResultsByChainStep: Map<Int, ClearTermsRenderResult>,
-    ): Map<String, String> {
+    private fun resolveUncriticalTextByBlockIdFromRenderResults(renderResultsByChainStep: Map<Int, ClearTermsRenderedLanguage>): Map<String, String> {
         if (renderResultsByChainStep.isEmpty()) {
             return emptyMap()
         }
-        val normalizedLanguageTag = normalizeLanguageTag(languageTag)
         val stepsByLanguage =
             renderResultsByChainStep
                 .toList()
                 .sortedBy { (step, _) -> step }
-                .map { (_, stepResult) ->
-                    stepResult.blocksByLanguage.entries.associateBy(
-                    keySelector = { entry -> normalizeLanguageTag(entry.key) },
-                    valueTransform = { entry -> entry.value },
-                )
-                }
-        val finalBlocks = stepsByLanguage.last()[normalizedLanguageTag] ?: return emptyMap()
+                .map { (_, stepResult) -> stepResult.blocks }
+        val finalBlocks = stepsByLanguage.last()
         val highlightedIds =
             finalBlocks
                 .filter { block -> block.isHighlighted() }
@@ -272,14 +270,14 @@ class LegalPrivacyPolicyService(
         val map = linkedMapOf<String, String>()
         highlightedIds.forEach { blockId ->
             val firstHighlightedIndex =
-                stepsByLanguage.indexOfFirst { blocksByLanguage ->
-                    blocksByLanguage[normalizedLanguageTag].orEmpty().any { block ->
+                stepsByLanguage.indexOfFirst { blocks ->
+                    blocks.any { block ->
                         block.id == blockId && block.isHighlighted()
                     }
                 }
             val previousBlocks =
                 if (firstHighlightedIndex > 0) {
-                    stepsByLanguage[firstHighlightedIndex - 1][normalizedLanguageTag].orEmpty()
+                    stepsByLanguage[firstHighlightedIndex - 1]
                 } else {
                     emptyList()
                 }

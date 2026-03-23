@@ -54,7 +54,7 @@ class ClearTermsRendererTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en").text
 
             val expected =
                 """
@@ -103,7 +103,7 @@ class ClearTermsRendererTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en").text
 
             val expected =
                 """
@@ -174,7 +174,7 @@ class ClearTermsRendererTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             val expected =
                 """
@@ -208,7 +208,7 @@ class ClearTermsRendererTest {
                         """.trimIndent(),
                 )
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en").text
 
             assertEquals("Limit: 5.", result)
         }
@@ -253,7 +253,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -296,7 +296,7 @@ class ClearTermsRendererTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en").text
 
             assertEquals("Operator: Example Organization.", result)
         }
@@ -315,7 +315,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "operator_name": "Example Org", "unused": "extra" }""")
             val profileB = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, profileB), "en").text
 
             assertEquals("Operator: Example Org.", result)
         }
@@ -359,7 +359,7 @@ class ClearTermsRendererTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Operator: Example Organization.", result)
         }
@@ -404,7 +404,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -447,7 +447,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -491,7 +491,7 @@ class ClearTermsRendererTest {
 
             val result =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
                 }
 
             assertEquals("Baseline block ids must be unique for 'de'", result.message)
@@ -540,10 +540,10 @@ class ClearTermsRendererTest {
                 }
                 """.trimIndent()
 
-            val renderedEn = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val renderedEn = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             val exception =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "de")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "de").text
                 }
 
             assertEquals("Support: Monday.", renderedEn)
@@ -591,7 +591,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -641,7 +641,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -691,7 +691,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -745,7 +745,7 @@ class ClearTermsRendererTest {
 
             val result =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
                 }
 
             assertEquals("Append block ids must be unique", result.message)
@@ -789,7 +789,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -831,7 +831,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -874,7 +874,7 @@ class ClearTermsRendererTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             val expected = "Literal {{ and }} then Example."
             assertEquals(expected, result)
@@ -918,7 +918,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -960,7 +960,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1002,7 +1002,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1044,7 +1044,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1086,7 +1086,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1098,7 +1098,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "fr")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "fr").text
             }
         }
 
@@ -1114,7 +1114,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1134,7 +1134,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1155,7 +1155,7 @@ class ClearTermsRendererTest {
                 """.trimIndent()
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1172,7 +1172,7 @@ class ClearTermsRendererTest {
 
             val result =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
                 }
 
             assertEquals("Reference id mismatch", result.message)
@@ -1191,7 +1191,7 @@ class ClearTermsRendererTest {
 
             val result =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
                 }
 
             assertEquals("Reference version mismatch", result.message)
@@ -1226,7 +1226,7 @@ class ClearTermsRendererTest {
                 )
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1259,7 +1259,7 @@ class ClearTermsRendererTest {
                 )
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1289,7 +1289,7 @@ class ClearTermsRendererTest {
                         """.trimIndent(),
                 )
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Uno.Two.", result)
         }
@@ -1320,7 +1320,7 @@ class ClearTermsRendererTest {
                         """.trimIndent(),
                 )
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Support: basic", result)
         }
@@ -1343,7 +1343,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1361,7 +1361,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "max_records": null }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Limit: unknown.", result)
         }
@@ -1380,7 +1380,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "operator_name": null }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Operator: unspecified.", result)
         }
@@ -1399,7 +1399,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "max_records": 10 }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Limit: 10.", result)
         }
@@ -1418,7 +1418,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "max_records": 10.5 }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Limit: 10.5.", result)
         }
@@ -1437,7 +1437,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "max_records": -10.25 }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Limit: -10.25.", result)
         }
@@ -1457,7 +1457,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1476,7 +1476,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1495,7 +1495,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1514,7 +1514,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1533,7 +1533,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1552,7 +1552,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1570,7 +1570,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "period": "  \"30d\"  " }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Retention: 30 days.", result)
         }
@@ -1589,7 +1589,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-01-02T10:00:00Z" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on January 2, 2025 at 10:00:00Z.", result)
         }
@@ -1608,7 +1608,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-01-02T10:30Z" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on January 2, 2025 at 10:30Z.", result)
         }
@@ -1627,7 +1627,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-01-02T10:00-05:00" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on January 2, 2025 at 10:00-05:00.", result)
         }
@@ -1646,7 +1646,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": null }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: soon.", result)
         }
@@ -1666,7 +1666,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -1684,7 +1684,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "support_day": "mon" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Support: Monday.", result)
         }
@@ -1703,7 +1703,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-*-15T12:00:00+01:00" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on day 15 of every month at 12:00:00+01:00.", result)
         }
@@ -1722,7 +1722,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-02-*" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: in February 2025.", result)
         }
@@ -1741,7 +1741,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-*-05" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on day 5 of every month in 2025.", result)
         }
@@ -1760,7 +1760,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-*-*" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: in 2025.", result)
         }
@@ -1779,7 +1779,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-02-05" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on February 5 every year.", result)
         }
@@ -1798,7 +1798,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-02-*" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: every day in February.", result)
         }
@@ -1817,7 +1817,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-*-15" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on day 15 of every month.", result)
         }
@@ -1836,7 +1836,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-*-*" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: every day.", result)
         }
@@ -1855,7 +1855,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-02-31" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on the last day of February every year.", result)
         }
@@ -1874,7 +1874,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-02-31" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on the last day of February 2025.", result)
         }
@@ -1902,7 +1902,7 @@ class ClearTermsRendererTest {
                 val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-${month.toString().padStart(2, '0')}-31" }""")
                 val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-                val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
                 assertEquals("Start: on the last day of $monthName 2025.", result)
             }
@@ -1939,7 +1939,7 @@ class ClearTermsRendererTest {
                 val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-${month.toString().padStart(2, '0')}-31" }""")
                 val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-                val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
                 assertEquals(expectedText, result)
             }
@@ -1959,7 +1959,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2024-02-29" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on February 29, 2024.", result)
         }
@@ -1978,7 +1978,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2023-02-29" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on the last day of February 2023.", result)
         }
@@ -1997,7 +1997,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "1900-02-29" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on the last day of February 1900.", result)
         }
@@ -2016,7 +2016,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "2025-*-31" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on the last day of every month in 2025.", result)
         }
@@ -2035,7 +2035,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "start_time": "*-*-31" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Start: on the last day of every month.", result)
         }
@@ -2054,7 +2054,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "amount": 1234.5 }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Price: 1,234.50.", result)
         }
@@ -2073,7 +2073,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "count": 1234.6 }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Count: 1235.", result)
         }
@@ -2092,7 +2092,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "count": -1.5 }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Count: -2.", result)
         }
@@ -2111,7 +2111,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "count": 1200.4 }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Count: 1,200.", result)
         }
@@ -2130,7 +2130,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "count": 1234.5 }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Count: 1234.50.", result)
         }
@@ -2149,7 +2149,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "count": 1e7 }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Count: 10000000.00.", result)
         }
@@ -2168,7 +2168,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "count": 999.0 }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Count: 999.", result)
         }
@@ -2187,7 +2187,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "ratio": 1.25 }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Ratio: 1.25.", result)
         }
@@ -2206,7 +2206,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "support_day": null }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Support: weekdays.", result)
         }
@@ -2281,7 +2281,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "support_day": "sun" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Support: sun.", result)
         }
@@ -2323,7 +2323,7 @@ class ClearTermsRendererTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "fr")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "fr").text
 
             assertEquals("Support: Monday.", result)
         }
@@ -2343,7 +2343,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -2362,7 +2362,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -2390,7 +2390,7 @@ class ClearTermsRendererTest {
                 )
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -2409,7 +2409,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -2427,7 +2427,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{number:inner?}}" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Value: {{number:inner?}}.", result)
         }
@@ -2447,7 +2447,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -2466,7 +2466,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -2485,7 +2485,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -2504,7 +2504,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -2523,7 +2523,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -2542,7 +2542,7 @@ class ClearTermsRendererTest {
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
             assertFailsWith<ClearTermsValidationException> {
-                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
             }
         }
 
@@ -2560,7 +2560,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{bogus:inner}}" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Value: {{bogus:inner}}.", result)
         }
@@ -2579,7 +2579,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{string:bad key}}" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Value: {{string:bad key}}.", result)
         }
@@ -2598,7 +2598,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{string:}}" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Value: {{string:}}.", result)
         }
@@ -2617,7 +2617,7 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ "value": "{{not_placeholder}}" }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
 
             assertEquals("Value: {{not_placeholder}}.", result)
         }
@@ -2641,7 +2641,7 @@ class ClearTermsRendererTest {
 
             val result =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+                    renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en").text
                 }
 
             assertEquals("Baseline block ids must be unique", result.message)
@@ -2668,8 +2668,8 @@ class ClearTermsRendererTest {
             val firstProfile = firstProfileJson(valuesJson = """{ }""")
             val secondProfile = secondProfileJson(valuesJson = """{ }""")
 
-            val result = renderer.renderAll(baseline, listOf(firstProfile, secondProfile))
-            val blocks = result.blocksByLanguage.getValue("en")
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val blocks = result.blocks
 
             assertEquals(true, blocks[0].inlineWithNext)
             assertEquals(false, blocks[1].inlineWithNext)

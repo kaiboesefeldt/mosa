@@ -138,16 +138,17 @@ class LegalServiceTest {
                 )
 
             val rendered =
-                renderer.renderLanguage(
-                    baselineJson = service.termsBaselineCanonicalJson(),
-                    profileJsons =
-                        listOf(
-                            service.termsDefaultCanonicalJson(),
-                            service.termsMosaCanonicalJson(),
-                            service.termsOperatorCanonicalJson(),
-                        ),
-                    languageTag = "de",
-                )
+                renderer
+                    .renderLanguage(
+                        baselineJson = service.termsBaselineCanonicalJson(),
+                        profileJsons =
+                            listOf(
+                                service.termsDefaultCanonicalJson(),
+                                service.termsMosaCanonicalJson(),
+                                service.termsOperatorCanonicalJson(),
+                            ),
+                        languageTag = "de",
+                    ).text
 
             assertTrue(rendered.contains("Allgemeine Geschäftsbedingungen"))
         }
@@ -507,11 +508,12 @@ class LegalServiceTest {
                 )
 
             val rendered =
-                renderer.renderLanguage(
-                    baselineJson = baselineJson,
-                    profileJsons = listOf(defaultJson, mosaJson, serviceJson),
-                    languageTag = "de",
-                )
+                renderer
+                    .renderLanguage(
+                        baselineJson = baselineJson,
+                        profileJsons = listOf(defaultJson, mosaJson, serviceJson),
+                        languageTag = "de",
+                    ).text
 
             assertTrue(rendered.contains("Datenschutzerklärung"))
         }

@@ -60,7 +60,7 @@ class ClearTermsProfileChainRendererTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, listOf(profileA, profileB), "en")
+            val result = renderer.renderLanguage(baseline, listOf(profileA, profileB), "en").text
 
             assertEquals("Operator: Org B.Limit: unknown.", result)
         }
@@ -83,7 +83,7 @@ class ClearTermsProfileChainRendererTest {
 
             val exception =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, emptyList(), "en")
+                    renderer.renderLanguage(baseline, emptyList(), "en").text
                 }
 
             assertEquals("At least one profile is required", exception.message)
@@ -119,7 +119,7 @@ class ClearTermsProfileChainRendererTest {
 
             val exception =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, listOf(profile), "en")
+                    renderer.renderLanguage(baseline, listOf(profile), "en").text
                 }
 
             assertEquals("Text block 'contact' is unresolved for 'en'", exception.message)
@@ -159,7 +159,7 @@ class ClearTermsProfileChainRendererTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, listOf(profile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en").text
 
             assertEquals("Contact: support@example.org.", result)
         }
@@ -196,7 +196,7 @@ class ClearTermsProfileChainRendererTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderLanguage(baseline, listOf(profile), "en")
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en").text
 
             assertEquals("Contact only text override.", result)
         }
@@ -243,7 +243,7 @@ class ClearTermsProfileChainRendererTest {
 
             val exception =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, listOf(profileA, profileB), "en")
+                    renderer.renderLanguage(baseline, listOf(profileA, profileB), "en").text
                 }
 
             assertEquals("Reference id mismatch", exception.message)
@@ -279,7 +279,7 @@ class ClearTermsProfileChainRendererTest {
 
             val exception =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderLanguage(baseline, listOf(profile), "de")
+                    renderer.renderLanguage(baseline, listOf(profile), "de").text
                 }
 
             assertEquals("Language 'de' not available", exception.message)
@@ -335,10 +335,10 @@ class ClearTermsProfileChainRendererTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(profileA, profileB))
+            val result = renderer.renderLanguage(baseline, listOf(profileA, profileB), "en")
 
-            assertEquals(setOf("en", "zh"), result.textsByLanguage.keys)
-            assertEquals("EN 2", result.textsByLanguage.getValue("en"))
+            assertEquals("en", result.languageTag)
+            assertEquals("EN 2", result.text)
         }
 
     @Test
@@ -371,7 +371,7 @@ class ClearTermsProfileChainRendererTest {
 
             val exception =
                 assertFailsWith<ClearTermsValidationException> {
-                    renderer.renderAll(baseline, listOf(profile))
+                    renderer.renderLanguage(baseline, listOf(profile), "en").text
                 }
 
             assertEquals("No languages available after applying profile chain", exception.message)

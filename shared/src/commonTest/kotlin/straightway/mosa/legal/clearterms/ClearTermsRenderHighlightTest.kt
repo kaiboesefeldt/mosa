@@ -43,12 +43,8 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(profile))
-            val segments =
-                result.blocksByLanguage
-                    .getValue("en")
-                    .single()
-                    .segments
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en")
+            val segments = result.blocks.single().segments
 
             assertEquals(
                 listOf(
@@ -91,12 +87,8 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(profile))
-            val segments =
-                result.blocksByLanguage
-                    .getValue("en")
-                    .single()
-                    .segments
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en")
+            val segments = result.blocks.single().segments
 
             assertEquals(
                 listOf(
@@ -143,12 +135,8 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(profile))
-            val segments =
-                result.blocksByLanguage
-                    .getValue("en")
-                    .single()
-                    .segments
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en")
+            val segments = result.blocks.single().segments
 
             assertEquals(listOf(ClearTermsRenderBackground.RED), segments.map { it.background })
             assertEquals("Changed text.", segments.single().text)
@@ -188,12 +176,8 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(profile))
-            val segments =
-                result.blocksByLanguage
-                    .getValue("en")
-                    .single()
-                    .segments
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en")
+            val segments = result.blocks.single().segments
 
             assertEquals(listOf(ClearTermsRenderBackground.YELLOW), segments.map { it.background })
         }
@@ -232,12 +216,8 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(profile))
-            val segments =
-                result.blocksByLanguage
-                    .getValue("en")
-                    .single()
-                    .segments
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en")
+            val segments = result.blocks.single().segments
 
             assertEquals(listOf(ClearTermsRenderBackground.NONE), segments.map { it.background })
         }
@@ -276,12 +256,8 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(profile))
-            val segments =
-                result.blocksByLanguage
-                    .getValue("en")
-                    .single()
-                    .segments
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en")
+            val segments = result.blocks.single().segments
 
             assertEquals(listOf(ClearTermsRenderBackground.NONE), segments.map { it.background })
         }
@@ -320,10 +296,9 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(profile))
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en")
             val block =
-                result.blocksByLanguage
-                    .getValue("en")
+                result.blocks
                     .single()
 
             assertEquals(true, block.isBaselineOverride)
@@ -371,12 +346,8 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(profileA, profileB))
-            val segments =
-                result.blocksByLanguage
-                    .getValue("en")
-                    .single()
-                    .segments
+            val result = renderer.renderLanguage(baseline, listOf(profileA, profileB), "en")
+            val segments = result.blocks.single().segments
 
             assertEquals(
                 listOf(
@@ -417,12 +388,8 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(profile))
-            val segments =
-                result.blocksByLanguage
-                    .getValue("en")
-                    .single()
-                    .segments
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en")
+            val segments = result.blocks.single().segments
 
             assertEquals(listOf(ClearTermsRenderBackground.NONE), segments.map { it.background })
             assertEquals("Static baseline text.", segments.single().text)
@@ -475,12 +442,8 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(profileA, profileB))
-            val segments =
-                result.blocksByLanguage
-                    .getValue("en")
-                    .single()
-                    .segments
+            val result = renderer.renderLanguage(baseline, listOf(profileA, profileB), "en")
+            val segments = result.blocks.single().segments
 
             assertEquals(listOf(ClearTermsRenderBackground.RED), segments.map { it.background })
             assertEquals("Step two.", segments.single().text)
@@ -523,10 +486,9 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(profile))
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en")
             val segments =
-                result.blocksByLanguage
-                    .getValue("en")
+                result.blocks
                     .single { it.id == "new-block" }
                     .segments
 
@@ -579,12 +541,8 @@ class ClearTermsRenderHighlightTest {
                 }
                 """.trimIndent()
 
-            val result = renderer.renderAll(baseline, listOf(firstProfile, secondProfile))
-            val segments =
-                result.blocksByLanguage
-                    .getValue("en")
-                    .single()
-                    .segments
+            val result = renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "en")
+            val segments = result.blocks.single().segments
 
             assertEquals(
                 listOf(
@@ -594,7 +552,7 @@ class ClearTermsRenderHighlightTest {
                 ),
                 segments.map { it.background },
             )
-            assertEquals("Operator: Org B.", result.textsByLanguage.getValue("en"))
+            assertEquals("Operator: Org B.", result.text)
         }
 
     @Test

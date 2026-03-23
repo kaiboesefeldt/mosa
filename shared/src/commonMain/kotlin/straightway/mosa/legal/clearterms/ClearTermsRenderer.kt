@@ -17,39 +17,33 @@ class ClearTermsRenderer(
             timeTextRenderer = ClearTermsTimeTextRenderer(timeZoneDisplayConverter = timeZoneDisplayConverter),
         ),
 ) {
-    suspend fun renderAll(
+    suspend fun renderLanguage(
         baselineJson: String,
         profileJsons: List<String>,
-    ): ClearTermsRenderResult {
+        languageTag: String,
+    ): ClearTermsRenderedLanguage {
         requireProfiles(profileJsons)
         val baselineNode = parseObject(baselineJson)
         val baseline = readBaseline(baselineNode)
         val baselineHash = hashFor(baselineNode)
         val parsedProfiles = parseProfiles(profileJsons)
-        return renderWithParsedProfiles(baseline, baselineHash, parsedProfiles)
-    }
-
-    suspend fun renderLanguage(
-        baselineJson: String,
-        profileJsons: List<String>,
-        languageTag: String,
-    ): String {
-        val result = renderAll(baselineJson, profileJsons)
-        return result.textsByLanguage[languageTag]
-            ?: throw ClearTermsValidationException("Language '$languageTag' not available")
+        return renderWithParsedProfiles(baseline, baselineHash, parsedProfiles, languageTag)
     }
 
     private fun renderWithParsedProfiles(
         baseline: ClearTermsBaseline,
         baselineHash: String,
         parsedProfiles: List<ParsedProfile>,
-    ): ClearTermsRenderResult {
+        languageTag: String,
+    ): ClearTermsRenderedLanguage {
         val state = buildRenderState(baseline, baselineHash, parsedProfiles)
-        val finalData = resolveFinalData(state)
-        val blocksByLanguage = renderBlocksByLanguage(state, finalData)
-        val textsByLanguage = renderTextsByLanguage(blocksByLanguage)
-        ensureResolved(textsByLanguage)
-        return ClearTermsRenderResult(textsByLanguage, blocksByLanguage)
+        profileValidator.validateFinalTextsResolved(state.textsByLanguage)
+        val languageBlocks = selectLanguageBlocks(state, languageTag)
+        val finalData = resolveFinalData(languageTag, languageBlocks, state.mergedRawValues)
+        val renderedBlocks = renderBlocks(languageTag, languageBlocks, state, finalData)
+        val text = renderText(renderedBlocks)
+        ensureResolved(text)
+        return ClearTermsRenderedLanguage(languageTag, text, renderedBlocks)
     }
 
     private suspend fun hashFor(node: ClearTermsJsonNode.ObjectNode): String {
@@ -198,25 +192,29 @@ class ClearTermsRenderer(
         state.parentHash = parsedProfile.hash
     }
 
-    private fun resolveFinalData(state: RenderState): FinalRenderData {
-        profileValidator.validateFinalTextsResolved(state.textsByLanguage)
-        val placeholders = profileValidator.placeholdersByKey(state.textsByLanguage)
+    private fun selectLanguageBlocks(
+        state: RenderState,
+        languageTag: String,
+    ): List<ClearTermsTextBlock> =
+        state.textsByLanguage[languageTag]
+            ?: throw ClearTermsValidationException("Language '$languageTag' not available")
+
+    private fun resolveFinalData(
+        languageTag: String,
+        languageBlocks: List<ClearTermsTextBlock>,
+        rawValues: Map<String, ClearTermsJsonNode.ScalarNode>,
+    ): FinalRenderData {
+        val textsByLanguage = mapOf(languageTag to languageBlocks)
+        profileValidator.validateFinalTextsResolved(textsByLanguage)
+        val placeholders = profileValidator.placeholdersByKey(textsByLanguage)
         val values =
             profileValidator.validateAndCoerceValues(
-                state.mergedRawValues,
+                rawValues,
                 placeholders,
                 requireAll = true,
             )
         return FinalRenderData(placeholders, values)
     }
-
-    private fun renderBlocksByLanguage(
-        state: RenderState,
-        finalData: FinalRenderData,
-    ): Map<String, List<ClearTermsRenderedBlock>> =
-        state.textsByLanguage.mapValues { (language, blocks) ->
-            renderBlocks(language, blocks, state, finalData)
-        }
 
     private fun renderBlocks(
         language: String,
@@ -300,15 +298,12 @@ class ClearTermsRenderer(
                 placeholderIsBaselineOverrideByKey = emptyMap(),
             ).joinToString("") { it.text }
 
-    private fun renderTextsByLanguage(blocksByLanguage: Map<String, List<ClearTermsRenderedBlock>>): Map<String, String> =
-        blocksByLanguage.mapValues { (_, blocks) ->
-            blocks.joinToString("") { renderBlockText(it) }
-        }
+    private fun renderText(blocks: List<ClearTermsRenderedBlock>): String = blocks.joinToString("") { renderBlockText(it) }
 
     private fun renderBlockText(block: ClearTermsRenderedBlock): String = block.segments.joinToString("") { it.text }
 
-    private fun ensureResolved(textsByLanguage: Map<String, String>) {
-        textsByLanguage.values.forEach { valueRenderer.ensureNoUnresolvedPlaceholders(it) }
+    private fun ensureResolved(text: String) {
+        valueRenderer.ensureNoUnresolvedPlaceholders(text)
     }
 
     private fun countBlockOverrides(
