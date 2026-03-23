@@ -4,8 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-class ClearTermsCanonicalJsonTest {
-    private val canonicalizer = ClearTermsCanonicalJson()
+class ClearTermsCanonicalNodeRendererTest {
+    private val canonicalizer = ClearTermsCanonicalNodeRenderer()
 
     @Test
     fun `sorts keys lexicographically at all levels`() {
@@ -23,7 +23,7 @@ class ClearTermsCanonicalJsonTest {
                 ),
             )
 
-        val result = canonicalizer.canonicalize(root)
+        val result = canonicalizer.render(root)
 
         val expected = "{\"a\":{\"c\":\"three\",\"d\":\"four\"},\"b\":\"two\"}"
         assertEquals(expected, result)
@@ -45,7 +45,7 @@ class ClearTermsCanonicalJsonTest {
                 ),
             )
 
-        val result = canonicalizer.canonicalize(root)
+        val result = canonicalizer.render(root)
 
         val expected = "{\"list\":[\"first\",\"second\",\"third\"]}"
         assertEquals(expected, result)
@@ -76,7 +76,7 @@ class ClearTermsCanonicalJsonTest {
                 ),
             )
 
-        val result = canonicalizer.canonicalize(root)
+        val result = canonicalizer.render(root)
 
         val expected = "{\"items\":[{\"id\":\"one\",\"value\":1},{\"id\":\"two\",\"value\":2.5}]}"
         assertEquals(expected, result)
@@ -91,7 +91,7 @@ class ClearTermsCanonicalJsonTest {
                 ),
             )
 
-        val result = canonicalizer.canonicalize(root)
+        val result = canonicalizer.render(root)
 
         assertEquals("{\"value\":null}", result)
     }
@@ -106,7 +106,7 @@ class ClearTermsCanonicalJsonTest {
                 ),
             )
 
-        val result = canonicalizer.canonicalize(root)
+        val result = canonicalizer.render(root)
 
         assertEquals("{\"decimal\":12.75,\"integer\":10}", result)
     }
@@ -120,7 +120,7 @@ class ClearTermsCanonicalJsonTest {
                 ),
             )
 
-        val result = canonicalizer.canonicalize(root)
+        val result = canonicalizer.render(root)
 
         assertEquals("{\"text\":\"\\\" \\\\ \\n \\r \\t \\u0007 end\"}", result)
     }
@@ -134,7 +134,7 @@ class ClearTermsCanonicalJsonTest {
                 ),
             )
 
-        val result = canonicalizer.canonicalize(root)
+        val result = canonicalizer.render(root)
 
         assertEquals("{\"text\":\"a\\b\\f b\"}", result)
     }
@@ -149,7 +149,7 @@ class ClearTermsCanonicalJsonTest {
             )
 
         assertFailsWith<ClearTermsValidationException> {
-            canonicalizer.canonicalize(root)
+            canonicalizer.render(root)
         }
     }
 
@@ -163,7 +163,7 @@ class ClearTermsCanonicalJsonTest {
                 ),
             )
 
-        val result = canonicalizer.canonicalize(root)
+        val result = canonicalizer.render(root)
 
         assertEquals("{\"emptyArray\":[],\"emptyObject\":{}}", result)
     }
@@ -172,7 +172,7 @@ class ClearTermsCanonicalJsonTest {
     fun `renders empty root object`() {
         val root = ClearTermsJsonNode.ObjectNode(emptyMap())
 
-        val result = canonicalizer.canonicalize(root)
+        val result = canonicalizer.render(root)
 
         assertEquals("{}", result)
     }
@@ -186,7 +186,7 @@ class ClearTermsCanonicalJsonTest {
                 ),
             )
 
-        val result = canonicalizer.canonicalize(root)
+        val result = canonicalizer.render(root)
 
         assertEquals("{\"text\":\"a\\u0001\\u001f b\"}", result)
     }
@@ -201,7 +201,7 @@ class ClearTermsCanonicalJsonTest {
             )
 
         assertFailsWith<ClearTermsValidationException> {
-            canonicalizer.canonicalize(root)
+            canonicalizer.render(root)
         }
     }
 }

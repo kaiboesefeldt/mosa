@@ -8,7 +8,7 @@ import java.security.MessageDigest
 
 class ClearTermsYamlCanonicalJsonConverter(
     private val yamlMapper: ObjectMapper = defaultYamlMapper(),
-    private val canonicalJson: ClearTermsCanonicalJson = ClearTermsCanonicalJson(),
+    private val canonicalNodeRenderer: ClearTermsCanonicalNodeRenderer = ClearTermsCanonicalNodeRenderer(),
     private val documentReader: ClearTermsDocumentReader = ClearTermsDocumentReader(),
 ) {
     fun convert(
@@ -21,7 +21,7 @@ class ClearTermsYamlCanonicalJsonConverter(
 
         val baselineJson = parseYamlObject(baselineYaml)
         val baseline = documentReader.readBaseline(baselineJson)
-        val baselineCanonical = canonicalJson.canonicalize(baselineJson)
+        val baselineCanonical = canonicalNodeRenderer.render(baselineJson)
         val baselineHash = hashSha256(baselineCanonical)
 
         var previousId = baseline.id
@@ -39,7 +39,7 @@ class ClearTermsYamlCanonicalJsonConverter(
                     previousHash,
                 )
             val parsedProfile = documentReader.readProfile(profileWithHash)
-            val canonicalProfile = canonicalJson.canonicalize(profileWithHash)
+            val canonicalProfile = canonicalNodeRenderer.render(profileWithHash)
             val profileHash = hashSha256(canonicalProfile)
             profiles += CanonicalArtifact(profileWithHash, canonicalProfile, profileHash)
             previousId = parsedProfile.id

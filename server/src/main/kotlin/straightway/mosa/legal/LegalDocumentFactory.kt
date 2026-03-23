@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import straightway.mosa.legal.clearterms.ClearTermsBaseline
-import straightway.mosa.legal.clearterms.ClearTermsCanonicalJson
+import straightway.mosa.legal.clearterms.ClearTermsCanonicalNodeRenderer
 import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
 import straightway.mosa.legal.clearterms.ClearTermsJsonNode
 import straightway.mosa.legal.clearterms.ClearTermsJsonParser
@@ -19,7 +19,7 @@ internal class LegalDocumentFactory(
     private val parser: ClearTermsJsonParser,
     private val reader: ClearTermsDocumentReader,
     private val profileValidator: ClearTermsProfileValidator,
-    private val canonicalJson: ClearTermsCanonicalJson,
+    private val canonicalNodeRenderer: ClearTermsCanonicalNodeRenderer,
 ) {
     fun createDocuments(conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult): LegalDocuments =
         LegalDocuments(
@@ -93,7 +93,7 @@ internal class LegalDocumentFactory(
                 textOverrides = textOverrides,
                 kind = kind,
             )
-        return canonicalJson.canonicalize(profileNode)
+        return canonicalNodeRenderer.render(profileNode)
     }
 
     private fun fallbackValues(

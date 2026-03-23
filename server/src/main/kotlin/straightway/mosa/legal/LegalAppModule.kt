@@ -5,7 +5,7 @@ import org.koin.core.qualifier.StringQualifier
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import straightway.mosa.base.BaseController
-import straightway.mosa.legal.clearterms.ClearTermsCanonicalJson
+import straightway.mosa.legal.clearterms.ClearTermsCanonicalNodeRenderer
 import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
 import straightway.mosa.legal.clearterms.ClearTermsJsonParser
 import straightway.mosa.legal.clearterms.ClearTermsPlaceholderParser
@@ -41,7 +41,7 @@ fun Module.configureLegalAppModule() {
         ClearTermsPlaceholderParser()
     }
     single {
-        ClearTermsCanonicalJson()
+        ClearTermsCanonicalNodeRenderer()
     }
     single<ResourceTextReader> {
         ResourceTextReader { path ->
@@ -85,7 +85,7 @@ fun Module.configureLegalAppModule() {
             parser = get(),
             reader = get(),
             profileValidator = get(),
-            canonicalJson = get(),
+            canonicalNodeRenderer = get(),
         )
     }
     single(createdAtStart = true) {

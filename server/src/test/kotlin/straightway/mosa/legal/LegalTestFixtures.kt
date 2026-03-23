@@ -1,6 +1,6 @@
 package straightway.mosa.legal
 
-import straightway.mosa.legal.clearterms.ClearTermsCanonicalJson
+import straightway.mosa.legal.clearterms.ClearTermsCanonicalNodeRenderer
 import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
 import straightway.mosa.legal.clearterms.ClearTermsJsonParser
 import straightway.mosa.legal.clearterms.ClearTermsPlaceholderParser
@@ -47,7 +47,7 @@ internal fun createLegalDocumentFactory() =
         parser = ClearTermsJsonParser(),
         reader = ClearTermsDocumentReader(),
         profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
-        canonicalJson = ClearTermsCanonicalJson(),
+        canonicalNodeRenderer = ClearTermsCanonicalNodeRenderer(),
     )
 
 internal fun createLegalService(

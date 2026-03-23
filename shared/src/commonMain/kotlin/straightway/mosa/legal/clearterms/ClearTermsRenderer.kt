@@ -4,7 +4,7 @@ class ClearTermsRenderer(
     private val parser: ClearTermsJsonParser,
     private val hashProvider: ClearTermsHashProvider,
     private val textEncoder: ClearTermsTextEncoder,
-    private val canonicalizer: ClearTermsCanonicalJson = ClearTermsCanonicalJson(),
+    private val canonicalizer: ClearTermsCanonicalNodeRenderer = ClearTermsCanonicalNodeRenderer(),
     private val placeholderParser: ClearTermsPlaceholderParser = ClearTermsPlaceholderParser(),
     private val reader: ClearTermsDocumentReader = ClearTermsDocumentReader(),
     private val localeProvider: ClearTermsLocaleProvider,
@@ -141,7 +141,7 @@ class ClearTermsRenderer(
     }
 
     private suspend fun hashFor(node: ClearTermsJsonNode.ObjectNode): String {
-        val canonical = canonicalizer.canonicalize(node)
+        val canonical = canonicalizer.render(node)
         val digest = hashProvider.sha256(textEncoder.encode(canonical))
         return "sha256:${digest.toHexLower()}"
     }
