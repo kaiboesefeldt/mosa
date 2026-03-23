@@ -1,4 +1,6 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal.clearterms.parse
+
+import straightway.mosa.legal.clearterms.ClearTermsValidationException
 
 class ClearTermsJsonObjectContract(
     private val map: ClearTermsJsonNode.ObjectNode,

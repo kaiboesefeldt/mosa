@@ -1,5 +1,6 @@
 package straightway.mosa.legal.clearterms
 
+import straightway.mosa.legal.clearterms.locale.ClearTermsLocaleRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

@@ -1,6 +1,7 @@
 package straightway.mosa.legal.clearterms
 
 import kotlinx.coroutines.test.runTest
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

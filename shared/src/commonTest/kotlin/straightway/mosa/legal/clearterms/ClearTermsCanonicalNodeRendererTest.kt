@@ -1,5 +1,7 @@
 package straightway.mosa.legal.clearterms
 
+import straightway.mosa.legal.clearterms.canonical.ClearTermsCanonicalNodeRenderer
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

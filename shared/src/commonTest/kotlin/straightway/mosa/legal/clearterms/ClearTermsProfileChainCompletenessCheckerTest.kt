@@ -1,5 +1,6 @@
 package straightway.mosa.legal.clearterms
 
+import straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

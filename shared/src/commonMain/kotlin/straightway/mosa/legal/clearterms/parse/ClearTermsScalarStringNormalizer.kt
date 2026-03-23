@@ -1,4 +1,4 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal.clearterms.parse
 
 class ClearTermsScalarStringNormalizer {
     fun normalize(value: String): String {

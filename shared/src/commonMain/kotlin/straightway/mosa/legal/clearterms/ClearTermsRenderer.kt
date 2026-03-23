@@ -1,5 +1,16 @@
 package straightway.mosa.legal.clearterms
 
+import straightway.mosa.legal.clearterms.canonical.ClearTermsCanonicalNodeRenderer
+import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderParser
+import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderType
+import straightway.mosa.legal.clearterms.render.ClearTermsBlockBackgroundResolver
+import straightway.mosa.legal.clearterms.render.ClearTermsTimeTextRenderer
+import straightway.mosa.legal.clearterms.render.ClearTermsValueRenderer
+import straightway.mosa.legal.clearterms.validation.ClearTermsProfileValidator
+
 class ClearTermsRenderer(
     private val parser: ClearTermsJsonParser,
     private val hashProvider: ClearTermsHashProvider,

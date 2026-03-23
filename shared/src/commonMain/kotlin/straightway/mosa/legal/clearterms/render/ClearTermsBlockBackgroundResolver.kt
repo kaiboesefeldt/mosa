@@ -1,4 +1,8 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal.clearterms.render
+
+import straightway.mosa.legal.clearterms.ClearTermsRenderBackground
+import straightway.mosa.legal.clearterms.ClearTermsTextBlock
+import straightway.mosa.legal.clearterms.ClearTermsTextOverrideSeverity
 
 object ClearTermsBlockBackgroundResolver {
     fun resolve(

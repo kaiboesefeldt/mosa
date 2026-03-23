@@ -1,4 +1,6 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal.clearterms.canonical
+
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
 
 class ClearTermsCanonicalNodeRenderer(
     private val stringEscaper: ClearTermsCanonicalStringEscaper = ClearTermsCanonicalStringEscaper(),

@@ -1,4 +1,15 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal.clearterms.validation
+
+import straightway.mosa.legal.clearterms.ClearTermsBaseline
+import straightway.mosa.legal.clearterms.ClearTermsProfile
+import straightway.mosa.legal.clearterms.ClearTermsReference
+import straightway.mosa.legal.clearterms.ClearTermsTextBlock
+import straightway.mosa.legal.clearterms.ClearTermsValidationException
+import straightway.mosa.legal.clearterms.ClearTermsValue
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
+import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholder
+import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderParser
+import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderType
 
 class ClearTermsProfileValidator(
     private val placeholderParser: ClearTermsPlaceholderParser,

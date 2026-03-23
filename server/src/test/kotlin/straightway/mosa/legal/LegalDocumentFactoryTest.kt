@@ -1,7 +1,9 @@
 package straightway.mosa.legal
 
-import straightway.mosa.legal.clearterms.ClearTermsJsonNode
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
+import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -9,12 +11,8 @@ import kotlin.test.assertTrue
 
 class LegalDocumentFactoryTest {
     private val converter = ClearTermsYamlCanonicalJsonConverter()
-    private val parser =
-        straightway.mosa.legal.clearterms
-            .ClearTermsJsonParser()
-    private val reader =
-        straightway.mosa.legal.clearterms
-            .ClearTermsDocumentReader()
+    private val parser = ClearTermsJsonParser()
+    private val reader = ClearTermsDocumentReader()
 
     @Test
     fun `create fallback documents provide defaults for all placeholder types and unresolved texts`() {

@@ -1,5 +1,6 @@
 package straightway.mosa.legal.clearterms
 
+import straightway.mosa.legal.clearterms.render.ClearTermsNumberRenderer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

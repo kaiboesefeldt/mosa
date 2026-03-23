@@ -1,7 +1,7 @@
 package straightway.mosa.legal
 
-import straightway.mosa.legal.clearterms.ClearTermsJsonNode
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

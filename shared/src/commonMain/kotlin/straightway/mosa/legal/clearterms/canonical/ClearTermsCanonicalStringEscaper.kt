@@ -1,4 +1,4 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal.clearterms.canonical
 
 class ClearTermsCanonicalStringEscaper {
     fun render(value: String): String =

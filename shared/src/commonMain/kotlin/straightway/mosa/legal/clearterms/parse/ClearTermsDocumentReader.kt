@@ -1,4 +1,12 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal.clearterms.parse
+
+import straightway.mosa.legal.clearterms.ClearTermsBaseline
+import straightway.mosa.legal.clearterms.ClearTermsProfile
+import straightway.mosa.legal.clearterms.ClearTermsReference
+import straightway.mosa.legal.clearterms.ClearTermsTextBlock
+import straightway.mosa.legal.clearterms.ClearTermsTextBlockHints
+import straightway.mosa.legal.clearterms.ClearTermsTextOverrideSeverity
+import straightway.mosa.legal.clearterms.ClearTermsValidationException
 
 class ClearTermsDocumentReader {
     fun readBaseline(root: ClearTermsJsonNode.ObjectNode): ClearTermsBaseline {

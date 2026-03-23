@@ -1,6 +1,9 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal.clearterms.locale
 
 import kotlinx.serialization.json.Json
+import straightway.mosa.legal.clearterms.ClearTermsLocale
+import straightway.mosa.legal.clearterms.ClearTermsLocaleProvider
+import straightway.mosa.legal.clearterms.ClearTermsResourceReader
 
 class ClearTermsLocaleRepository(
     resourceReader: ClearTermsResourceReader,

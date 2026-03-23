@@ -1,12 +1,12 @@
 package straightway.mosa.legal
 
 import straightway.mosa.legal.clearterms.ClearTermsBaseline
-import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
-import straightway.mosa.legal.clearterms.ClearTermsJsonParser
 import straightway.mosa.legal.clearterms.ClearTermsProfile
-import straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker
-import straightway.mosa.legal.clearterms.ClearTermsProfileValidator
 import straightway.mosa.legal.clearterms.ClearTermsValidationException
+import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker
+import straightway.mosa.legal.clearterms.validation.ClearTermsProfileValidator
 import java.nio.file.Path
 
 internal class LegalChainValidator(
@@ -203,7 +203,7 @@ internal fun ClearTermsBaseline.mergeWithProfiles(
     profileValidator: ClearTermsProfileValidator,
 ): MergeResult {
     var effectiveTexts = textsByLanguage
-    val mergedValues = linkedMapOf<String, straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode>()
+    val mergedValues = linkedMapOf<String, straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode.ScalarNode>()
     profiles.forEach { profile ->
         mergedValues.putAll(profile.overrides.values ?: emptyMap())
         effectiveTexts =

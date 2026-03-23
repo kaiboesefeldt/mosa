@@ -1,4 +1,4 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal.clearterms.parse
 
 sealed class ClearTermsJsonNode {
     data class ObjectNode(

@@ -1,4 +1,9 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal.clearterms.placeholder
+
+import straightway.mosa.legal.clearterms.ClearTermsNumberFormat
+import straightway.mosa.legal.clearterms.ClearTermsNumberGrouping
+import straightway.mosa.legal.clearterms.ClearTermsNumberOptions
+import straightway.mosa.legal.clearterms.ClearTermsValidationException
 
 class ClearTermsPlaceholderContentParser {
     fun parse(content: String): ClearTermsPlaceholder {

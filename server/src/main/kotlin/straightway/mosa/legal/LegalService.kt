@@ -1,9 +1,9 @@
 package straightway.mosa.legal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import straightway.mosa.legal.clearterms.ClearTermsJsonNode
 import straightway.mosa.legal.clearterms.ClearTermsValidationException
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
 import java.nio.file.Path
 
 class LegalService internal constructor(

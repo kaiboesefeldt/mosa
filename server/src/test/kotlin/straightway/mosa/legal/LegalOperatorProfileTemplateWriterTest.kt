@@ -2,6 +2,7 @@ package straightway.mosa.legal
 
 import io.mockk.every
 import io.mockk.mockk
+import straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
@@ -68,9 +69,9 @@ class LegalOperatorProfileTemplateWriterTest {
     }
 
     private fun createWriter(skeletonYaml: String): LegalOperatorProfileTemplateWriter {
-        val checker = mockk<straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker>()
+        val checker = mockk<straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker>()
         every { checker.analyze(any(), any()) } returns
-            straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker.Result(
+            straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker.Result(
                 complete = false,
                 missingPlaceholderKeys = emptyList(),
                 unresolvedRequiredBlockIdsByLanguage = emptyMap(),

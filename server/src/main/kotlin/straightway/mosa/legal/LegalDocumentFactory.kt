@@ -4,16 +4,16 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import straightway.mosa.legal.clearterms.ClearTermsBaseline
-import straightway.mosa.legal.clearterms.ClearTermsCanonicalNodeRenderer
-import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
-import straightway.mosa.legal.clearterms.ClearTermsJsonNode
-import straightway.mosa.legal.clearterms.ClearTermsJsonParser
-import straightway.mosa.legal.clearterms.ClearTermsPlaceholderType
 import straightway.mosa.legal.clearterms.ClearTermsProfile
-import straightway.mosa.legal.clearterms.ClearTermsProfileValidator
 import straightway.mosa.legal.clearterms.ClearTermsTextBlock
 import straightway.mosa.legal.clearterms.ClearTermsValidationException
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
+import straightway.mosa.legal.clearterms.canonical.ClearTermsCanonicalNodeRenderer
+import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderType
+import straightway.mosa.legal.clearterms.validation.ClearTermsProfileValidator
 
 internal class LegalDocumentFactory(
     private val parser: ClearTermsJsonParser,

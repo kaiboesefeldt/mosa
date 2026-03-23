@@ -1,5 +1,7 @@
 package straightway.mosa.legal.clearterms
 
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
+
 data class ClearTermsProfile(
     val id: String,
     val version: String,

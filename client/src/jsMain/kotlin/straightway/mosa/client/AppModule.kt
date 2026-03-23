@@ -86,9 +86,9 @@ import straightway.mosa.legal.clearterms.ClearTermsBrowserHashProvider
 import straightway.mosa.legal.clearterms.ClearTermsBrowserTextEncoder
 import straightway.mosa.legal.clearterms.ClearTermsBrowserTimeZoneDisplayConverter
 import straightway.mosa.legal.clearterms.ClearTermsHashProvider
-import straightway.mosa.legal.clearterms.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
 import straightway.mosa.legal.clearterms.ClearTermsLocaleProvider
-import straightway.mosa.legal.clearterms.ClearTermsLocaleRepository
+import straightway.mosa.legal.clearterms.locale.ClearTermsLocaleRepository
 import straightway.mosa.legal.clearterms.ClearTermsRenderer
 import straightway.mosa.legal.clearterms.ClearTermsResourceReader
 import straightway.mosa.legal.clearterms.ClearTermsTextEncoder

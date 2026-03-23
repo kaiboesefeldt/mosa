@@ -2,6 +2,7 @@ package straightway.mosa.legal
 
 import io.mockk.every
 import io.mockk.mockk
+import straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
@@ -216,10 +217,10 @@ class LegalChainValidatorTest {
         complete: Boolean,
         missingPlaceholderKeys: List<String> = emptyList(),
         unresolvedRequiredBlockIdsByLanguage: Map<String, List<String>> = emptyMap(),
-    ): straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker {
-        val checker = mockk<straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker>()
+    ): straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker {
+        val checker = mockk<straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker>()
         every { checker.analyze(any(), any()) } returns
-            straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker.Result(
+            straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker.Result(
                 complete = complete,
                 missingPlaceholderKeys = missingPlaceholderKeys,
                 unresolvedRequiredBlockIdsByLanguage = unresolvedRequiredBlockIdsByLanguage,

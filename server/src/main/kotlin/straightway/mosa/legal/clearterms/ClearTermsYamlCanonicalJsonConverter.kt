@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import straightway.mosa.legal.clearterms.canonical.ClearTermsCanonicalNodeRenderer
+import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonObjectContract
 import java.security.MessageDigest
 
 class ClearTermsYamlCanonicalJsonConverter(

@@ -10,16 +10,17 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonPrimitive
 import org.slf4j.LoggerFactory
-import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
 import straightway.mosa.legal.clearterms.ClearTermsHashProvider
-import straightway.mosa.legal.clearterms.ClearTermsJsonParser
 import straightway.mosa.legal.clearterms.ClearTermsLocale
 import straightway.mosa.legal.clearterms.ClearTermsLocaleProvider
-import straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker
 import straightway.mosa.legal.clearterms.ClearTermsRenderer
 import straightway.mosa.legal.clearterms.ClearTermsTextEncoder
 import straightway.mosa.legal.clearterms.ClearTermsValidationException
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
+import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Files
@@ -166,7 +167,9 @@ class LegalServiceTest {
         val operatorProfile = reader.readProfile(parser.parse(service.termsOperatorCanonicalJson()))
         val values = checkNotNull(operatorProfile.overrides.values)
         val controllerName =
-            assertIs<straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.StringNode>(values.getValue("ORG_CONTROLLER_NAME"))
+            assertIs<straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode.ScalarNode.StringNode>(
+                values.getValue("ORG_CONTROLLER_NAME"),
+            )
 
         assertEquals("terms-operator-service", operatorProfile.id)
         assertEquals("mosa-terms-service", operatorProfile.parent.id)
@@ -574,9 +577,13 @@ class LegalServiceTest {
         val serviceProfile = reader.readProfile(parser.parse(service.privacyServiceCanonicalJson()))
         val values = checkNotNull(serviceProfile.overrides.values)
         val orgControllerName =
-            assertIs<straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.StringNode>(values.getValue("ORG_CONTROLLER_NAME"))
+            assertIs<straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode.ScalarNode.StringNode>(
+                values.getValue("ORG_CONTROLLER_NAME"),
+            )
         val serviceDisplayName =
-            assertIs<straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.StringNode>(values.getValue("SERVICE_DISPLAY_NAME"))
+            assertIs<straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode.ScalarNode.StringNode>(
+                values.getValue("SERVICE_DISPLAY_NAME"),
+            )
 
         assertEquals("mosa-privacy-fallback-service", serviceProfile.id)
         assertEquals("Operator Corp", orgControllerName.value)
@@ -735,9 +742,11 @@ class LegalServiceTest {
         val serviceProfile = reader.readProfile(parser.parse(service.privacyServiceCanonicalJson()))
         val values = checkNotNull(serviceProfile.overrides.values)
         val serviceDisplayName =
-            assertIs<straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.StringNode>(values.getValue("SERVICE_DISPLAY_NAME"))
+            assertIs<straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode.ScalarNode.StringNode>(
+                values.getValue("SERVICE_DISPLAY_NAME"),
+            )
         val retentionOperationalLogData =
-            assertIs<straightway.mosa.legal.clearterms.ClearTermsJsonNode.ScalarNode.StringNode>(
+            assertIs<straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode.ScalarNode.StringNode>(
                 values.getValue("RETENTION_OPERATIONAL_LOG_DATA"),
             )
 

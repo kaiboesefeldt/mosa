@@ -1,4 +1,6 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal.clearterms.placeholder
+
+import straightway.mosa.legal.clearterms.ClearTermsValidationException
 
 class ClearTermsPlaceholderParser(
     private val contentParser: ClearTermsPlaceholderContentParser = ClearTermsPlaceholderContentParser(),

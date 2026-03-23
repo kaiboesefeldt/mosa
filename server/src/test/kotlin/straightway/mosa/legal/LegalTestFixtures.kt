@@ -1,13 +1,13 @@
 package straightway.mosa.legal
 
-import straightway.mosa.legal.clearterms.ClearTermsCanonicalNodeRenderer
-import straightway.mosa.legal.clearterms.ClearTermsDocumentReader
-import straightway.mosa.legal.clearterms.ClearTermsJsonParser
-import straightway.mosa.legal.clearterms.ClearTermsPlaceholderParser
-import straightway.mosa.legal.clearterms.ClearTermsProfileChainCompletenessChecker
-import straightway.mosa.legal.clearterms.ClearTermsProfileValidator
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
 import straightway.mosa.legal.clearterms.ClearTermsYamlLanguageFragmentMerger
+import straightway.mosa.legal.clearterms.canonical.ClearTermsCanonicalNodeRenderer
+import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderParser
+import straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker
+import straightway.mosa.legal.clearterms.validation.ClearTermsProfileValidator
 
 internal fun createLegalProfileSource(
     resourceTextReader: ResourceTextReader =

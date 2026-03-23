@@ -1,4 +1,6 @@
-package straightway.mosa.legal.clearterms
+package straightway.mosa.legal.clearterms.canonical
+
+import straightway.mosa.legal.clearterms.ClearTermsValidationException
 
 class ClearTermsCanonicalNumberRenderer {
     fun render(value: Double): String {

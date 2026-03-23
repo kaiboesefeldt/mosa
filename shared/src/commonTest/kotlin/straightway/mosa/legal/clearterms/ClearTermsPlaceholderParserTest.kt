@@ -1,5 +1,7 @@
 package straightway.mosa.legal.clearterms
 
+import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderParser
+import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

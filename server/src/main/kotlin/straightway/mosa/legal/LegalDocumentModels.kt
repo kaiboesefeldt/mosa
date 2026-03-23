@@ -3,10 +3,10 @@ package straightway.mosa.legal
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
-import straightway.mosa.legal.clearterms.ClearTermsJsonNode
 import straightway.mosa.legal.clearterms.ClearTermsProfile
 import straightway.mosa.legal.clearterms.ClearTermsTextBlock
 import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
+import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
 
 internal data class LegalDocuments(
     val baselineCanonicalJson: String,
