@@ -21,20 +21,11 @@ class ClearTermsRenderer(
         baselineJson: String,
         profileJsons: List<String>,
     ): ClearTermsRenderResult {
-        if (profileJsons.isEmpty()) {
-            throw ClearTermsValidationException("At least one profile is required")
-        }
-        val baselineNode = parser.parse(baselineJson)
+        requireProfiles(profileJsons)
+        val baselineNode = parseObject(baselineJson)
+        val baseline = readBaseline(baselineNode)
         val baselineHash = hashFor(baselineNode)
-        val baseline = reader.readBaseline(baselineNode)
-        profileValidator.validateBaselineStructure(baseline)
-
-        val profileNodes = profileJsons.map { parser.parse(it) }
-        val parsedProfiles = mutableListOf<ParsedProfile>()
-        profileNodes.forEach { node ->
-            parsedProfiles += ParsedProfile(profile = reader.readProfile(node), hash = hashFor(node))
-        }
-
+        val parsedProfiles = parseProfiles(profileJsons)
         return renderWithParsedProfiles(baseline, baselineHash, parsedProfiles)
     }
 
@@ -53,97 +44,41 @@ class ClearTermsRenderer(
         baselineHash: String,
         parsedProfiles: List<ParsedProfile>,
     ): ClearTermsRenderResult {
-        var parentId = baseline.id
-        var parentVersion = baseline.version
-        var parentHash = baselineHash
-
-        val mergedRawValues = linkedMapOf<String, ClearTermsJsonNode.ScalarNode>()
-        var intermediateTexts = baseline.textsByLanguage
-        val blockOverrideCount = linkedMapOf<String, Int>()
-        val placeholderOverrideCount = linkedMapOf<String, Int>()
-        val baselineBlocksById =
-            baseline.textsByLanguage.values
-                .first()
-                .associateBy { it.id }
-        val baselineBlockIds = baselineBlocksById.keys
-
-        parsedProfiles.forEach { parsed ->
-            profileValidator.validateReference(parsed.profile.parent, parentId, parentVersion, parentHash)
-            countBlockOverrides(parsed.profile.overrides.texts, blockOverrideCount)
-            countPlaceholderOverrides(parsed.profile.overrides.values, placeholderOverrideCount)
-            mergedRawValues.putAll(parsed.profile.overrides.values ?: emptyMap())
-            intermediateTexts = profileValidator.applyTextOverrides(intermediateTexts, parsed.profile.overrides.texts)
-            parentId = parsed.profile.id
-            parentVersion = parsed.profile.version
-            parentHash = parsed.hash
-        }
-
-        profileValidator.validateFinalTextsResolved(intermediateTexts)
-        val finalPlaceholders = profileValidator.placeholdersByKey(intermediateTexts)
-        val finalValues = profileValidator.validateAndCoerceValues(mergedRawValues, finalPlaceholders, requireAll = true)
-        val renderedBlocksByLanguage =
-            intermediateTexts.mapValues { (language, blocks) ->
-                blocks.map { block ->
-                    val blockOverrideTotal = blockOverrideCount[block.id] ?: 0
-                    val blockBackground =
-                        resolveBlockBackground(
-                            blockId = block.id,
-                            blockOverrideCount = blockOverrideCount,
-                            baselineBlocksById = baselineBlocksById,
-                            baselineBlockIds = baselineBlockIds,
-                        )
-                    val segments =
-                        if (blockBackground == ClearTermsRenderBackground.NONE) {
-                            valueRenderer.renderBlockSegments(
-                                block = block,
-                                values = finalValues,
-                                languageTag = language,
-                                placeholderBackgroundByKey =
-                                    placeholderBackgroundByKey(
-                                        finalPlaceholders = finalPlaceholders,
-                                        placeholderOverrideCount = placeholderOverrideCount,
-                                    ),
-                                placeholderIsBaselineOverrideByKey =
-                                    placeholderIsBaselineOverrideByKey(
-                                        finalPlaceholders = finalPlaceholders,
-                                        placeholderOverrideCount = placeholderOverrideCount,
-                                    ),
-                            )
-                        } else {
-                            val rendered =
-                                valueRenderer.renderBlockSegments(
-                                    block = block,
-                                    values = finalValues,
-                                    languageTag = language,
-                                    placeholderBackgroundByKey = emptyMap(),
-                                    placeholderIsBaselineOverrideByKey = emptyMap(),
-                                )
-                            val text = rendered.joinToString("") { segment -> segment.text }
-                            listOf(ClearTermsRenderedBlock.Segment(text, blockBackground))
-                        }
-                    ClearTermsRenderedBlock(
-                        id = block.id,
-                        isBaselineOverride = blockOverrideTotal > 0,
-                        inlineWithNext = block.hints?.inlineWithNext == true,
-                        segments = segments,
-                    )
-                }
-            }
-        val renderedByLanguage =
-            renderedBlocksByLanguage.mapValues { (_, blocks) ->
-                blocks.joinToString("") { block ->
-                    block.segments.joinToString("") { segment -> segment.text }
-                }
-            }
-        renderedByLanguage.values.forEach { rendered -> valueRenderer.ensureNoUnresolvedPlaceholders(rendered) }
-
-        return ClearTermsRenderResult(renderedByLanguage, renderedBlocksByLanguage)
+        val state = buildRenderState(baseline, baselineHash, parsedProfiles)
+        val finalData = resolveFinalData(state)
+        val blocksByLanguage = renderBlocksByLanguage(state, finalData)
+        val textsByLanguage = renderTextsByLanguage(blocksByLanguage)
+        ensureResolved(textsByLanguage)
+        return ClearTermsRenderResult(textsByLanguage, blocksByLanguage)
     }
 
     private suspend fun hashFor(node: ClearTermsJsonNode.ObjectNode): String {
         val canonical = canonicalizer.render(node)
         val digest = hashProvider.sha256(textEncoder.encode(canonical))
         return "sha256:${digest.toHexLower()}"
+    }
+
+    private fun requireProfiles(profileJsons: List<String>) {
+        if (profileJsons.isEmpty()) {
+            throw ClearTermsValidationException("At least one profile is required")
+        }
+    }
+
+    private fun parseObject(json: String): ClearTermsJsonNode.ObjectNode = parser.parse(json)
+
+    private fun readBaseline(node: ClearTermsJsonNode.ObjectNode): ClearTermsBaseline {
+        val baseline = reader.readBaseline(node)
+        profileValidator.validateBaselineStructure(baseline)
+        return baseline
+    }
+
+    private suspend fun parseProfiles(profileJsons: List<String>): List<ParsedProfile> = profileJsons.map { parseProfile(it) }
+
+    private suspend fun parseProfile(profileJson: String): ParsedProfile {
+        val node = parseObject(profileJson)
+        val profile = reader.readProfile(node)
+        val hash = hashFor(node)
+        return ParsedProfile(profile, hash)
     }
 
     private fun ByteArray.toHexLower(): String =
@@ -156,6 +91,225 @@ class ClearTermsRenderer(
         val profile: ClearTermsProfile,
         val hash: String,
     )
+
+    private data class RenderState(
+        var parentId: String,
+        var parentVersion: String,
+        var parentHash: String,
+        val mergedRawValues: MutableMap<String, ClearTermsJsonNode.ScalarNode>,
+        var textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
+        val blockOverrideCount: MutableMap<String, Int>,
+        val placeholderOverrideCount: MutableMap<String, Int>,
+        val baselineBlocksById: Map<String, ClearTermsTextBlock>,
+        val baselineBlockIds: Set<String>,
+    )
+
+    private data class FinalRenderData(
+        val placeholders: Map<String, ClearTermsPlaceholderType>,
+        val values: Map<String, ClearTermsValue>,
+    )
+
+    private fun buildRenderState(
+        baseline: ClearTermsBaseline,
+        baselineHash: String,
+        parsedProfiles: List<ParsedProfile>,
+    ): RenderState {
+        val state = initialRenderState(baseline, baselineHash)
+        parsedProfiles.forEach { applyProfile(state, it) }
+        return state
+    }
+
+    private fun initialRenderState(
+        baseline: ClearTermsBaseline,
+        baselineHash: String,
+    ): RenderState {
+        val baselineBlocksById =
+            baseline.textsByLanguage.values
+                .first()
+                .associateBy { it.id }
+        return RenderState(
+            parentId = baseline.id,
+            parentVersion = baseline.version,
+            parentHash = baselineHash,
+            mergedRawValues = linkedMapOf(),
+            textsByLanguage = baseline.textsByLanguage,
+            blockOverrideCount = linkedMapOf(),
+            placeholderOverrideCount = linkedMapOf(),
+            baselineBlocksById = baselineBlocksById,
+            baselineBlockIds = baselineBlocksById.keys,
+        )
+    }
+
+    private fun applyProfile(
+        state: RenderState,
+        parsedProfile: ParsedProfile,
+    ) {
+        validateParentReference(state, parsedProfile)
+        countOverrides(state, parsedProfile)
+        mergeValues(state, parsedProfile)
+        applyTextOverrides(state, parsedProfile)
+        advanceParent(state, parsedProfile)
+    }
+
+    private fun validateParentReference(
+        state: RenderState,
+        parsedProfile: ParsedProfile,
+    ) {
+        profileValidator.validateReference(
+            parsedProfile.profile.parent,
+            state.parentId,
+            state.parentVersion,
+            state.parentHash,
+        )
+    }
+
+    private fun countOverrides(
+        state: RenderState,
+        parsedProfile: ParsedProfile,
+    ) {
+        countBlockOverrides(parsedProfile.profile.overrides.texts, state.blockOverrideCount)
+        countPlaceholderOverrides(parsedProfile.profile.overrides.values, state.placeholderOverrideCount)
+    }
+
+    private fun mergeValues(
+        state: RenderState,
+        parsedProfile: ParsedProfile,
+    ) {
+        state.mergedRawValues.putAll(parsedProfile.profile.overrides.values ?: emptyMap())
+    }
+
+    private fun applyTextOverrides(
+        state: RenderState,
+        parsedProfile: ParsedProfile,
+    ) {
+        state.textsByLanguage =
+            profileValidator.applyTextOverrides(
+                state.textsByLanguage,
+                parsedProfile.profile.overrides.texts,
+            )
+    }
+
+    private fun advanceParent(
+        state: RenderState,
+        parsedProfile: ParsedProfile,
+    ) {
+        state.parentId = parsedProfile.profile.id
+        state.parentVersion = parsedProfile.profile.version
+        state.parentHash = parsedProfile.hash
+    }
+
+    private fun resolveFinalData(state: RenderState): FinalRenderData {
+        profileValidator.validateFinalTextsResolved(state.textsByLanguage)
+        val placeholders = profileValidator.placeholdersByKey(state.textsByLanguage)
+        val values =
+            profileValidator.validateAndCoerceValues(
+                state.mergedRawValues,
+                placeholders,
+                requireAll = true,
+            )
+        return FinalRenderData(placeholders, values)
+    }
+
+    private fun renderBlocksByLanguage(
+        state: RenderState,
+        finalData: FinalRenderData,
+    ): Map<String, List<ClearTermsRenderedBlock>> =
+        state.textsByLanguage.mapValues { (language, blocks) ->
+            renderBlocks(language, blocks, state, finalData)
+        }
+
+    private fun renderBlocks(
+        language: String,
+        blocks: List<ClearTermsTextBlock>,
+        state: RenderState,
+        finalData: FinalRenderData,
+    ): List<ClearTermsRenderedBlock> = blocks.map { renderBlock(language, it, state, finalData) }
+
+    private fun renderBlock(
+        language: String,
+        block: ClearTermsTextBlock,
+        state: RenderState,
+        finalData: FinalRenderData,
+    ): ClearTermsRenderedBlock {
+        val background = resolveBlockBackground(block.id, state)
+        val segments = renderSegments(language, block, background, state, finalData)
+        return ClearTermsRenderedBlock(
+            id = block.id,
+            isBaselineOverride = hasBlockOverride(block.id, state.blockOverrideCount),
+            inlineWithNext = block.hints?.inlineWithNext == true,
+            segments = segments,
+        )
+    }
+
+    private fun renderSegments(
+        language: String,
+        block: ClearTermsTextBlock,
+        background: ClearTermsRenderBackground,
+        state: RenderState,
+        finalData: FinalRenderData,
+    ): List<ClearTermsRenderedBlock.Segment> =
+        if (background == ClearTermsRenderBackground.NONE) {
+            renderSegmentDetails(language, block, state, finalData)
+        } else {
+            renderSingleBackgroundSegment(language, block, background, finalData.values)
+        }
+
+    private fun renderSegmentDetails(
+        language: String,
+        block: ClearTermsTextBlock,
+        state: RenderState,
+        finalData: FinalRenderData,
+    ): List<ClearTermsRenderedBlock.Segment> =
+        valueRenderer.renderBlockSegments(
+            block = block,
+            values = finalData.values,
+            languageTag = language,
+            placeholderBackgroundByKey =
+                placeholderBackgroundByKey(
+                    finalPlaceholders = finalData.placeholders,
+                    placeholderOverrideCount = state.placeholderOverrideCount,
+                ),
+            placeholderIsBaselineOverrideByKey =
+                placeholderIsBaselineOverrideByKey(
+                    finalPlaceholders = finalData.placeholders,
+                    placeholderOverrideCount = state.placeholderOverrideCount,
+                ),
+        )
+
+    private fun renderSingleBackgroundSegment(
+        language: String,
+        block: ClearTermsTextBlock,
+        background: ClearTermsRenderBackground,
+        values: Map<String, ClearTermsValue>,
+    ): List<ClearTermsRenderedBlock.Segment> {
+        val text = renderPlainText(language, block, values)
+        return listOf(ClearTermsRenderedBlock.Segment(text, background))
+    }
+
+    private fun renderPlainText(
+        language: String,
+        block: ClearTermsTextBlock,
+        values: Map<String, ClearTermsValue>,
+    ): String =
+        valueRenderer
+            .renderBlockSegments(
+                block = block,
+                values = values,
+                languageTag = language,
+                placeholderBackgroundByKey = emptyMap(),
+                placeholderIsBaselineOverrideByKey = emptyMap(),
+            ).joinToString("") { it.text }
+
+    private fun renderTextsByLanguage(blocksByLanguage: Map<String, List<ClearTermsRenderedBlock>>): Map<String, String> =
+        blocksByLanguage.mapValues { (_, blocks) ->
+            blocks.joinToString("") { renderBlockText(it) }
+        }
+
+    private fun renderBlockText(block: ClearTermsRenderedBlock): String = block.segments.joinToString("") { it.text }
+
+    private fun ensureResolved(textsByLanguage: Map<String, String>) {
+        textsByLanguage.values.forEach { valueRenderer.ensureNoUnresolvedPlaceholders(it) }
+    }
 
     private fun countBlockOverrides(
         overrides: Map<String, ClearTermsProfile.TextOverrides>?,
@@ -187,46 +341,64 @@ class ClearTermsRenderer(
 
     private fun resolveBlockBackground(
         blockId: String,
-        blockOverrideCount: Map<String, Int>,
-        baselineBlocksById: Map<String, ClearTermsTextBlock>,
-        baselineBlockIds: Set<String>,
+        state: RenderState,
     ): ClearTermsRenderBackground {
-        val count = blockOverrideCount[blockId] ?: 0
-        if (blockId !in baselineBlockIds && count > 0) {
+        val count = state.blockOverrideCount[blockId] ?: 0
+        if (isAppendedBlock(blockId, state.baselineBlockIds) && count > 0) {
             return ClearTermsRenderBackground.RED
         }
         if (count == 0) {
             return ClearTermsRenderBackground.NONE
         }
-        val baselineBlock = baselineBlocksById[blockId] ?: return ClearTermsRenderBackground.NONE
-        val effectiveSeverity =
-            baselineBlock.hints?.override
-                ?: if (baselineBlock.text == null) {
-                    ClearTermsTextOverrideSeverity.ONCE
-                } else {
-                    ClearTermsTextOverrideSeverity.ALERT
-                }
-        when (effectiveSeverity) {
+        val baselineBlock = state.baselineBlocksById[blockId] ?: return ClearTermsRenderBackground.NONE
+        return backgroundForSeverity(resolveSeverity(baselineBlock), count)
+    }
+
+    private fun isAppendedBlock(
+        blockId: String,
+        baselineBlockIds: Set<String>,
+    ): Boolean = blockId !in baselineBlockIds
+
+    private fun resolveSeverity(block: ClearTermsTextBlock): ClearTermsTextOverrideSeverity =
+        block.hints?.override ?: defaultSeverity(block)
+
+    private fun defaultSeverity(block: ClearTermsTextBlock): ClearTermsTextOverrideSeverity =
+        if (block.text == null) {
+            ClearTermsTextOverrideSeverity.ONCE
+        } else {
+            ClearTermsTextOverrideSeverity.ALERT
+        }
+
+    private fun backgroundForSeverity(
+        severity: ClearTermsTextOverrideSeverity,
+        count: Int,
+    ): ClearTermsRenderBackground =
+        when (severity) {
             ClearTermsTextOverrideSeverity.ALERT -> {
-                return ClearTermsRenderBackground.RED
+                ClearTermsRenderBackground.RED
             }
 
             ClearTermsTextOverrideSeverity.WARN -> {
-                return ClearTermsRenderBackground.YELLOW
+                ClearTermsRenderBackground.YELLOW
             }
 
             ClearTermsTextOverrideSeverity.ONCE -> {
                 if (count > 1) {
-                    return ClearTermsRenderBackground.RED
+                    ClearTermsRenderBackground.RED
+                } else {
+                    ClearTermsRenderBackground.NONE
                 }
             }
 
             ClearTermsTextOverrideSeverity.OK -> {
-                return ClearTermsRenderBackground.NONE
+                ClearTermsRenderBackground.NONE
             }
         }
-        return ClearTermsRenderBackground.NONE
-    }
+
+    private fun hasBlockOverride(
+        blockId: String,
+        blockOverrideCount: Map<String, Int>,
+    ): Boolean = (blockOverrideCount[blockId] ?: 0) > 0
 
     private fun placeholderBackgroundByKey(
         finalPlaceholders: Map<String, ClearTermsPlaceholderType>,
@@ -234,15 +406,20 @@ class ClearTermsRenderer(
     ): Map<String, ClearTermsRenderBackground> {
         val backgrounds = linkedMapOf<String, ClearTermsRenderBackground>()
         finalPlaceholders.keys.forEach { key ->
-            val overrideCount = placeholderOverrideCount[key] ?: 0
-            backgrounds[key] =
-                when {
-                    overrideCount > 1 -> ClearTermsRenderBackground.YELLOW
-                    else -> ClearTermsRenderBackground.NONE
-                }
+            backgrounds[key] = resolvePlaceholderBackground(key, placeholderOverrideCount)
         }
         return backgrounds
     }
+
+    private fun resolvePlaceholderBackground(
+        key: String,
+        placeholderOverrideCount: Map<String, Int>,
+    ): ClearTermsRenderBackground =
+        if ((placeholderOverrideCount[key] ?: 0) > 1) {
+            ClearTermsRenderBackground.YELLOW
+        } else {
+            ClearTermsRenderBackground.NONE
+        }
 
     private fun placeholderIsBaselineOverrideByKey(
         finalPlaceholders: Map<String, ClearTermsPlaceholderType>,
@@ -250,8 +427,13 @@ class ClearTermsRenderer(
     ): Map<String, Boolean> {
         val overrides = linkedMapOf<String, Boolean>()
         finalPlaceholders.keys.forEach { key ->
-            overrides[key] = (placeholderOverrideCount[key] ?: 0) > 0
+            overrides[key] = isPlaceholderOverride(key, placeholderOverrideCount)
         }
         return overrides
     }
+
+    private fun isPlaceholderOverride(
+        key: String,
+        placeholderOverrideCount: Map<String, Int>,
+    ): Boolean = (placeholderOverrideCount[key] ?: 0) > 0
 }
