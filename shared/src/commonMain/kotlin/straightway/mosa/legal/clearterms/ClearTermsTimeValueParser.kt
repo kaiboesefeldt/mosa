@@ -120,7 +120,7 @@ class ClearTermsTimeValueParser {
         max: Int,
         raw: String,
     ) {
-        if (value < min || value > max) {
+        if (value !in min..max) {
             throw ClearTermsValidationException("Invalid time value '$raw'")
         }
     }

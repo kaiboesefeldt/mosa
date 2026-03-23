@@ -1,16 +1,13 @@
 package straightway.mosa.legal.clearterms
 
-interface ClearTermsTimeZoneDisplayConverter {
+fun interface ClearTermsTimeZoneDisplayConverter {
     fun convert(
         value: String,
         parsed: ClearTermsTimeValue,
     ): ClearTermsTimeDisplayValue?
 
-    object NoOp : ClearTermsTimeZoneDisplayConverter {
-        override fun convert(
-            value: String,
-            parsed: ClearTermsTimeValue,
-        ): ClearTermsTimeDisplayValue? = null
+    companion object {
+        val NoOp = ClearTermsTimeZoneDisplayConverter { _, _ -> null }
     }
 }
 

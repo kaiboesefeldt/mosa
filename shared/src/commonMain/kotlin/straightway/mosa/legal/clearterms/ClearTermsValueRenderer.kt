@@ -93,11 +93,9 @@ class ClearTermsValueRenderer(
         placeholder: ClearTermsPlaceholder,
         languageTag: String,
     ): String {
-        val raw = value.value
-        if (raw == null) {
-            return placeholder.fallback
+        val raw =
+            value.value ?: return placeholder.fallback
                 ?: throw ClearTermsValidationException("Missing fallback for '${placeholder.key}'")
-        }
         val locale = localeProvider.resolve(languageTag)
         return when (value.type) {
             ClearTermsPlaceholderType.STRING -> raw as String
