@@ -3,7 +3,7 @@ package straightway.mosa.client.legal
 import straightway.mosa.legal.clearterms.ClearTermsRenderer
 import straightway.mosa.legal.clearterms.ClearTermsRenderResult
 
-interface PrivacyClearTermsContentProvider {
+fun interface PrivacyClearTermsContentProvider {
     suspend fun renderedTextsByLanguage(
         baselineJson: String,
         profileJsons: List<String>,
