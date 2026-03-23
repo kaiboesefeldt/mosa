@@ -337,58 +337,13 @@ class ClearTermsRenderer(
     private fun resolveBlockBackground(
         blockId: String,
         state: RenderState,
-    ): ClearTermsRenderBackground {
-        val count = state.blockOverrideCount[blockId] ?: 0
-        if (isAppendedBlock(blockId, state.baselineBlockIds) && count > 0) {
-            return ClearTermsRenderBackground.RED
-        }
-        if (count == 0) {
-            return ClearTermsRenderBackground.NONE
-        }
-        val baselineBlock = state.baselineBlocksById[blockId] ?: return ClearTermsRenderBackground.NONE
-        return backgroundForSeverity(resolveSeverity(baselineBlock), count)
-    }
-
-    private fun isAppendedBlock(
-        blockId: String,
-        baselineBlockIds: Set<String>,
-    ): Boolean = blockId !in baselineBlockIds
-
-    private fun resolveSeverity(block: ClearTermsTextBlock): ClearTermsTextOverrideSeverity =
-        block.hints?.override ?: defaultSeverity(block)
-
-    private fun defaultSeverity(block: ClearTermsTextBlock): ClearTermsTextOverrideSeverity =
-        if (block.text == null) {
-            ClearTermsTextOverrideSeverity.ONCE
-        } else {
-            ClearTermsTextOverrideSeverity.ALERT
-        }
-
-    private fun backgroundForSeverity(
-        severity: ClearTermsTextOverrideSeverity,
-        count: Int,
     ): ClearTermsRenderBackground =
-        when (severity) {
-            ClearTermsTextOverrideSeverity.ALERT -> {
-                ClearTermsRenderBackground.RED
-            }
-
-            ClearTermsTextOverrideSeverity.WARN -> {
-                ClearTermsRenderBackground.YELLOW
-            }
-
-            ClearTermsTextOverrideSeverity.ONCE -> {
-                if (count > 1) {
-                    ClearTermsRenderBackground.RED
-                } else {
-                    ClearTermsRenderBackground.NONE
-                }
-            }
-
-            ClearTermsTextOverrideSeverity.OK -> {
-                ClearTermsRenderBackground.NONE
-            }
-        }
+        ClearTermsBlockBackgroundResolver.resolve(
+            blockId = blockId,
+            blockOverrideCount = state.blockOverrideCount,
+            baselineBlocksById = state.baselineBlocksById,
+            baselineBlockIds = state.baselineBlockIds,
+        )
 
     private fun hasBlockOverride(
         blockId: String,

@@ -4,6 +4,7 @@ import straightway.mosa.client.content.PodAccessFactory
 import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.legal.clearterms.ClearTermsJsonNode
 import straightway.mosa.legal.clearterms.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.ClearTermsBlockBackgroundResolver
 import straightway.mosa.legal.clearterms.ClearTermsLocaleProvider
 import straightway.mosa.legal.clearterms.ClearTermsLocaleRepository
 import straightway.mosa.legal.clearterms.ClearTermsPlaceholderParser
@@ -13,7 +14,6 @@ import straightway.mosa.legal.clearterms.ClearTermsRenderBackground
 import straightway.mosa.legal.clearterms.ClearTermsRenderedLanguage
 import straightway.mosa.legal.clearterms.ClearTermsRenderedBlock
 import straightway.mosa.legal.clearterms.ClearTermsTextBlock
-import straightway.mosa.legal.clearterms.ClearTermsTextOverrideSeverity
 import straightway.mosa.legal.clearterms.ClearTermsTimeTextRenderer
 import straightway.mosa.legal.clearterms.ClearTermsTimeZoneDisplayConverter
 import straightway.mosa.legal.clearterms.ClearTermsValueRenderer
@@ -476,34 +476,13 @@ class LegalPrivacyPolicyService(
         blockOverrideCount: Map<String, Int>,
         baselineBlocksById: Map<String, ClearTermsTextBlock>,
         baselineBlockIds: Set<String>,
-    ): ClearTermsRenderBackground {
-        val count = blockOverrideCount[blockId] ?: 0
-        if (blockId !in baselineBlockIds && count > 0) {
-            return ClearTermsRenderBackground.RED
-        }
-        if (count == 0) {
-            return ClearTermsRenderBackground.NONE
-        }
-        val baselineBlock = baselineBlocksById[blockId] ?: return ClearTermsRenderBackground.NONE
-        val effectiveSeverity =
-            baselineBlock.hints?.override
-                ?: if (baselineBlock.text == null) {
-                    ClearTermsTextOverrideSeverity.ONCE
-                } else {
-                    ClearTermsTextOverrideSeverity.ALERT
-                }
-        return when (effectiveSeverity) {
-            ClearTermsTextOverrideSeverity.ALERT -> ClearTermsRenderBackground.RED
-            ClearTermsTextOverrideSeverity.WARN -> ClearTermsRenderBackground.YELLOW
-            ClearTermsTextOverrideSeverity.ONCE ->
-                if (count > 1) {
-                    ClearTermsRenderBackground.RED
-                } else {
-                    ClearTermsRenderBackground.NONE
-                }
-            ClearTermsTextOverrideSeverity.OK -> ClearTermsRenderBackground.NONE
-        }
-    }
+    ): ClearTermsRenderBackground =
+        ClearTermsBlockBackgroundResolver.resolve(
+            blockId = blockId,
+            blockOverrideCount = blockOverrideCount,
+            baselineBlocksById = baselineBlocksById,
+            baselineBlockIds = baselineBlockIds,
+        )
 
     private data class ChainStep(
         val textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
