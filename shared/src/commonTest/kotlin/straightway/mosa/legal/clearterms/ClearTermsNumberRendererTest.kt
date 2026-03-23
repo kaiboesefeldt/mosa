@@ -11,8 +11,8 @@ class ClearTermsNumberRendererTest {
             language = "en",
             months = emptyList(),
             weekdays = emptyMap(),
-            decimalSeparator = '.',
-            groupingSeparator = ',',
+            decimalSeparator = ".",
+            groupingSeparator = ",",
             atWord = "at",
             patterns =
                 ClearTermsLocale.Patterns(

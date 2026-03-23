@@ -10,7 +10,7 @@ class ClearTermsLocaleRepositoryTest {
     fun `resolves german locale from resources`() {
         val locale = repository.resolve("de-DE")
 
-        assertEquals(',', locale.decimalSeparator)
+        assertEquals(",", locale.decimalSeparator)
         assertEquals("Februar", locale.monthName(2))
         assertEquals("um", locale.atWord)
     }

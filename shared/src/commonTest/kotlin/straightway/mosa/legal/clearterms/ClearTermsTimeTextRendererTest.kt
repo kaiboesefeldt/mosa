@@ -47,8 +47,8 @@ class ClearTermsTimeTextRendererTest {
                     "December",
                 ),
             weekdays = emptyMap(),
-            decimalSeparator = '.',
-            groupingSeparator = ',',
+            decimalSeparator = ".",
+            groupingSeparator = ",",
             atWord = "at",
             patterns =
                 ClearTermsLocale.Patterns(

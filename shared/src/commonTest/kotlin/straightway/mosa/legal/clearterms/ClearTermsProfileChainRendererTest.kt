@@ -423,8 +423,8 @@ class ClearTermsProfileChainRendererTest {
                         "sat" to "Saturday",
                         "sun" to "Sunday",
                     ),
-                decimalSeparator = '.',
-                groupingSeparator = ',',
+                decimalSeparator = ".",
+                groupingSeparator = ",",
                 atWord = "at",
                 patterns =
                     ClearTermsLocale.Patterns(

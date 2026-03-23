@@ -8,7 +8,7 @@ class ClearTermsLocaleLoader(
 ) {
     fun loadAll(): Map<String, ClearTermsLocale> =
         loadLanguageCodes().associateWith { language ->
-            loadLocaleDefinition(language).toLocale()
+            loadLocale(language)
         }
 
     private fun loadLanguageCodes(): List<String> {
@@ -16,7 +16,7 @@ class ClearTermsLocaleLoader(
         return json.decodeFromString(indexText)
     }
 
-    private fun loadLocaleDefinition(language: String): ClearTermsLocaleDefinition {
+    private fun loadLocale(language: String): ClearTermsLocale {
         val localeText = resourceReader.readText("clearterms/locales/$language.json")
         return json.decodeFromString(localeText)
     }

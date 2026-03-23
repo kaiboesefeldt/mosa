@@ -2241,8 +2241,8 @@ class ClearTermsRendererTest {
                             "fri" to "Friday",
                             "sat" to "Saturday",
                         ),
-                    decimalSeparator = '.',
-                    groupingSeparator = ',',
+                    decimalSeparator = ".",
+                    groupingSeparator = ",",
                     atWord = "at",
                     patterns =
                         ClearTermsLocale.Patterns(
@@ -2777,8 +2777,8 @@ class ClearTermsRendererTest {
                                 "sat" to "Saturday",
                                 "sun" to "Sunday",
                             ),
-                        decimalSeparator = '.',
-                        groupingSeparator = ',',
+                        decimalSeparator = ".",
+                        groupingSeparator = ",",
                         atWord = "at",
                         patterns =
                             ClearTermsLocale.Patterns(
@@ -2825,8 +2825,8 @@ class ClearTermsRendererTest {
                                 "sat" to "Samstag",
                                 "sun" to "Sonntag",
                             ),
-                        decimalSeparator = ',',
-                        groupingSeparator = '.',
+                        decimalSeparator = ",",
+                        groupingSeparator = ".",
                         atWord = "um",
                         patterns =
                             ClearTermsLocale.Patterns(

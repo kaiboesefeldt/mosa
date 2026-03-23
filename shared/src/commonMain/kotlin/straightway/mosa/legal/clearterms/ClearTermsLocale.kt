@@ -1,15 +1,19 @@
 package straightway.mosa.legal.clearterms
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class ClearTermsLocale(
     val language: String,
     val months: List<String>,
     val weekdays: Map<String, String>,
-    val decimalSeparator: Char,
-    val groupingSeparator: Char,
+    val decimalSeparator: String,
+    val groupingSeparator: String,
     val atWord: String,
     val patterns: Patterns,
     val duration: DurationTexts = DurationTexts(),
 ) {
+    @Serializable
     data class Patterns(
         val onFullDate: String,
         val inMonthYear: String,
@@ -25,10 +29,12 @@ data class ClearTermsLocale(
         val onLastDayOfEveryMonth: String,
     )
 
+    @Serializable
     data class DurationTexts(
         val infinite: String = "infinite",
         val units: Map<String, UnitTexts> = defaultDurationUnits,
     ) {
+        @Serializable
         data class UnitTexts(
             val singular: String,
             val plural: String,

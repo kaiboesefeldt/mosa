@@ -1233,8 +1233,8 @@ private class MinimalLocaleProvider : ClearTermsLocaleProvider {
                     "sat" to "Samstag",
                     "sun" to "Sonntag",
                 ),
-            decimalSeparator = ',',
-            groupingSeparator = '.',
+            decimalSeparator = ",",
+            groupingSeparator = ".",
             atWord = "um",
             patterns =
                 ClearTermsLocale.Patterns(

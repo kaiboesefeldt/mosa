@@ -246,8 +246,8 @@ class ClearTermsValueRendererTest {
                         "sat" to "Saturday",
                         "sun" to "Sunday",
                     ),
-                decimalSeparator = '.',
-                groupingSeparator = ',',
+                decimalSeparator = ".",
+                groupingSeparator = ",",
                 atWord = "at",
                 patterns =
                     ClearTermsLocale.Patterns(
@@ -298,8 +298,8 @@ class ClearTermsValueRendererTest {
                         "sat" to "Samstag",
                         "sun" to "Sonntag",
                     ),
-                decimalSeparator = ',',
-                groupingSeparator = '.',
+                decimalSeparator = ",",
+                groupingSeparator = ".",
                 atWord = "um",
                 patterns =
                     ClearTermsLocale.Patterns(

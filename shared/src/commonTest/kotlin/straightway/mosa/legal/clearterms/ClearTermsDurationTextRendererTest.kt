@@ -6,12 +6,12 @@ import kotlin.test.assertFailsWith
 
 class ClearTermsDurationTextRendererTest {
     private val renderer = ClearTermsDurationTextRenderer()
-    private val englishLocale = locale(language = "en", decimalSeparator = '.', groupingSeparator = ',')
+    private val englishLocale = locale(language = "en", decimalSeparator = ".", groupingSeparator = ",")
     private val germanLocale =
         locale(
             language = "de",
-            decimalSeparator = ',',
-            groupingSeparator = '.',
+            decimalSeparator = ",",
+            groupingSeparator = ".",
             duration =
                 ClearTermsLocale.DurationTexts(
                     infinite = "unbegrenzt",
@@ -86,8 +86,8 @@ class ClearTermsDurationTextRendererTest {
 
     private fun locale(
         language: String,
-        decimalSeparator: Char,
-        groupingSeparator: Char,
+        decimalSeparator: String,
+        groupingSeparator: String,
         duration: ClearTermsLocale.DurationTexts = ClearTermsLocale.DurationTexts(infinite = "indefinitely"),
     ): ClearTermsLocale =
         ClearTermsLocale(

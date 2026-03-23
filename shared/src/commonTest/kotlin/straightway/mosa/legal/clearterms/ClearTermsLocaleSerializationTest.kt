@@ -4,11 +4,11 @@ import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class ClearTermsLocaleDefinitionSerializationTest {
+class ClearTermsLocaleSerializationTest {
     @Test
-    fun `serializes and deserializes locale definition`() {
-        val definition =
-            ClearTermsLocaleDefinition(
+    fun `serializes and deserializes locale`() {
+        val locale =
+            ClearTermsLocale(
                 language = "en",
                 months = listOf("January", "February"),
                 weekdays = mapOf("mon" to "Monday"),
@@ -16,7 +16,7 @@ class ClearTermsLocaleDefinitionSerializationTest {
                 groupingSeparator = ",",
                 atWord = "at",
                 patterns =
-                    ClearTermsLocaleDefinition.Patterns(
+                    ClearTermsLocale.Patterns(
                         onFullDate = "on {month} {day}, {year}",
                         inMonthYear = "in {month} {year}",
                         onDayOfEveryMonthInYear = "on day {day} of every month in {year}",
@@ -32,17 +32,17 @@ class ClearTermsLocaleDefinitionSerializationTest {
                     ),
             )
 
-        val json = Json.encodeToString(definition)
+        val json = Json.encodeToString(locale)
 
-        val decoded = Json.decodeFromString<ClearTermsLocaleDefinition>(json)
+        val decoded = Json.decodeFromString<ClearTermsLocale>(json)
 
-        assertEquals(definition, decoded)
+        assertEquals(locale, decoded)
     }
 
     @Test
-    fun `serializes and deserializes locale definition patterns`() {
+    fun `serializes and deserializes locale patterns`() {
         val patterns =
-            ClearTermsLocaleDefinition.Patterns(
+            ClearTermsLocale.Patterns(
                 onFullDate = "on {month} {day}, {year}",
                 inMonthYear = "in {month} {year}",
                 onDayOfEveryMonthInYear = "on day {day} of every month in {year}",
@@ -59,7 +59,7 @@ class ClearTermsLocaleDefinitionSerializationTest {
 
         val json = Json.encodeToString(patterns)
 
-        val decoded = Json.decodeFromString<ClearTermsLocaleDefinition.Patterns>(json)
+        val decoded = Json.decodeFromString<ClearTermsLocale.Patterns>(json)
 
         assertEquals(patterns, decoded)
     }

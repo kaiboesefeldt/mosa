@@ -133,7 +133,7 @@ class ClearTermsNumberRenderer {
 
     private fun groupDigits(
         digits: String,
-        separator: Char,
+        separator: String,
     ): String {
         val builder = StringBuilder()
         var count = 0
