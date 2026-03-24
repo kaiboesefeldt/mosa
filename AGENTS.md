@@ -89,7 +89,7 @@
 - `server/src/main/kotlin`: Ktor server and business services.
 - `client/src/jsMain/kotlin`: Kotlin/JS web client.
 - `shared/src/commonMain/kotlin`: Shared DTOs/models.
-- `tasks/`: File-based task tracking. See `tasks/README.md` for the workflow and conventions.
+- `tasks/`: File-based task tracking. See `tasks/AGENTS.md` for the workflow and conventions.
 - `models/`: Optional model assets (avoid committing large artifacts unintentionally).
 - `mosa_lucene_index/`: Local Lucene index data (delete to reset local state).
 
