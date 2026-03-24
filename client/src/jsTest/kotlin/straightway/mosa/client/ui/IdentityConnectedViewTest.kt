@@ -1340,7 +1340,7 @@ private fun inboxScrollTop(container: Element): Double =
                 }
                 single { PostPublisher(get(), get()) }
                 single { straightway.mosa.client.content.complaint.PostComplaintService(get(), get()) }
-                single { straightway.mosa.client.content.complaint.AdminPostComplaintService(get(), get()) }
+                single { straightway.mosa.client.content.complaint.AdminPostComplaintService(get(), get(), get()) }
                 single { AdminMessageInboxService(get()) }
                 single { AdminMessageHistoryService(get()) }
                 single { AdminMessagePublisher(get()) }

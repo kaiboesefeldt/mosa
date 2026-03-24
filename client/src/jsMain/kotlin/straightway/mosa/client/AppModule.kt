@@ -189,7 +189,7 @@ object AppModule : KoinComponent {
                         single { TopicRepository(get(), get()) }
                         single { PostPublisher(get(), get()) }
                         single { straightway.mosa.client.content.complaint.PostComplaintService(get(), get()) }
-                        single { straightway.mosa.client.content.complaint.AdminPostComplaintService(get(), get()) }
+                        single { straightway.mosa.client.content.complaint.AdminPostComplaintService(get(), get(), get()) }
                         single { AdminMessageInboxService(get()) }
                         single { AdminMessageHistoryService(get()) }
                         single { AdminMessagePublisher(get()) }

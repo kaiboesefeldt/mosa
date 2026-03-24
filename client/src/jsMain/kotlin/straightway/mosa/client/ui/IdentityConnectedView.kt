@@ -463,13 +463,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         setComplaintQueueHasMore(result.hasMore)
     }
 
-    fun refreshComplaintCount() {
+    fun refreshComplaintCount(forceRefresh: Boolean = false) {
         if (!adminPresentation.showsConnectedAdminBadge) {
             setOpenComplaintCount(0)
             return
         }
         scope.launch {
-            val result = runCatching { adminPostComplaintService.countOpen() }.getOrNull()
+            val result = runCatching { adminPostComplaintService.countOpen(forceRefresh = forceRefresh) }.getOrNull()
             setOpenComplaintCount(result?.count ?: 0)
         }
     }
@@ -491,7 +491,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             } else {
                 applyComplaintQueuePage(result, append = false)
             }
-            refreshComplaintCount()
+            refreshComplaintCount(forceRefresh = true)
         }
     }
 
@@ -585,7 +585,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             if (created) {
                 closeComplaintComposer()
                 showToast(translator.translate("connected.complaints.post.sent"))
-                refreshComplaintCount()
+                refreshComplaintCount(forceRefresh = true)
             } else {
                 setComplaintComposerError(translator.translate("connected.complaints.post.error"))
             }

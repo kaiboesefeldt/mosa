@@ -87,18 +87,62 @@ class AdminPostComplaintServiceTest {
                     page = 2,
                     hasMore = true,
                 )
-            val service = AdminPostComplaintService(sessionProvider(), signer)
+            val service = AdminPostComplaintService(sessionProvider(), signer, timeService)
 
             assertEquals(OpenPostComplaintCountResult(2), service.countOpen())
             assertEquals(podAccess.listResult, service.listOpen(page = 2))
+            assertEquals(1, podAccess.countRequests.size)
             assertEquals(listOf(2), podAccess.listRequests)
+        }
+
+    @Test
+    fun `reuses cached open complaint count until cache expires`() =
+        runTest {
+            window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+            podAccess.countResult = OpenPostComplaintCountResult(2)
+            val service = AdminPostComplaintService(sessionProvider(), signer, timeService)
+
+            assertEquals(OpenPostComplaintCountResult(2), service.countOpen())
+            podAccess.countResult = OpenPostComplaintCountResult(5)
+
+            assertEquals(OpenPostComplaintCountResult(2), service.countOpen())
+            assertEquals(1, podAccess.countRequests.size)
+        }
+
+    @Test
+    fun `reloads open complaint count after cache expires`() =
+        runTest {
+            window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+            podAccess.countResult = OpenPostComplaintCountResult(2)
+            val service = AdminPostComplaintService(sessionProvider(), signer, timeService)
+
+            assertEquals(OpenPostComplaintCountResult(2), service.countOpen())
+            timeService.nowValue += 11
+            podAccess.countResult = OpenPostComplaintCountResult(5)
+
+            assertEquals(OpenPostComplaintCountResult(5), service.countOpen())
+            assertEquals(2, podAccess.countRequests.size)
+        }
+
+    @Test
+    fun `force refresh bypasses cached open complaint count`() =
+        runTest {
+            window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+            podAccess.countResult = OpenPostComplaintCountResult(2)
+            val service = AdminPostComplaintService(sessionProvider(), signer, timeService)
+
+            assertEquals(OpenPostComplaintCountResult(2), service.countOpen())
+            podAccess.countResult = OpenPostComplaintCountResult(5)
+
+            assertEquals(OpenPostComplaintCountResult(5), service.countOpen(forceRefresh = true))
+            assertEquals(2, podAccess.countRequests.size)
         }
 
     @Test
     fun `sends signed decision through pod session`() =
         runTest {
             window.asDynamic().MOSA_POD_BASE = "https://pod.example"
-            val service = AdminPostComplaintService(sessionProvider(), signer)
+            val service = AdminPostComplaintService(sessionProvider(), signer, timeService)
 
             val success = service.decide(" complaint-1 ", " post-1 ", PostComplaintState.CONFIRMED, " Checked ")
 
@@ -126,7 +170,7 @@ class AdminPostComplaintServiceTest {
     fun `rejects invalid admin decision before pod call`() =
         runTest {
             window.asDynamic().MOSA_POD_BASE = "https://pod.example"
-            val service = AdminPostComplaintService(sessionProvider(), signer)
+            val service = AdminPostComplaintService(sessionProvider(), signer, timeService)
 
             val success = service.decide("complaint-1", "post-1", PostComplaintState.OPEN, "Feedback")
 
@@ -150,6 +194,7 @@ class AdminPostComplaintServiceTest {
 private class RecordingAdminPostComplaintPodAccess : PodAccess {
     var countResult = OpenPostComplaintCountResult(0)
     var listResult = OpenPostComplaintsResult(emptyList())
+    val countRequests = mutableListOf<String>()
     val listRequests = mutableListOf<Int>()
     val decisionRequests = mutableListOf<DecidePostComplaintRequest>()
 
@@ -200,7 +245,10 @@ private class RecordingAdminPostComplaintPodAccess : PodAccess {
         jwt: String,
     ) = error("not used")
 
-    override suspend fun openPostComplaintCount(jwt: String): OpenPostComplaintCountResult = countResult
+    override suspend fun openPostComplaintCount(jwt: String): OpenPostComplaintCountResult {
+        countRequests += jwt
+        return countResult
+    }
 
     override suspend fun openPostComplaints(
         jwt: String,
