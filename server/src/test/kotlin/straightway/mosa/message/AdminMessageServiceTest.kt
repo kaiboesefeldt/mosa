@@ -6,9 +6,11 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlin.io.encoding.Base64
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.time.Duration.Companion.days
@@ -16,6 +18,10 @@ import kotlin.time.Duration.Companion.days
 class AdminMessageServiceTest {
     private val store = mockk<AdminMessageStore>(relaxed = true)
     private val clock = Clock.fixed(Instant.parse("2026-03-17T10:15:30Z"), ZoneOffset.UTC)
+    private val recipientGid =
+        Base64.UrlSafe
+            .withPadding(Base64.PaddingOption.ABSENT)
+            .encode(ByteArray(32) { 1 })
     private val sut =
         AdminMessageService(
             store = store,
@@ -25,6 +31,7 @@ class AdminMessageServiceTest {
             retrievedTtl = 28.days,
             pageSize = 10,
             idFactory = { "message-1" },
+            expectedGidByteLength = MessageDigest.getInstance("SHA-256").digest(byteArrayOf()).size,
         )
 
     @Test
@@ -34,7 +41,7 @@ class AdminMessageServiceTest {
                 senderGid = "admin-gid",
                 request =
                     CreateAdminMessageRequest(
-                        recipientGid = "recipient-gid",
+                        recipientGid = recipientGid,
                         subject = "Subject",
                         body = "Body",
                     ),
@@ -44,7 +51,7 @@ class AdminMessageServiceTest {
                 store.append(
                     AdminMessageRecord(
                         id = "message-1",
-                        recipientGid = "recipient-gid",
+                        recipientGid = recipientGid,
                         senderGid = "admin-gid",
                         createdAt = 1_773_742_530,
                         subject = "Subject",
@@ -61,7 +68,7 @@ class AdminMessageServiceTest {
             assertFailsWith<AdminMessageService.AdminMessageForbiddenException> {
                 sut.send(
                     senderGid = "user-gid",
-                    request = CreateAdminMessageRequest("recipient-gid", "Subject", "Body"),
+                    request = CreateAdminMessageRequest(recipientGid, "Subject", "Body"),
                 )
             }
 
@@ -74,23 +81,43 @@ class AdminMessageServiceTest {
             assertFailsWith<BadRequestException> {
                 sut.send(
                     senderGid = "admin-gid",
-                    request = CreateAdminMessageRequest("recipient-gid", " ", "Body"),
+                    request = CreateAdminMessageRequest(recipientGid, " ", "Body"),
                 )
             }
+        }
+
+    @Test
+    fun `send rejects recipient gid with unexpected byte length`() =
+        runTest {
+            val invalidRecipientGid =
+                Base64.UrlSafe
+                    .withPadding(Base64.PaddingOption.ABSENT)
+                    .encode(ByteArray(64) { 1 })
+
+            val exception =
+                assertFailsWith<BadRequestException> {
+                    sut.send(
+                        senderGid = "admin-gid",
+                        request = CreateAdminMessageRequest(invalidRecipientGid, "Subject", "Body"),
+                    )
+                }
+
+            assertEquals("recipientGid has invalid format", exception.message)
+            coVerify(exactly = 0) { store.append(any()) }
         }
 
     @Test
     fun `listInboxForRecipient returns first page sorted newest first with metadata`() =
         runTest {
             coEvery {
-                store.loadVisibleAndShortenExpiry("recipient-gid", 1_773_742_530, 1_776_161_730)
+                store.loadVisibleAndShortenExpiry(recipientGid, 1_773_742_530, 1_776_161_730)
             } returns
                 listOf(
-                    AdminMessageRecord("older", "recipient-gid", "admin-a", 20, "Older", "Body 1", 1_773_828_929),
-                    AdminMessageRecord("newer", "recipient-gid", "admin-b", 30, "Newer", "Body 2", 1_773_742_531),
+                    AdminMessageRecord("older", recipientGid, "admin-a", 20, "Older", "Body 1", 1_773_828_929),
+                    AdminMessageRecord("newer", recipientGid, "admin-b", 30, "Newer", "Body 2", 1_773_742_531),
                 )
 
-            val result = sut.listInboxForRecipient("recipient-gid", page = 1)
+            val result = sut.listInboxForRecipient(recipientGid, page = 1)
 
             assertEquals(
                 AdminMessageListResult(
@@ -109,12 +136,12 @@ class AdminMessageServiceTest {
     fun `listInboxForRecipient returns requested page and hasMore flag`() =
         runTest {
             coEvery {
-                store.loadVisibleAndShortenExpiry("recipient-gid", 1_773_742_530, 1_776_161_730)
+                store.loadVisibleAndShortenExpiry(recipientGid, 1_773_742_530, 1_776_161_730)
             } returns
                 (1..11).map { index ->
                     AdminMessageRecord(
                         id = "message-$index",
-                        recipientGid = "recipient-gid",
+                        recipientGid = recipientGid,
                         senderGid = "admin-$index",
                         createdAt = index.toLong(),
                         subject = "Subject $index",
@@ -123,7 +150,7 @@ class AdminMessageServiceTest {
                     )
                 }
 
-            val result = sut.listInboxForRecipient("recipient-gid", page = 2)
+            val result = sut.listInboxForRecipient(recipientGid, page = 2)
 
             assertEquals(2, result.page)
             assertEquals(false, result.hasMore)
@@ -136,7 +163,7 @@ class AdminMessageServiceTest {
             assertFailsWith<AdminMessageService.AdminMessageForbiddenException> {
                 sut.listAdminMessagesForRecipient(
                     requesterGid = "user-gid",
-                    recipientGid = "recipient-gid",
+                    recipientGid = recipientGid,
                     page = 1,
                 )
             }
@@ -146,12 +173,12 @@ class AdminMessageServiceTest {
     fun `listAdminMessagesForRecipient keeps ttl unchanged and returns all admins for page`() =
         runTest {
             coEvery {
-                store.loadVisibleForRecipient("recipient-gid", 1_773_742_530)
+                store.loadVisibleForRecipient(recipientGid, 1_773_742_530)
             } returns
                 (1..11).map { index ->
                     AdminMessageRecord(
                         id = "message-$index",
-                        recipientGid = "recipient-gid",
+                        recipientGid = recipientGid,
                         senderGid = "admin-$index",
                         createdAt = index.toLong(),
                         subject = "Subject $index",
@@ -163,7 +190,7 @@ class AdminMessageServiceTest {
             val result =
                 sut.listAdminMessagesForRecipient(
                     requesterGid = "admin-gid",
-                    recipientGid = "recipient-gid",
+                    recipientGid = recipientGid,
                     page = 1,
                 )
 
@@ -171,8 +198,29 @@ class AdminMessageServiceTest {
             assertEquals(true, result.hasMore)
             assertEquals((11 downTo 2).map { "message-$it" }, result.entries.map(AdminMessage::id))
             assertEquals(11, result.entries.first().remainingLifetimeDays)
-            coVerify(exactly = 1) { store.loadVisibleForRecipient("recipient-gid", 1_773_742_530) }
+            coVerify(exactly = 1) { store.loadVisibleForRecipient(recipientGid, 1_773_742_530) }
             coVerify(exactly = 0) { store.loadVisibleAndShortenExpiry(any(), any(), any()) }
+        }
+
+    @Test
+    fun `listAdminMessagesForRecipient rejects recipient gid with unexpected byte length`() =
+        runTest {
+            val invalidRecipientGid =
+                Base64.UrlSafe
+                    .withPadding(Base64.PaddingOption.ABSENT)
+                    .encode(ByteArray(64) { 1 })
+
+            val exception =
+                assertFailsWith<BadRequestException> {
+                    sut.listAdminMessagesForRecipient(
+                        requesterGid = "admin-gid",
+                        recipientGid = invalidRecipientGid,
+                        page = 1,
+                    )
+                }
+
+            assertEquals("recipientGid has invalid format", exception.message)
+            coVerify(exactly = 0) { store.loadVisibleForRecipient(any(), any()) }
         }
 
     @Test

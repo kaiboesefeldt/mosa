@@ -63,15 +63,15 @@ adminGids:
 - Changes take effect without a restart.
 
 ### Admin message store
-Private admin messages are persisted in a JSON file outside the vector store.
+Private admin messages are persisted in a SQLite database outside the vector store.
 
-**File name:** `mosa_admin_messages.json`  
+**File name:** `mosa_db.sqlite`  
 **Managed by:** Automatically created and updated by the server at runtime  
-**Reload:** Not reloaded from external edits. Restart after manual changes.
+**Reload:** Loaded during startup. Restart after manual changes.
 
-The file is created on first write. The server stores pending messages there,
-removes expired entries during cleanup, and rewrites the full file when the
-message set changes.
+The database file is created on startup if it does not exist yet. The server
+stores pending admin messages there, removes expired entries during cleanup,
+and may add further structured runtime state in future tables.
 
 ### Privacy profile
 The privacy endpoint is generated from an operator-maintained ClearTerms

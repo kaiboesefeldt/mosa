@@ -2,6 +2,7 @@ package straightway.mosa.message
 
 import io.ktor.server.plugins.BadRequestException
 import java.time.Clock
+import java.util.Base64
 import kotlin.time.Duration
 
 class AdminMessageService(
@@ -12,6 +13,7 @@ class AdminMessageService(
     private val retrievedTtl: Duration,
     private val pageSize: Int,
     private val idFactory: () -> String,
+    private val expectedGidByteLength: Int,
 ) {
     class AdminMessageForbiddenException : RuntimeException("not allowed to send admin messages")
 
@@ -22,7 +24,7 @@ class AdminMessageService(
         if (!isAdmin(senderGid)) {
             throw AdminMessageForbiddenException()
         }
-        requireText(request.recipientGid, "recipientGid")
+        requireGid(request.recipientGid, "recipientGid")
         requireText(request.subject, "subject")
         requireText(request.body, "body")
 
@@ -64,6 +66,7 @@ class AdminMessageService(
         if (!isAdmin(requesterGid)) {
             throw AdminMessageForbiddenException()
         }
+        requireGid(recipientGid, "recipientGid")
         val now = clock.instant().epochSecond
         return pagedResult(
             store.loadVisibleForRecipient(
@@ -120,6 +123,17 @@ class AdminMessageService(
     ) {
         if (value.isBlank()) {
             throw BadRequestException("$fieldName must not be blank")
+        }
+    }
+
+    private fun requireGid(
+        value: String,
+        fieldName: String,
+    ) {
+        requireText(value, fieldName)
+        val decoded = runCatching { Base64.getUrlDecoder().decode(value.trim()) }.getOrNull()
+        if (decoded == null || decoded.size != expectedGidByteLength) {
+            throw BadRequestException("$fieldName has invalid format")
         }
     }
 

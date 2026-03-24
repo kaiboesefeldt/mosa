@@ -81,6 +81,7 @@ class AppModuleTest {
         koinApplication = null
         OnnxLocalEmbeddingService.embeddingServiceFactory = null
         unmockkObject(LuceneLocalVectorStore.Companion)
+        testWorkingDir?.resolve("mosa_db.sqlite")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.resolve("mosa_pod_keypair.pem")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.resolve("mosa_snapshot_archive_keys.json")?.let { Files.deleteIfExists(it) }
         testWorkingDir?.resolve("mosa_privacy.yaml")?.let { Files.deleteIfExists(it) }

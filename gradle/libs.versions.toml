@@ -22,6 +22,8 @@ jna = "5.18.1"
 commons-validator = "1.10.1"
 byte-buddy = "1.18.7"
 junit-jupiter = "5.13.4"
+exposed = "1.1.1"
+sqlite-jdbc = "3.51.3.0"
 kotlin-react-wrappers = "2026.3.12-19.2.4"
 kotlin-browser-wrappers = "2026.3.12"
 dicebear = "9.4.0"
@@ -91,6 +93,9 @@ byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "byte-buddy" }
 byte-buddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "byte-buddy" }
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit-jupiter" }
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit-jupiter" }
+exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
+exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 
 kotlin-react = { module = "org.jetbrains.kotlin-wrappers:kotlin-react", version.ref = "kotlin-react-wrappers" }
 kotlin-react-dom = { module = "org.jetbrains.kotlin-wrappers:kotlin-react-dom", version.ref = "kotlin-react-wrappers" }

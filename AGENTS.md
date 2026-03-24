@@ -96,10 +96,10 @@
 ## 8. Runtime Snapshot (Compact)
 - Server: Ktor + Koin, auth via MIS-JWT bearer tokens.
 - Routes: `/v1/approvegid` is open; `/v1/publish`, `/v1/reply`, `/v1/query`, `/v1/queryon` require auth.
-- Private admin messages use a dedicated JSON-backed channel outside the content/vector store:
+- Private admin messages use a dedicated SQLite-backed channel outside the content/vector store:
   - `POST /v1/admin/messages` requires auth and admin rights.
   - `GET /v1/messages` requires auth and only returns the caller's inbox.
-  - Storage file defaults to `mosa_admin_messages.json`.
+  - Storage file defaults to `mosa_db.sqlite` in the server working directory.
 - Embeddings/vector storage: ONNX local embeddings + Lucene local vector store.
 - Snapshot workflow: freeze export and restore application services live in `server/src/main/kotlin/straightway/mosa/content/snapshot`.
 - Client assets are copied into server static resources for packaging.

@@ -28,7 +28,8 @@ import straightway.mosa.message.AdminMessageCleanupJob
 import straightway.mosa.message.AdminMessageController
 import straightway.mosa.message.AdminMessageService
 import straightway.mosa.message.AdminMessageStore
-import straightway.mosa.message.FileBackedAdminMessageStore
+import straightway.mosa.message.AdminMessagesTable
+import straightway.mosa.message.SqliteAdminMessageStore
 import java.nio.file.Path
 import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.days
@@ -79,7 +80,12 @@ fun Module.configureContentAppModule() {
             (admins.get() ?: AdminAllowList(emptyList())).adminGids.contains(gid)
         }
     }
-    single<AdminMessageStore> { FileBackedAdminMessageStore(defaultAdminMessageStorePath()) }
+    single(createdAtStart = true) {
+        StructuredStateDatabase(defaultStructuredStateDatabasePath()).also {
+            it.initialize(AdminMessagesTable)
+        }
+    }
+    single<AdminMessageStore> { SqliteAdminMessageStore(get()) }
     single {
         val admins = get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
         AdminMessageService(
@@ -94,6 +100,7 @@ fun Module.configureContentAppModule() {
                     .randomUUID()
                     .toString()
             },
+            expectedGidByteLength = get<HasherFactory>()().digest(byteArrayOf()).size,
         )
     }
     single(createdAtStart = true) { AdminMessageCleanupJob(get(), cleanupInterval = 6.hours) } onClose { it?.close() }
@@ -113,4 +120,4 @@ private fun defaultFreezeSnapshotPodId(
 
 private fun defaultFreezeSnapshotArchiveKeyPath(): Path = Path.of(System.getProperty("user.dir"), "mosa_snapshot_archive_keys.json")
 
-private fun defaultAdminMessageStorePath(): Path = Path.of(System.getProperty("user.dir"), "mosa_admin_messages.json")
+private fun defaultStructuredStateDatabasePath(): Path = Path.of(System.getProperty("user.dir"), "mosa_db.sqlite")

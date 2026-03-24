@@ -2,6 +2,7 @@ package straightway.mosa.content
 
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
 import org.koin.dsl.koinApplication
@@ -30,9 +31,16 @@ import java.security.PublicKey
 import java.security.Signature
 import java.time.Clock
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 class ContentAppModuleTest {
+    @AfterEach
+    fun tearDown() {
+        java.nio.file.Files
+            .deleteIfExists(Path.of(System.getProperty("user.dir"), "mosa_db.sqlite"))
+    }
+
     @Test
     fun `provides freeze snapshot selection service as singleton`() {
         val vectorStore = mockk<VectorStore>()
@@ -230,6 +238,45 @@ class ContentAppModuleTest {
             assertSame(first, second)
         } finally {
             koinApplication.close()
+        }
+    }
+
+    @Test
+    fun `creates structured state database in current working directory on startup`() {
+        val vectorStore = mockk<VectorStore>()
+        val directory =
+            java.nio.file.Files
+                .createTempDirectory("content-app-module")
+        val originalUserDir = System.getProperty("user.dir")
+        System.setProperty("user.dir", directory.toString())
+
+        try {
+            val koinApplication =
+                koinApplication {
+                    modules(
+                        dependenciesModule(
+                            vectorStore = vectorStore,
+                        ),
+                        module {
+                            configureContentAppModule()
+                        },
+                    )
+                }
+
+            try {
+                assertTrue(
+                    java.nio.file.Files
+                        .exists(directory.resolve("mosa_db.sqlite")),
+                )
+            } finally {
+                koinApplication.close()
+            }
+        } finally {
+            System.setProperty("user.dir", originalUserDir)
+            java.nio.file.Files
+                .deleteIfExists(directory.resolve("mosa_db.sqlite"))
+            java.nio.file.Files
+                .deleteIfExists(directory)
         }
     }
 

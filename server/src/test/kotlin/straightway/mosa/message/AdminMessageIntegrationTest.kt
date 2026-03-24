@@ -9,8 +9,10 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import straightway.mosa.content.ControllerHttpTestEnvironment
+import straightway.mosa.content.StructuredStateDatabase
 import straightway.mosa.testutils.setJsonBody
 import java.nio.file.Files
+import java.security.MessageDigest
 import java.time.Instant
 import kotlin.io.encoding.Base64
 import kotlin.test.assertEquals
@@ -21,9 +23,9 @@ class AdminMessageIntegrationTest {
     fun `admin can send a message and recipient can fetch it`() =
         runTest {
             val directory = Files.createTempDirectory("admin-message-integration")
-            val path = directory.resolve("messages.json")
+            val path = directory.resolve("mosa_db.sqlite")
             val clock = MutableClock(Instant.parse("2026-03-17T10:15:30Z"))
-            val store = FileBackedAdminMessageStore(path)
+            val store = createStore(path)
             var adminGid = ""
             val service =
                 AdminMessageService(
@@ -34,6 +36,7 @@ class AdminMessageIntegrationTest {
                     retrievedTtl = 28.days,
                     pageSize = 10,
                     idFactory = { "message-1" },
+                    expectedGidByteLength = MessageDigest.getInstance("SHA-256").digest(byteArrayOf()).size,
                 )
             val env = ControllerHttpTestEnvironment(AdminMessageController(service))
             val adminIdentity = testIdentity(env)
@@ -75,9 +78,9 @@ class AdminMessageIntegrationTest {
     fun `other users cannot read recipient inbox`() =
         runTest {
             val directory = Files.createTempDirectory("admin-message-integration")
-            val path = directory.resolve("messages.json")
+            val path = directory.resolve("mosa_db.sqlite")
             val clock = MutableClock(Instant.parse("2026-03-17T10:15:30Z"))
-            val store = FileBackedAdminMessageStore(path)
+            val store = createStore(path)
             var adminGid = ""
             val service =
                 AdminMessageService(
@@ -88,6 +91,7 @@ class AdminMessageIntegrationTest {
                     retrievedTtl = 28.days,
                     pageSize = 10,
                     idFactory = { "message-1" },
+                    expectedGidByteLength = MessageDigest.getInstance("SHA-256").digest(byteArrayOf()).size,
                 )
             val env = ControllerHttpTestEnvironment(AdminMessageController(service))
             val adminIdentity = testIdentity(env)
@@ -120,9 +124,9 @@ class AdminMessageIntegrationTest {
     fun `non admins cannot send admin messages`() =
         runTest {
             val directory = Files.createTempDirectory("admin-message-integration")
-            val path = directory.resolve("messages.json")
+            val path = directory.resolve("mosa_db.sqlite")
             val clock = MutableClock(Instant.parse("2026-03-17T10:15:30Z"))
-            val store = FileBackedAdminMessageStore(path)
+            val store = createStore(path)
             val service =
                 AdminMessageService(
                     store = store,
@@ -132,6 +136,7 @@ class AdminMessageIntegrationTest {
                     retrievedTtl = 28.days,
                     pageSize = 10,
                     idFactory = { "message-1" },
+                    expectedGidByteLength = MessageDigest.getInstance("SHA-256").digest(byteArrayOf()).size,
                 )
             val env = ControllerHttpTestEnvironment(AdminMessageController(service))
 
@@ -155,9 +160,9 @@ class AdminMessageIntegrationTest {
     fun `unretrieved messages disappear after long ttl`() =
         runTest {
             val directory = Files.createTempDirectory("admin-message-integration")
-            val path = directory.resolve("messages.json")
+            val path = directory.resolve("mosa_db.sqlite")
             val clock = MutableClock(Instant.parse("2026-03-17T10:15:30Z"))
-            val store = FileBackedAdminMessageStore(path)
+            val store = createStore(path)
             var adminGid = ""
             val service =
                 AdminMessageService(
@@ -168,6 +173,7 @@ class AdminMessageIntegrationTest {
                     retrievedTtl = 28.days,
                     pageSize = 10,
                     idFactory = { "message-1" },
+                    expectedGidByteLength = MessageDigest.getInstance("SHA-256").digest(byteArrayOf()).size,
                 )
             val env = ControllerHttpTestEnvironment(AdminMessageController(service))
             val adminIdentity = testIdentity(env)
@@ -199,9 +205,9 @@ class AdminMessageIntegrationTest {
     fun `retrieved messages remain visible until short ttl expires`() =
         runTest {
             val directory = Files.createTempDirectory("admin-message-integration")
-            val path = directory.resolve("messages.json")
+            val path = directory.resolve("mosa_db.sqlite")
             val clock = MutableClock(Instant.parse("2026-03-17T10:15:30Z"))
-            val store = FileBackedAdminMessageStore(path)
+            val store = createStore(path)
             var adminGid = ""
             val service =
                 AdminMessageService(
@@ -212,6 +218,7 @@ class AdminMessageIntegrationTest {
                     retrievedTtl = 28.days,
                     pageSize = 10,
                     idFactory = { "message-1" },
+                    expectedGidByteLength = MessageDigest.getInstance("SHA-256").digest(byteArrayOf()).size,
                 )
             val env = ControllerHttpTestEnvironment(AdminMessageController(service))
             val adminIdentity = testIdentity(env)
@@ -257,9 +264,9 @@ class AdminMessageIntegrationTest {
     fun `admin history is paged and does not shorten ttl`() =
         runTest {
             val directory = Files.createTempDirectory("admin-message-integration")
-            val path = directory.resolve("messages.json")
+            val path = directory.resolve("mosa_db.sqlite")
             val clock = MutableClock(Instant.parse("2026-03-17T10:15:30Z"))
-            val store = FileBackedAdminMessageStore(path)
+            val store = createStore(path)
             val adminGids = mutableSetOf<String>()
             val service =
                 AdminMessageService(
@@ -270,6 +277,7 @@ class AdminMessageIntegrationTest {
                     retrievedTtl = 28.days,
                     pageSize = 10,
                     idFactory = { error("not used") },
+                    expectedGidByteLength = MessageDigest.getInstance("SHA-256").digest(byteArrayOf()).size,
                 )
             val env = ControllerHttpTestEnvironment(AdminMessageController(service))
             val adminIdentity = testIdentity(env)
@@ -335,9 +343,9 @@ class AdminMessageIntegrationTest {
     fun `non admins cannot read admin history`() =
         runTest {
             val directory = Files.createTempDirectory("admin-message-integration")
-            val path = directory.resolve("messages.json")
+            val path = directory.resolve("mosa_db.sqlite")
             val clock = MutableClock(Instant.parse("2026-03-17T10:15:30Z"))
-            val store = FileBackedAdminMessageStore(path)
+            val store = createStore(path)
             val service =
                 AdminMessageService(
                     store = store,
@@ -347,6 +355,7 @@ class AdminMessageIntegrationTest {
                     retrievedTtl = 28.days,
                     pageSize = 10,
                     idFactory = { "message-1" },
+                    expectedGidByteLength = MessageDigest.getInstance("SHA-256").digest(byteArrayOf()).size,
                 )
             val env = ControllerHttpTestEnvironment(AdminMessageController(service))
             val identity = testIdentity(env)
@@ -387,4 +396,10 @@ class AdminMessageIntegrationTest {
         val gid: String,
         val token: String,
     )
+
+    private fun createStore(path: java.nio.file.Path): AdminMessageStore {
+        val database = StructuredStateDatabase(path)
+        database.initialize(AdminMessagesTable)
+        return SqliteAdminMessageStore(database)
+    }
 }
