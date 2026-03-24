@@ -1006,6 +1006,10 @@ button:disabled {
     gap: 0.45rem;
 }
 
+.complaint-queue__entry .complaint-composer {
+    margin-top: 0.8rem;
+}
+
 .complaint-queue__action {
     padding: 0.38rem 0.7rem;
     font-size: 0.78rem;
@@ -1314,6 +1318,105 @@ button:disabled {
 
 .reply-composer__send {
     padding: 0.45rem 1.15rem;
+}
+
+.complaint-composer {
+    border-radius: 12px;
+    border: 1px solid rgba(99, 102, 241, 0.18);
+    background: #ffffff;
+    box-shadow: var(--shadow-elevated);
+}
+
+.complaint-composer--card {
+    width: min(420px, calc(100% - 1rem));
+}
+
+.complaint-composer__panel {
+    padding: 0.8rem 0.85rem 0.9rem;
+}
+
+.complaint-composer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.45rem;
+}
+
+.complaint-composer__title {
+    font-weight: 700;
+    color: var(--color-text);
+    font-size: 0.95rem;
+}
+
+.complaint-composer__close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: var(--color-secondary);
+    color: var(--color-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+}
+
+.complaint-composer__close:hover,
+.complaint-composer__close:focus-visible {
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--color-primary);
+    outline: none;
+}
+
+.complaint-composer__textarea {
+    width: 100%;
+    min-height: 110px;
+    padding: 0.65rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    font: inherit;
+    color: var(--color-text);
+    background: #f8fafc;
+    resize: vertical;
+}
+
+.complaint-composer__textarea:focus-visible {
+    outline: 2px solid var(--color-primary);
+    border-color: var(--color-primary);
+    background: #ffffff;
+}
+
+.complaint-composer__error {
+    color: var(--color-danger);
+    font-size: 0.88rem;
+    margin-top: 0.35rem;
+}
+
+.complaint-composer__actions {
+    display: flex;
+    justify-content: stretch;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-top: 0.45rem;
+}
+
+.complaint-composer__cancel,
+.complaint-composer__send {
+    padding: 0.45rem 1.15rem;
+    flex: 1 1 140px;
+    min-width: 0;
+}
+
+@media (max-width: 560px) {
+    .complaint-composer__actions {
+        flex-direction: column;
+    }
+
+    .complaint-composer__cancel,
+    .complaint-composer__send {
+        width: 100%;
+    }
 }
 
 .reply-composer-wrapper {

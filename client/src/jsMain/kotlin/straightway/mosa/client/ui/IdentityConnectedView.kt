@@ -186,6 +186,15 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (complaintQueueHasMore, setComplaintQueueHasMore) = useState(false)
     val (openComplaintCount, setOpenComplaintCount) = useState(0)
     val (complaintActionPostId, setComplaintActionPostId) = useState<String?>(null)
+    val (complaintComposerPostId, setComplaintComposerPostId) = useState<String?>(null)
+    val (complaintComposerText, setComplaintComposerText) = useState("")
+    val (complaintComposerError, setComplaintComposerError) = useState<String?>(null)
+    val (isComplaintSubmitting, setComplaintSubmitting) = useState(false)
+    val (complaintDecisionEntryId, setComplaintDecisionEntryId) = useState<String?>(null)
+    val (complaintDecisionTargetStatus, setComplaintDecisionTargetStatus) = useState<PostComplaintState?>(null)
+    val (complaintDecisionText, setComplaintDecisionText) = useState("")
+    val (complaintDecisionError, setComplaintDecisionError) = useState<String?>(null)
+    val (isComplaintDecisionSubmitting, setComplaintDecisionSubmitting) = useState(false)
     val (deleteCandidate, setDeleteCandidate) = useState<QueryResult.Entry?>(null)
     val (isDeletingPost, setDeletingPost) = useState(false)
     val (isDeletingAllPosts, setDeletingAllPosts) = useState(false)
@@ -494,6 +503,21 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         setComplaintQueueOpen(false)
     }
 
+    fun closeComplaintComposer() {
+        if (isComplaintSubmitting) return
+        setComplaintComposerPostId(null)
+        setComplaintComposerText("")
+        setComplaintComposerError(null)
+    }
+
+    fun closeComplaintDecisionComposer() {
+        if (isComplaintDecisionSubmitting) return
+        setComplaintDecisionEntryId(null)
+        setComplaintDecisionTargetStatus(null)
+        setComplaintDecisionText("")
+        setComplaintDecisionError(null)
+    }
+
     fun loadMoreComplaintQueue() {
         if (!isComplaintQueueOpen || isComplaintQueueLoading || isComplaintQueueAppending || !complaintQueueHasMore) return
         setComplaintQueueAppending(true)
@@ -511,7 +535,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     fun requestPostComplaint(entry: QueryResult.Entry) {
-        if (complaintActionPostId != null || props.profile.connectedIdentityGid == null) return
+        if (complaintActionPostId != null || complaintComposerPostId != null || props.profile.connectedIdentityGid == null) return
         if (entry.authorGID == props.profile.connectedIdentityGid) return
         setComplaintActionPostId(entry.id)
         scope.launch {
@@ -527,28 +551,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     }
 
                     PostComplaintAvailability.AVAILABLE -> {
-                        val reason =
-                            window
-                                .prompt(translator.translate("connected.complaints.post.prompt"))
-                                ?.trim()
-                                .orEmpty()
-                        if (reason.isEmpty()) {
-                            return@launch
-                        }
-                        if (500 < reason.length) {
-                            showToast(translator.translate("connected.complaints.post.reasonTooLong"))
-                            return@launch
-                        }
-                        if (!window.confirm(translator.translate("connected.complaints.post.confirm"))) {
-                            return@launch
-                        }
-                        val created = postComplaintService.submit(entry.id, reason)
-                        if (created) {
-                            showToast(translator.translate("connected.complaints.post.sent"))
-                            refreshComplaintCount()
-                        } else {
-                            showToast(translator.translate("connected.complaints.post.error"))
-                        }
+                        setComplaintComposerPostId(entry.id)
+                        setComplaintComposerText("")
+                        setComplaintComposerError(null)
                     }
 
                     null -> {
@@ -561,33 +566,59 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    fun decideComplaint(
+    fun submitPostComplaint() {
+        val postId = complaintComposerPostId ?: return
+        val reason = complaintComposerText.trim()
+        if (reason.isEmpty()) {
+            setComplaintComposerError(translator.translate("connected.complaints.post.reasonRequired"))
+            return
+        }
+        if (500 < reason.length) {
+            setComplaintComposerError(translator.translate("connected.complaints.post.reasonTooLong"))
+            return
+        }
+        setComplaintSubmitting(true)
+        setComplaintComposerError(null)
+        scope.launch {
+            val created = runCatching { postComplaintService.submit(postId, reason) }.getOrDefault(false)
+            setComplaintSubmitting(false)
+            if (created) {
+                closeComplaintComposer()
+                showToast(translator.translate("connected.complaints.post.sent"))
+                refreshComplaintCount()
+            } else {
+                setComplaintComposerError(translator.translate("connected.complaints.post.error"))
+            }
+        }
+    }
+
+    fun startComplaintDecision(
         entry: OpenPostComplaint,
         targetStatus: PostComplaintState,
     ) {
         if (targetStatus == PostComplaintState.OPEN) return
-        val feedback =
-            window
-                .prompt(translator.translate("connected.complaints.admin.feedbackPrompt"))
-                ?.trim()
-                .orEmpty()
+        if (isComplaintDecisionSubmitting) return
+        setComplaintDecisionEntryId(entry.complaintId)
+        setComplaintDecisionTargetStatus(targetStatus)
+        setComplaintDecisionText("")
+        setComplaintDecisionError(null)
+    }
+
+    fun submitComplaintDecision() {
+        val complaintId = complaintDecisionEntryId ?: return
+        val targetStatus = complaintDecisionTargetStatus ?: return
+        val entry = complaintQueueEntries.firstOrNull { it.complaintId == complaintId } ?: return
+        val feedback = complaintDecisionText.trim()
         if (feedback.isEmpty()) {
+            setComplaintDecisionError(translator.translate("connected.complaints.admin.feedbackRequired"))
             return
         }
         if (1000 < feedback.length) {
-            showToast(translator.translate("connected.complaints.admin.feedbackTooLong"))
+            setComplaintDecisionError(translator.translate("connected.complaints.admin.feedbackTooLong"))
             return
         }
-        val confirmKey =
-            when (targetStatus) {
-                PostComplaintState.CONFIRMED -> "connected.complaints.admin.confirmConfirmed"
-                PostComplaintState.REJECTED -> "connected.complaints.admin.confirmRejected"
-                PostComplaintState.DELETED -> "connected.complaints.admin.confirmDeleted"
-                PostComplaintState.OPEN -> return
-            }
-        if (!window.confirm(translator.translate(confirmKey))) {
-            return
-        }
+        setComplaintDecisionSubmitting(true)
+        setComplaintDecisionError(null)
         scope.launch {
             val success =
                 adminPostComplaintService.decide(
@@ -596,12 +627,14 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     targetStatus = targetStatus,
                     feedback = feedback,
                 )
+            setComplaintDecisionSubmitting(false)
             if (success) {
+                closeComplaintDecisionComposer()
                 showToast(translator.translate("connected.complaints.admin.decided"))
                 refreshComplaintQueue(openAfterLoad = complaintQueueEntries.size > 1)
                 refreshInbox(openAfterLoad = false)
             } else {
-                showToast(translator.translate("connected.complaints.admin.error"))
+                setComplaintDecisionError(translator.translate("connected.complaints.admin.error"))
             }
         }
     }
@@ -1570,9 +1603,22 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                         popoverRef = complaintQueuePopoverRef,
                         onClose = ::closeComplaintQueue,
                         onLoadMore = ::loadMoreComplaintQueue,
-                        onConfirm = { decideComplaint(it, PostComplaintState.CONFIRMED) },
-                        onReject = { decideComplaint(it, PostComplaintState.REJECTED) },
-                        onDelete = { decideComplaint(it, PostComplaintState.DELETED) },
+                        decisionEntryId = complaintDecisionEntryId,
+                        decisionTargetStatus = complaintDecisionTargetStatus,
+                        decisionText = complaintDecisionText,
+                        decisionErrorText = complaintDecisionError,
+                        isDecisionSubmitting = isComplaintDecisionSubmitting,
+                        onDecisionTextChange = {
+                            setComplaintDecisionText(it)
+                            if (complaintDecisionError != null) {
+                                setComplaintDecisionError(null)
+                            }
+                        },
+                        onCloseDecisionComposer = ::closeComplaintDecisionComposer,
+                        onSubmitDecision = ::submitComplaintDecision,
+                        onConfirm = { startComplaintDecision(it, PostComplaintState.CONFIRMED) },
+                        onReject = { startComplaintDecision(it, PostComplaintState.REJECTED) },
+                        onDelete = { startComplaintDecision(it, PostComplaintState.DELETED) },
                     )
                 }
             }
@@ -1737,7 +1783,19 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onCancelDelete = ::clearDeleteCandidate,
                     onConfirmDelete = ::confirmDelete,
                     complaintActionPostId = complaintActionPostId,
+                    complaintComposerPostId = complaintComposerPostId,
+                    complaintComposerText = complaintComposerText,
+                    complaintComposerError = complaintComposerError,
+                    isComplaintSubmitting = isComplaintSubmitting,
                     onRequestComplaint = ::requestPostComplaint,
+                    onComplaintTextChange = {
+                        setComplaintComposerText(it)
+                        if (complaintComposerError != null) {
+                            setComplaintComposerError(null)
+                        }
+                    },
+                    onCloseComplaintComposer = ::closeComplaintComposer,
+                    onSubmitComplaint = ::submitPostComplaint,
                     canComposeAdminMessage = adminPresentation.canDeleteAsAdmin,
                     adminUserCardAnchorId = adminUserCardAnchorId,
                     adminMessageRecipientName = adminMessageRecipientName,
@@ -1957,7 +2015,14 @@ private fun ChildrenBuilder.postsColumn(
     onCancelDelete: () -> Unit,
     onConfirmDelete: (QueryResult.Entry) -> Unit,
     complaintActionPostId: String?,
+    complaintComposerPostId: String?,
+    complaintComposerText: String,
+    complaintComposerError: String?,
+    isComplaintSubmitting: Boolean,
     onRequestComplaint: (QueryResult.Entry) -> Unit,
+    onComplaintTextChange: (String) -> Unit,
+    onCloseComplaintComposer: () -> Unit,
+    onSubmitComplaint: () -> Unit,
     canComposeAdminMessage: Boolean,
     adminUserCardAnchorId: String?,
     adminMessageRecipientName: String?,
@@ -2079,7 +2144,14 @@ private fun ChildrenBuilder.postsColumn(
                         onConfirmDelete = { onConfirmDelete(entry) },
                         canComplain = connectedGid != null && entry.authorGID != connectedGid,
                         isComplaining = complaintActionPostId == entry.id,
+                        complaintComposerPostId = complaintComposerPostId,
+                        complaintComposerText = complaintComposerText,
+                        complaintComposerError = complaintComposerError,
+                        isComplaintSubmitting = isComplaintSubmitting,
                         onRequestComplaint = { onRequestComplaint(entry) },
+                        onComplaintTextChange = onComplaintTextChange,
+                        onCloseComplaintComposer = onCloseComplaintComposer,
+                        onSubmitComplaint = onSubmitComplaint,
                         canComposeAdminMessage = canComposeAdminMessage,
                         onToggleAdminUserCard = onToggleAdminUserCard,
                     )
@@ -2300,6 +2372,65 @@ private fun ChildrenBuilder.replyComposerPopover(
     }
 }
 
+private fun ChildrenBuilder.complaintComposerPopover(
+    translator: Translator,
+    title: String,
+    placeholder: String,
+    text: String,
+    isSubmitting: Boolean,
+    errorText: String?,
+    sendLabel: String,
+    onTextChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onClose: () -> Unit,
+) = div {
+    className = ClassName("complaint-composer__panel")
+    div {
+        className = ClassName("complaint-composer__header")
+        span {
+            className = ClassName("complaint-composer__title")
+            +title
+        }
+        button {
+            className = ClassName("complaint-composer__close")
+            ariaLabel = translator.translate("connected.complaints.compose.close")
+            onClick = { onClose() }
+            +"×"
+        }
+    }
+    textarea {
+        className = ClassName("complaint-composer__textarea")
+        this.placeholder = placeholder
+        value = text
+        disabled = isSubmitting
+        rows = 4
+        onChange = { event: ChangeEvent<HTMLTextAreaElement, HTMLTextAreaElement> ->
+            onTextChange(event.currentTarget.value)
+        }
+    }
+    if (errorText != null) {
+        div {
+            className = ClassName("complaint-composer__error")
+            +errorText
+        }
+    }
+    div {
+        className = ClassName("complaint-composer__actions")
+        button {
+            className = ClassName("button button--secondary complaint-composer__cancel")
+            disabled = isSubmitting
+            onClick = { onClose() }
+            +translator.translate("connected.complaints.compose.cancel")
+        }
+        button {
+            className = ClassName("button button--primary complaint-composer__send")
+            disabled = text.trim().isEmpty() || isSubmitting
+            onClick = { onSend() }
+            +sendLabel
+        }
+    }
+}
+
 private fun ChildrenBuilder.replyCard(
     translator: Translator,
     visualsFactory: IdentityVisualsFactory,
@@ -2501,7 +2632,14 @@ private fun ChildrenBuilder.postCard(
     onConfirmDelete: () -> Unit,
     canComplain: Boolean,
     isComplaining: Boolean,
+    complaintComposerPostId: String?,
+    complaintComposerText: String,
+    complaintComposerError: String?,
+    isComplaintSubmitting: Boolean,
     onRequestComplaint: () -> Unit,
+    onComplaintTextChange: (String) -> Unit,
+    onCloseComplaintComposer: () -> Unit,
+    onSubmitComplaint: () -> Unit,
     canComposeAdminMessage: Boolean,
     onToggleAdminUserCard: (String, String, String, String) -> Unit,
 ) {
@@ -2512,6 +2650,7 @@ private fun ChildrenBuilder.postCard(
     val canOpenAdminUserCard = canComposeAdminMessage && connectedGid != null && entry.authorGID != connectedGid
     val canDeletePost = (connectedGid != null && entry.authorGID == connectedGid) || canDeleteAsAdmin
     val showDeletePopover = canDeletePost && deleteCandidateId == entry.id
+    val showComplaintComposer = complaintComposerPostId == entry.id
     val cardClass =
         buildString {
             append("post-card")
@@ -2635,6 +2774,24 @@ private fun ChildrenBuilder.postCard(
         div {
             className = ClassName("post-card__content")
             +entry.content
+        }
+        if (showComplaintComposer) {
+            div {
+                className = ClassName("post-card__delete-popover complaint-composer complaint-composer--card")
+                onClick = { event: MouseEvent<*, *> -> event.stopPropagation() }
+                complaintComposerPopover(
+                    translator = translator,
+                    title = translator.translate("connected.complaints.post.title"),
+                    placeholder = translator.translate("connected.complaints.post.placeholder"),
+                    text = complaintComposerText,
+                    isSubmitting = isComplaintSubmitting,
+                    errorText = complaintComposerError,
+                    sendLabel = translator.translate("connected.complaints.post.send"),
+                    onTextChange = onComplaintTextChange,
+                    onSend = onSubmitComplaint,
+                    onClose = onCloseComplaintComposer,
+                )
+            }
         }
         if (showDeletePopover) {
             val cancelLabel = translator.translate("connected.posts.delete.cancel")
@@ -2785,6 +2942,14 @@ private fun ChildrenBuilder.postComplaintQueuePopover(
     popoverRef: Ref<HTMLDivElement>,
     onClose: () -> Unit,
     onLoadMore: () -> Unit,
+    decisionEntryId: String?,
+    decisionTargetStatus: PostComplaintState?,
+    decisionText: String,
+    decisionErrorText: String?,
+    isDecisionSubmitting: Boolean,
+    onDecisionTextChange: (String) -> Unit,
+    onCloseDecisionComposer: () -> Unit,
+    onSubmitDecision: () -> Unit,
     onConfirm: (OpenPostComplaint) -> Unit,
     onReject: (OpenPostComplaint) -> Unit,
     onDelete: (OpenPostComplaint) -> Unit,
@@ -2827,6 +2992,7 @@ private fun ChildrenBuilder.postComplaintQueuePopover(
             entries.forEach { entry ->
                 val complainantVisuals = identityVisualsFactory.createFromGid(entry.complainantGid)
                 val postAuthorVisuals = identityVisualsFactory.createFromGid(entry.postAuthorGid)
+                val showDecisionComposer = decisionEntryId == entry.complaintId
                 div {
                     key = entry.complaintId.unsafeCast<Key>()
                     className = ClassName("message-inbox__entry complaint-queue__entry")
@@ -2874,19 +3040,36 @@ private fun ChildrenBuilder.postComplaintQueuePopover(
                         className = ClassName("complaint-queue__actions")
                         button {
                             className = ClassName("button button--secondary complaint-queue__action")
+                            disabled = isDecisionSubmitting
                             onClick = { onConfirm(entry) }
                             +translator.translate("connected.complaints.admin.confirm")
                         }
                         button {
                             className = ClassName("button button--secondary complaint-queue__action")
+                            disabled = isDecisionSubmitting
                             onClick = { onReject(entry) }
                             +translator.translate("connected.complaints.admin.reject")
                         }
                         button {
                             className = ClassName("button button--primary complaint-queue__action")
+                            disabled = isDecisionSubmitting
                             onClick = { onDelete(entry) }
                             +translator.translate("connected.complaints.admin.delete")
                         }
+                    }
+                    if (showDecisionComposer) {
+                        complaintComposerPopover(
+                            translator = translator,
+                            title = complaintDecisionTitle(translator, decisionTargetStatus),
+                            placeholder = translator.translate("connected.complaints.admin.feedbackPlaceholder"),
+                            text = decisionText,
+                            isSubmitting = isDecisionSubmitting,
+                            errorText = decisionErrorText,
+                            sendLabel = translator.translate("connected.complaints.admin.send"),
+                            onTextChange = onDecisionTextChange,
+                            onSend = onSubmitDecision,
+                            onClose = onCloseDecisionComposer,
+                        )
                     }
                 }
             }
@@ -2901,6 +3084,17 @@ private fun ChildrenBuilder.postComplaintQueuePopover(
         }
     }
 }
+
+private fun complaintDecisionTitle(
+    translator: Translator,
+    targetStatus: PostComplaintState?,
+): String =
+    when (targetStatus) {
+        PostComplaintState.CONFIRMED -> translator.translate("connected.complaints.admin.composeConfirmed")
+        PostComplaintState.REJECTED -> translator.translate("connected.complaints.admin.composeRejected")
+        PostComplaintState.DELETED -> translator.translate("connected.complaints.admin.composeDeleted")
+        PostComplaintState.OPEN, null -> translator.translate("connected.complaints.admin.title")
+    }
 
 private fun ChildrenBuilder.adminUserActionCardOverlay(
     translator: Translator,
