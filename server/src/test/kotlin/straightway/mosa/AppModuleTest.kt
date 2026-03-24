@@ -26,6 +26,7 @@ import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.content.PrivacySnapshotController
+import straightway.mosa.content.complaint.PostComplaintController
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.embedding.OnnxLocalEmbeddingService
 import straightway.mosa.legal.ImprintService
@@ -202,6 +203,7 @@ class AppModuleTest {
         assertEquals(
             setOf(
                 ContentController::class,
+                PostComplaintController::class,
                 PrivacySnapshotController::class,
                 AdminMessageController::class,
                 AuthenticationController::class,

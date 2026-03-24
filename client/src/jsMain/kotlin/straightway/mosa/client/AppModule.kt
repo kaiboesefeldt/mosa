@@ -53,8 +53,11 @@ import straightway.mosa.client.content.AllPostsDeletionService
 import straightway.mosa.client.content.AdminMessageInboxService
 import straightway.mosa.client.content.AdminMessageHistoryService
 import straightway.mosa.client.content.AdminMessagePublisher
+import straightway.mosa.client.content.complaint.AdminPostComplaintService
 import straightway.mosa.client.content.ContentSigner
 import straightway.mosa.client.content.ContentSignatureVerifier
+import straightway.mosa.client.content.complaint.PostComplaintService
+import straightway.mosa.client.content.complaint.PostComplaintSigner
 import straightway.mosa.client.content.PostsCsvDownloader
 import straightway.mosa.client.content.PostsExportPort
 import straightway.mosa.client.content.PostsExportService
@@ -163,6 +166,7 @@ object AppModule : KoinComponent {
                         }
                         single { CryptoExport(get()) }
                         single { ContentSigner(get()) }
+                        single { straightway.mosa.client.content.complaint.PostComplaintSigner(get()) }
                         single { ContentSignatureVerifier(get()) }
                         single<JwtBuilder> {
                             { identity, certificate ->
@@ -184,6 +188,8 @@ object AppModule : KoinComponent {
                         single<ReplyCache> { IndexedDbReplyCache(get(), get(), get()) }
                         single { TopicRepository(get(), get()) }
                         single { PostPublisher(get(), get()) }
+                        single { straightway.mosa.client.content.complaint.PostComplaintService(get(), get()) }
+                        single { straightway.mosa.client.content.complaint.AdminPostComplaintService(get(), get()) }
                         single { AdminMessageInboxService(get()) }
                         single { AdminMessageHistoryService(get()) }
                         single { AdminMessagePublisher(get()) }

@@ -53,11 +53,17 @@ import straightway.mosa.client.content.AllPostsDeletionService
 import straightway.mosa.client.content.AdminMessageHistoryService
 import straightway.mosa.client.content.AdminMessageInboxService
 import straightway.mosa.client.content.AdminMessagePublisher
+import straightway.mosa.client.content.complaint.AdminPostComplaintService
+import straightway.mosa.client.content.complaint.PostComplaintService
 import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.TopicFilters
 import straightway.mosa.client.content.ReplySearchService
 import straightway.mosa.client.content.ThreadReplies
 import straightway.mosa.client.pod.PodBaseProvider
+import straightway.mosa.content.complaint.OpenPostComplaint
+import straightway.mosa.content.complaint.OpenPostComplaintsResult
+import straightway.mosa.content.complaint.PostComplaintState
+import straightway.mosa.content.complaint.PostComplaintAvailability
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.message.AdminMessage
@@ -127,6 +133,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val adminMessageHistoryService = ConnectedViewInjector.get<AdminMessageHistoryService>()
     val adminMessageInboxService = ConnectedViewInjector.get<AdminMessageInboxService>()
     val adminMessagePublisher = ConnectedViewInjector.get<AdminMessagePublisher>()
+    val postComplaintService = ConnectedViewInjector.get<PostComplaintService>()
+    val adminPostComplaintService = ConnectedViewInjector.get<AdminPostComplaintService>()
     val podBaseProvider = ConnectedViewInjector.get<PodBaseProvider>()
     val visualsFactory =
         useMemo(nameGenerator, avatarGenerator) {
@@ -169,6 +177,15 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (inboxPage, setInboxPage) = useState(1)
     val (inboxHasMore, setInboxHasMore) = useState(false)
     val (unreadInboxCount, setUnreadInboxCount) = useState(0)
+    val (isComplaintQueueOpen, setComplaintQueueOpen) = useState(false)
+    val (isComplaintQueueLoading, setComplaintQueueLoading) = useState(false)
+    val (isComplaintQueueAppending, setComplaintQueueAppending) = useState(false)
+    val (complaintQueueEntries, setComplaintQueueEntries) = useState<List<OpenPostComplaint>>(emptyList())
+    val (complaintQueueError, setComplaintQueueError) = useState<String?>(null)
+    val (complaintQueuePage, setComplaintQueuePage) = useState(1)
+    val (complaintQueueHasMore, setComplaintQueueHasMore) = useState(false)
+    val (openComplaintCount, setOpenComplaintCount) = useState(0)
+    val (complaintActionPostId, setComplaintActionPostId) = useState<String?>(null)
     val (deleteCandidate, setDeleteCandidate) = useState<QueryResult.Entry?>(null)
     val (isDeletingPost, setDeletingPost) = useState(false)
     val (isDeletingAllPosts, setDeletingAllPosts) = useState(false)
@@ -207,6 +224,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val adminUserCardAnchorIdRef = useRef("")
     val inboxButtonRef = useRef<HTMLButtonElement>()
     val inboxPopoverRef = useRef<HTMLDivElement>()
+    val complaintQueuePopoverRef = useRef<HTMLDivElement>()
     val adminHistoryListRef = useRef<HTMLDivElement>()
     val inboxScrollRestoreRef = useRef<Double>()
     val adminHistoryScrollRestoreRef = useRef<Double>()
@@ -419,6 +437,173 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
 
     fun closeInbox() {
         setInboxOpen(false)
+    }
+
+    fun applyComplaintQueuePage(
+        result: OpenPostComplaintsResult,
+        append: Boolean,
+    ) {
+        val mergedEntries =
+            if (append) {
+                (complaintQueueEntries + result.entries).distinctBy(OpenPostComplaint::complaintId)
+            } else {
+                result.entries
+            }
+        setComplaintQueueEntries(mergedEntries)
+        setComplaintQueuePage(result.page)
+        setComplaintQueueHasMore(result.hasMore)
+    }
+
+    fun refreshComplaintCount() {
+        if (!adminPresentation.showsConnectedAdminBadge) {
+            setOpenComplaintCount(0)
+            return
+        }
+        scope.launch {
+            val result = runCatching { adminPostComplaintService.countOpen() }.getOrNull()
+            setOpenComplaintCount(result?.count ?: 0)
+        }
+    }
+
+    fun refreshComplaintQueue(openAfterLoad: Boolean) {
+        if (isComplaintQueueLoading || isComplaintQueueAppending) return
+        setComplaintQueueOpen(openAfterLoad || isComplaintQueueOpen)
+        setComplaintQueueLoading(true)
+        setComplaintQueueAppending(false)
+        setComplaintQueueError(null)
+        scope.launch {
+            val result = runCatching { adminPostComplaintService.listOpen(page = 1) }.getOrNull()
+            setComplaintQueueLoading(false)
+            if (result == null) {
+                setComplaintQueueEntries(emptyList())
+                setComplaintQueuePage(1)
+                setComplaintQueueHasMore(false)
+                setComplaintQueueError(translator.translate("connected.complaints.admin.error"))
+            } else {
+                applyComplaintQueuePage(result, append = false)
+            }
+            refreshComplaintCount()
+        }
+    }
+
+    fun loadComplaintQueue() {
+        refreshComplaintQueue(openAfterLoad = true)
+    }
+
+    fun closeComplaintQueue() {
+        setComplaintQueueOpen(false)
+    }
+
+    fun loadMoreComplaintQueue() {
+        if (!isComplaintQueueOpen || isComplaintQueueLoading || isComplaintQueueAppending || !complaintQueueHasMore) return
+        setComplaintQueueAppending(true)
+        setComplaintQueueError(null)
+        val nextPage = complaintQueuePage + 1
+        scope.launch {
+            val result = runCatching { adminPostComplaintService.listOpen(page = nextPage) }.getOrNull()
+            setComplaintQueueAppending(false)
+            if (result == null) {
+                setComplaintQueueError(translator.translate("connected.complaints.admin.error"))
+            } else {
+                applyComplaintQueuePage(result, append = true)
+            }
+        }
+    }
+
+    fun requestPostComplaint(entry: QueryResult.Entry) {
+        if (complaintActionPostId != null || props.profile.connectedIdentityGid == null) return
+        if (entry.authorGID == props.profile.connectedIdentityGid) return
+        setComplaintActionPostId(entry.id)
+        scope.launch {
+            try {
+                val status = postComplaintService.status(entry.id)
+                when (status?.availability) {
+                    PostComplaintAvailability.OPEN -> {
+                        showToast(translator.translate("connected.complaints.post.open"))
+                    }
+
+                    PostComplaintAvailability.BLOCKED -> {
+                        showToast(translator.translate("connected.complaints.post.blocked"))
+                    }
+
+                    PostComplaintAvailability.AVAILABLE -> {
+                        val reason =
+                            window
+                                .prompt(translator.translate("connected.complaints.post.prompt"))
+                                ?.trim()
+                                .orEmpty()
+                        if (reason.isEmpty()) {
+                            return@launch
+                        }
+                        if (500 < reason.length) {
+                            showToast(translator.translate("connected.complaints.post.reasonTooLong"))
+                            return@launch
+                        }
+                        if (!window.confirm(translator.translate("connected.complaints.post.confirm"))) {
+                            return@launch
+                        }
+                        val created = postComplaintService.submit(entry.id, reason)
+                        if (created) {
+                            showToast(translator.translate("connected.complaints.post.sent"))
+                            refreshComplaintCount()
+                        } else {
+                            showToast(translator.translate("connected.complaints.post.error"))
+                        }
+                    }
+
+                    null -> {
+                        showToast(translator.translate("connected.complaints.post.error"))
+                    }
+                }
+            } finally {
+                setComplaintActionPostId(null)
+            }
+        }
+    }
+
+    fun decideComplaint(
+        entry: OpenPostComplaint,
+        targetStatus: PostComplaintState,
+    ) {
+        if (targetStatus == PostComplaintState.OPEN) return
+        val feedback =
+            window
+                .prompt(translator.translate("connected.complaints.admin.feedbackPrompt"))
+                ?.trim()
+                .orEmpty()
+        if (feedback.isEmpty()) {
+            return
+        }
+        if (1000 < feedback.length) {
+            showToast(translator.translate("connected.complaints.admin.feedbackTooLong"))
+            return
+        }
+        val confirmKey =
+            when (targetStatus) {
+                PostComplaintState.CONFIRMED -> "connected.complaints.admin.confirmConfirmed"
+                PostComplaintState.REJECTED -> "connected.complaints.admin.confirmRejected"
+                PostComplaintState.DELETED -> "connected.complaints.admin.confirmDeleted"
+                PostComplaintState.OPEN -> return
+            }
+        if (!window.confirm(translator.translate(confirmKey))) {
+            return
+        }
+        scope.launch {
+            val success =
+                adminPostComplaintService.decide(
+                    complaintId = entry.complaintId,
+                    postId = entry.postId,
+                    targetStatus = targetStatus,
+                    feedback = feedback,
+                )
+            if (success) {
+                showToast(translator.translate("connected.complaints.admin.decided"))
+                refreshComplaintQueue(openAfterLoad = complaintQueueEntries.size > 1)
+                refreshInbox(openAfterLoad = false)
+            } else {
+                showToast(translator.translate("connected.complaints.admin.error"))
+            }
+        }
     }
 
     fun refreshAdminHistory(recipientGid: String) {
@@ -817,6 +1002,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             clearToastTimer()
             scope.cancel()
         }
+    }
+
+    useEffect(arrayOf(adminPresentation.showsConnectedAdminBadge, props.profile.connectedIdentityGid)) {
+        refreshComplaintCount()
     }
 
     val avatarDescription = translator.translate(adminPresentation.avatarTitleKey)
@@ -1296,6 +1485,29 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                         }
                     }
                 }
+                if (adminPresentation.showsConnectedAdminBadge) {
+                    button {
+                        className = ClassName("connected-shell__inbox-button")
+                        ariaLabel = translator.translate("connected.complaints.admin.button")
+                        title = translator.translate("connected.complaints.admin.button")
+                        onClick = {
+                            if (isComplaintQueueOpen) {
+                                closeComplaintQueue()
+                            } else {
+                                loadComplaintQueue()
+                            }
+                        }
+                        i {
+                            className = ClassName("fa fa-solid fa-shield-halved")
+                        }
+                        if (openComplaintCount > 0) {
+                            span {
+                                className = ClassName("connected-shell__inbox-badge")
+                                +openComplaintCount.toString()
+                            }
+                        }
+                    }
+                }
                 span {
                     className = ClassName("connected-shell__identity-name")
                     +props.identityName
@@ -1344,6 +1556,23 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                         inboxPopoverRef,
                         { closeInbox() },
                         ::loadMoreInbox,
+                    )
+                }
+                if (isComplaintQueueOpen) {
+                    postComplaintQueuePopover(
+                        translator = translator,
+                        identityVisualsFactory = visualsFactory,
+                        entries = complaintQueueEntries,
+                        isLoading = isComplaintQueueLoading,
+                        isAppending = isComplaintQueueAppending,
+                        errorText = complaintQueueError,
+                        hasMore = complaintQueueHasMore,
+                        popoverRef = complaintQueuePopoverRef,
+                        onClose = ::closeComplaintQueue,
+                        onLoadMore = ::loadMoreComplaintQueue,
+                        onConfirm = { decideComplaint(it, PostComplaintState.CONFIRMED) },
+                        onReject = { decideComplaint(it, PostComplaintState.REJECTED) },
+                        onDelete = { decideComplaint(it, PostComplaintState.DELETED) },
                     )
                 }
             }
@@ -1507,6 +1736,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onRequestDelete = ::requestDelete,
                     onCancelDelete = ::clearDeleteCandidate,
                     onConfirmDelete = ::confirmDelete,
+                    complaintActionPostId = complaintActionPostId,
+                    onRequestComplaint = ::requestPostComplaint,
                     canComposeAdminMessage = adminPresentation.canDeleteAsAdmin,
                     adminUserCardAnchorId = adminUserCardAnchorId,
                     adminMessageRecipientName = adminMessageRecipientName,
@@ -1725,6 +1956,8 @@ private fun ChildrenBuilder.postsColumn(
     onRequestDelete: (QueryResult.Entry) -> Unit,
     onCancelDelete: () -> Unit,
     onConfirmDelete: (QueryResult.Entry) -> Unit,
+    complaintActionPostId: String?,
+    onRequestComplaint: (QueryResult.Entry) -> Unit,
     canComposeAdminMessage: Boolean,
     adminUserCardAnchorId: String?,
     adminMessageRecipientName: String?,
@@ -1844,6 +2077,9 @@ private fun ChildrenBuilder.postsColumn(
                         onRequestDelete = { onRequestDelete(entry) },
                         onCancelDelete = { onCancelDelete() },
                         onConfirmDelete = { onConfirmDelete(entry) },
+                        canComplain = connectedGid != null && entry.authorGID != connectedGid,
+                        isComplaining = complaintActionPostId == entry.id,
+                        onRequestComplaint = { onRequestComplaint(entry) },
                         canComposeAdminMessage = canComposeAdminMessage,
                         onToggleAdminUserCard = onToggleAdminUserCard,
                     )
@@ -2263,6 +2499,9 @@ private fun ChildrenBuilder.postCard(
     onRequestDelete: () -> Unit,
     onCancelDelete: () -> Unit,
     onConfirmDelete: () -> Unit,
+    canComplain: Boolean,
+    isComplaining: Boolean,
+    onRequestComplaint: () -> Unit,
     canComposeAdminMessage: Boolean,
     onToggleAdminUserCard: (String, String, String, String) -> Unit,
 ) {
@@ -2372,6 +2611,22 @@ private fun ChildrenBuilder.postCard(
                         }
                         i {
                             className = ClassName("fa fa-solid fa-trash")
+                        }
+                    }
+                }
+                if (canComplain) {
+                    val complaintLabel = translator.translate("connected.complaints.post.action")
+                    button {
+                        className = ClassName("post-card__filter")
+                        disabled = isComplaining
+                        ariaLabel = complaintLabel
+                        title = complaintLabel
+                        onClick = { event: MouseEvent<*, *> ->
+                            event.stopPropagation()
+                            onRequestComplaint()
+                        }
+                        i {
+                            className = ClassName("fa fa-regular fa-flag")
                         }
                     }
                 }
@@ -2513,6 +2768,134 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
                 div {
                     className = ClassName("message-inbox__meta")
                     +translator.translate("connected.messages.inbox.loadingMore")
+                }
+            }
+        }
+    }
+}
+
+private fun ChildrenBuilder.postComplaintQueuePopover(
+    translator: Translator,
+    identityVisualsFactory: IdentityVisualsFactory,
+    entries: List<OpenPostComplaint>,
+    isLoading: Boolean,
+    isAppending: Boolean,
+    errorText: String?,
+    hasMore: Boolean,
+    popoverRef: Ref<HTMLDivElement>,
+    onClose: () -> Unit,
+    onLoadMore: () -> Unit,
+    onConfirm: (OpenPostComplaint) -> Unit,
+    onReject: (OpenPostComplaint) -> Unit,
+    onDelete: (OpenPostComplaint) -> Unit,
+) = div {
+    ref = popoverRef
+    className = ClassName("message-inbox complaint-queue")
+    div {
+        className = ClassName("message-inbox__header")
+        span {
+            className = ClassName("message-inbox__title")
+            +translator.translate("connected.complaints.admin.title")
+        }
+        button {
+            className = ClassName("message-inbox__close")
+            ariaLabel = translator.translate("connected.complaints.admin.close")
+            onClick = { onClose() }
+            +"×"
+        }
+    }
+    when {
+        isLoading ->
+            div {
+                className = ClassName("message-inbox__empty")
+                +translator.translate("connected.complaints.admin.loading")
+            }
+
+        errorText != null ->
+            div {
+                className = ClassName("message-inbox__error")
+                +errorText
+            }
+
+        entries.isEmpty() ->
+            div {
+                className = ClassName("message-inbox__empty")
+                +translator.translate("connected.complaints.admin.empty")
+            }
+
+        else -> {
+            entries.forEach { entry ->
+                val complainantVisuals = identityVisualsFactory.createFromGid(entry.complainantGid)
+                val postAuthorVisuals = identityVisualsFactory.createFromGid(entry.postAuthorGid)
+                div {
+                    key = entry.complaintId.unsafeCast<Key>()
+                    className = ClassName("message-inbox__entry complaint-queue__entry")
+                    div {
+                        className = ClassName("message-inbox__sender")
+                        img {
+                            className = ClassName("message-inbox__sender-avatar")
+                            src = complainantVisuals.avatar
+                            alt = complainantVisuals.name.toString()
+                        }
+                        div {
+                            className = ClassName("message-inbox__sender-details")
+                            span {
+                                className = ClassName("message-inbox__sender-name")
+                                +translator.translate(
+                                    "connected.complaints.admin.from",
+                                    mapOf("name" to complainantVisuals.name.toString().trim()),
+                                )
+                            }
+                            span {
+                                className = ClassName("message-inbox__timestamp")
+                                +formatTimestamp(entry.createdAt)
+                            }
+                        }
+                    }
+                    span {
+                        className = ClassName("message-inbox__subject")
+                        +translator.translate(
+                            "connected.complaints.admin.postAuthor",
+                            mapOf("name" to postAuthorVisuals.name.toString().trim()),
+                        )
+                    }
+                    div {
+                        className = ClassName("message-inbox__body")
+                        +entry.postText
+                    }
+                    div {
+                        className = ClassName("message-inbox__meta")
+                        +translator.translate(
+                            "connected.complaints.admin.reason",
+                            mapOf("reason" to entry.reason),
+                        )
+                    }
+                    div {
+                        className = ClassName("complaint-queue__actions")
+                        button {
+                            className = ClassName("button button--secondary complaint-queue__action")
+                            onClick = { onConfirm(entry) }
+                            +translator.translate("connected.complaints.admin.confirm")
+                        }
+                        button {
+                            className = ClassName("button button--secondary complaint-queue__action")
+                            onClick = { onReject(entry) }
+                            +translator.translate("connected.complaints.admin.reject")
+                        }
+                        button {
+                            className = ClassName("button button--primary complaint-queue__action")
+                            onClick = { onDelete(entry) }
+                            +translator.translate("connected.complaints.admin.delete")
+                        }
+                    }
+                }
+            }
+            if (hasMore) {
+                button {
+                    className = ClassName("button button--secondary complaint-queue__load-more")
+                    disabled = isAppending
+                    onClick = { onLoadMore() }
+                    +translator.translate("connected.complaints.admin.loadMore")
                 }
             }
         }

@@ -10,6 +10,12 @@ import straightway.mosa.base.BaseController
 import straightway.mosa.config.AdminAllowList
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.content.ContentCommandLineOptions.Companion.MAX_FETCH_ITEMS
+import straightway.mosa.content.complaint.PostComplaintController
+import straightway.mosa.content.complaint.PostComplaintService
+import straightway.mosa.content.complaint.PostComplaintSignatureVerifier
+import straightway.mosa.content.complaint.PostComplaintStore
+import straightway.mosa.content.complaint.PostComplaintsTable
+import straightway.mosa.content.complaint.SqlitePostComplaintStore
 import straightway.mosa.content.snapshot.FileBackedFreezeSnapshotArchiveKeyStore
 import straightway.mosa.content.snapshot.FreezeSnapshotActiveArchiveKeyProvider
 import straightway.mosa.content.snapshot.FreezeSnapshotArchiveKeyStore
@@ -82,9 +88,10 @@ fun Module.configureContentAppModule() {
     }
     single(createdAtStart = true) {
         StructuredStateDatabase(defaultStructuredStateDatabasePath()).also {
-            it.initialize(AdminMessagesTable)
+            it.initialize(AdminMessagesTable, PostComplaintsTable)
         }
     }
+    single<PostComplaintStore> { SqlitePostComplaintStore(get()) }
     single<AdminMessageStore> { SqliteAdminMessageStore(get()) }
     single {
         val admins = get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
@@ -103,9 +110,27 @@ fun Module.configureContentAppModule() {
             expectedGidByteLength = get<HasherFactory>()().digest(byteArrayOf()).size,
         )
     }
+    single {
+        val admins = get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
+        PostComplaintService(
+            store = get(),
+            contentService = get(),
+            adminMessageService = get(),
+            clock = get(),
+            isAdmin = { gid -> (admins.get() ?: AdminAllowList(emptyList())).adminGids.contains(gid) },
+            idFactory = {
+                java.util.UUID
+                    .randomUUID()
+                    .toString()
+            },
+            openPageSize = 10,
+        )
+    }
     single(createdAtStart = true) { AdminMessageCleanupJob(get(), cleanupInterval = 6.hours) } onClose { it?.close() }
     single { ContentSignatureVerifier(get(), get(), get()) }
+    single { PostComplaintSignatureVerifier(get(), get(), get()) }
     single { ContentController(get(), get(), get()) } bind BaseController::class
+    single { PostComplaintController(get(), get()) } bind BaseController::class
     single { PrivacySnapshotController(get(), get(), get()) } bind BaseController::class
     single { AdminMessageController(get()) } bind BaseController::class
 }

@@ -15,10 +15,15 @@ import io.ktor.http.contentType
 import straightway.mosa.auth.AuthenticationApprovalRequest
 import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.content.ContentCapabilitiesResult
+import straightway.mosa.content.complaint.CreatePostComplaintRequest
+import straightway.mosa.content.complaint.DecidePostComplaintRequest
 import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
+import straightway.mosa.content.complaint.OpenPostComplaintCountResult
+import straightway.mosa.content.complaint.OpenPostComplaintsResult
+import straightway.mosa.content.complaint.PostComplaintAvailabilityResult
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
@@ -64,6 +69,26 @@ interface PodAccess {
         gid: String? = null,
     ): ContentCapabilitiesResult =
         error("Content capabilities endpoint is not implemented for this PodAccess")
+    suspend fun postComplaintStatus(
+        postId: String,
+        jwt: String,
+    ): PostComplaintAvailabilityResult =
+        error("Post complaint status endpoint is not implemented for this PodAccess")
+    suspend fun createPostComplaint(
+        request: CreatePostComplaintRequest,
+        jwt: String,
+    ): Unit = error("Create post complaint endpoint is not implemented for this PodAccess")
+    suspend fun openPostComplaintCount(jwt: String): OpenPostComplaintCountResult =
+        error("Open post complaint count endpoint is not implemented for this PodAccess")
+    suspend fun openPostComplaints(
+        jwt: String,
+        page: Int = 1,
+    ): OpenPostComplaintsResult =
+        error("Open post complaints endpoint is not implemented for this PodAccess")
+    suspend fun decidePostComplaint(
+        request: DecidePostComplaintRequest,
+        jwt: String,
+    ): Unit = error("Post complaint decision endpoint is not implemented for this PodAccess")
     suspend fun exportPostsCsv(jwt: String): ByteArray
     suspend fun freezePrivacySnapshot(jwt: String): ByteArray
     suspend fun restorePrivacySnapshot(snapshot: ByteArray, jwt: String): FreezeSnapshotRestoreResult
@@ -184,6 +209,43 @@ class PodAccessImpl(
         get("/v1/posts/capabilities", jwt, gid)
             .ensureSuccess("/v1/posts/capabilities", Unit)
             .body()
+
+    override suspend fun postComplaintStatus(
+        postId: String,
+        jwt: String,
+    ): PostComplaintAvailabilityResult =
+        get("/v1/posts/$postId/complaint-status", jwt = jwt)
+            .ensureSuccess("/v1/posts/$postId/complaint-status", postId)
+            .body()
+
+    override suspend fun createPostComplaint(
+        request: CreatePostComplaintRequest,
+        jwt: String,
+    ) {
+        val path = "/v1/post-complaints"
+        post(path, request, jwt).ensureSuccess(path, request)
+    }
+
+    override suspend fun openPostComplaintCount(jwt: String): OpenPostComplaintCountResult =
+        get("/v1/admin/post-complaints/count", jwt = jwt)
+            .ensureSuccess("/v1/admin/post-complaints/count", Unit)
+            .body()
+
+    override suspend fun openPostComplaints(
+        jwt: String,
+        page: Int,
+    ): OpenPostComplaintsResult =
+        get("/v1/admin/post-complaints", jwt = jwt, page = page)
+            .ensureSuccess("/v1/admin/post-complaints", Unit)
+            .body()
+
+    override suspend fun decidePostComplaint(
+        request: DecidePostComplaintRequest,
+        jwt: String,
+    ) {
+        val path = "/v1/admin/post-complaints/decision"
+        post(path, request, jwt).ensureSuccess(path, request)
+    }
 
     override suspend fun exportPostsCsv(jwt: String): ByteArray =
         get("/v1/posts/export.csv", jwt)

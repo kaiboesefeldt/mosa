@@ -248,6 +248,122 @@ types:
         - 'AxY0b1p3...'
         - 'R0oTId42'
 
+  PostComplaintState:
+    type: string
+    enum: [ OPEN, CONFIRMED, REJECTED, DELETED ]
+
+  PostComplaintAvailability:
+    type: string
+    enum: [ AVAILABLE, OPEN, BLOCKED ]
+
+  CreatePostComplaintRequest:
+    type: object
+    properties:
+      postId: string
+      reason:
+        type: string
+        minLength: 1
+        maxLength: 500
+      signature:
+        type: string
+        description: Base64url-encoded Ed25519 signature over the canonical complaint payload
+      signatureVersion:
+        type: integer
+        description: Version of the canonical complaint signature payload
+    example:
+      postId: 'AxY0b1p3...'
+      reason: 'Spam'
+      signature: 'MEQCIAcomplaintSignature'
+      signatureVersion: 1
+
+  DecidePostComplaintRequest:
+    type: object
+    properties:
+      complaintId: string
+      postId: string
+      targetStatus: PostComplaintState
+      feedback:
+        type: string
+        minLength: 1
+        maxLength: 1000
+      signature:
+        type: string
+        description: Base64url-encoded Ed25519 signature over the canonical complaint decision payload
+      signatureVersion:
+        type: integer
+        description: Version of the canonical complaint decision signature payload
+    example:
+      complaintId: '6a7b5e3c-1234-5678-9abc-def012345678'
+      postId: 'AxY0b1p3...'
+      targetStatus: 'CONFIRMED'
+      feedback: 'Checked'
+      signature: 'MEQCIAdecisionSignature'
+      signatureVersion: 1
+
+  PostComplaintAvailabilityResult:
+    type: object
+    properties:
+      postId: string
+      availability: PostComplaintAvailability
+    example:
+      postId: 'AxY0b1p3...'
+      availability: 'OPEN'
+
+  OpenPostComplaint:
+    type: object
+    properties:
+      complaintId: string
+      postId: string
+      postText: string
+      postAuthorGid: string
+      postCreatedAt:
+        type: integer
+        format: int64
+      complainantGid: string
+      reason: string
+      createdAt:
+        type: integer
+        format: int64
+    example:
+      complaintId: '6a7b5e3c-1234-5678-9abc-def012345678'
+      postId: 'AxY0b1p3...'
+      postText: 'Foreign post'
+      postAuthorGid: 'authorGid123'
+      postCreatedAt: 1700000000
+      complainantGid: 'complainantGid123'
+      reason: 'Spam'
+      createdAt: 1700000005
+
+  OpenPostComplaintCountResult:
+    type: object
+    properties:
+      count:
+        type: integer
+    example:
+      count: 2
+
+  OpenPostComplaintsResult:
+    type: object
+    properties:
+      entries:
+        type: OpenPostComplaint[]
+      page:
+        type: integer
+      hasMore:
+        type: boolean
+    example:
+      entries:
+        - complaintId: '6a7b5e3c-1234-5678-9abc-def012345678'
+          postId: 'AxY0b1p3...'
+          postText: 'Foreign post'
+          postAuthorGid: 'authorGid123'
+          postCreatedAt: 1700000000
+          complainantGid: 'complainantGid123'
+          reason: 'Spam'
+          createdAt: 1700000005
+      page: 1
+      hasMore: false
+
   CreateAdminMessageRequest:
     type: object
     properties:
@@ -668,6 +784,81 @@ securitySchemes:
             description: Server error
 
   /admin:
+    /post-complaints:
+      /count:
+        get:
+          is: [ rateLimited ]
+          securedBy: [ bearerAuth ]
+          displayName: Count Open Post Complaints
+          description: |
+            Return the number of currently open post complaints.
+            The authenticated caller must be listed as an admin.
+          responses:
+            200:
+              body:
+                application/json:
+                  type: OpenPostComplaintCountResult
+            401:
+              description: Missing or invalid bearer token
+            403:
+              description: Authenticated user is not allowed to access post complaints
+            5xx:
+              description: Server error
+      get:
+        is: [ rateLimited ]
+        securedBy: [ bearerAuth ]
+        displayName: List Open Post Complaints
+        description: |
+          Return a paged list of currently open post complaints in ascending creation order.
+          The authenticated caller must be listed as an admin.
+        queryParameters:
+          page?:
+            type: integer
+            minimum: 1
+            default: 1
+            description: 1-based page number with a fixed server-side page size
+        responses:
+          200:
+            body:
+              application/json:
+                type: OpenPostComplaintsResult
+          400:
+            description: Invalid request (e.g., page < 1 or non-integer page)
+          401:
+            description: Missing or invalid bearer token
+          403:
+            description: Authenticated user is not allowed to access post complaints
+          5xx:
+            description: Server error
+      /decision:
+        post:
+          is: [ rateLimited ]
+          securedBy: [ bearerAuth ]
+          displayName: Decide Post Complaint
+          description: |
+            Close one open post complaint with an admin decision and send the admin feedback to the complainant inbox.
+            The authenticated caller must be listed as an admin.
+          body:
+            application/json:
+              type: DecidePostComplaintRequest
+          responses:
+            204:
+              description: Complaint updated
+            400:
+              description: Invalid request (e.g., blank ids, blank feedback, OPEN targetStatus, or postId mismatch)
+            401:
+              description: Missing or invalid bearer token
+            403:
+              description: Authenticated user is not allowed to access post complaints
+            404:
+              description: Complaint or target post not found
+            409:
+              description: Complaint is already closed
+            422:
+              description: Unsupported signature version or signature verification failed
+            5xx:
+              description: Server error
+
     /messages:
       post:
         is: [ rateLimited ]
@@ -793,6 +984,26 @@ securitySchemes:
           description: Server error
 
   /posts/{id}:
+    /complaint-status:
+      get:
+        is: [ rateLimited ]
+        securedBy: [ bearerAuth ]
+        displayName: Get Post Complaint Availability
+        description: |
+          Return whether the authenticated user can currently create a new complaint for the addressed post.
+        responses:
+          200:
+            body:
+              application/json:
+                type: PostComplaintAvailabilityResult
+          400:
+            description: Invalid or missing id
+          401:
+            description: Missing or invalid bearer token
+          404:
+            description: Post not found
+          5xx:
+            description: Server error
     delete:
       is: [ rateLimited ]
       securedBy: [ bearerAuth ]
@@ -831,6 +1042,33 @@ securitySchemes:
               type: DeletePostsResult
         401:
           description: Missing or invalid bearer token
+        5xx:
+          description: Server error
+
+  /post-complaints:
+    post:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Create Post Complaint
+      description: |
+        Create a new complaint for one post.
+        At most one open complaint can exist for a post at a time.
+      body:
+        application/json:
+          type: CreatePostComplaintRequest
+      responses:
+        201:
+          description: Created
+        400:
+          description: Invalid request (e.g., blank postId, blank reason, own post, malformed signature encoding, or reason exceeds 500 characters)
+        401:
+          description: Missing or invalid bearer token
+        404:
+          description: Post not found
+        409:
+          description: An open complaint already exists or new complaints are blocked for this post
+        422:
+          description: Unsupported signature version or signature verification failed
         5xx:
           description: Server error
 

@@ -25,6 +25,8 @@ import straightway.mosa.base.findPayloadTooLarge
 import straightway.mosa.content.ContentService.ContentForbiddenException
 import straightway.mosa.content.ContentService.ContentNotFoundException
 import straightway.mosa.content.UnprocessableContentException
+import straightway.mosa.content.complaint.PostComplaintConflictException
+import straightway.mosa.content.complaint.PostComplaintForbiddenException
 import straightway.mosa.content.snapshot.InvalidFreezeSnapshotException
 import straightway.mosa.jackson.InstantJacksonSerializers
 import straightway.mosa.message.AdminMessageService.AdminMessageForbiddenException
@@ -51,6 +53,12 @@ fun Application.installNetworkServerPlugins() {
         }
         exception<AdminMessageForbiddenException> { call, cause ->
             call.respond(HttpStatusCode.Forbidden, mapOf("message" to cause.message))
+        }
+        exception<PostComplaintForbiddenException> { call, cause ->
+            call.respond(HttpStatusCode.Forbidden, mapOf("message" to cause.message))
+        }
+        exception<PostComplaintConflictException> { call, cause ->
+            call.respond(HttpStatusCode.Conflict, mapOf("message" to cause.message))
         }
         exception<InvalidFreezeSnapshotException> { call, cause ->
             call.respond(HttpStatusCode.BadRequest, mapOf("message" to cause.message))

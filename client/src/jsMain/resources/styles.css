@@ -992,6 +992,29 @@ button:disabled {
     font-size: 0.84rem;
 }
 
+.complaint-queue {
+    right: 3.6rem;
+}
+
+.complaint-queue__entry {
+    gap: 0.55rem;
+}
+
+.complaint-queue__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.complaint-queue__action {
+    padding: 0.38rem 0.7rem;
+    font-size: 0.78rem;
+}
+
+.complaint-queue__load-more {
+    justify-self: start;
+}
+
 .connected-shell__content {
     display: grid;
     gap: 0.8rem;
