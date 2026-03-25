@@ -23,14 +23,12 @@ import straightway.mosa.client.content.PostPublisher
 import straightway.mosa.client.content.ReplyCache
 import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.ReplySearchService
-import straightway.mosa.client.content.Topic
 import straightway.mosa.client.content.TopicRepository
 import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.complaint.AdminPostComplaintService
 import straightway.mosa.client.content.complaint.PostComplaintService
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.pod.PodBaseProvider
-import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
 
 external interface IdentityConnectedViewProps : Props {
@@ -67,38 +65,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val repliesContainerRef = useRef<HTMLDivElement>()
     val repliesLoadMoreRef = useRef<HTMLDivElement>()
     val viewport = useIdentityConnectedViewViewportController()
-    fun setPaneForSelectedTopic(topic: Topic?) {
-        if (!viewport.isMobile) return
-        viewport.setMobilePane(if (topic == null) MobilePane.Topics else MobilePane.Posts)
-    }
-    fun setPaneForSelectedPost(entry: QueryResult.Entry?) {
-        if (!viewport.isMobile) return
-        viewport.setMobilePane(if (entry == null) MobilePane.Posts else MobilePane.Replies)
-    }
-
-    suspend fun persistSessionSnapshot(
-        builder: (IdentitySessionSnapshot?) -> IdentitySessionSnapshot,
-    ) {
-        val currentSnapshot = runCatching { sessionStore.load() }.getOrNull()
-        sessionStore.save(builder(currentSnapshot))
-    }
-
-    suspend fun persistProfileVisibilitySnapshot(visible: Boolean) {
-        persistSessionSnapshot { snapshot ->
-            IdentitySessionSnapshot(
-                connectedIdentityGid = snapshot?.connectedIdentityGid,
-                isProfileVisible = visible,
-                selectedTopicTitle = snapshot?.selectedTopicTitle,
-            )
-        }
-    }
 
     val profileController =
         useIdentityConnectedViewProfileController(
             sessionStore = sessionStore,
             scope = scope,
             isPersistedProfile = props.profile.isPersisted,
-            persistProfileVisibilitySnapshot = ::persistProfileVisibilitySnapshot,
+            persistProfileVisibilitySnapshot = { visible -> persistProfileVisibilitySnapshot(sessionStore, visible) },
         )
     val adminPresentation =
         useIdentityAdminPresentation(
@@ -127,9 +100,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             postsContainerRef = postsContainerRef,
             repliesContainerRef = repliesContainerRef,
             showToast = profileController.showToast,
-            persistSessionSnapshot = ::persistSessionSnapshot,
-            onTopicPaneRequested = ::setPaneForSelectedTopic,
-            onPostPaneRequested = ::setPaneForSelectedPost,
+            persistSessionSnapshot = { builder -> persistSessionSnapshot(sessionStore, builder) },
+            onTopicPaneRequested = { topic ->
+                setPaneForSelectedTopic(viewport.isMobile, viewport.setMobilePane, topic)
+            },
+            onPostPaneRequested = { entry ->
+                setPaneForSelectedPost(viewport.isMobile, viewport.setMobilePane, entry)
+            },
         )
     val moderation =
         useIdentityConnectedViewModerationController(

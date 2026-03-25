@@ -100,6 +100,8 @@ import straightway.mosa.message.CreateAdminMessageRequest
 class IdentityConnectedViewTest {
     private var originalPrompt: dynamic = null
     private var originalObserver: dynamic = null
+    private var originalMatchMedia: dynamic = null
+    private var originalInnerWidth: Int = 0
     private lateinit var sessionStore: ConnectedViewIdentitySessionStore
     private lateinit var inboxStateStore: InMemoryAdminMessageInboxStateStore
 
@@ -108,6 +110,8 @@ class IdentityConnectedViewTest {
         startKoinForTest(emptyList(), RecordingPodAccess(emptyMap()))
         originalPrompt = window.asDynamic().prompt
         originalObserver = window.asDynamic().IntersectionObserver
+        originalMatchMedia = window.asDynamic().matchMedia
+        originalInnerWidth = window.innerWidth
     }
 
     @AfterTest
@@ -115,6 +119,8 @@ class IdentityConnectedViewTest {
         cleanup()
         window.asDynamic().prompt = originalPrompt
         window.asDynamic().IntersectionObserver = originalObserver
+        window.asDynamic().matchMedia = originalMatchMedia
+        setWindowInnerWidth(originalInnerWidth)
         sessionStore.prime(IdentitySessionSnapshot(null, false))
         inboxStateStore.clear()
         window.asDynamic().MOSA_POD_BASE = null
@@ -523,6 +529,46 @@ class IdentityConnectedViewTest {
         assertEquals("older", replies.item(0)?.textContent?.trim())
         assertEquals("newer", replies.item(1)?.textContent?.trim())
         assertTrue(podAccess.searchInvocations.any { it.threadRootId == "root-1" })
+    }
+
+    @Test
+    fun `switches mobile panes on selection and back navigation`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                replyResponses =
+                    mapOf(
+                        "p1" to
+                            listOf(
+                                QueryResult(
+                                    entries = listOf(QueryResult.Entry("r-1", "reply-1", 0.8f, "reply-author", 5, "p1")),
+                                    queryOnId = "",
+                                ),
+                            ),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        useMobileViewport()
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelector(".topic-board--mobile-topics") != null }
+        waitForCondition { view.container.querySelector(".topic-card") != null }
+        user.click(topicCard(view.container, "Alpha")).await()
+        waitForCondition { view.container.querySelector(".topic-board--mobile-posts") != null }
+
+        user.click(view.container.querySelector(".post-card") ?: error("Post missing")).await()
+        waitForCondition { view.container.querySelector(".topic-board--mobile-replies") != null }
+
+        user.click(backButton(view.container, text("connected.mobile.backToPosts"))).await()
+        waitForCondition { view.container.querySelector(".topic-board--mobile-posts") != null }
+
+        user.click(backButton(view.container, text("connected.mobile.backToTopics"))).await()
+        waitForCondition { view.container.querySelector(".topic-board--mobile-topics") != null }
     }
 
     @Test
@@ -1578,6 +1624,31 @@ private fun inboxScrollTop(container: Element): Double =
 
     private fun filterResetButton(container: Element): Element =
         container.querySelector(".topic-board__filter-reset") ?: error("Filter reset button missing")
+
+    private fun backButton(container: Element, label: String): Element {
+        val buttons = container.querySelectorAll(".topic-board__back-button")
+        repeat(buttons.length) { index ->
+            val button = buttons.item(index) as? Element ?: return@repeat
+            if (button.textContent?.contains(label) == true) return button
+        }
+        error("Back button $label missing")
+    }
+
+    private fun useMobileViewport(width: Int = 800) {
+        window.asDynamic().matchMedia = { _: String ->
+            js("{ matches: false }")
+        }
+        setWindowInnerWidth(width)
+        window.dispatchEvent(org.w3c.dom.events.Event("resize"))
+    }
+
+    private fun setWindowInnerWidth(width: Int) {
+        val descriptor = js("({})")
+        descriptor.configurable = true
+        descriptor.writable = true
+        descriptor.value = width
+        js("Object").defineProperty(window, "innerWidth", descriptor)
+    }
 
     private fun overrideDependencies(
         topics: List<Topic>,
