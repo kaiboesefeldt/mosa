@@ -108,6 +108,11 @@ private data class SwipeTargets(
     var post: QueryResult.Entry?,
 )
 
+private data class ComplaintQueueEntry(
+    val complaint: OpenPostComplaint,
+    val state: PostComplaintState,
+)
+
 private val emptyInboxStateSnapshot =
     AdminMessageInboxStateSnapshot(
         knownMessageIds = emptyList(),
@@ -184,11 +189,12 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (isComplaintQueueOpen, setComplaintQueueOpen) = useState(false)
     val (isComplaintQueueLoading, setComplaintQueueLoading) = useState(false)
     val (isComplaintQueueAppending, setComplaintQueueAppending) = useState(false)
-    val (complaintQueueEntries, setComplaintQueueEntries) = useState<List<OpenPostComplaint>>(emptyList())
+    val (complaintQueueEntries, setComplaintQueueEntries) = useState<List<ComplaintQueueEntry>>(emptyList())
     val (complaintQueueError, setComplaintQueueError) = useState<String?>(null)
     val (complaintQueuePage, setComplaintQueuePage) = useState(1)
     val (complaintQueueHasMore, setComplaintQueueHasMore) = useState(false)
     val (openComplaintCount, setOpenComplaintCount) = useState(0)
+    val (showProcessedComplaintEntries, setShowProcessedComplaintEntries) = useState(false)
     val (complaintActionPostId, setComplaintActionPostId) = useState<String?>(null)
     val (complaintComposerPostId, setComplaintComposerPostId) = useState<String?>(null)
     val (complaintComposerText, setComplaintComposerText) = useState("")
@@ -240,11 +246,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val complaintQueueButtonRef = useRef<HTMLButtonElement>()
     val inboxPopoverRef = useRef<HTMLDivElement>()
     val complaintQueuePopoverRef = useRef<HTMLDivElement>()
+    val complaintQueueEntriesRef = useRef<List<ComplaintQueueEntry>>(emptyList())
     val adminHistoryListRef = useRef<HTMLDivElement>()
     val inboxScrollRestoreRef = useRef<Double>()
     val adminHistoryScrollRestoreRef = useRef<Double>()
     isInboxOpenRef.current = isInboxOpen
     isComplaintQueueOpenRef.current = isComplaintQueueOpen
+    complaintQueueEntriesRef.current = complaintQueueEntries
     adminUserCardAnchorIdRef.current = adminUserCardAnchorId ?: ""
 
     useEffect(sessionStore) {
@@ -457,12 +465,16 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         result: OpenPostComplaintsResult,
         append: Boolean,
     ) {
-        val mergedEntries =
+        val currentEntries = complaintQueueEntriesRef.current ?: emptyList()
+        val processedEntries = currentEntries.filterNot(ComplaintQueueEntry::isOpen)
+        val openEntries =
             if (append) {
-                (complaintQueueEntries + result.entries).distinctBy(OpenPostComplaint::complaintId)
+                currentEntries.filter(ComplaintQueueEntry::isOpen) + result.entries.map(OpenPostComplaint::toQueueEntry)
             } else {
-                result.entries
+                result.entries.map(OpenPostComplaint::toQueueEntry)
             }
+        val mergedEntries = (openEntries + processedEntries).distinctBy(ComplaintQueueEntry::complaintId)
+        complaintQueueEntriesRef.current = mergedEntries
         setComplaintQueueEntries(mergedEntries)
         setComplaintQueuePage(result.page)
         setComplaintQueueHasMore(result.hasMore)
@@ -506,6 +518,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
 
     fun closeComplaintQueue() {
         setComplaintQueueOpen(false)
+    }
+
+    fun toggleProcessedComplaintVisibility() {
+        setShowProcessedComplaintEntries { current -> !current }
     }
 
     fun closeComplaintComposer() {
@@ -628,12 +644,22 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             val success =
                 adminPostComplaintService.decide(
                     complaintId = entry.complaintId,
-                    postId = entry.postId,
+                    postId = entry.complaint.postId,
                     targetStatus = targetStatus,
                     feedback = feedback,
                 )
             setComplaintDecisionSubmitting(false)
             if (success) {
+                val updatedEntries =
+                    (complaintQueueEntriesRef.current ?: emptyList()).map { currentEntry ->
+                        if (currentEntry.complaintId == complaintId) {
+                            currentEntry.copy(state = targetStatus)
+                        } else {
+                            currentEntry
+                        }
+                    }
+                complaintQueueEntriesRef.current = updatedEntries
+                setComplaintQueueEntries(updatedEntries)
                 closeComplaintDecisionComposer()
                 showToast(translator.translate("connected.complaints.admin.decided"))
                 refreshComplaintQueue(openAfterLoad = complaintQueueEntries.size > 1)
@@ -1068,6 +1094,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         )
     val hasHiddenSeenInboxEntries = hiddenSeenInboxMessageIds.isNotEmpty()
     val hasReadInboxEntries = seenInboxMessageIds.isNotEmpty()
+    val visibleComplaintQueueEntries = complaintQueueEntries.filteredForComplaintQueue(showProcessedComplaintEntries)
+    val hasHiddenProcessedComplaintEntries = complaintQueueEntries.any { !it.isOpen() }
 
     fun persistProfileVisibility(visible: Boolean) {
         if (visible) {
@@ -1627,12 +1655,15 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     postComplaintQueuePopover(
                         translator = translator,
                         identityVisualsFactory = visualsFactory,
-                        entries = complaintQueueEntries,
+                        entries = visibleComplaintQueueEntries,
                         isLoading = isComplaintQueueLoading,
                         isAppending = isComplaintQueueAppending,
                         errorText = complaintQueueError,
                         hasMore = complaintQueueHasMore,
+                        showProcessedEntries = showProcessedComplaintEntries,
+                        hasHiddenProcessedEntries = hasHiddenProcessedComplaintEntries,
                         popoverRef = complaintQueuePopoverRef,
+                        onToggleProcessedVisibility = ::toggleProcessedComplaintVisibility,
                         onClose = ::closeComplaintQueue,
                         onLoadMore = ::loadMoreComplaintQueue,
                         decisionEntryId = complaintDecisionEntryId,
@@ -3102,12 +3133,15 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
 private fun ChildrenBuilder.postComplaintQueuePopover(
     translator: Translator,
     identityVisualsFactory: IdentityVisualsFactory,
-    entries: List<OpenPostComplaint>,
+    entries: List<ComplaintQueueEntry>,
     isLoading: Boolean,
     isAppending: Boolean,
     errorText: String?,
     hasMore: Boolean,
+    showProcessedEntries: Boolean,
+    hasHiddenProcessedEntries: Boolean,
     popoverRef: Ref<HTMLDivElement>,
+    onToggleProcessedVisibility: () -> Unit,
     onClose: () -> Unit,
     onLoadMore: () -> Unit,
     decisionEntryId: String?,
@@ -3129,6 +3163,30 @@ private fun ChildrenBuilder.postComplaintQueuePopover(
         span {
             className = ClassName("message-inbox__title")
             +translator.translate("connected.complaints.admin.title")
+        }
+        button {
+            className =
+                if (showProcessedEntries) {
+                    ClassName("message-inbox__filter message-inbox__filter--active")
+                } else {
+                    ClassName("message-inbox__filter")
+                }
+            ariaLabel =
+                translator.translate(
+                    if (showProcessedEntries) {
+                        "connected.complaints.admin.hideProcessed"
+                    } else {
+                        "connected.complaints.admin.showProcessed"
+                    },
+                )
+            onClick = { onToggleProcessedVisibility() }
+            +translator.translate(
+                if (showProcessedEntries) {
+                    "connected.complaints.admin.hideProcessed"
+                } else {
+                    "connected.complaints.admin.showProcessed"
+                },
+            )
         }
         button {
             className = ClassName("message-inbox__close")
@@ -3153,16 +3211,23 @@ private fun ChildrenBuilder.postComplaintQueuePopover(
         entries.isEmpty() ->
             div {
                 className = ClassName("message-inbox__empty")
-                +translator.translate("connected.complaints.admin.empty")
+                +translator.translate(
+                    if (!showProcessedEntries && hasHiddenProcessedEntries) {
+                        "connected.complaints.admin.emptyOpen"
+                    } else {
+                        "connected.complaints.admin.empty"
+                    },
+                )
             }
 
         else -> {
             entries.forEach { entry ->
-                val complainantVisuals = identityVisualsFactory.createFromGid(entry.complainantGid)
-                val postAuthorVisuals = identityVisualsFactory.createFromGid(entry.postAuthorGid)
-                val showDecisionComposer = decisionEntryId == entry.complaintId
+                val complaint = entry.complaint
+                val complainantVisuals = identityVisualsFactory.createFromGid(complaint.complainantGid)
+                val postAuthorVisuals = identityVisualsFactory.createFromGid(complaint.postAuthorGid)
+                val showDecisionComposer = decisionEntryId == complaint.complaintId
                 div {
-                    key = entry.complaintId.unsafeCast<Key>()
+                    key = complaint.complaintId.unsafeCast<Key>()
                     className = ClassName("message-inbox__entry complaint-queue__entry")
                     div {
                         className = ClassName("message-inbox__sender")
@@ -3182,7 +3247,7 @@ private fun ChildrenBuilder.postComplaintQueuePopover(
                             }
                             span {
                                 className = ClassName("message-inbox__timestamp")
-                                +formatTimestamp(entry.createdAt)
+                                +formatTimestamp(complaint.createdAt)
                             }
                         }
                     }
@@ -3195,34 +3260,36 @@ private fun ChildrenBuilder.postComplaintQueuePopover(
                     }
                     div {
                         className = ClassName("message-inbox__body")
-                        +entry.postText
+                        +complaint.postText
                     }
                     div {
                         className = ClassName("message-inbox__meta")
                         +translator.translate(
                             "connected.complaints.admin.reason",
-                            mapOf("reason" to entry.reason),
+                            mapOf("reason" to complaint.reason),
                         )
                     }
-                    div {
-                        className = ClassName("complaint-queue__actions")
-                        button {
-                            className = ClassName("button button--secondary complaint-queue__action")
-                            disabled = isDecisionSubmitting
-                            onClick = { onConfirm(entry) }
-                            +translator.translate("connected.complaints.admin.confirm")
-                        }
-                        button {
-                            className = ClassName("button button--secondary complaint-queue__action")
-                            disabled = isDecisionSubmitting
-                            onClick = { onReject(entry) }
-                            +translator.translate("connected.complaints.admin.reject")
-                        }
-                        button {
-                            className = ClassName("button button--primary complaint-queue__action")
-                            disabled = isDecisionSubmitting
-                            onClick = { onDelete(entry) }
-                            +translator.translate("connected.complaints.admin.delete")
+                    if (entry.isOpen()) {
+                        div {
+                            className = ClassName("complaint-queue__actions")
+                            button {
+                                className = ClassName("button button--secondary complaint-queue__action")
+                                disabled = isDecisionSubmitting
+                                onClick = { onConfirm(complaint) }
+                                +translator.translate("connected.complaints.admin.confirm")
+                            }
+                            button {
+                                className = ClassName("button button--secondary complaint-queue__action")
+                                disabled = isDecisionSubmitting
+                                onClick = { onReject(complaint) }
+                                +translator.translate("connected.complaints.admin.reject")
+                            }
+                            button {
+                                className = ClassName("button button--primary complaint-queue__action")
+                                disabled = isDecisionSubmitting
+                                onClick = { onDelete(complaint) }
+                                +translator.translate("connected.complaints.admin.delete")
+                            }
                         }
                     }
                     if (showDecisionComposer) {
@@ -3263,6 +3330,20 @@ private fun complaintDecisionTitle(
         PostComplaintState.DELETED -> translator.translate("connected.complaints.admin.composeDeleted")
         PostComplaintState.OPEN, null -> translator.translate("connected.complaints.admin.title")
     }
+
+private fun OpenPostComplaint.toQueueEntry(): ComplaintQueueEntry = ComplaintQueueEntry(complaint = this, state = PostComplaintState.OPEN)
+
+private val ComplaintQueueEntry.complaintId: String
+    get() = complaint.complaintId
+
+private fun ComplaintQueueEntry.isOpen(): Boolean = state == PostComplaintState.OPEN
+
+private fun List<ComplaintQueueEntry>.filteredForComplaintQueue(showProcessedEntries: Boolean): List<ComplaintQueueEntry> {
+    if (showProcessedEntries) {
+        return this
+    }
+    return filter(ComplaintQueueEntry::isOpen)
+}
 
 private fun ChildrenBuilder.adminUserActionCardOverlay(
     translator: Translator,

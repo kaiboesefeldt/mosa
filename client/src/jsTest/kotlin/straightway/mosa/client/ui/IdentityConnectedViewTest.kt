@@ -90,6 +90,7 @@ import straightway.mosa.content.complaint.OpenPostComplaint
 import straightway.mosa.content.complaint.OpenPostComplaintCountResult
 import straightway.mosa.content.complaint.OpenPostComplaintsResult
 import straightway.mosa.content.complaint.PostComplaintAvailabilityResult
+import straightway.mosa.content.complaint.PostComplaintState
 import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.message.AdminMessage
@@ -894,6 +895,64 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `retains processed complaints and shows them through the complaint filter`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                complaintResponses =
+                    listOf(
+                        OpenPostComplaintsResult(
+                            entries =
+                                listOf(
+                                    OpenPostComplaint(
+                                        complaintId = "complaint-1",
+                                        postId = "p1",
+                                        postText = "content-p1",
+                                        postAuthorGid = "gid-author",
+                                        postCreatedAt = 10,
+                                        complainantGid = "gid-complainant",
+                                        reason = "Bitte pruefen",
+                                        createdAt = 11,
+                                    ),
+                                ),
+                        ),
+                        OpenPostComplaintsResult(emptyList()),
+                    ),
+                complaintCountResult = OpenPostComplaintCountResult(1),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+        user.click(complaintQueueButton(view.container)).await()
+        waitForCondition { complaintQueueEntry(view.container, "Bitte pruefen") != null }
+
+        user.click(complaintQueueActionButton(view.container, text("connected.complaints.admin.confirm"))).await()
+        waitForCondition { view.container.querySelector(".complaint-composer__textarea") != null }
+        user.type(
+            view.container.querySelector(".complaint-composer__textarea") ?: error("Complaint feedback missing"),
+            "Checked",
+        ).await()
+        user.click(view.container.querySelector(".complaint-composer__send") ?: error("Complaint send button missing")).await()
+
+        waitForCondition {
+            podAccess.decideComplaintRequests.singleOrNull()?.targetStatus == PostComplaintState.CONFIRMED
+        }
+        waitForCondition { complaintQueueEntry(view.container, "Bitte pruefen") == null }
+        assertTrue(view.container.textContent?.contains(text("connected.complaints.admin.emptyOpen")) == true)
+
+        user.click(complaintQueueFilterButton(view.container)).await()
+        waitForCondition { complaintQueueEntry(view.container, "Bitte pruefen") != null }
+        assertEquals(2, podAccess.complaintRequests.size)
+    }
+
+    @Test
     fun `shows admin notice sender with avatar and fictional name`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val podAccess =
@@ -1575,6 +1634,28 @@ private fun inboxScrollTop(container: Element): Double =
         container.querySelector(".connected-shell__inbox-button[title='${text("connected.complaints.admin.button")}']")
             ?: error("Complaint queue button missing")
 
+    private fun complaintQueueFilterButton(container: Element): Element =
+        container.querySelector(".complaint-queue .message-inbox__filter") ?: error("Complaint filter button missing")
+
+    private fun complaintQueueEntry(container: Element, reason: String): Element? {
+        val nodes = container.querySelectorAll(".complaint-queue__entry")
+        repeat(nodes.length) { index ->
+            val node = nodes.item(index) as? Element ?: return@repeat
+            val label = node.querySelector(".message-inbox__meta")?.textContent?.trim()
+            if (label?.contains(reason) == true) return node
+        }
+        return null
+    }
+
+    private fun complaintQueueActionButton(container: Element, label: String): Element {
+        val buttons = container.querySelectorAll(".complaint-queue__action")
+        repeat(buttons.length) { index ->
+            val button = buttons.item(index) as? Element ?: return@repeat
+            if (button.textContent?.trim() == label) return button
+        }
+        error("Complaint action button $label missing")
+    }
+
     private fun inboxBadge(container: Element): Element? =
         container.querySelector(".connected-shell__inbox-badge")
 
@@ -1842,6 +1923,7 @@ private class RecordingPodAccess(
     val messagesRequests = mutableListOf<MessageRequest>()
     val adminMessagesRequests = mutableListOf<AdminHistoryRequest>()
     val complaintRequests = mutableListOf<Int>()
+    val decideComplaintRequests = mutableListOf<DecidePostComplaintRequest>()
     var shouldFailPublish = false
     private val inboxResponseQueue = inboxResponses.toMutableList()
     private val adminHistoryResponseQueue = adminHistoryResponses.toMutableList()
@@ -1968,7 +2050,7 @@ private class RecordingPodAccess(
         request: DecidePostComplaintRequest,
         jwt: String,
     ) {
-        error("Not implemented")
+        decideComplaintRequests += request
     }
 
     override suspend fun freezePrivacySnapshot(jwt: String): ByteArray {
