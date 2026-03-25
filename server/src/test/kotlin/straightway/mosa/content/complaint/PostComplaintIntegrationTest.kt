@@ -362,6 +362,98 @@ class PostComplaintIntegrationTest {
         }
 
     @Test
+    fun `admin can later change rejected complaint to confirmed`() =
+        runTest {
+            withFixture { fixture ->
+                val admin = fixture.identity()
+                val complainant = fixture.identity()
+                val nextComplainant = fixture.identity()
+                fixture.adminGids += admin.gid
+                val postId = fixture.publishPost("author-1", "Foreign post", 1)
+                fixture.createComplaint(complainant, postId, "Spam")
+
+                fixture.env {
+                    val rejectResponse =
+                        client.post("/v1/admin/post-complaints/decision") {
+                            bearerAuth(admin.token)
+                            setJsonBody(
+                                DecidePostComplaintRequest(
+                                    complaintId = "complaint-1",
+                                    postId = postId,
+                                    targetStatus = PostComplaintState.REJECTED,
+                                    feedback = "Allowed",
+                                    signature = fixture.signDecision(admin.keyPair, postId, PostComplaintState.REJECTED, "Allowed"),
+                                ),
+                            )
+                        }
+                    assertEquals(HttpStatusCode.NoContent, rejectResponse.status)
+
+                    val processedList =
+                        client.get("/v1/admin/post-complaints") {
+                            bearerAuth(admin.token)
+                            parameter("includeProcessed", true)
+                        }
+                    assertEquals(
+                        OpenPostComplaintsResult(
+                            entries =
+                                listOf(
+                                    OpenPostComplaint(
+                                        complaintId = "complaint-1",
+                                        postId = postId,
+                                        postText = "Foreign post",
+                                        postAuthorGid = "author-1",
+                                        postCreatedAt = 1,
+                                        complainantGid = complainant.gid,
+                                        reason = "Spam",
+                                        createdAt = fixture.initialEpochSeconds,
+                                        state = PostComplaintState.REJECTED,
+                                    ),
+                                ),
+                            page = 1,
+                            hasMore = false,
+                        ),
+                        processedList.body(),
+                    )
+
+                    val confirmResponse =
+                        client.post("/v1/admin/post-complaints/decision") {
+                            bearerAuth(admin.token)
+                            setJsonBody(
+                                DecidePostComplaintRequest(
+                                    complaintId = "complaint-1",
+                                    postId = postId,
+                                    targetStatus = PostComplaintState.CONFIRMED,
+                                    feedback = "Actually justified",
+                                    signature =
+                                        fixture.signDecision(
+                                            admin.keyPair,
+                                            postId,
+                                            PostComplaintState.CONFIRMED,
+                                            "Actually justified",
+                                        ),
+                                ),
+                            )
+                        }
+                    assertEquals(HttpStatusCode.NoContent, confirmResponse.status)
+
+                    val nextComplaint =
+                        client.post("/v1/post-complaints") {
+                            bearerAuth(nextComplainant.token)
+                            setJsonBody(
+                                CreatePostComplaintRequest(
+                                    postId = postId,
+                                    reason = "Still bad",
+                                    signature = fixture.signComplaint(nextComplainant.keyPair, postId, "Still bad"),
+                                ),
+                            )
+                        }
+
+                    assertEquals(HttpStatusCode.Created, nextComplaint.status)
+                }
+            }
+        }
+
+    @Test
     fun `deleted complaint removes post sends inbox message and blocks later complaint`() =
         runTest {
             withFixture { fixture ->
@@ -476,9 +568,10 @@ class PostComplaintIntegrationTest {
                 unretrievedTtl = 180.days,
                 retrievedTtl = 28.days,
                 pageSize = 10,
-                idFactory = { "message-1" },
+                idFactory = { "message-${nextAdminMessageId++}" },
                 expectedGidByteLength = hasherFactory().digest(byteArrayOf()).size,
             )
+        private var nextAdminMessageId = 1
         private val complaintIds = ArrayDeque(listOf("complaint-1", "complaint-2", "complaint-3", "complaint-4"))
         private val postComplaintService =
             PostComplaintService(

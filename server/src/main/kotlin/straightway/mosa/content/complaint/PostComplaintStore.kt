@@ -9,13 +9,15 @@ interface PostComplaintStore {
 
     suspend fun countOpen(): Int
 
-    suspend fun loadOpenPage(
+    suspend fun loadPage(
         limit: Int,
         offset: Int,
+        includeProcessed: Boolean,
     ): List<PostComplaintRecord>
 
-    suspend fun close(
+    suspend fun decide(
         complaintId: String,
+        expectedState: PostComplaintState,
         state: PostComplaintState,
         adminGid: String,
         decidedAt: Long,

@@ -12,4 +12,5 @@ data class OpenPostComplaint(
     val complainantGid: String,
     val reason: String,
     val createdAt: Long,
+    val state: PostComplaintState = PostComplaintState.OPEN,
 )

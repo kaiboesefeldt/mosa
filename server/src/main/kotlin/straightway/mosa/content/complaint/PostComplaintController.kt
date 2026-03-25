@@ -45,9 +45,13 @@ class PostComplaintController(
                     call.request.queryParameters["page"]?.let { value ->
                         value.toIntOrNull() ?: throw BadRequestException("page must be an integer")
                     } ?: 1
+                val includeProcessed =
+                    call.request.queryParameters["includeProcessed"]?.let { value ->
+                        value.toBooleanStrictOrNull() ?: throw BadRequestException("includeProcessed must be a boolean")
+                    } ?: false
                 call.respond(
                     HttpStatusCode.OK,
-                    postComplaintService.listOpen(requesterGid, page),
+                    postComplaintService.listOpen(requesterGid, page, includeProcessed),
                     typeInfo<OpenPostComplaintsResult>(),
                 )
             }

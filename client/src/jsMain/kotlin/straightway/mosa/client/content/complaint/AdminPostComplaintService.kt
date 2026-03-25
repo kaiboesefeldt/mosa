@@ -32,12 +32,15 @@ class AdminPostComplaintService(
         return result
     }
 
-    suspend fun listOpen(page: Int): OpenPostComplaintsResult? {
+    suspend fun listOpen(
+        page: Int,
+        includeProcessed: Boolean = false,
+    ): OpenPostComplaintsResult? {
         if (page < 1) {
             return null
         }
         return podSessionProvider.execute("open post complaints") { session ->
-            session.podAccess.openPostComplaints(session.jwt, page)
+            session.podAccess.openPostComplaints(session.jwt, page, includeProcessed)
         }
     }
 

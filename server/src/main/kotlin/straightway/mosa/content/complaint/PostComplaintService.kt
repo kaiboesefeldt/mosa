@@ -76,11 +76,12 @@ class PostComplaintService(
     suspend fun listOpen(
         requesterGid: String,
         page: Int,
+        includeProcessed: Boolean,
     ): OpenPostComplaintsResult {
         requireAdmin(requesterGid)
         requirePage(page)
         val offset = (page - 1) * openPageSize
-        val records = store.loadOpenPage(limit = openPageSize + 1, offset = offset)
+        val records = store.loadPage(limit = openPageSize + 1, offset = offset, includeProcessed = includeProcessed)
         val visible = records.take(openPageSize)
         val posts = contentService.fetch(FetchRequest(visible.map(PostComplaintRecord::postId))).entries.associateBy(FetchResult.Entry::id)
         return OpenPostComplaintsResult(
@@ -96,6 +97,7 @@ class PostComplaintService(
                         complainantGid = record.complainantGid,
                         reason = record.reason,
                         createdAt = record.createdAt,
+                        state = record.state,
                     )
                 },
             page = page,
@@ -116,16 +118,20 @@ class PostComplaintService(
         if (record.postId != request.postId) {
             throw BadRequestException("postId does not match complaint")
         }
-        if (record.state != PostComplaintState.OPEN) {
-            throw PostComplaintConflictException("complaint is already closed")
+        if (record.state == PostComplaintState.DELETED) {
+            throw PostComplaintConflictException("deleted complaints cannot be changed")
         }
-        if (request.targetStatus == PostComplaintState.DELETED) {
+        if (record.state != PostComplaintState.OPEN && !canChangeClosedComplaint(record.state, request.targetStatus)) {
+            throw PostComplaintConflictException("complaint state cannot be changed to requested target")
+        }
+        if (record.state == PostComplaintState.OPEN && request.targetStatus == PostComplaintState.DELETED) {
             contentService.delete(requesterGid, request.postId)
         }
         val decidedAt = clock.instant().epochSecond
         val updated =
-            store.close(
+            store.decide(
                 complaintId = request.complaintId,
+                expectedState = record.state,
                 state = request.targetStatus,
                 adminGid = requesterGid,
                 decidedAt = decidedAt,
@@ -202,6 +208,20 @@ class PostComplaintService(
             throw BadRequestException("targetStatus must close the complaint")
         }
     }
+
+    private fun canChangeClosedComplaint(
+        currentState: PostComplaintState,
+        targetState: PostComplaintState,
+    ): Boolean =
+        when (currentState) {
+            PostComplaintState.REJECTED, PostComplaintState.CONFIRMED -> {
+                targetState == PostComplaintState.REJECTED || targetState == PostComplaintState.CONFIRMED
+            }
+
+            PostComplaintState.OPEN, PostComplaintState.DELETED -> {
+                false
+            }
+        }
 
     private companion object {
         const val REASON_MAX_LENGTH = 500

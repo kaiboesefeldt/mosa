@@ -93,6 +93,7 @@ class AdminPostComplaintServiceTest {
             assertEquals(podAccess.listResult, service.listOpen(page = 2))
             assertEquals(1, podAccess.countRequests.size)
             assertEquals(listOf(2), podAccess.listRequests)
+            assertEquals(listOf(false), podAccess.includeProcessedRequests)
         }
 
     @Test
@@ -167,6 +168,17 @@ class AdminPostComplaintServiceTest {
         }
 
     @Test
+    fun `loads processed complaints when requested`() =
+        runTest {
+            window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+            val service = AdminPostComplaintService(sessionProvider(), signer, timeService)
+
+            service.listOpen(page = 1, includeProcessed = true)
+
+            assertEquals(listOf(true), podAccess.includeProcessedRequests)
+        }
+
+    @Test
     fun `rejects invalid admin decision before pod call`() =
         runTest {
             window.asDynamic().MOSA_POD_BASE = "https://pod.example"
@@ -196,6 +208,7 @@ private class RecordingAdminPostComplaintPodAccess : PodAccess {
     var listResult = OpenPostComplaintsResult(emptyList())
     val countRequests = mutableListOf<String>()
     val listRequests = mutableListOf<Int>()
+    val includeProcessedRequests = mutableListOf<Boolean>()
     val decisionRequests = mutableListOf<DecidePostComplaintRequest>()
 
     override suspend fun approveGid(gid: String): PodCertificateResponse =
@@ -254,8 +267,10 @@ private class RecordingAdminPostComplaintPodAccess : PodAccess {
     override suspend fun openPostComplaints(
         jwt: String,
         page: Int,
+        includeProcessed: Boolean,
     ): OpenPostComplaintsResult {
         listRequests += page
+        includeProcessedRequests += includeProcessed
         return listResult
     }
 

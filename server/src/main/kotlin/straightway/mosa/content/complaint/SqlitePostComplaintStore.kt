@@ -70,22 +70,29 @@ class SqlitePostComplaintStore(
                 .toInt()
         }
 
-    override suspend fun loadOpenPage(
+    override suspend fun loadPage(
         limit: Int,
         offset: Int,
+        includeProcessed: Boolean,
     ): List<PostComplaintRecord> =
         database.execute {
-            PostComplaintsTable
-                .selectAll()
-                .where { PostComplaintsTable.openMarker eq OPEN_MARKER }
+            val query = PostComplaintsTable.selectAll()
+            val filteredQuery =
+                if (includeProcessed) {
+                    query
+                } else {
+                    query.where { PostComplaintsTable.openMarker eq OPEN_MARKER }
+                }
+            filteredQuery
                 .orderBy(PostComplaintsTable.createdAt, SortOrder.ASC)
                 .limit(limit)
                 .offset(offset.toLong())
                 .map(::toRecord)
         }
 
-    override suspend fun close(
+    override suspend fun decide(
         complaintId: String,
+        expectedState: PostComplaintState,
         state: PostComplaintState,
         adminGid: String,
         decidedAt: Long,
@@ -97,7 +104,7 @@ class SqlitePostComplaintStore(
             PostComplaintsTable.update(
                 where = {
                     (PostComplaintsTable.id eq complaintId) and
-                        (PostComplaintsTable.openMarker eq OPEN_MARKER)
+                        (PostComplaintsTable.state eq expectedState)
                 },
             ) { statement ->
                 statement[PostComplaintsTable.state] = state

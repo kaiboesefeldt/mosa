@@ -190,6 +190,7 @@ private class RecordingPostComplaintPodAccess : PodAccess {
     override suspend fun openPostComplaints(
         jwt: String,
         page: Int,
+        includeProcessed: Boolean,
     ): OpenPostComplaintsResult = error("not used")
 
     override suspend fun decidePostComplaint(

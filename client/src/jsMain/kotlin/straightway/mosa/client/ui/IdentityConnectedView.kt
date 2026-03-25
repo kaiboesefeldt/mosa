@@ -491,14 +491,17 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    fun refreshComplaintQueue(openAfterLoad: Boolean) {
+    fun refreshComplaintQueue(
+        openAfterLoad: Boolean,
+        includeProcessed: Boolean = showProcessedComplaintEntries,
+    ) {
         if (isComplaintQueueLoading || isComplaintQueueAppending) return
         setComplaintQueueOpen(openAfterLoad || isComplaintQueueOpen)
         setComplaintQueueLoading(true)
         setComplaintQueueAppending(false)
         setComplaintQueueError(null)
         scope.launch {
-            val result = runCatching { adminPostComplaintService.listOpen(page = 1) }.getOrNull()
+            val result = runCatching { adminPostComplaintService.listOpen(page = 1, includeProcessed = includeProcessed) }.getOrNull()
             setComplaintQueueLoading(false)
             if (result == null) {
                 setComplaintQueueEntries(emptyList())
@@ -521,7 +524,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     fun toggleProcessedComplaintVisibility() {
-        setShowProcessedComplaintEntries { current -> !current }
+        val willShowProcessedEntries = !showProcessedComplaintEntries
+        setShowProcessedComplaintEntries(willShowProcessedEntries)
+        if (isComplaintQueueOpen) {
+            refreshComplaintQueue(openAfterLoad = true, includeProcessed = willShowProcessedEntries)
+        }
     }
 
     fun closeComplaintComposer() {
@@ -544,8 +551,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         setComplaintQueueAppending(true)
         setComplaintQueueError(null)
         val nextPage = complaintQueuePage + 1
+        val includeProcessed = showProcessedComplaintEntries
         scope.launch {
-            val result = runCatching { adminPostComplaintService.listOpen(page = nextPage) }.getOrNull()
+            val result = runCatching { adminPostComplaintService.listOpen(page = nextPage, includeProcessed = includeProcessed) }.getOrNull()
             setComplaintQueueAppending(false)
             if (result == null) {
                 setComplaintQueueError(translator.translate("connected.complaints.admin.error"))
@@ -614,10 +622,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     fun startComplaintDecision(
-        entry: OpenPostComplaint,
+        entry: ComplaintQueueEntry,
         targetStatus: PostComplaintState,
     ) {
-        if (targetStatus == PostComplaintState.OPEN) return
+        if (!entry.canTransitionTo(targetStatus)) return
         if (isComplaintDecisionSubmitting) return
         setComplaintDecisionEntryId(entry.complaintId)
         setComplaintDecisionTargetStatus(targetStatus)
@@ -3152,9 +3160,9 @@ private fun ChildrenBuilder.postComplaintQueuePopover(
     onDecisionTextChange: (String) -> Unit,
     onCloseDecisionComposer: () -> Unit,
     onSubmitDecision: () -> Unit,
-    onConfirm: (OpenPostComplaint) -> Unit,
-    onReject: (OpenPostComplaint) -> Unit,
-    onDelete: (OpenPostComplaint) -> Unit,
+    onConfirm: (ComplaintQueueEntry) -> Unit,
+    onReject: (ComplaintQueueEntry) -> Unit,
+    onDelete: (ComplaintQueueEntry) -> Unit,
 ) = div {
     ref = popoverRef
     className = ClassName("message-inbox complaint-queue")
@@ -3269,26 +3277,38 @@ private fun ChildrenBuilder.postComplaintQueuePopover(
                             mapOf("reason" to complaint.reason),
                         )
                     }
-                    if (entry.isOpen()) {
+                    complaintQueueStateLabel(translator, entry.state)?.let { stateLabel ->
+                        div {
+                            className = ClassName("message-inbox__meta")
+                            +stateLabel
+                        }
+                    }
+                    if (entry.availableActions().isNotEmpty()) {
                         div {
                             className = ClassName("complaint-queue__actions")
-                            button {
-                                className = ClassName("button button--secondary complaint-queue__action")
-                                disabled = isDecisionSubmitting
-                                onClick = { onConfirm(complaint) }
-                                +translator.translate("connected.complaints.admin.confirm")
-                            }
-                            button {
-                                className = ClassName("button button--secondary complaint-queue__action")
-                                disabled = isDecisionSubmitting
-                                onClick = { onReject(complaint) }
-                                +translator.translate("connected.complaints.admin.reject")
-                            }
-                            button {
-                                className = ClassName("button button--primary complaint-queue__action")
-                                disabled = isDecisionSubmitting
-                                onClick = { onDelete(complaint) }
-                                +translator.translate("connected.complaints.admin.delete")
+                            entry.availableActions().forEach { targetState ->
+                                button {
+                                    className =
+                                        ClassName(
+                                            when (targetState) {
+                                                PostComplaintState.DELETED -> "button button--primary complaint-queue__action"
+                                                PostComplaintState.CONFIRMED, PostComplaintState.REJECTED ->
+                                                    "button button--secondary complaint-queue__action"
+
+                                                PostComplaintState.OPEN -> "button button--secondary complaint-queue__action"
+                                            },
+                                        )
+                                    disabled = isDecisionSubmitting
+                                    onClick = {
+                                        when (targetState) {
+                                            PostComplaintState.CONFIRMED -> onConfirm(entry)
+                                            PostComplaintState.REJECTED -> onReject(entry)
+                                            PostComplaintState.DELETED -> onDelete(entry)
+                                            PostComplaintState.OPEN -> Unit
+                                        }
+                                    }
+                                    +translator.translate(complaintQueueActionLabelKey(targetState))
+                                }
                             }
                         }
                     }
@@ -3331,12 +3351,53 @@ private fun complaintDecisionTitle(
         PostComplaintState.OPEN, null -> translator.translate("connected.complaints.admin.title")
     }
 
-private fun OpenPostComplaint.toQueueEntry(): ComplaintQueueEntry = ComplaintQueueEntry(complaint = this, state = PostComplaintState.OPEN)
+private fun OpenPostComplaint.toQueueEntry(): ComplaintQueueEntry = ComplaintQueueEntry(complaint = this, state = state)
 
 private val ComplaintQueueEntry.complaintId: String
     get() = complaint.complaintId
 
 private fun ComplaintQueueEntry.isOpen(): Boolean = state == PostComplaintState.OPEN
+
+private fun ComplaintQueueEntry.canTransitionTo(targetState: PostComplaintState): Boolean =
+    when (state) {
+        PostComplaintState.OPEN -> targetState != PostComplaintState.OPEN
+        PostComplaintState.REJECTED -> targetState == PostComplaintState.CONFIRMED
+        PostComplaintState.CONFIRMED -> targetState == PostComplaintState.REJECTED
+        PostComplaintState.DELETED -> false
+    }
+
+private fun ComplaintQueueEntry.availableActions(): List<PostComplaintState> =
+    when (state) {
+        PostComplaintState.OPEN ->
+            listOf(
+                PostComplaintState.CONFIRMED,
+                PostComplaintState.REJECTED,
+                PostComplaintState.DELETED,
+            )
+
+        PostComplaintState.REJECTED -> listOf(PostComplaintState.CONFIRMED)
+        PostComplaintState.CONFIRMED -> listOf(PostComplaintState.REJECTED)
+        PostComplaintState.DELETED -> emptyList()
+    }
+
+private fun complaintQueueActionLabelKey(targetState: PostComplaintState): String =
+    when (targetState) {
+        PostComplaintState.CONFIRMED -> "connected.complaints.admin.confirm"
+        PostComplaintState.REJECTED -> "connected.complaints.admin.reject"
+        PostComplaintState.DELETED -> "connected.complaints.admin.delete"
+        PostComplaintState.OPEN -> "connected.complaints.admin.title"
+    }
+
+private fun complaintQueueStateLabel(
+    translator: Translator,
+    state: PostComplaintState,
+): String? =
+    when (state) {
+        PostComplaintState.OPEN -> null
+        PostComplaintState.CONFIRMED -> translator.translate("connected.complaints.admin.stateConfirmed")
+        PostComplaintState.REJECTED -> translator.translate("connected.complaints.admin.stateRejected")
+        PostComplaintState.DELETED -> translator.translate("connected.complaints.admin.stateDeleted")
+    }
 
 private fun List<ComplaintQueueEntry>.filteredForComplaintQueue(showProcessedEntries: Boolean): List<ComplaintQueueEntry> {
     if (showProcessedEntries) {

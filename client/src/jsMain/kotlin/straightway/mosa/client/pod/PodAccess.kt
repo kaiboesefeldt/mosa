@@ -77,6 +77,7 @@ interface PodAccess {
     suspend fun openPostComplaints(
         jwt: String,
         page: Int = 1,
+        includeProcessed: Boolean = false,
     ): OpenPostComplaintsResult =
         error("Open post complaints endpoint is not implemented for this PodAccess")
     suspend fun decidePostComplaint(
@@ -230,8 +231,9 @@ class PodAccessImpl(
     override suspend fun openPostComplaints(
         jwt: String,
         page: Int,
+        includeProcessed: Boolean,
     ): OpenPostComplaintsResult =
-        get("/v1/admin/post-complaints", jwt = jwt, page = page)
+        get("/v1/admin/post-complaints", jwt = jwt, page = page, includeProcessed = includeProcessed)
             .ensureSuccess("/v1/admin/post-complaints", Unit)
             .body()
 
@@ -359,10 +361,12 @@ class PodAccessImpl(
         jwt: String? = null,
         gid: String? = null,
         page: Int? = null,
+        includeProcessed: Boolean? = null,
     ): HttpResponse =
         httpClient.get("$podBase$path") {
             gid?.let { parameter("gid", it) }
             page?.let { parameter("page", it) }
+            includeProcessed?.let { parameter("includeProcessed", it) }
             if (jwt != null) {
                 header(HttpHeaders.Authorization, "Bearer $jwt")
             } else {

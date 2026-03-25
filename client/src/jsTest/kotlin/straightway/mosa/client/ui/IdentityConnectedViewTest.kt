@@ -917,7 +917,38 @@ class IdentityConnectedViewTest {
                                     ),
                                 ),
                         ),
-                        OpenPostComplaintsResult(emptyList()),
+                        OpenPostComplaintsResult(
+                            entries =
+                                listOf(
+                                    OpenPostComplaint(
+                                        complaintId = "complaint-1",
+                                        postId = "p1",
+                                        postText = "content-p1",
+                                        postAuthorGid = "gid-author",
+                                        postCreatedAt = 10,
+                                        complainantGid = "gid-complainant",
+                                        reason = "Bitte pruefen",
+                                        createdAt = 11,
+                                        state = PostComplaintState.CONFIRMED,
+                                    ),
+                                ),
+                        ),
+                        OpenPostComplaintsResult(
+                            entries =
+                                listOf(
+                                    OpenPostComplaint(
+                                        complaintId = "complaint-1",
+                                        postId = "p1",
+                                        postText = "content-p1",
+                                        postAuthorGid = "gid-author",
+                                        postCreatedAt = 10,
+                                        complainantGid = "gid-complainant",
+                                        reason = "Bitte pruefen",
+                                        createdAt = 11,
+                                        state = PostComplaintState.CONFIRMED,
+                                    ),
+                                ),
+                        ),
                     ),
                 complaintCountResult = OpenPostComplaintCountResult(1),
                 capabilities = ContentCapabilitiesResult(isAdmin = true),
@@ -949,7 +980,18 @@ class IdentityConnectedViewTest {
 
         user.click(complaintQueueFilterButton(view.container)).await()
         waitForCondition { complaintQueueEntry(view.container, "Bitte pruefen") != null }
-        assertEquals(2, podAccess.complaintRequests.size)
+        user.click(complaintQueueActionButton(view.container, text("connected.complaints.admin.reject"))).await()
+        waitForCondition { view.container.querySelector(".complaint-composer__textarea") != null }
+        user.type(
+            view.container.querySelector(".complaint-composer__textarea") ?: error("Complaint feedback missing"),
+            "Allowed now",
+        ).await()
+        user.click(view.container.querySelector(".complaint-composer__send") ?: error("Complaint send button missing")).await()
+
+        waitForCondition {
+            podAccess.decideComplaintRequests.lastOrNull()?.targetStatus == PostComplaintState.REJECTED
+        }
+        assertEquals(listOf(false, false, true, true), podAccess.complaintIncludeProcessedRequests)
     }
 
     @Test
@@ -1923,6 +1965,7 @@ private class RecordingPodAccess(
     val messagesRequests = mutableListOf<MessageRequest>()
     val adminMessagesRequests = mutableListOf<AdminHistoryRequest>()
     val complaintRequests = mutableListOf<Int>()
+    val complaintIncludeProcessedRequests = mutableListOf<Boolean>()
     val decideComplaintRequests = mutableListOf<DecidePostComplaintRequest>()
     var shouldFailPublish = false
     private val inboxResponseQueue = inboxResponses.toMutableList()
@@ -2041,8 +2084,10 @@ private class RecordingPodAccess(
     override suspend fun openPostComplaints(
         jwt: String,
         page: Int,
+        includeProcessed: Boolean,
     ): OpenPostComplaintsResult {
         complaintRequests += page
+        complaintIncludeProcessedRequests += includeProcessed
         return complaintResponseQueue.removeFirstOrNull() ?: OpenPostComplaintsResult(emptyList(), page = page)
     }
 
