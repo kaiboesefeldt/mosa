@@ -60,10 +60,7 @@ import straightway.mosa.client.content.TopicFilters
 import straightway.mosa.client.content.ReplySearchService
 import straightway.mosa.client.content.ThreadReplies
 import straightway.mosa.client.pod.PodBaseProvider
-import straightway.mosa.content.complaint.OpenPostComplaint
-import straightway.mosa.content.complaint.OpenPostComplaintsResult
 import straightway.mosa.content.complaint.PostComplaintState
-import straightway.mosa.content.complaint.PostComplaintAvailability
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.message.AdminMessage
@@ -108,12 +105,6 @@ private data class SwipeTargets(
     var post: QueryResult.Entry?,
 )
 
-private val emptyInboxStateSnapshot =
-    AdminMessageInboxStateSnapshot(
-        knownMessageIds = emptyList(),
-        seenMessageIds = emptyList(),
-    )
-
 val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val translator = ConnectedViewInjector.get<Translator>()
     val repository = ConnectedViewInjector.get<TopicRepository>()
@@ -153,37 +144,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val profileAnimationDurationMs = 760
     val (toastMessage, setToastMessage) = useState<String?>(null)
     val toastTimerRef = useRef<Int>()
-    val (isInboxOpen, setInboxOpen) = useState(false)
-    val (isInboxLoading, setInboxLoading) = useState(false)
-    val (isInboxAppending, setInboxAppending) = useState(false)
-    val (inboxEntries, setInboxEntries) = useState<List<AdminMessage>>(emptyList())
-    val (seenInboxMessageIds, setSeenInboxMessageIds) = useState<List<String>>(emptyList())
-    val (showSeenInboxEntries, setShowSeenInboxEntries) = useState(false)
-    val (hiddenSeenInboxMessageIds, setHiddenSeenInboxMessageIds) = useState<List<String>>(emptyList())
-    val (inboxError, setInboxError) = useState<String?>(null)
-    val (inboxPage, setInboxPage) = useState(1)
-    val (inboxHasMore, setInboxHasMore) = useState(false)
-    val (inboxRefreshFromTime, setInboxRefreshFromTime) = useState(0L)
-    val (unreadInboxCount, setUnreadInboxCount) = useState(0)
-    val (isComplaintQueueOpen, setComplaintQueueOpen) = useState(false)
-    val (isComplaintQueueLoading, setComplaintQueueLoading) = useState(false)
-    val (isComplaintQueueAppending, setComplaintQueueAppending) = useState(false)
-    val (complaintQueueEntries, setComplaintQueueEntries) = useState<List<ComplaintQueueEntry>>(emptyList())
-    val (complaintQueueError, setComplaintQueueError) = useState<String?>(null)
-    val (complaintQueuePage, setComplaintQueuePage) = useState(1)
-    val (complaintQueueHasMore, setComplaintQueueHasMore) = useState(false)
-    val (openComplaintCount, setOpenComplaintCount) = useState(0)
-    val (showProcessedComplaintEntries, setShowProcessedComplaintEntries) = useState(false)
-    val (complaintActionPostId, setComplaintActionPostId) = useState<String?>(null)
-    val (complaintComposerPostId, setComplaintComposerPostId) = useState<String?>(null)
-    val (complaintComposerText, setComplaintComposerText) = useState("")
-    val (complaintComposerError, setComplaintComposerError) = useState<String?>(null)
-    val (isComplaintSubmitting, setComplaintSubmitting) = useState(false)
-    val (complaintDecisionEntryId, setComplaintDecisionEntryId) = useState<String?>(null)
-    val (complaintDecisionTargetStatus, setComplaintDecisionTargetStatus) = useState<PostComplaintState?>(null)
-    val (complaintDecisionText, setComplaintDecisionText) = useState("")
-    val (complaintDecisionError, setComplaintDecisionError) = useState<String?>(null)
-    val (isComplaintDecisionSubmitting, setComplaintDecisionSubmitting) = useState(false)
     val (adminUserCardAnchorId, setAdminUserCardAnchorId) = useState<String?>(null)
     val (adminMessageRecipientGid, setAdminMessageRecipientGid) = useState<String?>(null)
     val (adminMessageRecipientName, setAdminMessageRecipientName) = useState<String?>(null)
@@ -208,21 +168,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val swipeActiveRef = useRef(false)
     val swipeTargetsRef = useRef(SwipeTargets(null, null))
     val (swipeOffsetPercent, setSwipeOffsetPercent) = useState(0.0)
-    val connectedIdentityGidRef = useRef(props.profile.connectedIdentityGid)
-    val isInboxOpenRef = useRef(false)
-    val isComplaintQueueOpenRef = useRef(false)
     val adminUserCardAnchorIdRef = useRef("")
-    val inboxButtonRef = useRef<HTMLButtonElement>()
-    val complaintQueueButtonRef = useRef<HTMLButtonElement>()
-    val inboxPopoverRef = useRef<HTMLDivElement>()
-    val complaintQueuePopoverRef = useRef<HTMLDivElement>()
-    val complaintQueueEntriesRef = useRef<List<ComplaintQueueEntry>>(emptyList())
     val adminHistoryListRef = useRef<HTMLDivElement>()
-    val inboxScrollRestoreRef = useRef<Double>()
     val adminHistoryScrollRestoreRef = useRef<Double>()
-    isInboxOpenRef.current = isInboxOpen
-    isComplaintQueueOpenRef.current = isComplaintQueueOpen
-    complaintQueueEntriesRef.current = complaintQueueEntries
     adminUserCardAnchorIdRef.current = adminUserCardAnchorId ?: ""
 
     fun setPaneForSelectedTopic(topic: Topic?) {
@@ -316,6 +264,53 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val replyComposerText = content.replyComposerText
     val isReplyPublishing = content.isReplyPublishing
     val replyPublishError = content.replyPublishError
+    val moderation =
+        useIdentityConnectedViewModerationController(
+            translator = translator,
+            inboxStateStore = inboxStateStore,
+            adminMessageInboxService = adminMessageInboxService,
+            postComplaintService = postComplaintService,
+            adminPostComplaintService = adminPostComplaintService,
+            podBaseProvider = podBaseProvider,
+            scope = scope,
+            connectedIdentityGid = props.profile.connectedIdentityGid,
+            showsConnectedAdminBadge = adminPresentation.showsConnectedAdminBadge,
+            showToast = ::showToast,
+        )
+    val isInboxOpen = moderation.isInboxOpen
+    val isInboxLoading = moderation.isInboxLoading
+    val isInboxAppending = moderation.isInboxAppending
+    val visibleInboxEntries = moderation.visibleInboxEntries
+    val inboxError = moderation.inboxError
+    val inboxHasMore = moderation.inboxHasMore
+    val showSeenInboxEntries = moderation.showSeenInboxEntries
+    val hasHiddenSeenInboxEntries = moderation.hasHiddenSeenInboxEntries
+    val seenInboxMessageIds = moderation.seenInboxMessageIds
+    val hasReadInboxEntries = moderation.hasReadInboxEntries
+    val unreadInboxCount = moderation.unreadInboxCount
+    val isComplaintQueueOpen = moderation.isComplaintQueueOpen
+    val isComplaintQueueLoading = moderation.isComplaintQueueLoading
+    val isComplaintQueueAppending = moderation.isComplaintQueueAppending
+    val visibleComplaintQueueEntries = moderation.visibleComplaintQueueEntries
+    val complaintQueueError = moderation.complaintQueueError
+    val complaintQueueHasMore = moderation.complaintQueueHasMore
+    val showProcessedComplaintEntries = moderation.showProcessedComplaintEntries
+    val hasHiddenProcessedComplaintEntries = moderation.hasHiddenProcessedComplaintEntries
+    val openComplaintCount = moderation.openComplaintCount
+    val complaintActionPostId = moderation.complaintActionPostId
+    val complaintComposerPostId = moderation.complaintComposerPostId
+    val complaintComposerText = moderation.complaintComposerText
+    val complaintComposerError = moderation.complaintComposerError
+    val isComplaintSubmitting = moderation.isComplaintSubmitting
+    val complaintDecisionEntryId = moderation.complaintDecisionEntryId
+    val complaintDecisionTargetStatus = moderation.complaintDecisionTargetStatus
+    val complaintDecisionText = moderation.complaintDecisionText
+    val complaintDecisionError = moderation.complaintDecisionError
+    val isComplaintDecisionSubmitting = moderation.isComplaintDecisionSubmitting
+    val inboxButtonRef = moderation.inboxButtonRef
+    val complaintQueueButtonRef = moderation.complaintQueueButtonRef
+    val inboxPopoverRef = moderation.inboxPopoverRef
+    val complaintQueuePopoverRef = moderation.complaintQueuePopoverRef
 
     fun closeAdminUserCard() {
         if (isAdminMessageSending) return
@@ -378,327 +373,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         if (adminUserCardAnchorId == null || adminMessageRecipientGid == null) return
         setAdminMessageError(null)
         setAdminMessageComposerOpen(true)
-    }
-
-    fun currentInboxStateKey(): Pair<String, String>? {
-        val podBase = podBaseProvider.base()?.trim()?.takeUnless(String::isEmpty) ?: return null
-        val gid = props.profile.connectedIdentityGid?.trim()?.takeUnless(String::isEmpty) ?: return null
-        return podBase to gid
-    }
-
-    fun loadInboxStateSnapshot(): AdminMessageInboxStateSnapshot {
-        val key = currentInboxStateKey() ?: return emptyInboxStateSnapshot
-        return inboxStateStore.load(key.first, key.second) ?: emptyInboxStateSnapshot
-    }
-
-    fun persistInboxStateSnapshot(snapshot: AdminMessageInboxStateSnapshot) {
-        val key = currentInboxStateKey() ?: return
-        inboxStateStore.store(key.first, key.second, snapshot)
-    }
-
-    fun unreadCount(snapshot: AdminMessageInboxStateSnapshot): Int {
-        val seen = snapshot.seenMessageIds.toSet()
-        return snapshot.knownMessageIds.count { it !in seen }
-    }
-
-    fun mergedInboxState(
-        fetchedEntries: List<AdminMessage>,
-        markAsSeen: Boolean,
-    ): AdminMessageInboxStateSnapshot {
-        val currentSnapshot = loadInboxStateSnapshot()
-        return currentSnapshot.mergeFetchedEntries(
-            fetchedEntries = fetchedEntries,
-            markFetchedEntriesAsSeen = markAsSeen,
-        )
-    }
-
-    fun applyInboxPage(
-        result: AdminMessageListResult,
-        markAsSeen: Boolean,
-        hiddenSeenMessageIds: List<String>,
-    ) {
-        setInboxPage(result.page)
-        setInboxHasMore(result.hasMore)
-        val nextSnapshot = mergedInboxState(result.entries, markAsSeen = markAsSeen)
-        persistInboxStateSnapshot(nextSnapshot)
-        setInboxEntries(nextSnapshot.entries)
-        setSeenInboxMessageIds(nextSnapshot.seenMessageIds)
-        setHiddenSeenInboxMessageIds(hiddenSeenMessageIds)
-        setUnreadInboxCount(unreadCount(nextSnapshot))
-    }
-
-    fun refreshInbox(openAfterLoad: Boolean) {
-        if (isInboxLoading || isInboxAppending) return
-        val currentSnapshot = loadInboxStateSnapshot()
-        val refreshFromTime = currentSnapshot.nextRefreshFromTime()
-        val willBeOpen = openAfterLoad || isInboxOpenRef.current == true
-        val hiddenSeenMessageIds =
-            if (isInboxOpenRef.current == true) {
-                hiddenSeenInboxMessageIds
-            } else {
-                currentSnapshot.seenMessageIds
-            }
-        setInboxOpen(willBeOpen)
-        setInboxLoading(true)
-        setInboxAppending(false)
-        setInboxRefreshFromTime(refreshFromTime)
-        setInboxError(null)
-        scope.launch {
-            val result: AdminMessageListResult? =
-                runCatching { adminMessageInboxService.fetch(page = 1, fromTime = refreshFromTime) }.getOrNull()
-            setInboxLoading(false)
-            if (result == null) {
-                setInboxEntries(currentSnapshot.entries)
-                setSeenInboxMessageIds(currentSnapshot.seenMessageIds)
-                setHiddenSeenInboxMessageIds(hiddenSeenMessageIds)
-                setInboxError(translator.translate("connected.messages.inbox.error"))
-            } else {
-                applyInboxPage(result, markAsSeen = willBeOpen, hiddenSeenMessageIds = hiddenSeenMessageIds)
-            }
-        }
-    }
-
-    fun loadMoreInbox() {
-        if (!isInboxOpen || isInboxLoading || isInboxAppending || !inboxHasMore) return
-        inboxScrollRestoreRef.current = inboxPopoverRef.current?.scrollTop
-        setInboxAppending(true)
-        setInboxError(null)
-        val nextPage = inboxPage + 1
-        scope.launch {
-            val result: AdminMessageListResult? =
-                runCatching { adminMessageInboxService.fetch(page = nextPage, fromTime = inboxRefreshFromTime) }.getOrNull()
-            setInboxAppending(false)
-            if (result == null) {
-                setInboxError(translator.translate("connected.messages.inbox.error"))
-            } else {
-                applyInboxPage(result, markAsSeen = true, hiddenSeenMessageIds = hiddenSeenInboxMessageIds)
-            }
-        }
-    }
-
-    fun loadInbox() {
-        refreshInbox(openAfterLoad = true)
-    }
-
-    fun closeInbox() {
-        setInboxOpen(false)
-    }
-
-    fun applyComplaintQueuePage(
-        result: OpenPostComplaintsResult,
-        append: Boolean,
-    ) {
-        val currentEntries = complaintQueueEntriesRef.current ?: emptyList()
-        val processedEntries = currentEntries.filterNot(ComplaintQueueEntry::isOpen)
-        val openEntries =
-            if (append) {
-                currentEntries.filter(ComplaintQueueEntry::isOpen) + result.entries.map(OpenPostComplaint::toQueueEntry)
-            } else {
-                result.entries.map(OpenPostComplaint::toQueueEntry)
-            }
-        val mergedEntries = (openEntries + processedEntries).distinctBy(ComplaintQueueEntry::complaintId)
-        complaintQueueEntriesRef.current = mergedEntries
-        setComplaintQueueEntries(mergedEntries)
-        setComplaintQueuePage(result.page)
-        setComplaintQueueHasMore(result.hasMore)
-    }
-
-    fun refreshComplaintCount(forceRefresh: Boolean = false) {
-        if (!adminPresentation.showsConnectedAdminBadge) {
-            setOpenComplaintCount(0)
-            return
-        }
-        scope.launch {
-            val result = runCatching { adminPostComplaintService.countOpen(forceRefresh = forceRefresh) }.getOrNull()
-            setOpenComplaintCount(result?.count ?: 0)
-        }
-    }
-
-    fun refreshComplaintQueue(
-        openAfterLoad: Boolean,
-        includeProcessed: Boolean = showProcessedComplaintEntries,
-    ) {
-        if (isComplaintQueueLoading || isComplaintQueueAppending) return
-        setComplaintQueueOpen(openAfterLoad || isComplaintQueueOpen)
-        setComplaintQueueLoading(true)
-        setComplaintQueueAppending(false)
-        setComplaintQueueError(null)
-        scope.launch {
-            val result = runCatching { adminPostComplaintService.listOpen(page = 1, includeProcessed = includeProcessed) }.getOrNull()
-            setComplaintQueueLoading(false)
-            if (result == null) {
-                setComplaintQueueEntries(emptyList())
-                setComplaintQueuePage(1)
-                setComplaintQueueHasMore(false)
-                setComplaintQueueError(translator.translate("connected.complaints.admin.error"))
-            } else {
-                applyComplaintQueuePage(result, append = false)
-            }
-            refreshComplaintCount(forceRefresh = true)
-        }
-    }
-
-    fun loadComplaintQueue() {
-        refreshComplaintQueue(openAfterLoad = true)
-    }
-
-    fun closeComplaintQueue() {
-        setComplaintQueueOpen(false)
-    }
-
-    fun toggleProcessedComplaintVisibility() {
-        val willShowProcessedEntries = !showProcessedComplaintEntries
-        setShowProcessedComplaintEntries(willShowProcessedEntries)
-        if (isComplaintQueueOpen) {
-            refreshComplaintQueue(openAfterLoad = true, includeProcessed = willShowProcessedEntries)
-        }
-    }
-
-    fun closeComplaintComposer() {
-        if (isComplaintSubmitting) return
-        setComplaintComposerPostId(null)
-        setComplaintComposerText("")
-        setComplaintComposerError(null)
-    }
-
-    fun closeComplaintDecisionComposer() {
-        if (isComplaintDecisionSubmitting) return
-        setComplaintDecisionEntryId(null)
-        setComplaintDecisionTargetStatus(null)
-        setComplaintDecisionText("")
-        setComplaintDecisionError(null)
-    }
-
-    fun loadMoreComplaintQueue() {
-        if (!isComplaintQueueOpen || isComplaintQueueLoading || isComplaintQueueAppending || !complaintQueueHasMore) return
-        setComplaintQueueAppending(true)
-        setComplaintQueueError(null)
-        val nextPage = complaintQueuePage + 1
-        val includeProcessed = showProcessedComplaintEntries
-        scope.launch {
-            val result = runCatching { adminPostComplaintService.listOpen(page = nextPage, includeProcessed = includeProcessed) }.getOrNull()
-            setComplaintQueueAppending(false)
-            if (result == null) {
-                setComplaintQueueError(translator.translate("connected.complaints.admin.error"))
-            } else {
-                applyComplaintQueuePage(result, append = true)
-            }
-        }
-    }
-
-    fun requestPostComplaint(entry: QueryResult.Entry) {
-        if (complaintActionPostId != null || complaintComposerPostId != null || props.profile.connectedIdentityGid == null) return
-        if (entry.authorGID == props.profile.connectedIdentityGid) return
-        setComplaintActionPostId(entry.id)
-        scope.launch {
-            try {
-                val status = postComplaintService.status(entry.id)
-                when (status?.availability) {
-                    PostComplaintAvailability.OPEN -> {
-                        showToast(translator.translate("connected.complaints.post.open"))
-                    }
-
-                    PostComplaintAvailability.BLOCKED -> {
-                        showToast(translator.translate("connected.complaints.post.blocked"))
-                    }
-
-                    PostComplaintAvailability.AVAILABLE -> {
-                        setComplaintComposerPostId(entry.id)
-                        setComplaintComposerText("")
-                        setComplaintComposerError(null)
-                    }
-
-                    null -> {
-                        showToast(translator.translate("connected.complaints.post.error"))
-                    }
-                }
-            } finally {
-                setComplaintActionPostId(null)
-            }
-        }
-    }
-
-    fun submitPostComplaint() {
-        val postId = complaintComposerPostId ?: return
-        val reason = complaintComposerText.trim()
-        if (reason.isEmpty()) {
-            setComplaintComposerError(translator.translate("connected.complaints.post.reasonRequired"))
-            return
-        }
-        if (500 < reason.length) {
-            setComplaintComposerError(translator.translate("connected.complaints.post.reasonTooLong"))
-            return
-        }
-        setComplaintSubmitting(true)
-        setComplaintComposerError(null)
-        scope.launch {
-            val created = runCatching { postComplaintService.submit(postId, reason) }.getOrDefault(false)
-            setComplaintSubmitting(false)
-            if (created) {
-                closeComplaintComposer()
-                showToast(translator.translate("connected.complaints.post.sent"))
-                refreshComplaintCount(forceRefresh = true)
-            } else {
-                setComplaintComposerError(translator.translate("connected.complaints.post.error"))
-            }
-        }
-    }
-
-    fun startComplaintDecision(
-        entry: ComplaintQueueEntry,
-        targetStatus: PostComplaintState,
-    ) {
-        if (!entry.canTransitionTo(targetStatus)) return
-        if (isComplaintDecisionSubmitting) return
-        setComplaintDecisionEntryId(entry.complaintId)
-        setComplaintDecisionTargetStatus(targetStatus)
-        setComplaintDecisionText("")
-        setComplaintDecisionError(null)
-    }
-
-    fun submitComplaintDecision() {
-        val complaintId = complaintDecisionEntryId ?: return
-        val targetStatus = complaintDecisionTargetStatus ?: return
-        val entry = complaintQueueEntries.firstOrNull { it.complaintId == complaintId } ?: return
-        val feedback = complaintDecisionText.trim()
-        if (feedback.isEmpty()) {
-            setComplaintDecisionError(translator.translate("connected.complaints.admin.feedbackRequired"))
-            return
-        }
-        if (1000 < feedback.length) {
-            setComplaintDecisionError(translator.translate("connected.complaints.admin.feedbackTooLong"))
-            return
-        }
-        setComplaintDecisionSubmitting(true)
-        setComplaintDecisionError(null)
-        scope.launch {
-            val success =
-                adminPostComplaintService.decide(
-                    complaintId = entry.complaintId,
-                    postId = entry.complaint.postId,
-                    targetStatus = targetStatus,
-                    feedback = feedback,
-                )
-            setComplaintDecisionSubmitting(false)
-            if (success) {
-                val updatedEntries =
-                    (complaintQueueEntriesRef.current ?: emptyList()).map { currentEntry ->
-                        if (currentEntry.complaintId == complaintId) {
-                            currentEntry.copy(state = targetStatus)
-                        } else {
-                            currentEntry
-                        }
-                    }
-                complaintQueueEntriesRef.current = updatedEntries
-                setComplaintQueueEntries(updatedEntries)
-                closeComplaintDecisionComposer()
-                showToast(translator.translate("connected.complaints.admin.decided"))
-                refreshComplaintQueue(openAfterLoad = complaintQueueEntries.size > 1)
-                refreshInbox(openAfterLoad = false)
-            } else {
-                setComplaintDecisionError(translator.translate("connected.complaints.admin.error"))
-            }
-        }
     }
 
     fun refreshAdminHistory(recipientGid: String) {
@@ -780,25 +454,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         return null
     }
 
-    useEffect(props.profile.connectedIdentityGid) {
-        val storedSnapshot = loadInboxStateSnapshot()
-        setInboxEntries(storedSnapshot.entries)
-        setSeenInboxMessageIds(storedSnapshot.seenMessageIds)
-        setHiddenSeenInboxMessageIds(storedSnapshot.seenMessageIds)
-        setShowSeenInboxEntries(false)
-        setUnreadInboxCount(unreadCount(storedSnapshot))
-        setInboxError(null)
-        val nextConnectedIdentityGid = props.profile.connectedIdentityGid
-        if (nextConnectedIdentityGid == connectedIdentityGidRef.current) return@useEffect
-        connectedIdentityGidRef.current = nextConnectedIdentityGid
-        if (nextConnectedIdentityGid == null) {
-            setInboxLoading(false)
-            setInboxOpen(false)
-            return@useEffect
-        }
-        refreshInbox(openAfterLoad = false)
-    }
-
     fun clearProfileExitTimer() {
         profileExitTimerRef.current?.let { timerId ->
             window.clearTimeout(timerId)
@@ -825,26 +480,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     useEffect(*noDependencies) {
-        val inboxOutsideClickListener: (Event) -> Unit = listener@{ event ->
-            if (isInboxOpenRef.current != true) return@listener
-            val target = event.target?.unsafeCast<Element?>() ?: return@listener
-            val clickedInboxButton = inboxButtonRef.current?.contains(target) == true
-            val clickedInboxPopover = inboxPopoverRef.current?.contains(target) == true
-            if (!clickedInboxButton && !clickedInboxPopover) {
-                closeInbox()
-            }
-        }
-        document.addEventListener("mousedown", inboxOutsideClickListener)
-        val complaintQueueOutsideClickListener: (Event) -> Unit = listener@{ event ->
-            if (isComplaintQueueOpenRef.current != true) return@listener
-            val target = event.target?.unsafeCast<Element?>() ?: return@listener
-            val clickedComplaintQueueButton = complaintQueueButtonRef.current?.contains(target) == true
-            val clickedComplaintQueuePopover = complaintQueuePopoverRef.current?.contains(target) == true
-            if (!clickedComplaintQueueButton && !clickedComplaintQueuePopover) {
-                closeComplaintQueue()
-            }
-        }
-        document.addEventListener("mousedown", complaintQueueOutsideClickListener)
         val adminUserCardOutsideClickListener: (Event) -> Unit = listener@{ event ->
             if ((adminUserCardAnchorIdRef.current ?: "").isEmpty()) return@listener
             val target = event.target?.unsafeCast<Element?>() ?: return@listener
@@ -858,8 +493,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         try {
             awaitCancellation()
         } finally {
-            document.removeEventListener("mousedown", inboxOutsideClickListener)
-            document.removeEventListener("mousedown", complaintQueueOutsideClickListener)
             document.removeEventListener("mousedown", adminUserCardOutsideClickListener)
             clearProfileExitTimer()
             clearProfileEntryTimer()
@@ -868,20 +501,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    useEffect(arrayOf(adminPresentation.showsConnectedAdminBadge, props.profile.connectedIdentityGid)) {
-        refreshComplaintCount()
-    }
-
     val avatarDescription = translator.translate(adminPresentation.avatarTitleKey)
-    val visibleInboxEntries =
-        inboxEntries.filteredForInbox(
-            showSeenMessages = showSeenInboxEntries,
-            hiddenSeenMessageIds = hiddenSeenInboxMessageIds,
-        )
-    val hasHiddenSeenInboxEntries = hiddenSeenInboxMessageIds.isNotEmpty()
-    val hasReadInboxEntries = seenInboxMessageIds.isNotEmpty()
-    val visibleComplaintQueueEntries = complaintQueueEntries.filteredForComplaintQueue(showProcessedComplaintEntries)
-    val hasHiddenProcessedComplaintEntries = complaintQueueEntries.any { !it.isOpen() }
 
     fun persistProfileVisibility(visible: Boolean) {
         if (visible) {
@@ -1034,14 +654,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    useEffect(arrayOf(inboxEntries, isInboxAppending)) {
-        val scrollTop = inboxScrollRestoreRef.current ?: return@useEffect
-        inboxPopoverRef.current?.scrollTop = scrollTop
-        if (!isInboxAppending) {
-            inboxScrollRestoreRef.current = null
-        }
-    }
-
     useEffect(arrayOf(adminHistoryEntries, isAdminHistoryAppending)) {
         val scrollTop = adminHistoryScrollRestoreRef.current ?: return@useEffect
         adminHistoryListRef.current?.scrollTop = scrollTop
@@ -1092,9 +704,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     title = translator.translate("connected.messages.inbox.button")
                     onClick = {
                         if (isInboxOpen) {
-                            closeInbox()
+                            moderation.closeInbox()
                         } else {
-                            loadInbox()
+                            moderation.loadInbox()
                         }
                     }
                     i {
@@ -1115,9 +727,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                         title = translator.translate("connected.complaints.admin.button")
                         onClick = {
                             if (isComplaintQueueOpen) {
-                                closeComplaintQueue()
+                                moderation.closeComplaintQueue()
                             } else {
-                                loadComplaintQueue()
+                                moderation.loadComplaintQueue()
                             }
                         }
                         i {
@@ -1181,9 +793,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                         seenInboxMessageIds,
                         hasReadInboxEntries,
                         inboxPopoverRef,
-                        { setShowSeenInboxEntries { current -> !current } },
-                        { closeInbox() },
-                        ::loadMoreInbox,
+                        moderation.toggleSeenInboxVisibility,
+                        moderation.closeInbox,
+                        moderation.loadMoreInbox,
                     )
                 }
                 if (isComplaintQueueOpen) {
@@ -1198,25 +810,20 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                         showProcessedEntries = showProcessedComplaintEntries,
                         hasHiddenProcessedEntries = hasHiddenProcessedComplaintEntries,
                         popoverRef = complaintQueuePopoverRef,
-                        onToggleProcessedVisibility = ::toggleProcessedComplaintVisibility,
-                        onClose = ::closeComplaintQueue,
-                        onLoadMore = ::loadMoreComplaintQueue,
+                        onToggleProcessedVisibility = moderation.toggleProcessedComplaintVisibility,
+                        onClose = moderation.closeComplaintQueue,
+                        onLoadMore = moderation.loadMoreComplaintQueue,
                         decisionEntryId = complaintDecisionEntryId,
                         decisionTargetStatus = complaintDecisionTargetStatus,
                         decisionText = complaintDecisionText,
                         decisionErrorText = complaintDecisionError,
                         isDecisionSubmitting = isComplaintDecisionSubmitting,
-                        onDecisionTextChange = {
-                            setComplaintDecisionText(it)
-                            if (complaintDecisionError != null) {
-                                setComplaintDecisionError(null)
-                            }
-                        },
-                        onCloseDecisionComposer = ::closeComplaintDecisionComposer,
-                        onSubmitDecision = ::submitComplaintDecision,
-                        onConfirm = { startComplaintDecision(it, PostComplaintState.CONFIRMED) },
-                        onReject = { startComplaintDecision(it, PostComplaintState.REJECTED) },
-                        onDelete = { startComplaintDecision(it, PostComplaintState.DELETED) },
+                        onDecisionTextChange = moderation.setComplaintDecisionText,
+                        onCloseDecisionComposer = moderation.closeComplaintDecisionComposer,
+                        onSubmitDecision = moderation.submitComplaintDecision,
+                        onConfirm = { moderation.startComplaintDecision(it, PostComplaintState.CONFIRMED) },
+                        onReject = { moderation.startComplaintDecision(it, PostComplaintState.REJECTED) },
+                        onDelete = { moderation.startComplaintDecision(it, PostComplaintState.DELETED) },
                     )
                 }
             }
@@ -1385,15 +992,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     complaintComposerText = complaintComposerText,
                     complaintComposerError = complaintComposerError,
                     isComplaintSubmitting = isComplaintSubmitting,
-                    onRequestComplaint = ::requestPostComplaint,
-                    onComplaintTextChange = {
-                        setComplaintComposerText(it)
-                        if (complaintComposerError != null) {
-                            setComplaintComposerError(null)
-                        }
-                    },
-                    onCloseComplaintComposer = ::closeComplaintComposer,
-                    onSubmitComplaint = ::submitPostComplaint,
+                    onRequestComplaint = moderation.requestPostComplaint,
+                    onComplaintTextChange = moderation.setComplaintComposerText,
+                    onCloseComplaintComposer = moderation.closeComplaintComposer,
+                    onSubmitComplaint = moderation.submitPostComplaint,
                     canComposeAdminMessage = adminPresentation.canDeleteAsAdmin,
                     adminUserCardAnchorId = adminUserCardAnchorId,
                     adminMessageRecipientName = adminMessageRecipientName,
@@ -1432,15 +1034,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     complaintComposerText = complaintComposerText,
                     complaintComposerError = complaintComposerError,
                     isComplaintSubmitting = isComplaintSubmitting,
-                    onRequestComplaint = ::requestPostComplaint,
-                    onComplaintTextChange = {
-                        setComplaintComposerText(it)
-                        if (complaintComposerError != null) {
-                            setComplaintComposerError(null)
-                        }
-                    },
-                    onCloseComplaintComposer = ::closeComplaintComposer,
-                    onSubmitComplaint = ::submitPostComplaint,
+                    onRequestComplaint = moderation.requestPostComplaint,
+                    onComplaintTextChange = moderation.setComplaintComposerText,
+                    onCloseComplaintComposer = moderation.closeComplaintComposer,
+                    onSubmitComplaint = moderation.submitPostComplaint,
                     isMobile = isMobile,
                     showBackToPosts = showBackButtons,
                     onBackToPosts = {
