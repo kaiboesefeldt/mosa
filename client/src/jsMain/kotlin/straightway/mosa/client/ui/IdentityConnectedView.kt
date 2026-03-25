@@ -234,14 +234,17 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val snapshotRefreshVersionRef = useRef(props.profile.snapshotRefreshVersion)
     val connectedIdentityGidRef = useRef(props.profile.connectedIdentityGid)
     val isInboxOpenRef = useRef(false)
+    val isComplaintQueueOpenRef = useRef(false)
     val adminUserCardAnchorIdRef = useRef("")
     val inboxButtonRef = useRef<HTMLButtonElement>()
+    val complaintQueueButtonRef = useRef<HTMLButtonElement>()
     val inboxPopoverRef = useRef<HTMLDivElement>()
     val complaintQueuePopoverRef = useRef<HTMLDivElement>()
     val adminHistoryListRef = useRef<HTMLDivElement>()
     val inboxScrollRestoreRef = useRef<Double>()
     val adminHistoryScrollRestoreRef = useRef<Double>()
     isInboxOpenRef.current = isInboxOpen
+    isComplaintQueueOpenRef.current = isComplaintQueueOpen
     adminUserCardAnchorIdRef.current = adminUserCardAnchorId ?: ""
 
     useEffect(sessionStore) {
@@ -1020,6 +1023,16 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             }
         }
         document.addEventListener("mousedown", inboxOutsideClickListener)
+        val complaintQueueOutsideClickListener: (Event) -> Unit = listener@{ event ->
+            if (isComplaintQueueOpenRef.current != true) return@listener
+            val target = event.target?.unsafeCast<Element?>() ?: return@listener
+            val clickedComplaintQueueButton = complaintQueueButtonRef.current?.contains(target) == true
+            val clickedComplaintQueuePopover = complaintQueuePopoverRef.current?.contains(target) == true
+            if (!clickedComplaintQueueButton && !clickedComplaintQueuePopover) {
+                closeComplaintQueue()
+            }
+        }
+        document.addEventListener("mousedown", complaintQueueOutsideClickListener)
         val adminUserCardOutsideClickListener: (Event) -> Unit = listener@{ event ->
             if ((adminUserCardAnchorIdRef.current ?: "").isEmpty()) return@listener
             val target = event.target?.unsafeCast<Element?>() ?: return@listener
@@ -1034,6 +1047,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             awaitCancellation()
         } finally {
             document.removeEventListener("mousedown", inboxOutsideClickListener)
+            document.removeEventListener("mousedown", complaintQueueOutsideClickListener)
             document.removeEventListener("mousedown", adminUserCardOutsideClickListener)
             clearProfileExitTimer()
             clearProfileEntryTimer()
@@ -1532,6 +1546,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 }
                 if (adminPresentation.showsConnectedAdminBadge) {
                     button {
+                        ref = complaintQueueButtonRef
                         className = ClassName("connected-shell__inbox-button")
                         ariaLabel = translator.translate("connected.complaints.admin.button")
                         title = translator.translate("connected.complaints.admin.button")

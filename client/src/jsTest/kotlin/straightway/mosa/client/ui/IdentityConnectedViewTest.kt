@@ -84,6 +84,12 @@ import straightway.mosa.content.ContentCapabilitiesResult
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
+import straightway.mosa.content.complaint.CreatePostComplaintRequest
+import straightway.mosa.content.complaint.DecidePostComplaintRequest
+import straightway.mosa.content.complaint.OpenPostComplaint
+import straightway.mosa.content.complaint.OpenPostComplaintCountResult
+import straightway.mosa.content.complaint.OpenPostComplaintsResult
+import straightway.mosa.content.complaint.PostComplaintAvailabilityResult
 import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator
 import straightway.mosa.message.AdminMessage
@@ -846,6 +852,48 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `closes complaint queue when clicking outside`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                complaintResponses =
+                    listOf(
+                        OpenPostComplaintsResult(
+                            entries =
+                                listOf(
+                                    OpenPostComplaint(
+                                        complaintId = "complaint-1",
+                                        postId = "p1",
+                                        postText = "content-p1",
+                                        postAuthorGid = "gid-author",
+                                        postCreatedAt = 10,
+                                        complainantGid = "gid-complainant",
+                                        reason = "Bitte pruefen",
+                                        createdAt = 11,
+                                    ),
+                                ),
+                        ),
+                    ),
+                complaintCountResult = OpenPostComplaintCountResult(1),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+        user.click(complaintQueueButton(view.container)).await()
+        waitForCondition { view.container.querySelector(".complaint-queue") != null }
+
+        user.click(view.container.querySelector(".post-card") ?: error("Post card missing")).await()
+        waitForCondition { view.container.querySelector(".complaint-queue") == null }
+    }
+
+    @Test
     fun `shows admin notice sender with avatar and fictional name`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val podAccess =
@@ -1523,6 +1571,10 @@ private fun inboxScrollTop(container: Element): Double =
     private fun inboxButton(container: Element): Element =
         container.querySelector(".connected-shell__inbox-button") ?: error("Inbox button missing")
 
+    private fun complaintQueueButton(container: Element): Element =
+        container.querySelector(".connected-shell__inbox-button[title='${text("connected.complaints.admin.button")}']")
+            ?: error("Complaint queue button missing")
+
     private fun inboxBadge(container: Element): Element? =
         container.querySelector(".connected-shell__inbox-badge")
 
@@ -1775,6 +1827,8 @@ private class RecordingPodAccess(
     replyResponses: Map<String, List<QueryResult>> = emptyMap(),
     private val inboxResponses: List<AdminMessageListResult> = listOf(AdminMessageListResult(emptyList())),
     private val adminHistoryResponses: List<AdminMessageListResult> = listOf(AdminMessageListResult(emptyList())),
+    private val complaintResponses: List<OpenPostComplaintsResult> = listOf(OpenPostComplaintsResult(emptyList())),
+    private val complaintCountResult: OpenPostComplaintCountResult = OpenPostComplaintCountResult(0),
     private val capabilities: ContentCapabilitiesResult = ContentCapabilitiesResult(isAdmin = false),
     private val capabilitiesByGid: Map<String, ContentCapabilitiesResult> = emptyMap(),
     private val deferredCapabilitiesByGid: Map<String, MutableList<CompletableDeferred<ContentCapabilitiesResult>>> = emptyMap(),
@@ -1787,9 +1841,11 @@ private class RecordingPodAccess(
     val adminMessageRequests = mutableListOf<CreateAdminMessageRequest>()
     val messagesRequests = mutableListOf<MessageRequest>()
     val adminMessagesRequests = mutableListOf<AdminHistoryRequest>()
+    val complaintRequests = mutableListOf<Int>()
     var shouldFailPublish = false
     private val inboxResponseQueue = inboxResponses.toMutableList()
     private val adminHistoryResponseQueue = adminHistoryResponses.toMutableList()
+    private val complaintResponseQueue = complaintResponses.toMutableList()
     private val responsesByTopic: MutableMap<String, MutableList<QueryResult>> =
         (responses.keys + additionalResponses.keys)
             .associateWith { topic ->
@@ -1882,6 +1938,37 @@ private class RecordingPodAccess(
             return deferred.await()
         }
         return gid?.let { capabilitiesByGid[it] } ?: capabilities
+    }
+
+    override suspend fun postComplaintStatus(
+        postId: String,
+        jwt: String,
+    ): PostComplaintAvailabilityResult {
+        error("Not implemented")
+    }
+
+    override suspend fun createPostComplaint(
+        request: CreatePostComplaintRequest,
+        jwt: String,
+    ) {
+        error("Not implemented")
+    }
+
+    override suspend fun openPostComplaintCount(jwt: String): OpenPostComplaintCountResult = complaintCountResult
+
+    override suspend fun openPostComplaints(
+        jwt: String,
+        page: Int,
+    ): OpenPostComplaintsResult {
+        complaintRequests += page
+        return complaintResponseQueue.removeFirstOrNull() ?: OpenPostComplaintsResult(emptyList(), page = page)
+    }
+
+    override suspend fun decidePostComplaint(
+        request: DecidePostComplaintRequest,
+        jwt: String,
+    ) {
+        error("Not implemented")
     }
 
     override suspend fun freezePrivacySnapshot(jwt: String): ByteArray {
