@@ -4,6 +4,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.browser.window
 import kotlinx.coroutines.CompletableDeferred
@@ -910,6 +911,54 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `retains locally known read messages and shows them through the inbox filter`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                inboxResponses =
+                    listOf(
+                        AdminMessageListResult(
+                            listOf(
+                                AdminMessage("message-1", adminSenderGid, 10, "Old read subject", "Old read body"),
+                                AdminMessage("message-2", adminSenderGid, 20, "Fresh unread subject", "Fresh unread body"),
+                            ),
+                        ),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        inboxStateStore.store(
+            "https://pod.example",
+            identityForTests.gid,
+            AdminMessageInboxStateSnapshot(
+                entries =
+                    listOf(
+                        AdminMessage("message-1", adminSenderGid, 10, "Old read subject", "Old read body"),
+                    ),
+                seenMessageIds = listOf("message-1"),
+            ),
+        )
+
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { inboxBadge(view.container) == null }
+        user.click(inboxButton(view.container)).await()
+
+        waitForCondition { podAccess.messagesRequests == listOf(MessageRequest(jwt = "jwt", page = 1, fromTime = 10)) }
+        waitForCondition { view.container.textContent?.contains("Fresh unread subject") == true }
+        assertFalse(view.container.textContent?.contains("Old read subject") == true)
+
+        user.click(inboxFilterButton(view.container)).await()
+
+        waitForCondition { view.container.textContent?.contains("Old read subject") == true }
+        assertTrue(inboxEntry(view.container, "Old read subject").className.contains("message-inbox__entry--read"))
+    }
+
+    @Test
     fun `opens admin action card from foreign post author`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val recipientGid = fetchedAuthorGid("p1")
@@ -1411,6 +1460,19 @@ private fun inboxScrollTop(container: Element): Double =
 
     private fun inboxBadge(container: Element): Element? =
         container.querySelector(".connected-shell__inbox-badge")
+
+    private fun inboxFilterButton(container: Element): Element =
+        container.querySelector(".message-inbox__filter") ?: error("Inbox filter button missing")
+
+    private fun inboxEntry(container: Element, subject: String): Element {
+        val nodes = container.querySelectorAll(".message-inbox__entry")
+        repeat(nodes.length) { index ->
+            val node = nodes.item(index) as? Element ?: return@repeat
+            val label = node.querySelector(".message-inbox__subject")?.textContent?.trim()
+            if (label == subject) return node
+        }
+        error("Inbox entry $subject missing")
+    }
 
     private fun unreadBadgeCount(container: Element): String? =
         inboxBadge(container)?.textContent?.trim()

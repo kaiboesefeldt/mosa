@@ -4,11 +4,13 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import web.storage.Storage
 import web.storage.localStorage
+import straightway.mosa.message.AdminMessage
 
 @Serializable
 data class AdminMessageInboxStateSnapshot(
-    val knownMessageIds: List<String>,
-    val seenMessageIds: List<String>,
+    val knownMessageIds: List<String> = emptyList(),
+    val seenMessageIds: List<String> = emptyList(),
+    val entries: List<AdminMessage> = emptyList(),
 )
 
 interface AdminMessageInboxStateStore {
@@ -63,7 +65,44 @@ class BrowserAdminMessageInboxStateStore(
 }
 
 private fun AdminMessageInboxStateSnapshot.normalized(): AdminMessageInboxStateSnapshot {
-    val known = knownMessageIds.map(String::trim).filter(String::isNotEmpty).distinct()
+    val entries = entries.distinctBy(AdminMessage::id).sortedByDescending(AdminMessage::createdAt)
+    val known = (entries.map(AdminMessage::id) + knownMessageIds).map(String::trim).filter(String::isNotEmpty).distinct()
     val seen = seenMessageIds.map(String::trim).filter(String::isNotEmpty).distinct().filter(known::contains)
-    return AdminMessageInboxStateSnapshot(knownMessageIds = known, seenMessageIds = seen)
+    return AdminMessageInboxStateSnapshot(knownMessageIds = known, seenMessageIds = seen, entries = entries)
+}
+
+internal fun AdminMessageInboxStateSnapshot.nextRefreshFromTime(): Long = entries.maxOfOrNull(AdminMessage::createdAt) ?: 0
+
+internal fun AdminMessageInboxStateSnapshot.mergeFetchedEntries(
+    fetchedEntries: List<AdminMessage>,
+    markFetchedEntriesAsSeen: Boolean,
+): AdminMessageInboxStateSnapshot {
+    val normalized = normalized()
+    val mergedEntries = (fetchedEntries + normalized.entries).distinctBy(AdminMessage::id).sortedByDescending(AdminMessage::createdAt)
+    val knownMessageIds = mergedEntries.map(AdminMessage::id)
+    val seenMessageIds =
+        (
+            normalized.seenMessageIds +
+                if (markFetchedEntriesAsSeen) {
+                    fetchedEntries.map(AdminMessage::id)
+                } else {
+                    emptyList()
+                }
+        ).distinct().filter(knownMessageIds::contains)
+    return AdminMessageInboxStateSnapshot(
+        knownMessageIds = knownMessageIds,
+        seenMessageIds = seenMessageIds,
+        entries = mergedEntries,
+    )
+}
+
+internal fun List<AdminMessage>.filteredForInbox(
+    showSeenMessages: Boolean,
+    hiddenSeenMessageIds: List<String>,
+): List<AdminMessage> {
+    if (showSeenMessages) {
+        return this
+    }
+    val hiddenSeen = hiddenSeenMessageIds.toSet()
+    return filterNot { it.id in hiddenSeen }
 }

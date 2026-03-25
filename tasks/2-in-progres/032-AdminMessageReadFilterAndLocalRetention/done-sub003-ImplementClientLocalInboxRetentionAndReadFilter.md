@@ -10,6 +10,14 @@ Diese Subtask umfasst mindestens:
 - die Darstellung so anpassen, dass gelesene Nachrichten in der eingeblendeten Ansicht erkennbar bleiben
 - die Client-Tests fuer lokale Retention, Filterung, Refresh und serverseitig verschwundene, aber lokal bekannte Nachrichten erweitern
 
+Fachliche Entscheidung:
+
+- Der Client speichert lokal nicht nur bekannte und gelesene Nachrichten-IDs, sondern den bekannten Inbox-Bestand inklusive Nachrichtendaten.
+- Refreshes arbeiten immer inkrementell mit dem lokal spaetesten `createdAt` als `fromTime`; der Erstabruf faellt dadurch automatisch auf `0` zurueck.
+- Antworten vom Server werden nach Nachrichten-ID in den lokalen Bestand gemergt; bei Duplikaten gewinnt die frisch gelieferte Serverversion.
+- Standardmaessig blendet die Inbox nur Nachrichten aus, die bereits vor dem aktuellen Oeffnen als gelesen bekannt waren.
+- Sobald gelesene Nachrichten eingeblendet werden, bleiben sie in der Ansicht klar als gelesen markiert.
+
 Erwartetes Ergebnis:
 
 - Die Inbox zeigt standardmaessig nur ungelesene Nachrichten

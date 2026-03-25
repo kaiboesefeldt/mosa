@@ -173,6 +173,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (isInboxLoading, setInboxLoading) = useState(false)
     val (isInboxAppending, setInboxAppending) = useState(false)
     val (inboxEntries, setInboxEntries) = useState<List<AdminMessage>>(emptyList())
+    val (seenInboxMessageIds, setSeenInboxMessageIds) = useState<List<String>>(emptyList())
+    val (showSeenInboxEntries, setShowSeenInboxEntries) = useState(false)
+    val (hiddenSeenInboxMessageIds, setHiddenSeenInboxMessageIds) = useState<List<String>>(emptyList())
     val (inboxError, setInboxError) = useState<String?>(null)
     val (inboxPage, setInboxPage) = useState(1)
     val (inboxHasMore, setInboxHasMore) = useState(false)
@@ -364,60 +367,56 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     fun mergedInboxState(
-        entries: List<AdminMessage>,
+        fetchedEntries: List<AdminMessage>,
         markAsSeen: Boolean,
     ): AdminMessageInboxStateSnapshot {
         val currentSnapshot = loadInboxStateSnapshot()
-        val knownMessageIds = entries.map(AdminMessage::id).distinct()
-        val seenMessageIds =
-            if (markAsSeen) {
-                knownMessageIds
-            } else {
-                currentSnapshot.seenMessageIds.filter(knownMessageIds::contains)
-            }
-        return AdminMessageInboxStateSnapshot(
-            knownMessageIds = knownMessageIds,
-            seenMessageIds = seenMessageIds,
+        return currentSnapshot.mergeFetchedEntries(
+            fetchedEntries = fetchedEntries,
+            markFetchedEntriesAsSeen = markAsSeen,
         )
     }
 
     fun applyInboxPage(
         result: AdminMessageListResult,
-        append: Boolean,
         markAsSeen: Boolean,
+        hiddenSeenMessageIds: List<String>,
     ) {
-        val mergedEntries =
-            if (append) {
-                (inboxEntries + result.entries).distinctBy(AdminMessage::id)
-            } else {
-                result.entries
-            }
-        setInboxEntries(mergedEntries)
         setInboxPage(result.page)
         setInboxHasMore(result.hasMore)
-        val nextSnapshot = mergedInboxState(mergedEntries, markAsSeen = markAsSeen)
+        val nextSnapshot = mergedInboxState(result.entries, markAsSeen = markAsSeen)
         persistInboxStateSnapshot(nextSnapshot)
+        setInboxEntries(nextSnapshot.entries)
+        setSeenInboxMessageIds(nextSnapshot.seenMessageIds)
+        setHiddenSeenInboxMessageIds(hiddenSeenMessageIds)
         setUnreadInboxCount(unreadCount(nextSnapshot))
     }
 
     fun refreshInbox(openAfterLoad: Boolean) {
         if (isInboxLoading || isInboxAppending) return
+        val currentSnapshot = loadInboxStateSnapshot()
         val willBeOpen = openAfterLoad || isInboxOpenRef.current == true
+        val hiddenSeenMessageIds =
+            if (isInboxOpenRef.current == true) {
+                hiddenSeenInboxMessageIds
+            } else {
+                currentSnapshot.seenMessageIds
+            }
         setInboxOpen(willBeOpen)
         setInboxLoading(true)
         setInboxAppending(false)
         setInboxError(null)
         scope.launch {
             val result: AdminMessageListResult? =
-                runCatching { adminMessageInboxService.fetch(page = 1, fromTime = 0) }.getOrNull()
+                runCatching { adminMessageInboxService.fetch(page = 1, fromTime = currentSnapshot.nextRefreshFromTime()) }.getOrNull()
             setInboxLoading(false)
             if (result == null) {
-                setInboxEntries(emptyList())
-                setInboxPage(1)
-                setInboxHasMore(false)
+                setInboxEntries(currentSnapshot.entries)
+                setSeenInboxMessageIds(currentSnapshot.seenMessageIds)
+                setHiddenSeenInboxMessageIds(hiddenSeenMessageIds)
                 setInboxError(translator.translate("connected.messages.inbox.error"))
             } else {
-                applyInboxPage(result, append = false, markAsSeen = willBeOpen)
+                applyInboxPage(result, markAsSeen = willBeOpen, hiddenSeenMessageIds = hiddenSeenMessageIds)
             }
         }
     }
@@ -425,17 +424,18 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     fun loadMoreInbox() {
         if (!isInboxOpen || isInboxLoading || isInboxAppending || !inboxHasMore) return
         inboxScrollRestoreRef.current = inboxPopoverRef.current?.scrollTop
+        val currentSnapshot = loadInboxStateSnapshot()
         setInboxAppending(true)
         setInboxError(null)
         val nextPage = inboxPage + 1
         scope.launch {
             val result: AdminMessageListResult? =
-                runCatching { adminMessageInboxService.fetch(page = nextPage, fromTime = 0) }.getOrNull()
+                runCatching { adminMessageInboxService.fetch(page = nextPage, fromTime = currentSnapshot.nextRefreshFromTime()) }.getOrNull()
             setInboxAppending(false)
             if (result == null) {
                 setInboxError(translator.translate("connected.messages.inbox.error"))
             } else {
-                applyInboxPage(result, append = true, markAsSeen = true)
+                applyInboxPage(result, markAsSeen = true, hiddenSeenMessageIds = hiddenSeenInboxMessageIds)
             }
         }
     }
@@ -918,8 +918,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
 
     useEffect(props.profile.connectedIdentityGid) {
         val storedSnapshot = loadInboxStateSnapshot()
+        setInboxEntries(storedSnapshot.entries)
+        setSeenInboxMessageIds(storedSnapshot.seenMessageIds)
+        setHiddenSeenInboxMessageIds(storedSnapshot.seenMessageIds)
+        setShowSeenInboxEntries(false)
         setUnreadInboxCount(unreadCount(storedSnapshot))
-        setInboxEntries(emptyList())
         setInboxError(null)
         val nextConnectedIdentityGid = props.profile.connectedIdentityGid
         if (nextConnectedIdentityGid == connectedIdentityGidRef.current) return@useEffect
@@ -1042,6 +1045,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     val avatarDescription = translator.translate(adminPresentation.avatarTitleKey)
+    val visibleInboxEntries =
+        inboxEntries.filteredForInbox(
+            showSeenMessages = showSeenInboxEntries,
+            hiddenSeenMessageIds = hiddenSeenInboxMessageIds,
+        )
+    val hasHiddenSeenInboxEntries = hiddenSeenInboxMessageIds.isNotEmpty()
+    val hasReadInboxEntries = seenInboxMessageIds.isNotEmpty()
 
     fun persistProfileVisibility(visible: Boolean) {
         if (visible) {
@@ -1581,12 +1591,17 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     adminMessageInboxPopover(
                         translator,
                         visualsFactory,
-                        inboxEntries,
+                        visibleInboxEntries,
                         isInboxLoading,
                         isInboxAppending,
                         inboxError,
                         inboxHasMore,
+                        showSeenInboxEntries,
+                        hasHiddenSeenInboxEntries,
+                        seenInboxMessageIds,
+                        hasReadInboxEntries,
                         inboxPopoverRef,
+                        { setShowSeenInboxEntries { current -> !current } },
                         { closeInbox() },
                         ::loadMoreInbox,
                     )
@@ -2917,7 +2932,12 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
     isAppending: Boolean,
     errorText: String?,
     hasMore: Boolean,
+    showSeenMessages: Boolean,
+    hasHiddenSeenEntries: Boolean,
+    readMessageIds: List<String>,
+    hasReadEntries: Boolean,
     popoverRef: Ref<HTMLDivElement>,
+    onToggleSeenVisibility: () -> Unit,
     onClose: () -> Unit,
     onScrollToEnd: () -> Unit,
 ) = div {
@@ -2936,6 +2956,30 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
             +translator.translate("connected.messages.inbox.title")
         }
         button {
+            className =
+                if (showSeenMessages) {
+                    ClassName("message-inbox__filter message-inbox__filter--active")
+                } else {
+                    ClassName("message-inbox__filter")
+                }
+            ariaLabel =
+                translator.translate(
+                    if (showSeenMessages) {
+                        "connected.messages.inbox.hideRead"
+                    } else {
+                        "connected.messages.inbox.showRead"
+                    },
+                )
+            onClick = { onToggleSeenVisibility() }
+            +translator.translate(
+                if (showSeenMessages) {
+                    "connected.messages.inbox.hideRead"
+                } else {
+                    "connected.messages.inbox.showRead"
+                },
+            )
+        }
+        button {
             className = ClassName("message-inbox__close")
             ariaLabel = translator.translate("connected.messages.inbox.close")
             onClick = { onClose() }
@@ -2943,12 +2987,12 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
         }
     }
     when {
-        isLoading ->
+        entries.isEmpty() && isLoading ->
             div {
                 className = ClassName("message-inbox__empty")
                 +translator.translate("connected.messages.inbox.loading")
             }
-        errorText != null ->
+        entries.isEmpty() && errorText != null ->
             div {
                 className = ClassName("message-inbox__error")
                 +errorText
@@ -2956,15 +3000,29 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
         entries.isEmpty() ->
             div {
                 className = ClassName("message-inbox__empty")
-                +translator.translate("connected.messages.inbox.empty")
+                +translator.translate(
+                    if (!showSeenMessages && hasHiddenSeenEntries) {
+                        "connected.messages.inbox.emptyUnread"
+                    } else {
+                        "connected.messages.inbox.empty"
+                    },
+                )
             }
         else -> {
+            val readIds = readMessageIds.toSet()
             entries.forEach { entry ->
                 val senderVisuals = identityVisualsFactory.createFromGid(entry.senderGid)
                 val senderName = senderVisuals.name.toString().trim()
                 div {
                     key = entry.id.unsafeCast<Key>()
-                    className = ClassName("message-inbox__entry")
+                    className =
+                        ClassName(
+                            if (entry.id in readIds) {
+                                "message-inbox__entry message-inbox__entry--read"
+                            } else {
+                                "message-inbox__entry"
+                            },
+                        )
                     div {
                         className = ClassName("message-inbox__sender")
                         img {
@@ -2991,16 +3049,33 @@ private fun ChildrenBuilder.adminMessageInboxPopover(
                         className = ClassName("message-inbox__subject")
                         +entry.subject
                     }
+                    if (showSeenMessages && hasReadEntries && entry.id in readIds) {
+                        span {
+                            className = ClassName("message-inbox__status")
+                            +translator.translate("connected.messages.inbox.read")
+                        }
+                    }
                     div {
                         className = ClassName("message-inbox__body")
                         +entry.body
                     }
                 }
             }
-            if (isAppending) {
+            if (errorText != null) {
+                div {
+                    className = ClassName("message-inbox__error")
+                    +errorText
+                }
+            } else if (isLoading || isAppending) {
                 div {
                     className = ClassName("message-inbox__meta")
-                    +translator.translate("connected.messages.inbox.loadingMore")
+                    +translator.translate(
+                        if (isAppending) {
+                            "connected.messages.inbox.loadingMore"
+                        } else {
+                            "connected.messages.inbox.loading"
+                        },
+                    )
                 }
             }
         }
