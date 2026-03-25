@@ -959,6 +959,71 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `keeps incremental inbox fromTime stable across paging and deduplicates boundary entries`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                inboxResponses =
+                    listOf(
+                        AdminMessageListResult(
+                            entries =
+                                listOf(
+                                    AdminMessage("message-2", adminSenderGid, 20, "Boundary refreshed", "Body 2", 8),
+                                    AdminMessage("message-3", adminSenderGid, 30, "Newest", "Body 3", 8),
+                                ),
+                            page = 1,
+                            hasMore = true,
+                        ),
+                        AdminMessageListResult(
+                            entries =
+                                listOf(
+                                    AdminMessage("message-2", adminSenderGid, 20, "Boundary refreshed", "Body 2", 8),
+                                ),
+                            page = 2,
+                            hasMore = false,
+                        ),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        inboxStateStore.store(
+            "https://pod.example",
+            identityForTests.gid,
+            AdminMessageInboxStateSnapshot(
+                entries =
+                    listOf(
+                        AdminMessage("message-1", adminSenderGid, 10, "Older local", "Body 1"),
+                        AdminMessage("message-2", adminSenderGid, 20, "Boundary local", "Body 2"),
+                    ),
+            ),
+        )
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { view.container.querySelectorAll(".post-card").length == 1 }
+        user.click(inboxButton(view.container)).await()
+        waitForCondition { view.container.textContent?.contains("Newest") == true }
+
+        scrollInboxToEnd(view.container)
+
+        waitForCondition { podAccess.messagesRequests.size == 2 }
+        assertEquals(
+            listOf(
+                MessageRequest(jwt = "jwt", page = 1, fromTime = 20),
+                MessageRequest(jwt = "jwt", page = 2, fromTime = 20),
+            ),
+            podAccess.messagesRequests,
+        )
+        assertEquals(
+            listOf("message-3", "message-2", "message-1"),
+            inboxStateStore.load("https://pod.example", identityForTests.gid)?.entries?.map(AdminMessage::id),
+        )
+    }
+
+    @Test
     fun `opens admin action card from foreign post author`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val recipientGid = fetchedAuthorGid("p1")

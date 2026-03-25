@@ -29,3 +29,25 @@ Auszufuehrende Pruefungen:
 Erfolgskriterium:
 
 - Die wesentlichen Synchronisations-, Retentions-, Filter-, API- und UI-Pfade sind automatisch abgesichert und der komplette Quality Gate ist gruen.
+
+Umsetzung:
+
+- Der API-Pfad ist ueber End-to-End-Tests in `AdminMessageIntegrationTest` abgesichert:
+  - initialer Vollabruf der Inbox
+  - inkrementeller Abruf mit inklusiver `fromTime`-Grenze
+  - Paging innerhalb des gefilterten Zeitfensters
+- Ungueltige Read-Requests werden in `AdminMessageControllerTest` fuer negative und nichtnumerische `fromTime`-Werte abgewiesen.
+- Die Client-Gesamtwirkung ist in `IdentityConnectedViewTest` und `AdminMessageInboxStateTest` abgesichert:
+  - gelesene Eintraege sind beim ersten Oeffnen standardmaessig ausgeblendet
+  - gelesene Eintraege bleiben lokal erhalten und sind ueber den Filter wieder sichtbar
+  - lokal bekannte Eintraege bleiben auch ohne spaetere Server-Auslieferung sichtbar
+  - inkrementelles Inbox-Paging verwendet ein stabiles `fromTime`-Fenster ueber alle Seiten und dedupliziert Grenzfaelle per Message-ID
+- Die RAML-Semantik wird in `AdminMessageApiRamlTest` auf die entscheidenden Aussagen geprueft:
+  - inklusive Zeitgrenze
+  - TTL-Verkuerzung nur fuer tatsaechlich zurueckgegebene Eintraege
+  - `0` als Vollabruf-Default
+  - Paging innerhalb des gefilterten Fensters
+- Verifikation:
+  - `./gradlew :client:jsTest`
+  - `./gradlew :server:test --tests straightway.mosa.message.AdminMessageIntegrationTest --tests straightway.mosa.message.AdminMessageControllerTest --tests straightway.mosa.message.AdminMessageApiRamlTest`
+  - `./gradlew check`

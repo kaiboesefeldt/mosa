@@ -138,6 +138,20 @@ class AdminMessageControllerTest {
         }
 
     @Test
+    fun `get messages rejects non numeric fromTime`() =
+        runTest {
+            env {
+                val response =
+                    client.get("/v1/messages") {
+                        bearerAuth(env.bearerToken)
+                        parameter("fromTime", "abc")
+                    }
+
+                assertEquals(HttpStatusCode.BadRequest, response.status)
+            }
+        }
+
+    @Test
     fun `get messages uses default fromTime when omitted`() =
         runTest {
             val result = AdminMessageListResult(emptyList())

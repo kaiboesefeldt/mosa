@@ -416,6 +416,74 @@ class AdminMessageIntegrationTest {
         }
 
     @Test
+    fun `recipient can page through inclusive fromTime refresh window`() =
+        runTest {
+            val directory = Files.createTempDirectory("admin-message-integration")
+            val path = directory.resolve("mosa_db.sqlite")
+            val clock = MutableClock(Instant.parse("2026-03-17T10:15:30Z"))
+            val store = createStore(path)
+            var adminGid = ""
+            var nextId = 0
+            val service =
+                AdminMessageService(
+                    store = store,
+                    clock = clock,
+                    isAdmin = { it == adminGid },
+                    unretrievedTtl = 180.days,
+                    retrievedTtl = 28.days,
+                    pageSize = 1,
+                    idFactory = { "message-${++nextId}" },
+                    expectedGidByteLength = MessageDigest.getInstance("SHA-256").digest(byteArrayOf()).size,
+                )
+            val env = ControllerHttpTestEnvironment(AdminMessageController(service))
+            val adminIdentity = testIdentity(env)
+            val recipientIdentity = testIdentity(env)
+            adminGid = adminIdentity.gid
+
+            try {
+                env {
+                    client.post("/v1/admin/messages") {
+                        bearerAuth(adminIdentity.token)
+                        setJsonBody(CreateAdminMessageRequest(recipientIdentity.gid, "Older", "Body 1"))
+                    }
+                    clock.advanceSeconds(10)
+                    client.post("/v1/admin/messages") {
+                        bearerAuth(adminIdentity.token)
+                        setJsonBody(CreateAdminMessageRequest(recipientIdentity.gid, "Boundary", "Body 2"))
+                    }
+                    clock.advanceSeconds(10)
+                    client.post("/v1/admin/messages") {
+                        bearerAuth(adminIdentity.token)
+                        setJsonBody(CreateAdminMessageRequest(recipientIdentity.gid, "Newest", "Body 3"))
+                    }
+
+                    val firstPage =
+                        client.get("/v1/messages") {
+                            bearerAuth(recipientIdentity.token)
+                            parameter("page", "1")
+                            parameter("fromTime", "1773742540")
+                        }
+                    val secondPage =
+                        client.get("/v1/messages") {
+                            bearerAuth(recipientIdentity.token)
+                            parameter("page", "2")
+                            parameter("fromTime", "1773742540")
+                        }
+
+                    assertEquals(HttpStatusCode.OK, firstPage.status)
+                    assertEquals(HttpStatusCode.OK, secondPage.status)
+                    assertEquals(listOf("message-3"), firstPage.body<AdminMessageListResult>().entries.map(AdminMessage::id))
+                    assertEquals(true, firstPage.body<AdminMessageListResult>().hasMore)
+                    assertEquals(listOf("message-2"), secondPage.body<AdminMessageListResult>().entries.map(AdminMessage::id))
+                    assertEquals(false, secondPage.body<AdminMessageListResult>().hasMore)
+                }
+            } finally {
+                Files.deleteIfExists(path)
+                Files.deleteIfExists(directory)
+            }
+        }
+
+    @Test
     fun `non admins cannot read admin history`() =
         runTest {
             val directory = Files.createTempDirectory("admin-message-integration")

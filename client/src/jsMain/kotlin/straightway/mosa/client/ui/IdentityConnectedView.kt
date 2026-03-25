@@ -179,6 +179,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (inboxError, setInboxError) = useState<String?>(null)
     val (inboxPage, setInboxPage) = useState(1)
     val (inboxHasMore, setInboxHasMore) = useState(false)
+    val (inboxRefreshFromTime, setInboxRefreshFromTime) = useState(0L)
     val (unreadInboxCount, setUnreadInboxCount) = useState(0)
     val (isComplaintQueueOpen, setComplaintQueueOpen) = useState(false)
     val (isComplaintQueueLoading, setComplaintQueueLoading) = useState(false)
@@ -395,6 +396,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     fun refreshInbox(openAfterLoad: Boolean) {
         if (isInboxLoading || isInboxAppending) return
         val currentSnapshot = loadInboxStateSnapshot()
+        val refreshFromTime = currentSnapshot.nextRefreshFromTime()
         val willBeOpen = openAfterLoad || isInboxOpenRef.current == true
         val hiddenSeenMessageIds =
             if (isInboxOpenRef.current == true) {
@@ -405,10 +407,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         setInboxOpen(willBeOpen)
         setInboxLoading(true)
         setInboxAppending(false)
+        setInboxRefreshFromTime(refreshFromTime)
         setInboxError(null)
         scope.launch {
             val result: AdminMessageListResult? =
-                runCatching { adminMessageInboxService.fetch(page = 1, fromTime = currentSnapshot.nextRefreshFromTime()) }.getOrNull()
+                runCatching { adminMessageInboxService.fetch(page = 1, fromTime = refreshFromTime) }.getOrNull()
             setInboxLoading(false)
             if (result == null) {
                 setInboxEntries(currentSnapshot.entries)
@@ -424,13 +427,12 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     fun loadMoreInbox() {
         if (!isInboxOpen || isInboxLoading || isInboxAppending || !inboxHasMore) return
         inboxScrollRestoreRef.current = inboxPopoverRef.current?.scrollTop
-        val currentSnapshot = loadInboxStateSnapshot()
         setInboxAppending(true)
         setInboxError(null)
         val nextPage = inboxPage + 1
         scope.launch {
             val result: AdminMessageListResult? =
-                runCatching { adminMessageInboxService.fetch(page = nextPage, fromTime = currentSnapshot.nextRefreshFromTime()) }.getOrNull()
+                runCatching { adminMessageInboxService.fetch(page = nextPage, fromTime = inboxRefreshFromTime) }.getOrNull()
             setInboxAppending(false)
             if (result == null) {
                 setInboxError(translator.translate("connected.messages.inbox.error"))
