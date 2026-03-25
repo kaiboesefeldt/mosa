@@ -518,6 +518,46 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `shows complaint action on replies from other authors`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val ownGid = fetchedAuthorGid("p1")
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1", authorGid = ownGid)),
+                replyResponses =
+                    mapOf(
+                        "p1" to
+                            listOf(
+                                QueryResult(
+                                    entries =
+                                        listOf(
+                                            QueryResult.Entry("r-1", "reply-content", 0.7f, "reply-author", 5, "p1"),
+                                        ),
+                                    queryOnId = "",
+                                ),
+                            ),
+                    ),
+            )
+        overrideDependencies(topics = listOf(Topic("Alpha")), podAccess = podAccess)
+        val user = userEvent.setup()
+        val view =
+            render(
+                FC<Props> {
+                    IdentityConnectedView {
+                        identityName = "Tester"
+                        profile = placeholderProfile(identityGid = ownGid, connectedIdentityGid = ownGid)
+                    }
+                }.create(),
+            )
+
+        waitForCondition { view.container.querySelector(".post-card") != null }
+        user.click(view.container.querySelector(".post-card") ?: error("post missing")).await()
+
+        waitForCondition { view.container.querySelector(".reply-card") != null }
+        assertTrue(replyComplaintButton(view.container) != null)
+    }
+
+    @Test
     fun `restores selected topic from session store`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val podAccess =
@@ -1419,6 +1459,9 @@ private fun inboxScrollTop(container: Element): Double =
         container.querySelector(".connected-profile-switch-trigger") ?: error("Connected profile switch trigger missing")
 
     private fun text(key: String): String = ConnectedViewTestInjector.get<Translator>().translate(key)
+
+    private fun replyComplaintButton(container: Element): Element? =
+        container.querySelector(".reply-card button[title='${text("connected.complaints.post.action")}']")
 }
 
 private fun ByteArray.toArrayBuffer(): ArrayBuffer =

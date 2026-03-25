@@ -1829,6 +1829,20 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onRequestDelete = ::requestDelete,
                     onCancelDelete = ::clearDeleteCandidate,
                     onConfirmDelete = ::confirmDelete,
+                    complaintActionPostId = complaintActionPostId,
+                    complaintComposerPostId = complaintComposerPostId,
+                    complaintComposerText = complaintComposerText,
+                    complaintComposerError = complaintComposerError,
+                    isComplaintSubmitting = isComplaintSubmitting,
+                    onRequestComplaint = ::requestPostComplaint,
+                    onComplaintTextChange = {
+                        setComplaintComposerText(it)
+                        if (complaintComposerError != null) {
+                            setComplaintComposerError(null)
+                        }
+                    },
+                    onCloseComplaintComposer = ::closeComplaintComposer,
+                    onSubmitComplaint = ::submitPostComplaint,
                     isMobile = isMobile,
                     showBackToPosts = showBackButtons,
                     onBackToPosts = {
@@ -2180,6 +2194,15 @@ private fun ChildrenBuilder.repliesColumn(
     onRequestDelete: (QueryResult.Entry) -> Unit,
     onCancelDelete: () -> Unit,
     onConfirmDelete: (QueryResult.Entry) -> Unit,
+    complaintActionPostId: String?,
+    complaintComposerPostId: String?,
+    complaintComposerText: String,
+    complaintComposerError: String?,
+    isComplaintSubmitting: Boolean,
+    onRequestComplaint: (QueryResult.Entry) -> Unit,
+    onComplaintTextChange: (String) -> Unit,
+    onCloseComplaintComposer: () -> Unit,
+    onSubmitComplaint: () -> Unit,
     isComposerOpen: Boolean,
     replyText: String,
     canActivateComposer: Boolean,
@@ -2268,6 +2291,16 @@ private fun ChildrenBuilder.repliesColumn(
                     onRequestDelete = { onRequestDelete(reply) },
                     onCancelDelete = onCancelDelete,
                     onConfirmDelete = { onConfirmDelete(reply) },
+                    canComplain = connectedGid != null && reply.authorGID != connectedGid,
+                    isComplaining = complaintActionPostId == reply.id,
+                    complaintComposerPostId = complaintComposerPostId,
+                    complaintComposerText = complaintComposerText,
+                    complaintComposerError = complaintComposerError,
+                    isComplaintSubmitting = isComplaintSubmitting,
+                    onRequestComplaint = { onRequestComplaint(reply) },
+                    onComplaintTextChange = onComplaintTextChange,
+                    onCloseComplaintComposer = onCloseComplaintComposer,
+                    onSubmitComplaint = onSubmitComplaint,
                     canComposeAdminMessage = canComposeAdminMessage,
                     onToggleAdminUserCard = onToggleAdminUserCard,
                 )
@@ -2443,6 +2476,16 @@ private fun ChildrenBuilder.replyCard(
     onRequestDelete: () -> Unit,
     onCancelDelete: () -> Unit,
     onConfirmDelete: () -> Unit,
+    canComplain: Boolean,
+    isComplaining: Boolean,
+    complaintComposerPostId: String?,
+    complaintComposerText: String,
+    complaintComposerError: String?,
+    isComplaintSubmitting: Boolean,
+    onRequestComplaint: () -> Unit,
+    onComplaintTextChange: (String) -> Unit,
+    onCloseComplaintComposer: () -> Unit,
+    onSubmitComplaint: () -> Unit,
     canComposeAdminMessage: Boolean,
     onToggleAdminUserCard: (String, String, String, String) -> Unit,
 ) {
@@ -2451,6 +2494,7 @@ private fun ChildrenBuilder.replyCard(
     val canOpenAdminUserCard = canComposeAdminMessage && connectedGid != null && reply.authorGID != connectedGid
     val canDeleteReply = (connectedGid != null && reply.authorGID == connectedGid) || canDeleteAsAdmin
     val showDeletePopover = canDeleteReply && deleteCandidateId == reply.id
+    val showComplaintComposer = complaintComposerPostId == reply.id
     div {
         key = reply.id.unsafeCast<Key>()
         className = ClassName("reply-card")
@@ -2510,11 +2554,43 @@ private fun ChildrenBuilder.replyCard(
                         }
                     }
                 }
+                if (canComplain) {
+                    val complaintLabel = translator.translate("connected.complaints.post.action")
+                    button {
+                        className = ClassName("post-card__filter")
+                        disabled = isComplaining
+                        ariaLabel = complaintLabel
+                        title = complaintLabel
+                        onClick = {
+                            onRequestComplaint()
+                        }
+                        i {
+                            className = ClassName("fa fa-regular fa-flag")
+                        }
+                    }
+                }
             }
         }
         div {
             className = ClassName("reply-card__content")
             +reply.content
+        }
+        if (showComplaintComposer) {
+            div {
+                className = ClassName("post-card__delete-popover complaint-composer complaint-composer--card")
+                complaintComposerPopover(
+                    translator = translator,
+                    title = translator.translate("connected.complaints.post.title"),
+                    placeholder = translator.translate("connected.complaints.post.placeholder"),
+                    text = complaintComposerText,
+                    isSubmitting = isComplaintSubmitting,
+                    errorText = complaintComposerError,
+                    sendLabel = translator.translate("connected.complaints.post.send"),
+                    onTextChange = onComplaintTextChange,
+                    onSend = onSubmitComplaint,
+                    onClose = onCloseComplaintComposer,
+                )
+            }
         }
         if (showDeletePopover) {
             val cancelLabel = translator.translate("connected.posts.delete.cancel")
