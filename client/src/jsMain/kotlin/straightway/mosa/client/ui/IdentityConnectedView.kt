@@ -1,19 +1,12 @@
-@file:OptIn(ExperimentalWasmJsInterop::class)
-
 package straightway.mosa.client.ui
 
-import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlin.js.Date
-import kotlin.js.ExperimentalWasmJsInterop
-import kotlin.js.JsName
 import kotlin.js.unsafeCast
-import kotlin.math.abs
-import org.w3c.dom.events.Event
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import react.ChildrenBuilder
@@ -29,7 +22,6 @@ import react.dom.html.ReactHTML.span
 import react.dom.html.ReactHTML.textarea
 import react.dom.events.ChangeEvent
 import react.dom.events.MouseEvent
-import react.dom.events.TouchEvent
 import react.useEffect
 import react.useMemo
 import react.Ref
@@ -58,15 +50,11 @@ import straightway.mosa.client.content.complaint.PostComplaintService
 import straightway.mosa.client.content.ReplyPublisher
 import straightway.mosa.client.content.TopicFilters
 import straightway.mosa.client.content.ReplySearchService
-import straightway.mosa.client.content.ThreadReplies
 import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.content.complaint.PostComplaintState
 import straightway.mosa.content.QueryResult
 import straightway.mosa.identity.FictionalNameGenerator
-import straightway.mosa.message.AdminMessage
-import straightway.mosa.message.AdminMessageListResult
 import web.cssom.ClassName
-import web.html.HTMLButtonElement
 import web.html.HTMLTextAreaElement
 import web.html.HTMLInputElement
 
@@ -74,36 +62,6 @@ external interface IdentityConnectedViewProps : Props {
     var identityName: String
     var profile: IdentityScreen.Profile
 }
-
-private external interface JsIntersectionObserverEntry {
-    val isIntersecting: Boolean
-}
-
-private external interface JsIntersectionObserverOptions {
-    var root: Element?
-    var rootMargin: String?
-    var threshold: dynamic
-}
-
-@JsName("IntersectionObserver")
-private external class JsIntersectionObserver(
-    callback: (Array<JsIntersectionObserverEntry>, JsIntersectionObserver) -> Unit,
-    options: JsIntersectionObserverOptions = definedExternally,
-) {
-    fun observe(target: Element)
-    fun disconnect()
-}
-
-private enum class MobilePane {
-    Topics,
-    Posts,
-    Replies,
-}
-
-private data class SwipeTargets(
-    var topic: Topic?,
-    var post: QueryResult.Entry?,
-)
 
 val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val translator = ConnectedViewInjector.get<Translator>()
@@ -144,43 +102,15 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val profileAnimationDurationMs = 760
     val (toastMessage, setToastMessage) = useState<String?>(null)
     val toastTimerRef = useRef<Int>()
-    val (adminUserCardAnchorId, setAdminUserCardAnchorId) = useState<String?>(null)
-    val (adminMessageRecipientGid, setAdminMessageRecipientGid) = useState<String?>(null)
-    val (adminMessageRecipientName, setAdminMessageRecipientName) = useState<String?>(null)
-    val (adminMessageRecipientAvatar, setAdminMessageRecipientAvatar) = useState<String?>(null)
-    val (adminMessageSubject, setAdminMessageSubject) = useState("")
-    val (adminMessageBody, setAdminMessageBody) = useState("")
-    val (isAdminMessageSending, setAdminMessageSending) = useState(false)
-    val (adminMessageError, setAdminMessageError) = useState<String?>(null)
-    val (isAdminMessageComposerOpen, setAdminMessageComposerOpen) = useState(false)
-    val (adminHistoryEntries, setAdminHistoryEntries) = useState<List<AdminMessage>>(emptyList())
-    val (isAdminHistoryLoading, setAdminHistoryLoading) = useState(false)
-    val (isAdminHistoryAppending, setAdminHistoryAppending) = useState(false)
-    val (adminHistoryError, setAdminHistoryError) = useState<String?>(null)
-    val (adminHistoryPage, setAdminHistoryPage) = useState(1)
-    val (adminHistoryHasMore, setAdminHistoryHasMore) = useState(false)
-    val (isMobile, setIsMobile) = useState(false)
-    val (isTouchDevice, setIsTouchDevice) = useState(false)
-    val (mobilePane, setMobilePane) = useState(MobilePane.Topics)
-    val touchStartXRef = useRef(0.0)
-    val touchStartYRef = useRef(0.0)
-    val swipePaneRef = useRef(MobilePane.Topics)
-    val swipeActiveRef = useRef(false)
-    val swipeTargetsRef = useRef(SwipeTargets(null, null))
-    val (swipeOffsetPercent, setSwipeOffsetPercent) = useState(0.0)
-    val adminUserCardAnchorIdRef = useRef("")
-    val adminHistoryListRef = useRef<HTMLDivElement>()
-    val adminHistoryScrollRestoreRef = useRef<Double>()
-    adminUserCardAnchorIdRef.current = adminUserCardAnchorId ?: ""
-
+    val viewport = useIdentityConnectedViewViewportController()
     fun setPaneForSelectedTopic(topic: Topic?) {
-        if (!isMobile) return
-        setMobilePane(if (topic == null) MobilePane.Topics else MobilePane.Posts)
+        if (!viewport.isMobile) return
+        viewport.setMobilePane(if (topic == null) MobilePane.Topics else MobilePane.Posts)
     }
 
     fun setPaneForSelectedPost(entry: QueryResult.Entry?) {
-        if (!isMobile) return
-        setMobilePane(if (entry == null) MobilePane.Posts else MobilePane.Replies)
+        if (!viewport.isMobile) return
+        viewport.setMobilePane(if (entry == null) MobilePane.Posts else MobilePane.Replies)
     }
 
     useEffect(sessionStore) {
@@ -235,7 +165,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             replyPublisher = replyPublisher,
             replySearchService = replySearchService,
             scope = scope,
-            isMobile = isMobile,
+            isMobile = viewport.isMobile,
             snapshotRefreshVersion = props.profile.snapshotRefreshVersion,
             postsContainerRef = postsContainerRef,
             repliesContainerRef = repliesContainerRef,
@@ -311,148 +241,50 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val complaintQueueButtonRef = moderation.complaintQueueButtonRef
     val inboxPopoverRef = moderation.inboxPopoverRef
     val complaintQueuePopoverRef = moderation.complaintQueuePopoverRef
-
-    fun closeAdminUserCard() {
-        if (isAdminMessageSending) return
-        setAdminUserCardAnchorId(null)
-        setAdminMessageRecipientGid(null)
-        setAdminMessageRecipientName(null)
-        setAdminMessageRecipientAvatar(null)
-        setAdminMessageSubject("")
-        setAdminMessageBody("")
-        setAdminMessageError(null)
-        setAdminMessageComposerOpen(false)
-        setAdminHistoryEntries(emptyList())
-        setAdminHistoryLoading(false)
-        setAdminHistoryAppending(false)
-        setAdminHistoryError(null)
-        setAdminHistoryPage(1)
-        setAdminHistoryHasMore(false)
-    }
-
-    fun toggleAdminUserCard(
-        anchorId: String,
-        recipientGid: String,
-        recipientName: String,
-        recipientAvatar: String,
-    ) {
-        if (!adminPresentation.canDeleteAsAdmin) return
-        if (adminUserCardAnchorId == anchorId) {
-            closeAdminUserCard()
-            return
-        }
-        setAdminUserCardAnchorId(anchorId)
-        setAdminMessageRecipientGid(recipientGid)
-        setAdminMessageRecipientName(recipientName)
-        setAdminMessageRecipientAvatar(recipientAvatar)
-        setAdminMessageSubject("")
-        setAdminMessageBody("")
-        setAdminMessageError(null)
-        setAdminMessageComposerOpen(false)
-        setAdminHistoryLoading(true)
-        setAdminHistoryAppending(false)
-        setAdminHistoryError(null)
-        scope.launch {
-            val result: AdminMessageListResult? =
-                runCatching { adminMessageHistoryService.fetch(recipientGid, page = 1) }.getOrNull()
-            setAdminHistoryLoading(false)
-            if (result == null) {
-                setAdminHistoryEntries(emptyList())
-                setAdminHistoryPage(1)
-                setAdminHistoryHasMore(false)
-                setAdminHistoryError(translator.translate("connected.messages.actions.history.error"))
-            } else {
-                setAdminHistoryEntries(result.entries)
-                setAdminHistoryPage(result.page)
-                setAdminHistoryHasMore(result.hasMore)
-            }
-        }
-    }
-
-    fun openAdminMessageCompose() {
-        if (adminUserCardAnchorId == null || adminMessageRecipientGid == null) return
-        setAdminMessageError(null)
-        setAdminMessageComposerOpen(true)
-    }
-
-    fun refreshAdminHistory(recipientGid: String) {
-        setAdminHistoryLoading(true)
-        setAdminHistoryAppending(false)
-        setAdminHistoryError(null)
-        scope.launch {
-            val result: AdminMessageListResult? =
-                runCatching { adminMessageHistoryService.fetch(recipientGid, page = 1) }.getOrNull()
-            setAdminHistoryLoading(false)
-            if (result == null) {
-                setAdminHistoryEntries(emptyList())
-                setAdminHistoryPage(1)
-                setAdminHistoryHasMore(false)
-                setAdminHistoryError(translator.translate("connected.messages.actions.history.error"))
-            } else {
-                setAdminHistoryEntries(result.entries)
-                setAdminHistoryPage(result.page)
-                setAdminHistoryHasMore(result.hasMore)
-            }
-        }
-    }
-
-    fun loadMoreAdminHistory() {
-        val recipientGid = adminMessageRecipientGid ?: return
-        if (isAdminHistoryLoading || isAdminHistoryAppending || !adminHistoryHasMore) return
-        adminHistoryScrollRestoreRef.current = adminHistoryListRef.current?.scrollTop
-        setAdminHistoryAppending(true)
-        setAdminHistoryError(null)
-        val nextPage = adminHistoryPage + 1
-        scope.launch {
-            val result: AdminMessageListResult? =
-                runCatching { adminMessageHistoryService.fetch(recipientGid, page = nextPage) }.getOrNull()
-            setAdminHistoryAppending(false)
-            if (result == null) {
-                setAdminHistoryError(translator.translate("connected.messages.actions.history.error"))
-            } else {
-                setAdminHistoryEntries((adminHistoryEntries + result.entries).distinctBy(AdminMessage::id))
-                setAdminHistoryPage(result.page)
-                setAdminHistoryHasMore(result.hasMore)
-            }
-        }
-    }
-
-    fun sendAdminMessageToCurrentRecipient() {
-        val recipientGid = adminMessageRecipientGid ?: return
-        scope.launch {
-            setAdminMessageSending(true)
-            setAdminMessageError(null)
-            val wasSent =
-                runCatching {
-                    adminMessagePublisher.send(
-                        recipientGid,
-                        adminMessageSubject,
-                        adminMessageBody,
-                    )
-                }.getOrDefault(false)
-            setAdminMessageSending(false)
-            if (wasSent) {
-                setAdminMessageSubject("")
-                setAdminMessageBody("")
-                setAdminMessageError(null)
-                setAdminMessageComposerOpen(false)
-                refreshAdminHistory(recipientGid)
-                showToast(translator.translate("connected.messages.compose.success"))
-            } else {
-                setAdminMessageError(translator.translate("connected.messages.compose.error"))
-            }
-        }
-    }
-
-    fun closestAttribute(element: Element?, attribute: String): String? {
-        var current = element
-        while (current != null) {
-            val value = current.getAttribute(attribute)
-            if (value != null) return value
-            current = current.parentElement
-        }
-        return null
-    }
+    val admin =
+        useIdentityConnectedViewAdminController(
+            translator = translator,
+            adminMessageHistoryService = adminMessageHistoryService,
+            adminMessagePublisher = adminMessagePublisher,
+            scope = scope,
+            canDeleteAsAdmin = adminPresentation.canDeleteAsAdmin,
+            showToast = ::showToast,
+        )
+    val adminUserCardAnchorId = admin.adminUserCardAnchorId
+    val adminMessageRecipientName = admin.adminMessageRecipientName
+    val adminMessageRecipientAvatar = admin.adminMessageRecipientAvatar
+    val adminMessageSubject = admin.adminMessageSubject
+    val adminMessageBody = admin.adminMessageBody
+    val isAdminMessageSending = admin.isAdminMessageSending
+    val adminMessageError = admin.adminMessageError
+    val isAdminMessageComposerOpen = admin.isAdminMessageComposerOpen
+    val adminHistoryEntries = admin.adminHistoryEntries
+    val isAdminHistoryLoading = admin.isAdminHistoryLoading
+    val isAdminHistoryAppending = admin.isAdminHistoryAppending
+    val adminHistoryError = admin.adminHistoryError
+    val adminHistoryHasMore = admin.adminHistoryHasMore
+    val adminHistoryListRef = admin.adminHistoryListRef
+    val shell =
+        useIdentityConnectedViewMobileShell(
+            isMobile = viewport.isMobile,
+            isTouchDevice = viewport.isTouchDevice,
+            mobilePane = viewport.mobilePane,
+            setMobilePane = viewport.setMobilePane,
+            selectedTopic = selectedTopic,
+            selectedPost = selectedPost,
+            posts = posts,
+            replies = replies,
+            postsContainerRef = postsContainerRef,
+            loadMoreRef = loadMoreRef,
+            repliesContainerRef = repliesContainerRef,
+            repliesLoadMoreRef = repliesLoadMoreRef,
+            findTopicByTitle = content.findTopicByTitle,
+            findPostById = content.findPostById,
+            selectTopic = content.selectTopic,
+            selectPost = content.selectPost,
+            loadMorePosts = content.loadMorePosts,
+            loadMoreReplies = content.loadMoreReplies,
+        )
 
     fun clearProfileExitTimer() {
         profileExitTimerRef.current?.let { timerId ->
@@ -480,20 +312,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     useEffect(*noDependencies) {
-        val adminUserCardOutsideClickListener: (Event) -> Unit = listener@{ event ->
-            if ((adminUserCardAnchorIdRef.current ?: "").isEmpty()) return@listener
-            val target = event.target?.unsafeCast<Element?>() ?: return@listener
-            val clickedTrigger = target.asDynamic().closest(".admin-user-trigger") != null
-            val clickedCard = target.asDynamic().closest(".admin-user-card") != null
-            if (!clickedTrigger && !clickedCard) {
-                closeAdminUserCard()
-            }
-        }
-        document.addEventListener("mousedown", adminUserCardOutsideClickListener)
         try {
             awaitCancellation()
         } finally {
-            document.removeEventListener("mousedown", adminUserCardOutsideClickListener)
             clearProfileExitTimer()
             clearProfileEntryTimer()
             clearToastTimer()
@@ -555,128 +376,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             hideProfile()
         }, profileAnimationDurationMs)
         profileExitTimerRef.current = timerId
-    }
-
-    useEffect(arrayOf(posts, selectedTopic, isMobile, mobilePane)) {
-        val target = loadMoreRef.current ?: return@useEffect
-        val container = postsContainerRef.current ?: return@useEffect
-        val observerAvailable = js("typeof IntersectionObserver !== 'undefined'") as Boolean
-        if (!observerAvailable) return@useEffect
-        if (isMobile && mobilePane != MobilePane.Posts) return@useEffect
-        val options = js("{}").unsafeCast<JsIntersectionObserverOptions>()
-        if (isMobile) {
-            options.root = null
-            options.rootMargin = "120px"
-        } else {
-            options.root = container
-            options.rootMargin = "48px"
-        }
-        options.threshold = 1.0
-        val observer =
-            JsIntersectionObserver(
-                { entries, _ ->
-                    val shouldLoadMore = entries.any { entry -> entry.isIntersecting }
-                    val hasScrollIntent = container.dataset["mosaScrollReady"] == "true"
-                    if (shouldLoadMore && hasScrollIntent) {
-                        content.loadMorePosts()
-                    }
-                },
-                options,
-            )
-        observer.observe(target)
-        try {
-            awaitCancellation()
-        } finally {
-            observer.disconnect()
-        }
-    }
-
-    useEffect(arrayOf(replies, selectedPost, isMobile, mobilePane)) {
-        val target = repliesLoadMoreRef.current ?: return@useEffect
-        val container = repliesContainerRef.current ?: return@useEffect
-        val observerAvailable = js("typeof IntersectionObserver !== 'undefined'") as Boolean
-        if (!observerAvailable) return@useEffect
-        if (isMobile && mobilePane != MobilePane.Replies) return@useEffect
-        val options = js("{}").unsafeCast<JsIntersectionObserverOptions>()
-        if (isMobile) {
-            options.root = null
-            options.rootMargin = "120px"
-        } else {
-            options.root = container
-            options.rootMargin = "48px"
-        }
-        options.threshold = 1.0
-        val observer =
-            JsIntersectionObserver(
-                { entries, _ ->
-                    val shouldLoadMore = entries.any { entry -> entry.isIntersecting }
-                    val hasScrollIntent = container.dataset["mosaScrollReady"] == "true"
-                    if (shouldLoadMore && hasScrollIntent) {
-                        content.loadMoreReplies()
-                    }
-                },
-                options,
-            )
-        observer.observe(target)
-        try {
-            awaitCancellation()
-        } finally {
-            observer.disconnect()
-        }
-    }
-
-    useEffect(arrayOf(selectedTopic, selectedPost, mobilePane)) {
-        fun updateIsMobile() {
-            val isNarrow = window.innerWidth <= 900
-            setIsMobile(isNarrow)
-            if (!isNarrow) {
-                setMobilePane(MobilePane.Topics)
-                return
-            }
-            if (mobilePane == MobilePane.Replies && selectedPost == null) {
-                if (selectedTopic == null) {
-                    setMobilePane(MobilePane.Topics)
-                } else {
-                    setMobilePane(MobilePane.Posts)
-                }
-            }
-            if (mobilePane == MobilePane.Posts && selectedTopic == null) {
-                setMobilePane(MobilePane.Topics)
-            }
-        }
-        updateIsMobile()
-        val listener: (Event) -> Unit = { updateIsMobile() }
-        window.addEventListener("resize", listener)
-        try {
-            awaitCancellation()
-        } finally {
-            window.removeEventListener("resize", listener)
-        }
-    }
-
-    useEffect(arrayOf(adminHistoryEntries, isAdminHistoryAppending)) {
-        val scrollTop = adminHistoryScrollRestoreRef.current ?: return@useEffect
-        adminHistoryListRef.current?.scrollTop = scrollTop
-        if (!isAdminHistoryAppending) {
-            adminHistoryScrollRestoreRef.current = null
-        }
-    }
-
-    useEffect(*noDependencies) {
-        val coarsePointer = window.matchMedia("(pointer: coarse)").matches
-        val hasTouch = js("('ontouchstart' in window)") as Boolean
-        setIsTouchDevice(coarsePointer || hasTouch)
-    }
-
-    useEffect(arrayOf(isMobile, selectedTopic, selectedPost, mobilePane)) {
-        if (!isMobile) return@useEffect
-        if (selectedTopic == null && mobilePane != MobilePane.Topics) {
-            setMobilePane(MobilePane.Topics)
-            return@useEffect
-        }
-        if (selectedPost == null && mobilePane == MobilePane.Replies) {
-            setMobilePane(MobilePane.Posts)
-        }
     }
 
     div {
@@ -830,142 +529,22 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
         div {
             val boardClass =
-                buildString {
-                    append("topic-board")
-                    if (isMobile) {
-                        append(" topic-board--mobile")
-                        append(
-                            when (mobilePane) {
-                                MobilePane.Topics -> " topic-board--mobile-topics"
-                                MobilePane.Posts -> " topic-board--mobile-posts"
-                                MobilePane.Replies -> " topic-board--mobile-replies"
-                            },
-                        )
-                        if (swipeOffsetPercent != 0.0) {
-                            append(" topic-board--mobile-dragging")
-                        }
-                    }
-                }
+                shell.boardClass
             className = ClassName(boardClass)
-            val baseShiftPercent =
-                when (mobilePane) {
-                    MobilePane.Topics -> 0.0
-                    MobilePane.Posts -> -100.0
-                    MobilePane.Replies -> -200.0
-                }
-            val dragShiftPercent = if (isMobile) swipeOffsetPercent else 0.0
-            val combinedShiftPercent = baseShiftPercent + dragShiftPercent
-            val showBackButtons = isMobile && !isTouchDevice
+            val combinedShiftPercent = shell.combinedShiftPercent
+            val showBackButtons = shell.showBackButtons
             div {
                 className = ClassName("topic-board__track")
-                if (isMobile) {
+                if (viewport.isMobile) {
                     val trackStyle: dynamic = js("({})")
                     trackStyle["--mobile-shift"] = "${combinedShiftPercent}%"
                     asDynamic().style = trackStyle
                 }
-                if (isMobile) {
-                    val handleStart: (TouchEvent<*>) -> Unit = handler@ { event ->
-                        val touch = event.changedTouches.item(0) ?: return@handler
-                        touchStartXRef.current = touch.clientX
-                        touchStartYRef.current = touch.clientY
-                        swipePaneRef.current = mobilePane
-                        val targets = swipeTargetsRef.current ?: return@handler
-                        val eventTarget = event.target as? Element
-                        val topicTitle = closestAttribute(eventTarget, "data-topic-title")
-                        val postId = closestAttribute(eventTarget, "data-post-id")
-                        targets.topic = content.findTopicByTitle(topicTitle)
-                        targets.post = content.findPostById(postId)
-                        swipeActiveRef.current = true
-                        setSwipeOffsetPercent(0.0)
-                    }
-                    val handleMove: (TouchEvent<*>) -> Unit = handler@ { event ->
-                        if (swipeActiveRef.current != true) return@handler
-                        val targets = swipeTargetsRef.current ?: return@handler
-                        val touch = event.changedTouches.item(0) ?: return@handler
-                        val startX = touchStartXRef.current ?: return@handler
-                        val startY = touchStartYRef.current ?: return@handler
-                        val touchX = touch.clientX
-                        val touchY = touch.clientY
-                        val deltaX = touchX - startX
-                        val deltaY = abs(touchY - startY)
-                        val absDeltaX = abs(deltaX)
-                        if (absDeltaX <= deltaY) {
-                            setSwipeOffsetPercent(0.0)
-                            return@handler
-                        }
-                        val activePane = swipePaneRef.current ?: mobilePane
-                        val trackWidth =
-                            (event.currentTarget as? HTMLDivElement)?.clientWidth?.toDouble()
-                                ?.coerceAtLeast(1.0)
-                                ?: window.innerWidth.toDouble().coerceAtLeast(1.0)
-                        val percent = (deltaX / trackWidth) * 100.0
-                        when {
-                            deltaX > 0 -> {
-                                if (activePane == MobilePane.Topics) {
-                                    setSwipeOffsetPercent(0.0)
-                                    return@handler
-                                }
-                                setSwipeOffsetPercent(percent.coerceIn(0.0, 100.0))
-                            }
-                            deltaX < 0 -> {
-                                when (activePane) {
-                                    MobilePane.Topics -> {
-                                        if (targets.topic == null) {
-                                            setSwipeOffsetPercent(0.0)
-                                            return@handler
-                                        }
-                                        setSwipeOffsetPercent(percent.coerceIn(-100.0, 0.0))
-                                    }
-                                    MobilePane.Posts -> {
-                                        if (targets.post == null) {
-                                            setSwipeOffsetPercent(0.0)
-                                            return@handler
-                                        }
-                                        setSwipeOffsetPercent(percent.coerceIn(-100.0, 0.0))
-                                    }
-                                    MobilePane.Replies -> {
-                                        setSwipeOffsetPercent(0.0)
-                                        return@handler
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    val handleEnd: (TouchEvent<*>) -> Unit = handler@ {
-                        if (swipeActiveRef.current != true) return@handler
-                        val targets = swipeTargetsRef.current ?: return@handler
-                        val activePane = swipePaneRef.current ?: mobilePane
-                        val offset = swipeOffsetPercent
-                        val backThresholdReached = offset > 18.0
-                        val forwardThresholdReached = offset < -18.0
-                        if (backThresholdReached) {
-                            when (activePane) {
-                                MobilePane.Replies -> setMobilePane(MobilePane.Posts)
-                                MobilePane.Posts -> setMobilePane(MobilePane.Topics)
-                                MobilePane.Topics -> Unit
-                            }
-                        }
-                        if (forwardThresholdReached) {
-                            when (activePane) {
-                                MobilePane.Topics -> targets.topic?.let { target ->
-                                    content.selectTopic(target)
-                                    setMobilePane(MobilePane.Posts)
-                                }
-                                MobilePane.Posts -> targets.post?.let { post ->
-                                    content.selectPost(post)
-                                }
-                                MobilePane.Replies -> Unit
-                            }
-                        }
-                        setSwipeOffsetPercent(0.0)
-                        swipeActiveRef.current = false
-                        targets.topic = null
-                        targets.post = null
-                    }
-                    onTouchStart = handleStart
-                    onTouchMove = handleMove
-                    onTouchEnd = handleEnd
-                    onTouchCancel = handleEnd
+                if (viewport.isMobile) {
+                    onTouchStart = shell.onTouchStart
+                    onTouchMove = shell.onTouchMove
+                    onTouchEnd = shell.onTouchEnd
+                    onTouchCancel = shell.onTouchEnd
                 }
                 topicColumn(translator, topics, selectedTopic, content.addTopic, content.selectTopic, content.removeTopic)
                 postsColumn(
@@ -1004,14 +583,14 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     isAdminMessageSending = isAdminMessageSending,
                     adminMessageError = adminMessageError,
                     isAdminMessageComposerOpen = isAdminMessageComposerOpen,
-                    onToggleAdminUserCard = ::toggleAdminUserCard,
-                    onOpenAdminMessageComposer = ::openAdminMessageCompose,
-                    onAdminMessageSubjectChange = { value -> setAdminMessageSubject(value) },
-                    onAdminMessageBodyChange = { value -> setAdminMessageBody(value) },
-                    onCloseAdminMessageComposer = ::closeAdminUserCard,
-                    onSendAdminMessage = ::sendAdminMessageToCurrentRecipient,
-                    showBackToTopics = showBackButtons && mobilePane != MobilePane.Topics,
-                    onBackToTopics = { setMobilePane(MobilePane.Topics) },
+                    onToggleAdminUserCard = admin.toggleAdminUserCard,
+                    onOpenAdminMessageComposer = admin.openAdminMessageCompose,
+                    onAdminMessageSubjectChange = admin.setAdminMessageSubject,
+                    onAdminMessageBodyChange = admin.setAdminMessageBody,
+                    onCloseAdminMessageComposer = admin.closeAdminUserCard,
+                    onSendAdminMessage = admin.sendAdminMessageToCurrentRecipient,
+                    showBackToTopics = showBackButtons && viewport.mobilePane != MobilePane.Topics,
+                    onBackToTopics = { viewport.setMobilePane(MobilePane.Topics) },
                     containerRef = postsContainerRef,
                     loadMoreRef = loadMoreRef,
                 )
@@ -1038,13 +617,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onComplaintTextChange = moderation.setComplaintComposerText,
                     onCloseComplaintComposer = moderation.closeComplaintComposer,
                     onSubmitComplaint = moderation.submitPostComplaint,
-                    isMobile = isMobile,
+                    isMobile = viewport.isMobile,
                     showBackToPosts = showBackButtons,
                     onBackToPosts = {
                         if (selectedTopic == null) {
-                            setMobilePane(MobilePane.Topics)
+                            viewport.setMobilePane(MobilePane.Topics)
                         } else {
-                            setMobilePane(MobilePane.Posts)
+                            viewport.setMobilePane(MobilePane.Posts)
                         }
                     },
                     containerRef = repliesContainerRef,
@@ -1066,16 +645,16 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     isAdminMessageSending = isAdminMessageSending,
                     adminMessageError = adminMessageError,
                     isAdminMessageComposerOpen = isAdminMessageComposerOpen,
-                    onToggleAdminUserCard = ::toggleAdminUserCard,
-                    onOpenAdminMessageComposer = ::openAdminMessageCompose,
-                    onAdminMessageSubjectChange = { value -> setAdminMessageSubject(value) },
-                    onAdminMessageBodyChange = { value -> setAdminMessageBody(value) },
-                    onCloseAdminMessageComposer = ::closeAdminUserCard,
-                    onSendAdminMessage = ::sendAdminMessageToCurrentRecipient,
+                    onToggleAdminUserCard = admin.toggleAdminUserCard,
+                    onOpenAdminMessageComposer = admin.openAdminMessageCompose,
+                    onAdminMessageSubjectChange = admin.setAdminMessageSubject,
+                    onAdminMessageBodyChange = admin.setAdminMessageBody,
+                    onCloseAdminMessageComposer = admin.closeAdminUserCard,
+                    onSendAdminMessage = admin.sendAdminMessageToCurrentRecipient,
                 )
             }
         }
-        if (!isMobile || mobilePane != MobilePane.Replies) {
+        if (!viewport.isMobile || viewport.mobilePane != MobilePane.Replies) {
             floatingComposerButton(
                 label = translator.translate("connected.composer.open"),
                 onActivate = content.openComposer,
@@ -1137,12 +716,12 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             historyErrorText = adminHistoryError,
             historyHasMore = adminHistoryHasMore,
             historyListRef = adminHistoryListRef,
-            onOpenComposer = ::openAdminMessageCompose,
-            onSubjectChange = { value -> setAdminMessageSubject(value) },
-            onBodyChange = { value -> setAdminMessageBody(value) },
-            onClose = ::closeAdminUserCard,
-            onSend = ::sendAdminMessageToCurrentRecipient,
-            onHistoryScroll = ::loadMoreAdminHistory,
+            onOpenComposer = admin.openAdminMessageCompose,
+            onSubjectChange = admin.setAdminMessageSubject,
+            onBodyChange = admin.setAdminMessageBody,
+            onClose = admin.closeAdminUserCard,
+            onSend = admin.sendAdminMessageToCurrentRecipient,
+            onHistoryScroll = admin.loadMoreAdminHistory,
         )
     }
 }
@@ -1154,6 +733,16 @@ private val noDependencies: Array<dynamic> = emptyArray()
 internal fun isScrolledNearBottom(element: HTMLDivElement): Boolean {
     val thresholdPx = 24
     return element.scrollTop + element.clientHeight >= element.scrollHeight - thresholdPx
+}
+
+internal fun closestAttribute(element: Element?, attribute: String): String? {
+    var current = element
+    while (current != null) {
+        val value = current.getAttribute(attribute)
+        if (value != null) return value
+        current = current.parentElement
+    }
+    return null
 }
 
 internal fun formatTimestamp(epochSeconds: Long): String =
