@@ -10,7 +10,7 @@ Die Aufgabe umfasst mindestens diese Punkte:
 - Es gibt einen Filterknopf, mit dem gelesene Admin-Nachrichten ein- und ausgeblendet werden koennen.
 - Der Default-Zustand blendet gelesene Admin-Nachrichten aus.
 - Bereits lokal bekannte Admin-Nachrichten bleiben im Browser-Speicher erhalten, auch wenn sie spaeter serverseitig geloescht wurden.
-- Die Darstellung macht erkennbar, ob eine Nachricht gelesen wurde und ob sie nur noch lokal vorliegt.
+- Die Darstellung macht erkennbar, ob eine Nachricht gelesen wurde.
 
 Akzeptanzkriterien:
 
@@ -20,6 +20,6 @@ Akzeptanzkriterien:
 
 Bei der Umsetzung ist insbesondere zu klaeren:
 
-- Ob der Client fuer lokal erhaltene, serverseitig nicht mehr vorhandene Nachrichten einen expliziten Status oder Marker anzeigen soll.
 - Wie Browser-Speicher und Server-Synchronisation zusammenarbeiten, ohne geloeschte Servereintraege beim naechsten Refresh unbeabsichtigt lokal zu verwerfen.
-- Wie sich diese Aufgabe zu [024-AllowAdminDeleteAdminMessages](/home/kai/Projects/straightway/mosa/tasks/1-open/024-AllowAdminDeleteAdminMessages/Description.md), [020-AdminUserMessagingLifecycle](/home/kai/Projects/straightway/mosa/tasks/3-done/020-AdminUserMessagingLifecycle/Description.md) und [023-AdminSentMessagesPerProfile](/home/kai/Projects/straightway/mosa/tasks/3-done/023-AdminSentMessagesPerProfile/Description.md) verhaelt.
+- Wie der Nachrichtenabruf fuer eine effiziente Inbox-Synchronisation so erweitert werden kann, dass der Client neue oder weiterhin relevante Nachrichten ab einem vom Client uebergebenen UTC-Zeitpunkt nachladen kann, statt die sichtbare Inbox bei jedem Refresh vollstaendig neu abzurufen.
+- Wie die genaue API-Ausgestaltung fuer diese Synchronisation konsistent zwischen Server, Client und RAML-Spezifikation definiert wird.
