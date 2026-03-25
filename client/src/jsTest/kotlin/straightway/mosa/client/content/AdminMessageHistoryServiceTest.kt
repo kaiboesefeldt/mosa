@@ -117,6 +117,7 @@ private class RecordingAdminHistoryPodAccess : PodAccess {
     override suspend fun messages(
         jwt: String,
         page: Int,
+        fromTime: Long?,
     ): AdminMessageListResult = error("not used")
 
     override suspend fun adminMessages(

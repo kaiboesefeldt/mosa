@@ -95,6 +95,16 @@ class AdminMessageInboxServiceTest {
         assertEquals(listOf(2), podAccess.messagesRequests.map { it.page })
     }
 
+    @Test
+    fun `forwards optional fromTime for incremental inbox refresh`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val service = AdminMessageInboxService(sessionProvider())
+
+        service.fetch(page = 1, fromTime = 1234)
+
+        assertEquals(listOf(MessageRequest(jwt = "jwt-token", page = 1, fromTime = 1234)), podAccess.messagesRequests)
+    }
+
     private fun sessionProvider(): PodSessionProvider =
         PodSessionProvider(
             identityRepository = StaticAdminMessageIdentityRepository(identity),
@@ -135,8 +145,9 @@ private class RecordingAdminMessagePodAccess : PodAccess {
     override suspend fun messages(
         jwt: String,
         page: Int,
+        fromTime: Long?,
     ): AdminMessageListResult {
-        messagesRequests += MessageRequest(jwt = jwt, page = page)
+        messagesRequests += MessageRequest(jwt = jwt, page = page, fromTime = fromTime)
         return messagesResult
     }
 
@@ -188,6 +199,7 @@ private class RecordingAdminMessagePodAccess : PodAccess {
 private data class MessageRequest(
     val jwt: String,
     val page: Int,
+    val fromTime: Long? = null,
 )
 
 class StaticAdminMessageIdentityRepository(

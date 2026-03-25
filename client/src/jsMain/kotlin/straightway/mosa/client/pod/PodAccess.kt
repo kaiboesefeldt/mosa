@@ -52,8 +52,9 @@ interface PodAccess {
     suspend fun messages(
         jwt: String,
         page: Int = 1,
+        fromTime: Long? = null,
     ): AdminMessageListResult =
-        if (page == 1) {
+        if (page == 1 && fromTime == null) {
             messages(jwt)
         } else {
             error("Paged messages endpoint is not implemented for this PodAccess")
@@ -188,8 +189,9 @@ class PodAccessImpl(
     override suspend fun messages(
         jwt: String,
         page: Int,
+        fromTime: Long?,
     ): AdminMessageListResult =
-        get("/v1/messages", jwt = jwt, page = page)
+        get("/v1/messages", jwt = jwt, page = page, fromTime = fromTime)
             .ensureSuccess("/v1/messages", Unit)
             .body()
 
@@ -363,10 +365,12 @@ class PodAccessImpl(
         jwt: String? = null,
         gid: String? = null,
         page: Int? = null,
+        fromTime: Long? = null,
     ): HttpResponse =
         httpClient.get("$podBase$path") {
             gid?.let { parameter("gid", it) }
             page?.let { parameter("page", it) }
+            fromTime?.let { parameter("fromTime", it) }
             if (jwt != null) {
                 header(HttpHeaders.Authorization, "Bearer $jwt")
             } else {

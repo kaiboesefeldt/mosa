@@ -22,9 +22,10 @@ class AdminMessageController(
             getRoute("/messages") {
                 val recipientGid = userGidOrRespondUnauthorized() ?: return@getRoute
                 val page = call.request.queryParameters.page()
+                val fromTime = call.request.queryParameters.fromTime()
                 call.respond(
                     HttpStatusCode.OK,
-                    adminMessageService.listInboxForRecipient(recipientGid, page),
+                    adminMessageService.listInboxForRecipient(recipientGid, page, fromTime),
                     typeInfo<AdminMessageListResult>(),
                 )
             }
@@ -54,3 +55,12 @@ private fun io.ktor.http.Parameters.page(): Int =
     this["page"]?.let { value ->
         value.toIntOrNull() ?: throw BadRequestException("page must be an integer")
     } ?: 1
+
+private fun io.ktor.http.Parameters.fromTime(): Long? =
+    this["fromTime"]?.let { value ->
+        val parsed = value.toLongOrNull() ?: throw BadRequestException("fromTime must be an integer")
+        if (parsed < 0) {
+            throw BadRequestException("fromTime must be at least 0")
+        }
+        parsed
+    }

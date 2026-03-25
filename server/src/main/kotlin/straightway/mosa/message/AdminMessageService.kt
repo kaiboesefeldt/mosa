@@ -45,6 +45,7 @@ class AdminMessageService(
     suspend fun listInboxForRecipient(
         recipientGid: String,
         page: Int,
+        fromTime: Long? = null,
     ): AdminMessageListResult {
         val now = clock.instant().epochSecond
         return pagedResult(

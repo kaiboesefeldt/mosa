@@ -46,13 +46,31 @@ class AdminMessageControllerTest {
                     page = 3,
                     hasMore = true,
                 )
-            coEvery { service.listInboxForRecipient(env.gid, 3) } returns result
+            coEvery { service.listInboxForRecipient(env.gid, 3, null) } returns result
 
             env {
                 val response =
                     client.get("/v1/messages") {
                         bearerAuth(env.bearerToken)
                         parameter("page", "3")
+                    }
+
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals(result, response.body<AdminMessageListResult>())
+            }
+        }
+
+    @Test
+    fun `get messages forwards optional fromTime`() =
+        runTest {
+            val result = AdminMessageListResult(emptyList())
+            coEvery { service.listInboxForRecipient(env.gid, 1, 1234) } returns result
+
+            env {
+                val response =
+                    client.get("/v1/messages") {
+                        bearerAuth(env.bearerToken)
+                        parameter("fromTime", "1234")
                     }
 
                 assertEquals(HttpStatusCode.OK, response.status)
@@ -98,6 +116,20 @@ class AdminMessageControllerTest {
                     client.get("/v1/messages") {
                         bearerAuth(env.bearerToken)
                         parameter("page", "abc")
+                    }
+
+                assertEquals(HttpStatusCode.BadRequest, response.status)
+            }
+        }
+
+    @Test
+    fun `get messages rejects negative fromTime`() =
+        runTest {
+            env {
+                val response =
+                    client.get("/v1/messages") {
+                        bearerAuth(env.bearerToken)
+                        parameter("fromTime", "-1")
                     }
 
                 assertEquals(HttpStatusCode.BadRequest, response.status)

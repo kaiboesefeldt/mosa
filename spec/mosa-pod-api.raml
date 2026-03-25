@@ -920,19 +920,29 @@ securitySchemes:
       description: |
         Return paged private admin messages for the authenticated recipient inbox.
         Only messages for the caller's own identity are returned. Reading this inbox may shorten the remaining TTL.
+        When `fromTime` is provided, the server returns only currently visible inbox messages with
+        `createdAt >= fromTime`, sorted newest first. The time boundary is inclusive so the client can
+        safely repeat the newest known timestamp and deduplicate by message id across refreshes.
       queryParameters:
         page?:
           type: integer
           minimum: 1
           default: 1
           description: 1-based page number with a fixed server-side page size of 10
+        fromTime?:
+          type: integer
+          format: int64
+          minimum: 0
+          description: |
+            Optional UTC epoch second for incremental inbox refresh. Pagination applies within the
+            filtered result window.
       responses:
         200:
           body:
             application/json:
               type: AdminMessageListResult
         400:
-          description: Invalid request (e.g., page < 1)
+          description: Invalid request (e.g., page < 1 or fromTime < 0)
         401:
           description: Missing or invalid bearer token
         5xx:
