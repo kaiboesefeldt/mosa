@@ -190,25 +190,49 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
+    val headerProps =
+        IdentityConnectedViewHeaderProps(
+            identityName = props.identityName,
+            profile = props.profile,
+            visualsFactory = visualsFactory,
+            adminPresentation = adminPresentation,
+            profileController = profileController,
+            moderation = moderation,
+            uiState = uiState,
+        )
+    val boardProps =
+        IdentityConnectedViewBoardProps(
+            profile = props.profile,
+            visualsFactory = visualsFactory,
+            adminPresentation = adminPresentation,
+            viewport = viewport,
+            shell = shell,
+            content = content,
+            moderation = moderation,
+            admin = admin,
+            uiState = uiState,
+            postsContainerRef = postsContainerRef,
+            loadMoreRef = loadMoreRef,
+            repliesContainerRef = repliesContainerRef,
+            repliesLoadMoreRef = repliesLoadMoreRef,
+        )
+    val overlayProps =
+        IdentityConnectedViewOverlayProps(
+            profile = props.profile,
+            visualsFactory = visualsFactory,
+            adminPresentation = adminPresentation,
+            profileController = profileController,
+            content = content,
+            admin = admin,
+            uiState = uiState,
+        )
+
     connectedShellLayout(
         translator = translator,
-        identityName = props.identityName,
-        profile = props.profile,
-        visualsFactory = visualsFactory,
-        adminPresentation = adminPresentation,
-        profileController = profileController,
-        viewport = viewport,
-        shell = shell,
-        content = content,
-        moderation = moderation,
-        admin = admin,
-        uiState = uiState,
-        postsContainerRef = postsContainerRef,
-        loadMoreRef = loadMoreRef,
-        repliesContainerRef = repliesContainerRef,
-        repliesLoadMoreRef = repliesLoadMoreRef,
+        headerProps = headerProps,
+        boardProps = boardProps,
     )
-    connectedShellOverlays(translator, props.profile, visualsFactory, adminPresentation, profileController, content, admin, uiState)
+    connectedShellOverlays(translator, overlayProps)
 }
 
 private object ConnectedViewInjector : KoinComponent

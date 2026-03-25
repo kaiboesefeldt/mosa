@@ -22,80 +22,28 @@ import web.html.HTMLTextAreaElement
 internal fun ChildrenBuilder.adminUserActionCardOverlay(
     translator: Translator,
     identityVisualsFactory: IdentityVisualsFactory,
-    recipientAvatar: String,
-    recipientName: String,
-    isComposerOpen: Boolean,
-    subject: String,
-    body: String,
-    isSending: Boolean,
-    errorText: String?,
-    historyEntries: List<AdminMessage>,
-    isHistoryLoading: Boolean,
-    isHistoryAppending: Boolean,
-    historyErrorText: String?,
-    historyHasMore: Boolean,
-    historyListRef: Ref<HTMLDivElement>,
-    onOpenComposer: () -> Unit,
-    onSubjectChange: (String) -> Unit,
-    onBodyChange: (String) -> Unit,
-    onClose: () -> Unit,
-    onSend: () -> Unit,
-    onHistoryScroll: () -> Unit,
+    admin: IdentityConnectedViewAdminController,
 ) = div {
     className = ClassName("admin-user-card-overlay")
     onClick = { event: MouseEvent<*, *> ->
         if (event.target == event.currentTarget) {
-            onClose()
+            admin.closeAdminUserCard()
         }
     }
     adminUserActionCard(
         translator = translator,
         identityVisualsFactory = identityVisualsFactory,
-        recipientAvatar = recipientAvatar,
-        recipientName = recipientName,
-        isComposerOpen = isComposerOpen,
-        subject = subject,
-        body = body,
-        isSending = isSending,
-        errorText = errorText,
-        historyEntries = historyEntries,
-        isHistoryLoading = isHistoryLoading,
-        isHistoryAppending = isHistoryAppending,
-        historyErrorText = historyErrorText,
-        historyHasMore = historyHasMore,
-        historyListRef = historyListRef,
-        onOpenComposer = onOpenComposer,
-        onSubjectChange = onSubjectChange,
-        onBodyChange = onBodyChange,
-        onClose = onClose,
-        onSend = onSend,
-        onHistoryScroll = onHistoryScroll,
+        admin = admin,
     )
 }
 
 private fun ChildrenBuilder.adminUserActionCard(
     translator: Translator,
     identityVisualsFactory: IdentityVisualsFactory,
-    recipientAvatar: String,
-    recipientName: String,
-    isComposerOpen: Boolean,
-    subject: String,
-    body: String,
-    isSending: Boolean,
-    errorText: String?,
-    historyEntries: List<AdminMessage>,
-    isHistoryLoading: Boolean,
-    isHistoryAppending: Boolean,
-    historyErrorText: String?,
-    historyHasMore: Boolean,
-    historyListRef: Ref<HTMLDivElement>,
-    onOpenComposer: () -> Unit,
-    onSubjectChange: (String) -> Unit,
-    onBodyChange: (String) -> Unit,
-    onClose: () -> Unit,
-    onSend: () -> Unit,
-    onHistoryScroll: () -> Unit,
+    admin: IdentityConnectedViewAdminController,
 ) = div {
+    val recipientAvatar = admin.adminMessageRecipientAvatar ?: return@div
+    val recipientName = admin.adminMessageRecipientName ?: return@div
     className = ClassName("admin-user-card")
     onClick = { event: MouseEvent<*, *> -> event.stopPropagation() }
     div {
@@ -122,40 +70,40 @@ private fun ChildrenBuilder.adminUserActionCard(
         button {
             className = ClassName("admin-user-card__close")
             ariaLabel = translator.translate("connected.messages.actions.close")
-            onClick = { onClose() }
+            onClick = { admin.closeAdminUserCard() }
             +"×"
         }
     }
-    if (!isComposerOpen) {
+    if (!admin.isAdminMessageComposerOpen) {
         button {
             className = ClassName("button button--primary admin-user-card__primary-action")
-            onClick = { onOpenComposer() }
+            onClick = { admin.openAdminMessageCompose() }
             +translator.translate("connected.messages.actions.send")
         }
     }
     adminMessageHistorySection(
         translator = translator,
         identityVisualsFactory = identityVisualsFactory,
-        historyEntries = historyEntries,
-        isLoading = isHistoryLoading,
-        isAppending = isHistoryAppending,
-        errorText = historyErrorText,
-        hasMore = historyHasMore,
-        listRef = historyListRef,
-        onScrollToEnd = onHistoryScroll,
+        historyEntries = admin.adminHistoryEntries,
+        isLoading = admin.isAdminHistoryLoading,
+        isAppending = admin.isAdminHistoryAppending,
+        errorText = admin.adminHistoryError,
+        hasMore = admin.adminHistoryHasMore,
+        listRef = admin.adminHistoryListRef,
+        onScrollToEnd = admin.loadMoreAdminHistory,
     )
-    if (isComposerOpen) {
+    if (admin.isAdminMessageComposerOpen) {
         adminMessageComposePopover(
             translator = translator,
             recipientName = recipientName,
-            subject = subject,
-            body = body,
-            isSending = isSending,
-            errorText = errorText,
-            onSubjectChange = onSubjectChange,
-            onBodyChange = onBodyChange,
-            onClose = onClose,
-            onSend = onSend,
+            subject = admin.adminMessageSubject,
+            body = admin.adminMessageBody,
+            isSending = admin.isAdminMessageSending,
+            errorText = admin.adminMessageError,
+            onSubjectChange = admin.setAdminMessageSubject,
+            onBodyChange = admin.setAdminMessageBody,
+            onClose = admin.closeAdminUserCard,
+            onSend = admin.sendAdminMessageToCurrentRecipient,
         )
     }
 }

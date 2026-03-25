@@ -80,71 +80,28 @@ internal fun ChildrenBuilder.topicColumn(
 
 internal fun ChildrenBuilder.postsColumn(
     translator: Translator,
-    visualsFactory: IdentityVisualsFactory,
-    posts: List<TopicPosts>,
-    selectedTopic: Topic?,
-    selectedPost: QueryResult.Entry?,
-    isLoading: Boolean,
-    activeFilters: Map<String, Float>,
-    onToggleFilter: (Topic, QueryResult.Entry) -> Unit,
-    onClearFilter: (Topic) -> Unit,
-    onSelectPost: (QueryResult.Entry) -> Unit,
-    connectedGid: String?,
-    canDeleteAsAdmin: Boolean,
-    deleteCandidateId: String?,
-    isDeleting: Boolean,
-    deleteError: String?,
-    onRequestDelete: (QueryResult.Entry) -> Unit,
-    onCancelDelete: () -> Unit,
-    onConfirmDelete: (QueryResult.Entry) -> Unit,
-    complaintActionPostId: String?,
-    complaintComposerPostId: String?,
-    complaintComposerText: String,
-    complaintComposerError: String?,
-    isComplaintSubmitting: Boolean,
-    onRequestComplaint: (QueryResult.Entry) -> Unit,
-    onComplaintTextChange: (String) -> Unit,
-    onCloseComplaintComposer: () -> Unit,
-    onSubmitComplaint: () -> Unit,
-    canComposeAdminMessage: Boolean,
-    adminUserCardAnchorId: String?,
-    adminMessageRecipientName: String?,
-    adminMessageSubject: String,
-    adminMessageBody: String,
-    isAdminMessageSending: Boolean,
-    adminMessageError: String?,
-    isAdminMessageComposerOpen: Boolean,
-    onToggleAdminUserCard: (String, String, String, String) -> Unit,
-    onOpenAdminMessageComposer: () -> Unit,
-    onAdminMessageSubjectChange: (String) -> Unit,
-    onAdminMessageBodyChange: (String) -> Unit,
-    onCloseAdminMessageComposer: () -> Unit,
-    onSendAdminMessage: () -> Unit,
-    showBackToTopics: Boolean,
-    onBackToTopics: () -> Unit,
-    containerRef: Ref<HTMLDivElement>,
-    loadMoreRef: Ref<HTMLDivElement>,
+    props: IdentityConnectedViewPostsColumnProps,
 ) = div {
     className = ClassName("topic-board__column topic-board__column--posts")
-    ref = containerRef
+    ref = props.containerRef
     onScroll = { event ->
         event.currentTarget.dataset["mosaScrollReady"] = "true"
     }
     val activeFilterTopic =
-        selectedTopic
+        props.selectedTopic
             ?.let { topic ->
-                activeFilters[topic.title]?.let { topic to it }
+                props.content.topicFilters[topic.title]?.let { topic to it }
             }
-            ?: posts.firstNotNullOfOrNull { topicPosts ->
-                activeFilters[topicPosts.topic.title]?.let { topicPosts.topic to it }
+            ?: props.content.posts.firstNotNullOfOrNull { topicPosts ->
+                props.content.topicFilters[topicPosts.topic.title]?.let { topicPosts.topic to it }
             }
     div {
         className = ClassName("topic-board__column-header")
-        if (showBackToTopics) {
+        if (props.showBackToTopics) {
             button {
                 className = ClassName("topic-board__back-button")
                 ariaLabel = translator.translate("connected.mobile.backToTopics")
-                onClick = { onBackToTopics() }
+                onClick = { props.onBackToTopics() }
                 i {
                     className = ClassName("fa fa-solid fa-chevron-left topic-board__back-icon")
                 }
@@ -174,7 +131,7 @@ internal fun ChildrenBuilder.postsColumn(
                         className = ClassName("topic-board__filter-reset")
                         ariaLabel = clearLabel
                         title = clearLabel
-                        onClick = { onClearFilter(filterTopic) }
+                        onClick = { props.content.clearTopicFilter(filterTopic) }
                         i {
                             className = ClassName("fa fa-solid fa-arrows-up-to-line topic-board__filter-reset-icon")
                         }
@@ -187,62 +144,62 @@ internal fun ChildrenBuilder.postsColumn(
             }
         }
     }
-    val highlightTopic = selectedTopic
+    val highlightTopic = props.selectedTopic
     if (highlightTopic != null) {
         topicHighlightCard(translator, highlightTopic)
     }
     when {
-        isLoading -> Unit
-        posts.isEmpty() ->
+        props.content.isLoadingPosts -> Unit
+        props.content.posts.isEmpty() ->
             div {
                 className = ClassName("topic-board__empty")
                 +translator.translate("connected.posts.empty")
             }
         else ->
-            posts.forEach { topicPosts ->
-                val filterScore = activeFilters[topicPosts.topic.title]
+            props.content.posts.forEach { topicPosts ->
+                val filterScore = props.content.topicFilters[topicPosts.topic.title]
                 val filterResult = filterEntriesByScore(topicPosts.entries, filterScore)
                 filterResult.entries.forEach { entry ->
                     val isFilterEntry = filterResult.filteredEntryId == entry.id
                     postCard(
                         translator = translator,
-                        visualsFactory = visualsFactory,
+                        visualsFactory = props.visualsFactory,
                         entry = entry,
                         topic = topicPosts.topic,
                         isFilterEntry = isFilterEntry,
-                        onToggleFilter = onToggleFilter,
-                        isSelected = selectedPost?.id == entry.id,
+                        onToggleFilter = props.content.toggleTopicFilter,
+                        isSelected = props.selectedPost?.id == entry.id,
                         onSelect = {
-                            onCancelDelete()
-                            onSelectPost(entry)
+                            props.content.clearDeleteCandidate()
+                            props.content.selectPost(entry)
                         },
-                        connectedGid = connectedGid,
-                        canDeleteAsAdmin = canDeleteAsAdmin,
-                        deleteCandidateId = deleteCandidateId,
-                        isDeleting = isDeleting,
-                        deleteError = deleteError,
-                        onRequestDelete = { onRequestDelete(entry) },
-                        onCancelDelete = { onCancelDelete() },
-                        onConfirmDelete = { onConfirmDelete(entry) },
-                        canComplain = connectedGid != null && entry.authorGID != connectedGid,
-                        isComplaining = complaintActionPostId == entry.id,
-                        complaintComposerPostId = complaintComposerPostId,
-                        complaintComposerText = complaintComposerText,
-                        complaintComposerError = complaintComposerError,
-                        isComplaintSubmitting = isComplaintSubmitting,
-                        onRequestComplaint = { onRequestComplaint(entry) },
-                        onComplaintTextChange = onComplaintTextChange,
-                        onCloseComplaintComposer = onCloseComplaintComposer,
-                        onSubmitComplaint = onSubmitComplaint,
-                        canComposeAdminMessage = canComposeAdminMessage,
-                        onToggleAdminUserCard = onToggleAdminUserCard,
+                        connectedGid = props.connectedGid,
+                        canDeleteAsAdmin = props.canDeleteAsAdmin,
+                        deleteCandidateId = props.content.deleteCandidate?.id,
+                        isDeleting = props.content.isDeletingPost,
+                        deleteError = props.content.deleteError,
+                        onRequestDelete = { props.content.requestDelete(entry) },
+                        onCancelDelete = props.content.clearDeleteCandidate,
+                        onConfirmDelete = { props.content.confirmDelete(entry) },
+                        canComplain = props.connectedGid != null && entry.authorGID != props.connectedGid,
+                        isComplaining = props.moderation.complaintActionPostId == entry.id,
+                        complaintComposerPostId = props.moderation.complaintComposerPostId,
+                        complaintComposerText = props.moderation.complaintComposerText,
+                        complaintComposerError = props.moderation.complaintComposerError,
+                        isComplaintSubmitting = props.moderation.isComplaintSubmitting,
+                        onRequestComplaint = { props.moderation.requestPostComplaint(entry) },
+                        onComplaintTextChange = props.moderation.setComplaintComposerText,
+                        onCloseComplaintComposer = props.moderation.closeComplaintComposer,
+                        onSubmitComplaint = props.moderation.submitPostComplaint,
+                        canComposeAdminMessage = props.canDeleteAsAdmin,
+                        onToggleAdminUserCard = props.admin.toggleAdminUserCard,
                     )
                 }
             }
     }
-    if (!isLoading && posts.isNotEmpty()) {
+    if (!props.content.isLoadingPosts && props.content.posts.isNotEmpty()) {
         div {
-            ref = loadMoreRef
+            ref = props.loadMoreRef
             className = ClassName("topic-board__load-sentinel")
         }
     }
@@ -250,68 +207,20 @@ internal fun ChildrenBuilder.postsColumn(
 
 internal fun ChildrenBuilder.repliesColumn(
     translator: Translator,
-    visualsFactory: IdentityVisualsFactory,
-    selectedPost: QueryResult.Entry?,
-    replies: ThreadReplies?,
-    isLoading: Boolean,
-    connectedGid: String?,
-    canDeleteAsAdmin: Boolean,
-    deleteCandidateId: String?,
-    isDeleting: Boolean,
-    deleteError: String?,
-    onRequestDelete: (QueryResult.Entry) -> Unit,
-    onCancelDelete: () -> Unit,
-    onConfirmDelete: (QueryResult.Entry) -> Unit,
-    complaintActionPostId: String?,
-    complaintComposerPostId: String?,
-    complaintComposerText: String,
-    complaintComposerError: String?,
-    isComplaintSubmitting: Boolean,
-    onRequestComplaint: (QueryResult.Entry) -> Unit,
-    onComplaintTextChange: (String) -> Unit,
-    onCloseComplaintComposer: () -> Unit,
-    onSubmitComplaint: () -> Unit,
-    isComposerOpen: Boolean,
-    replyText: String,
-    canActivateComposer: Boolean,
-    isPublishing: Boolean,
-    errorText: String?,
-    onOpenComposer: () -> Unit,
-    onCloseComposer: () -> Unit,
-    onReplyTextChange: (String) -> Unit,
-    onSendReply: () -> Unit,
-    canComposeAdminMessage: Boolean,
-    adminUserCardAnchorId: String?,
-    adminMessageRecipientName: String?,
-    adminMessageSubject: String,
-    adminMessageBody: String,
-    isAdminMessageSending: Boolean,
-    adminMessageError: String?,
-    isAdminMessageComposerOpen: Boolean,
-    onToggleAdminUserCard: (String, String, String, String) -> Unit,
-    onOpenAdminMessageComposer: () -> Unit,
-    onAdminMessageSubjectChange: (String) -> Unit,
-    onAdminMessageBodyChange: (String) -> Unit,
-    onCloseAdminMessageComposer: () -> Unit,
-    onSendAdminMessage: () -> Unit,
-    isMobile: Boolean,
-    showBackToPosts: Boolean,
-    onBackToPosts: () -> Unit,
-    containerRef: Ref<HTMLDivElement>,
-    loadMoreRef: Ref<HTMLDivElement>,
+    props: IdentityConnectedViewRepliesColumnProps,
 ) = div {
     className = ClassName("topic-board__column topic-board__column--replies")
-    ref = containerRef
+    ref = props.containerRef
     onScroll = { event ->
         event.currentTarget.dataset["mosaScrollReady"] = "true"
     }
     div {
         className = ClassName("topic-board__column-header")
-        if (isMobile && showBackToPosts) {
+        if (props.isMobile && props.showBackToPosts) {
             button {
                 className = ClassName("topic-board__back-button")
                 ariaLabel = translator.translate("connected.mobile.backToPosts")
-                onClick = { onBackToPosts() }
+                onClick = { props.onBackToPosts() }
                 i {
                     className = ClassName("fa fa-solid fa-chevron-left topic-board__back-icon")
                 }
@@ -327,20 +236,20 @@ internal fun ChildrenBuilder.repliesColumn(
         }
     }
     when {
-        selectedPost == null ->
+        props.selectedPost == null ->
             div {
                 className = ClassName("topic-board__empty")
                 +translator.translate("connected.replies.empty")
             }
-        isLoading && replies == null ->
+        props.content.isLoadingReplies && props.content.replies == null ->
             div {
                 className = ClassName("topic-board__empty")
                 +translator.translate("connected.replies.loading")
             }
         else -> {
-            replyOriginCard(translator, visualsFactory, selectedPost)
-            val replyEntries = replies?.entries.orEmpty()
-            if (replyEntries.isEmpty() && !isLoading) {
+            replyOriginCard(translator, props.visualsFactory, props.selectedPost)
+            val replyEntries = props.content.replies?.entries.orEmpty()
+            if (replyEntries.isEmpty() && !props.content.isLoadingReplies) {
                 div {
                     className = ClassName("topic-board__empty")
                     +translator.translate("connected.replies.none")
@@ -349,59 +258,59 @@ internal fun ChildrenBuilder.repliesColumn(
             replyEntries.forEach { reply ->
                 replyCard(
                     translator = translator,
-                    visualsFactory = visualsFactory,
+                    visualsFactory = props.visualsFactory,
                     reply = reply,
-                    connectedGid = connectedGid,
-                    canDeleteAsAdmin = canDeleteAsAdmin,
-                    deleteCandidateId = deleteCandidateId,
-                    isDeleting = isDeleting,
-                    deleteError = deleteError,
-                    onRequestDelete = { onRequestDelete(reply) },
-                    onCancelDelete = onCancelDelete,
-                    onConfirmDelete = { onConfirmDelete(reply) },
-                    canComplain = connectedGid != null && reply.authorGID != connectedGid,
-                    isComplaining = complaintActionPostId == reply.id,
-                    complaintComposerPostId = complaintComposerPostId,
-                    complaintComposerText = complaintComposerText,
-                    complaintComposerError = complaintComposerError,
-                    isComplaintSubmitting = isComplaintSubmitting,
-                    onRequestComplaint = { onRequestComplaint(reply) },
-                    onComplaintTextChange = onComplaintTextChange,
-                    onCloseComplaintComposer = onCloseComplaintComposer,
-                    onSubmitComplaint = onSubmitComplaint,
-                    canComposeAdminMessage = canComposeAdminMessage,
-                    onToggleAdminUserCard = onToggleAdminUserCard,
+                    connectedGid = props.connectedGid,
+                    canDeleteAsAdmin = props.canDeleteAsAdmin,
+                    deleteCandidateId = props.content.deleteCandidate?.id,
+                    isDeleting = props.content.isDeletingPost,
+                    deleteError = props.content.deleteError,
+                    onRequestDelete = { props.content.requestDelete(reply) },
+                    onCancelDelete = props.content.clearDeleteCandidate,
+                    onConfirmDelete = { props.content.confirmDelete(reply) },
+                    canComplain = props.connectedGid != null && reply.authorGID != props.connectedGid,
+                    isComplaining = props.moderation.complaintActionPostId == reply.id,
+                    complaintComposerPostId = props.moderation.complaintComposerPostId,
+                    complaintComposerText = props.moderation.complaintComposerText,
+                    complaintComposerError = props.moderation.complaintComposerError,
+                    isComplaintSubmitting = props.moderation.isComplaintSubmitting,
+                    onRequestComplaint = { props.moderation.requestPostComplaint(reply) },
+                    onComplaintTextChange = props.moderation.setComplaintComposerText,
+                    onCloseComplaintComposer = props.moderation.closeComplaintComposer,
+                    onSubmitComplaint = props.moderation.submitPostComplaint,
+                    canComposeAdminMessage = props.canDeleteAsAdmin,
+                    onToggleAdminUserCard = props.admin.toggleAdminUserCard,
                 )
             }
         }
     }
-    if (!isLoading && replies != null && replies.entries.isNotEmpty()) {
+    if (!props.content.isLoadingReplies && props.content.replies != null && props.content.replies.entries.isNotEmpty()) {
         div {
-            ref = loadMoreRef
+            ref = props.loadMoreRef
             className = ClassName("topic-board__load-sentinel")
         }
     }
     div {
         className = ClassName("reply-composer-wrapper")
         div {
-            className = ClassName("reply-composer-layer")
-            if (isComposerOpen) {
+        className = ClassName("reply-composer-layer")
+            if (props.content.isReplyComposerOpen) {
                 replyComposerPopover(
                     translator = translator,
-                    text = replyText,
-                    isPublishing = isPublishing,
-                    errorText = errorText,
-                    onTextChange = onReplyTextChange,
-                    onSend = onSendReply,
-                    onClose = onCloseComposer,
+                    text = props.content.replyComposerText,
+                    isPublishing = props.content.isReplyPublishing,
+                    errorText = props.content.replyPublishError,
+                    onTextChange = props.content.setReplyComposerText,
+                    onSend = props.content.sendReply,
+                    onClose = props.content.closeReplyComposer,
                 )
             }
             div {
                 className = ClassName("reply-composer-fab")
                 replyComposerButton(
                     label = translator.translate("connected.replies.compose.open"),
-                    disabled = !canActivateComposer,
-                    onActivate = onOpenComposer,
+                    disabled = props.selectedPost == null || props.content.isReplyPublishing,
+                    onActivate = props.content.openReplyComposer,
                 )
             }
         }
