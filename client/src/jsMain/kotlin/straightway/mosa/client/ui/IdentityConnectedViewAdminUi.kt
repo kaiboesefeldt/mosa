@@ -1,0 +1,331 @@
+package straightway.mosa.client.ui
+
+import kotlin.js.unsafeCast
+import react.ChildrenBuilder
+import react.Key
+import react.Ref
+import react.dom.events.ChangeEvent
+import react.dom.events.MouseEvent
+import react.dom.html.ReactHTML.button
+import react.dom.html.ReactHTML.div
+import react.dom.html.ReactHTML.img
+import react.dom.html.ReactHTML.input
+import react.dom.html.ReactHTML.span
+import react.dom.html.ReactHTML.textarea
+import straightway.mosa.client.i18n.Translator
+import straightway.mosa.message.AdminMessage
+import web.cssom.ClassName
+import web.html.HTMLDivElement
+import web.html.HTMLInputElement
+import web.html.HTMLTextAreaElement
+
+internal fun ChildrenBuilder.adminUserActionCardOverlay(
+    translator: Translator,
+    identityVisualsFactory: IdentityVisualsFactory,
+    recipientAvatar: String,
+    recipientName: String,
+    isComposerOpen: Boolean,
+    subject: String,
+    body: String,
+    isSending: Boolean,
+    errorText: String?,
+    historyEntries: List<AdminMessage>,
+    isHistoryLoading: Boolean,
+    isHistoryAppending: Boolean,
+    historyErrorText: String?,
+    historyHasMore: Boolean,
+    historyListRef: Ref<HTMLDivElement>,
+    onOpenComposer: () -> Unit,
+    onSubjectChange: (String) -> Unit,
+    onBodyChange: (String) -> Unit,
+    onClose: () -> Unit,
+    onSend: () -> Unit,
+    onHistoryScroll: () -> Unit,
+) = div {
+    className = ClassName("admin-user-card-overlay")
+    onClick = { event: MouseEvent<*, *> ->
+        if (event.target == event.currentTarget) {
+            onClose()
+        }
+    }
+    adminUserActionCard(
+        translator = translator,
+        identityVisualsFactory = identityVisualsFactory,
+        recipientAvatar = recipientAvatar,
+        recipientName = recipientName,
+        isComposerOpen = isComposerOpen,
+        subject = subject,
+        body = body,
+        isSending = isSending,
+        errorText = errorText,
+        historyEntries = historyEntries,
+        isHistoryLoading = isHistoryLoading,
+        isHistoryAppending = isHistoryAppending,
+        historyErrorText = historyErrorText,
+        historyHasMore = historyHasMore,
+        historyListRef = historyListRef,
+        onOpenComposer = onOpenComposer,
+        onSubjectChange = onSubjectChange,
+        onBodyChange = onBodyChange,
+        onClose = onClose,
+        onSend = onSend,
+        onHistoryScroll = onHistoryScroll,
+    )
+}
+
+private fun ChildrenBuilder.adminUserActionCard(
+    translator: Translator,
+    identityVisualsFactory: IdentityVisualsFactory,
+    recipientAvatar: String,
+    recipientName: String,
+    isComposerOpen: Boolean,
+    subject: String,
+    body: String,
+    isSending: Boolean,
+    errorText: String?,
+    historyEntries: List<AdminMessage>,
+    isHistoryLoading: Boolean,
+    isHistoryAppending: Boolean,
+    historyErrorText: String?,
+    historyHasMore: Boolean,
+    historyListRef: Ref<HTMLDivElement>,
+    onOpenComposer: () -> Unit,
+    onSubjectChange: (String) -> Unit,
+    onBodyChange: (String) -> Unit,
+    onClose: () -> Unit,
+    onSend: () -> Unit,
+    onHistoryScroll: () -> Unit,
+) = div {
+    className = ClassName("admin-user-card")
+    onClick = { event: MouseEvent<*, *> -> event.stopPropagation() }
+    div {
+        className = ClassName("admin-user-card__header")
+        div {
+            className = ClassName("admin-user-card__identity")
+            img {
+                className = ClassName("admin-user-card__avatar")
+                src = recipientAvatar
+                alt = recipientName
+            }
+            div {
+                className = ClassName("admin-user-card__identity-text")
+                span {
+                    className = ClassName("admin-user-card__eyebrow")
+                    +translator.translate("connected.messages.actions.cardEyebrow")
+                }
+                span {
+                    className = ClassName("admin-user-card__name")
+                    +recipientName
+                }
+            }
+        }
+        button {
+            className = ClassName("admin-user-card__close")
+            ariaLabel = translator.translate("connected.messages.actions.close")
+            onClick = { onClose() }
+            +"×"
+        }
+    }
+    if (!isComposerOpen) {
+        button {
+            className = ClassName("button button--primary admin-user-card__primary-action")
+            onClick = { onOpenComposer() }
+            +translator.translate("connected.messages.actions.send")
+        }
+    }
+    adminMessageHistorySection(
+        translator = translator,
+        identityVisualsFactory = identityVisualsFactory,
+        historyEntries = historyEntries,
+        isLoading = isHistoryLoading,
+        isAppending = isHistoryAppending,
+        errorText = historyErrorText,
+        hasMore = historyHasMore,
+        listRef = historyListRef,
+        onScrollToEnd = onHistoryScroll,
+    )
+    if (isComposerOpen) {
+        adminMessageComposePopover(
+            translator = translator,
+            recipientName = recipientName,
+            subject = subject,
+            body = body,
+            isSending = isSending,
+            errorText = errorText,
+            onSubjectChange = onSubjectChange,
+            onBodyChange = onBodyChange,
+            onClose = onClose,
+            onSend = onSend,
+        )
+    }
+}
+
+private fun ChildrenBuilder.adminMessageHistorySection(
+    translator: Translator,
+    identityVisualsFactory: IdentityVisualsFactory,
+    historyEntries: List<AdminMessage>,
+    isLoading: Boolean,
+    isAppending: Boolean,
+    errorText: String?,
+    hasMore: Boolean,
+    listRef: Ref<HTMLDivElement>,
+    onScrollToEnd: () -> Unit,
+) = div {
+    className = ClassName("admin-user-card__history")
+    div {
+        className = ClassName("admin-user-card__history-header")
+        span {
+            className = ClassName("admin-user-card__history-title")
+            +translator.translate("connected.messages.actions.history.title")
+        }
+    }
+    div {
+        ref = listRef
+        className = ClassName("admin-user-card__history-list")
+        onScroll = { event ->
+            val target = event.currentTarget
+            if (hasMore && isScrolledNearBottom(target)) {
+                onScrollToEnd()
+            }
+        }
+        when {
+            isLoading ->
+                div {
+                    className = ClassName("admin-user-card__history-empty")
+                    +translator.translate("connected.messages.actions.history.loading")
+                }
+            errorText != null ->
+                div {
+                    className = ClassName("admin-user-card__history-error")
+                    +errorText
+                }
+            historyEntries.isEmpty() ->
+                div {
+                    className = ClassName("admin-user-card__history-empty")
+                    +translator.translate("connected.messages.actions.history.empty")
+                }
+            else -> {
+                historyEntries.forEach { entry ->
+                    val senderVisuals = identityVisualsFactory.createFromGid(entry.senderGid)
+                    val senderName = senderVisuals.name.toString().trim()
+                    div {
+                        key = entry.id.unsafeCast<Key>()
+                        className = ClassName("admin-user-card__history-entry")
+                        div {
+                            className = ClassName("admin-user-card__history-meta")
+                            div {
+                                className = ClassName("admin-user-card__history-sender")
+                                img {
+                                    className = ClassName("admin-user-card__history-sender-avatar")
+                                    src = senderVisuals.avatar
+                                    alt = senderName
+                                }
+                                span {
+                                    className = ClassName("admin-user-card__history-sender-name")
+                                    +translator.translate(
+                                        "connected.messages.inbox.from",
+                                        mapOf("name" to senderName),
+                                    )
+                                }
+                            }
+                            span {
+                                className = ClassName("admin-user-card__history-timestamp")
+                                +formatTimestamp(entry.createdAt)
+                            }
+                        }
+                        span {
+                            className = ClassName("admin-user-card__history-subject")
+                            +entry.subject
+                        }
+                        div {
+                            className = ClassName("admin-user-card__history-body")
+                            +entry.body
+                        }
+                        span {
+                            className = ClassName("admin-user-card__history-lifetime")
+                            +translator.translate(
+                                "connected.messages.actions.history.lifetime",
+                                mapOf("days" to entry.remainingLifetimeDays.toString()),
+                            )
+                        }
+                    }
+                }
+                if (isAppending) {
+                    div {
+                        className = ClassName("admin-user-card__history-empty")
+                        +translator.translate("connected.messages.actions.history.loadingMore")
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun ChildrenBuilder.adminMessageComposePopover(
+    translator: Translator,
+    recipientName: String,
+    subject: String,
+    body: String,
+    isSending: Boolean,
+    errorText: String?,
+    onSubjectChange: (String) -> Unit,
+    onBodyChange: (String) -> Unit,
+    onClose: () -> Unit,
+    onSend: () -> Unit,
+) = div {
+    className = ClassName("message-compose")
+    onClick = { event: MouseEvent<*, *> -> event.stopPropagation() }
+    div {
+        className = ClassName("message-compose__header")
+        span {
+            className = ClassName("message-compose__title")
+            +translator.translate("connected.messages.compose.title", mapOf("name" to recipientName))
+        }
+        button {
+            className = ClassName("message-compose__close")
+            ariaLabel = translator.translate("connected.messages.compose.close")
+            onClick = { onClose() }
+            +"×"
+        }
+    }
+    input {
+        className = ClassName("message-compose__subject")
+        placeholder = translator.translate("connected.messages.compose.subject")
+        value = subject
+        disabled = isSending
+        onChange = { event: ChangeEvent<HTMLInputElement, HTMLInputElement> ->
+            onSubjectChange(event.currentTarget.value)
+        }
+    }
+    textarea {
+        className = ClassName("message-compose__body")
+        placeholder = translator.translate("connected.messages.compose.body")
+        value = body
+        disabled = isSending
+        rows = 4
+        onChange = { event: ChangeEvent<HTMLTextAreaElement, HTMLTextAreaElement> ->
+            onBodyChange(event.currentTarget.value)
+        }
+    }
+    if (errorText != null) {
+        div {
+            className = ClassName("message-compose__error")
+            +errorText
+        }
+    }
+    div {
+        className = ClassName("message-compose__actions")
+        button {
+            className = ClassName("button button--secondary message-compose__cancel")
+            disabled = isSending
+            onClick = { onClose() }
+            +translator.translate("connected.messages.compose.cancel")
+        }
+        button {
+            className = ClassName("button button--primary message-compose__send")
+            disabled = subject.isBlank() || body.isBlank() || isSending
+            onClick = { onSend() }
+            +translator.translate("connected.messages.compose.send")
+        }
+    }
+}
