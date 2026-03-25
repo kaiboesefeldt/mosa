@@ -110,7 +110,7 @@ class AdminMessageServiceTest {
     fun `listInboxForRecipient returns first page sorted newest first with metadata`() =
         runTest {
             coEvery {
-                store.loadVisibleAndShortenExpiry(recipientGid, 1_773_742_530, 1_776_161_730)
+                store.loadVisibleAndShortenExpiry(recipientGid, 1_773_742_530, 1_776_161_730, 0)
             } returns
                 listOf(
                     AdminMessageRecord("older", recipientGid, "admin-a", 20, "Older", "Body 1", 1_773_828_929),
@@ -136,7 +136,7 @@ class AdminMessageServiceTest {
     fun `listInboxForRecipient returns requested page and hasMore flag`() =
         runTest {
             coEvery {
-                store.loadVisibleAndShortenExpiry(recipientGid, 1_773_742_530, 1_776_161_730)
+                store.loadVisibleAndShortenExpiry(recipientGid, 1_773_742_530, 1_776_161_730, 0)
             } returns
                 (1..11).map { index ->
                     AdminMessageRecord(
@@ -155,6 +155,48 @@ class AdminMessageServiceTest {
             assertEquals(2, result.page)
             assertEquals(false, result.hasMore)
             assertEquals(listOf("message-1"), result.entries.map(AdminMessage::id))
+        }
+
+    @Test
+    fun `listInboxForRecipient filters by inclusive fromTime before sorting`() =
+        runTest {
+            coEvery {
+                store.loadVisibleAndShortenExpiry(recipientGid, 1_773_742_530, 1_776_161_730, 20)
+            } returns
+                listOf(
+                    AdminMessageRecord("boundary", recipientGid, "admin-b", 20, "Boundary", "Body 2", 1_773_828_930),
+                    AdminMessageRecord("newer", recipientGid, "admin-c", 21, "Newer", "Body 3", 1_773_828_930),
+                )
+
+            val result = sut.listInboxForRecipient(recipientGid, page = 1, fromTime = 20)
+
+            assertEquals(listOf("newer", "boundary"), result.entries.map(AdminMessage::id))
+            assertEquals(false, result.hasMore)
+        }
+
+    @Test
+    fun `listInboxForRecipient paginates within fromTime filtered inbox`() =
+        runTest {
+            coEvery {
+                store.loadVisibleAndShortenExpiry(recipientGid, 1_773_742_530, 1_776_161_730, 2)
+            } returns
+                (2..12).map { index ->
+                    AdminMessageRecord(
+                        id = "message-$index",
+                        recipientGid = recipientGid,
+                        senderGid = "admin-$index",
+                        createdAt = index.toLong(),
+                        subject = "Subject $index",
+                        body = "Body $index",
+                        expiresAt = 1_773_742_530 + 86_400,
+                    )
+                }
+
+            val result = sut.listInboxForRecipient(recipientGid, page = 2, fromTime = 2)
+
+            assertEquals(2, result.page)
+            assertEquals(false, result.hasMore)
+            assertEquals(listOf("message-2"), result.entries.map(AdminMessage::id))
         }
 
     @Test
@@ -199,7 +241,7 @@ class AdminMessageServiceTest {
             assertEquals((11 downTo 2).map { "message-$it" }, result.entries.map(AdminMessage::id))
             assertEquals(11, result.entries.first().remainingLifetimeDays)
             coVerify(exactly = 1) { store.loadVisibleForRecipient(recipientGid, 1_773_742_530) }
-            coVerify(exactly = 0) { store.loadVisibleAndShortenExpiry(any(), any(), any()) }
+            coVerify(exactly = 0) { store.loadVisibleAndShortenExpiry(any(), any(), any(), any()) }
         }
 
     @Test

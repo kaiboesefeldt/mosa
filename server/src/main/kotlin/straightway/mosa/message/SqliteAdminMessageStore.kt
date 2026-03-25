@@ -4,6 +4,7 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
+import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -55,6 +56,7 @@ class SqliteAdminMessageStore(
         recipientGid: String,
         nowEpochSeconds: Long,
         retrievedExpiryUpperBoundEpochSeconds: Long,
+        fromTime: Long,
     ): List<AdminMessageRecord> =
         database.execute {
             AdminMessagesTable.deleteWhere {
@@ -65,7 +67,8 @@ class SqliteAdminMessageStore(
                     .selectAll()
                     .where {
                         (AdminMessagesTable.recipientGid eq recipientGid) and
-                            (AdminMessagesTable.expiresAt greater nowEpochSeconds)
+                            (AdminMessagesTable.expiresAt greater nowEpochSeconds) and
+                            (AdminMessagesTable.createdAt greaterEq fromTime)
                     }.map(::toRecord)
 
             visible.forEach { record ->

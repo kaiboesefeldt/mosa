@@ -56,11 +56,11 @@ private fun io.ktor.http.Parameters.page(): Int =
         value.toIntOrNull() ?: throw BadRequestException("page must be an integer")
     } ?: 1
 
-private fun io.ktor.http.Parameters.fromTime(): Long? =
-    this["fromTime"]?.let { value ->
-        val parsed = value.toLongOrNull() ?: throw BadRequestException("fromTime must be an integer")
-        if (parsed < 0) {
-            throw BadRequestException("fromTime must be at least 0")
-        }
-        parsed
+private fun io.ktor.http.Parameters.fromTime(): Long {
+    val value = this["fromTime"] ?: "0"
+    val parsed = value.toLongOrNull() ?: throw BadRequestException("fromTime must be an integer")
+    if (parsed < 0) {
+        throw BadRequestException("fromTime must be at least 0")
     }
+    return parsed
+}

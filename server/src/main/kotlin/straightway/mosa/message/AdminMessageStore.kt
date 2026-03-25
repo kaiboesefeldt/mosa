@@ -14,5 +14,6 @@ interface AdminMessageStore {
         recipientGid: String,
         nowEpochSeconds: Long,
         retrievedExpiryUpperBoundEpochSeconds: Long,
+        fromTime: Long = 0,
     ): List<AdminMessageRecord>
 }

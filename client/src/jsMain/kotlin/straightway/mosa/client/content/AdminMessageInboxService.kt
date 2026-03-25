@@ -9,7 +9,7 @@ class AdminMessageInboxService(
 ) {
     suspend fun fetch(
         page: Int,
-        fromTime: Long? = null,
+        fromTime: Long = 0,
     ): AdminMessageListResult? {
         if (page < 1) {
             return null
@@ -21,7 +21,7 @@ class AdminMessageInboxService(
 
     suspend fun fetchEntries(
         page: Int,
-        fromTime: Long? = null,
+        fromTime: Long = 0,
     ): List<AdminMessage> =
         podSessionProvider.execute("messages") { session ->
             session.podAccess.messages(session.jwt, page, fromTime).entries

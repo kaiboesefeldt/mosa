@@ -220,7 +220,7 @@ class PodAccessTest {
     }
 
     @Test
-    fun `messages sends authenticated get and returns inbox`() = runTest {
+    fun `messages sends authenticated get with fromTime and returns inbox`() = runTest {
         val capturedRequests = mutableListOf<HttpRequestData>()
         val expectedResult =
             AdminMessageListResult(
@@ -228,12 +228,12 @@ class PodAccessTest {
             )
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
 
-        val result = podAccess.messages("jwt-token", page = 3)
+        val result = podAccess.messages("jwt-token", page = 3, fromTime = 0)
 
         assertEquals(expectedResult, result)
         assertAuthenticatedGetRequest(
             request = capturedRequests.single(),
-            route = "v1/messages?page=3",
+            route = "v1/messages?page=3&fromTime=0",
             bearerToken = "jwt-token",
         )
     }

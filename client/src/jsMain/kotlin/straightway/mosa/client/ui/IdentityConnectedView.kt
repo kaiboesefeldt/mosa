@@ -409,7 +409,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         setInboxError(null)
         scope.launch {
             val result: AdminMessageListResult? =
-                runCatching { adminMessageInboxService.fetch(page = 1) }.getOrNull()
+                runCatching { adminMessageInboxService.fetch(page = 1, fromTime = 0) }.getOrNull()
             setInboxLoading(false)
             if (result == null) {
                 setInboxEntries(emptyList())
@@ -430,7 +430,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         val nextPage = inboxPage + 1
         scope.launch {
             val result: AdminMessageListResult? =
-                runCatching { adminMessageInboxService.fetch(page = nextPage) }.getOrNull()
+                runCatching { adminMessageInboxService.fetch(page = nextPage, fromTime = 0) }.getOrNull()
             setInboxAppending(false)
             if (result == null) {
                 setInboxError(translator.translate("connected.messages.inbox.error"))

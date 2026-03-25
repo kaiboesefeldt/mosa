@@ -47,18 +47,11 @@ interface PodAccess {
         request: CreateAdminMessageRequest,
         jwt: String,
     ): Unit = error("Admin message endpoint is not implemented for this PodAccess")
-    suspend fun messages(jwt: String): AdminMessageListResult =
-        error("Messages endpoint is not implemented for this PodAccess")
     suspend fun messages(
         jwt: String,
         page: Int = 1,
-        fromTime: Long? = null,
-    ): AdminMessageListResult =
-        if (page == 1 && fromTime == null) {
-            messages(jwt)
-        } else {
-            error("Paged messages endpoint is not implemented for this PodAccess")
-        }
+        fromTime: Long = 0,
+    ): AdminMessageListResult = error("Messages endpoint is not implemented for this PodAccess")
     suspend fun adminMessages(
         recipientGid: String,
         jwt: String,
@@ -184,15 +177,16 @@ class PodAccessImpl(
         post(path, request, jwt).ensureSuccess(path, request)
     }
 
-    override suspend fun messages(jwt: String): AdminMessageListResult = messages(jwt, page = 1)
-
     override suspend fun messages(
         jwt: String,
         page: Int,
-        fromTime: Long?,
+        fromTime: Long,
     ): AdminMessageListResult =
-        get("/v1/messages", jwt = jwt, page = page, fromTime = fromTime)
-            .ensureSuccess("/v1/messages", Unit)
+        httpClient.get("$podBase/v1/messages") {
+            parameter("page", page)
+            parameter("fromTime", fromTime)
+            header(HttpHeaders.Authorization, "Bearer $jwt")
+        }.ensureSuccess("/v1/messages", Unit)
             .body()
 
     override suspend fun adminMessages(
@@ -365,12 +359,10 @@ class PodAccessImpl(
         jwt: String? = null,
         gid: String? = null,
         page: Int? = null,
-        fromTime: Long? = null,
     ): HttpResponse =
         httpClient.get("$podBase$path") {
             gid?.let { parameter("gid", it) }
             page?.let { parameter("page", it) }
-            fromTime?.let { parameter("fromTime", it) }
             if (jwt != null) {
                 header(HttpHeaders.Authorization, "Bearer $jwt")
             } else {

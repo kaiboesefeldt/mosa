@@ -156,7 +156,7 @@ private class RecordingPostComplaintPodAccess : PodAccess {
     override suspend fun messages(
         jwt: String,
         page: Int,
-        fromTime: Long?,
+        fromTime: Long,
     ): AdminMessageListResult = error("not used")
 
     override suspend fun adminMessages(

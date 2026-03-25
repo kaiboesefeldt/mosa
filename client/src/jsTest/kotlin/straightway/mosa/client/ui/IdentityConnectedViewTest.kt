@@ -1718,9 +1718,9 @@ private class RecordingPodAccess(
     override suspend fun messages(
         jwt: String,
         page: Int,
-        fromTime: Long?,
+        fromTime: Long,
     ): AdminMessageListResult {
-        messagesRequests += MessageRequest(jwt = jwt, page = page)
+        messagesRequests += MessageRequest(jwt = jwt, page = page, fromTime = fromTime)
         return inboxResponseQueue.removeFirstOrNull() ?: AdminMessageListResult(emptyList())
     }
 
@@ -1863,6 +1863,7 @@ private class RecordingPodAccess(
 private data class MessageRequest(
     val jwt: String,
     val page: Int,
+    val fromTime: Long = 0,
 )
 
 private data class AdminHistoryRequest(

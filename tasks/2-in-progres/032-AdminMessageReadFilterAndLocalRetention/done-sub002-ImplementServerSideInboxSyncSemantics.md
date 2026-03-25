@@ -8,6 +8,13 @@ Diese Subtask umfasst mindestens:
 - ungueltige Request-Parameter ueber oeffentlich sichtbares Verhalten sauber behandeln
 - die Server- und Endpoint-Tests fuer den neuen Read-Pfad minimal und deterministisch erweitern
 
+Fachliche Entscheidung:
+
+- Jeder Inbox-Abruf arbeitet mit einem expliziten `fromTime`; fuer den Vollabruf wird `0` verwendet.
+- Eine Nachricht gilt nur dann als `retrieved`, wenn sie im durch `fromTime` gefilterten Response-Fenster tatsaechlich ausgeliefert wird.
+- Aeltere weiterhin sichtbare Nachrichten ausserhalb dieses Fensters behalten daher ihre bisherige TTL, bis sie in einem passenden Abruf wirklich zurueckgegeben werden.
+- Dadurch darf die `fromTime`-Filterung serverseitig in die Datenbankabfrage verschoben werden, ohne `null`-Sonderfaelle zu benoetigen.
+
 Erwartetes Ergebnis:
 
 - `GET /messages` unterstuetzt die vereinbarte Synchronisationssemantik serverseitig

@@ -261,6 +261,82 @@ class AdminMessageIntegrationTest {
         }
 
     @Test
+    fun `incremental inbox refresh shortens ttl only for returned entries`() =
+        runTest {
+            val directory = Files.createTempDirectory("admin-message-integration")
+            val path = directory.resolve("mosa_db.sqlite")
+            val clock = MutableClock(Instant.parse("2026-03-17T10:15:30Z"))
+            val store = createStore(path)
+            var adminGid = ""
+            val service =
+                AdminMessageService(
+                    store = store,
+                    clock = clock,
+                    isAdmin = { it == adminGid },
+                    unretrievedTtl = 180.days,
+                    retrievedTtl = 28.days,
+                    pageSize = 10,
+                    idFactory = { "message-1" },
+                    expectedGidByteLength = MessageDigest.getInstance("SHA-256").digest(byteArrayOf()).size,
+                )
+            val env = ControllerHttpTestEnvironment(AdminMessageController(service))
+            val adminIdentity = testIdentity(env)
+            val recipientIdentity = testIdentity(env)
+            adminGid = adminIdentity.gid
+
+            try {
+                store.append(
+                    AdminMessageRecord(
+                        id = "older",
+                        recipientGid = recipientIdentity.gid,
+                        senderGid = adminIdentity.gid,
+                        createdAt = 1_773_742_530,
+                        subject = "Older",
+                        body = "Body 1",
+                        expiresAt = 1_789_294_530,
+                    ),
+                )
+                store.append(
+                    AdminMessageRecord(
+                        id = "newer",
+                        recipientGid = recipientIdentity.gid,
+                        senderGid = adminIdentity.gid,
+                        createdAt = 1_773_742_531,
+                        subject = "Newer",
+                        body = "Body 2",
+                        expiresAt = 1_789_294_531,
+                    ),
+                )
+
+                env {
+                    val refreshResponse =
+                        client.get("/v1/messages") {
+                            bearerAuth(recipientIdentity.token)
+                            parameter("fromTime", "1773742531")
+                        }
+
+                    assertEquals(HttpStatusCode.OK, refreshResponse.status)
+                    assertEquals(listOf("newer"), refreshResponse.body<AdminMessageListResult>().entries.map(AdminMessage::id))
+                }
+
+                clock.advanceSeconds(28L * 24 * 60 * 60 + 1)
+
+                env {
+                    val inboxResponse =
+                        client.get("/v1/messages") {
+                            bearerAuth(recipientIdentity.token)
+                        }
+
+                    assertEquals(HttpStatusCode.OK, inboxResponse.status)
+                    assertEquals(listOf("older"), inboxResponse.body<AdminMessageListResult>().entries.map(AdminMessage::id))
+                }
+            } finally {
+                Files.deleteIfExists(path)
+                Files.deleteIfExists(directory)
+            }
+        }
+
+    @Test
     fun `admin history is paged and does not shorten ttl`() =
         runTest {
             val directory = Files.createTempDirectory("admin-message-integration")

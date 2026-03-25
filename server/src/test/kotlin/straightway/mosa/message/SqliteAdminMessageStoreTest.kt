@@ -96,6 +96,58 @@ class SqliteAdminMessageStoreTest {
         }
 
     @Test
+    fun `loadVisibleAndShortenExpiry filters by fromTime and shortens only returned messages`() =
+        runTest {
+            val directory = Files.createTempDirectory("sqlite-admin-message-store")
+            val path = directory.resolve("mosa_db.sqlite")
+
+            try {
+                val database = StructuredStateDatabase(path)
+                database.initialize(AdminMessagesTable)
+                val sut = SqliteAdminMessageStore(database)
+
+                sut.append(AdminMessageRecord("older", "recipient-a", "admin-a", 2, "S1", "B1", 90))
+                sut.append(AdminMessageRecord("boundary", "recipient-a", "admin-a", 20, "S2", "B2", 90))
+                sut.append(AdminMessageRecord("newer", "recipient-a", "admin-a", 21, "S3", "B3", 90))
+
+                val visible =
+                    sut.loadVisibleAndShortenExpiry(
+                        recipientGid = "recipient-a",
+                        nowEpochSeconds = 10,
+                        retrievedExpiryUpperBoundEpochSeconds = 40,
+                        fromTime = 20,
+                    )
+
+                assertEquals(
+                    listOf(
+                        AdminMessageRecord("boundary", "recipient-a", "admin-a", 20, "S2", "B2", 40),
+                        AdminMessageRecord("newer", "recipient-a", "admin-a", 21, "S3", "B3", 40),
+                    ),
+                    visible,
+                )
+
+                val secondRead =
+                    sut.loadVisibleAndShortenExpiry(
+                        recipientGid = "recipient-a",
+                        nowEpochSeconds = 11,
+                        retrievedExpiryUpperBoundEpochSeconds = 80,
+                    )
+
+                assertEquals(
+                    listOf(
+                        AdminMessageRecord("older", "recipient-a", "admin-a", 2, "S1", "B1", 80),
+                        AdminMessageRecord("boundary", "recipient-a", "admin-a", 20, "S2", "B2", 40),
+                        AdminMessageRecord("newer", "recipient-a", "admin-a", 21, "S3", "B3", 40),
+                    ),
+                    secondRead,
+                )
+            } finally {
+                Files.deleteIfExists(path)
+                Files.deleteIfExists(directory)
+            }
+        }
+
+    @Test
     fun `loadVisibleForRecipient removes expired messages without shortening ttl`() =
         runTest {
             val directory = Files.createTempDirectory("sqlite-admin-message-store")
