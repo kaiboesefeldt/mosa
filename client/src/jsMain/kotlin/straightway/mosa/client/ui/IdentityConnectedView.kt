@@ -762,27 +762,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    fun filtersFromTopics(items: List<Topic>): Map<String, Float> =
-        items.mapNotNull { topic ->
-            val value = topic.scoreMustBeAbove
-            if (value == null) {
-                null
-            } else {
-                topic.title to value
-            }
-        }.toMap()
-
-    fun rootIdFor(entry: QueryResult.Entry): String = entry.rootId ?: entry.id
-    fun findTopicByTitle(title: String?): Topic? =
-        title?.let { topicTitle -> topics.firstOrNull { it.title == topicTitle } }
-
-    fun findPostById(id: String?): QueryResult.Entry? =
-        id?.let { postId ->
-            posts.firstNotNullOfOrNull { topicPosts ->
-                topicPosts.entries.firstOrNull { it.id == postId }
-            }
-        }
-
     fun clearDeleteCandidate() {
         if (isDeletingPost) return
         setDeleteCandidate(null)
@@ -790,28 +769,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     fun removePostFromState(postId: String) {
-        val nextPosts =
-            posts.mapNotNull { topicPosts ->
-                val filtered = topicPosts.entries.filterNot { it.id == postId }
-                if (filtered.isEmpty()) {
-                    null
-                } else if (filtered.size == topicPosts.entries.size) {
-                    topicPosts
-                } else {
-                    topicPosts.copy(entries = filtered)
-                }
-            }
+        val nextPosts = removePostsFromTopicState(posts, setOf(postId))
         setPosts(nextPosts)
-        if (selectedPost?.id == postId) {
-            setSelectedPost(null)
-            setReplies(null)
-        }
-        replies?.let { currentReplies ->
-            if (currentReplies.entries.any { it.id == postId }) {
-                val filtered = currentReplies.entries.filterNot { it.id == postId }
-                setReplies(currentReplies.copy(entries = filtered))
-            }
-        }
+        setSelectedPost(selectedPost.takeUnless { it?.id == postId })
+        setReplies(removeRepliesFromStateEntries(replies, setOf(postId)))
         if (deleteCandidate?.id == postId) {
             setDeleteCandidate(null)
         }
@@ -820,27 +781,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     fun removePostsFromState(postIds: Collection<String>) {
         if (postIds.isEmpty()) return
         val idSet = postIds.toSet()
-        val nextPosts =
-            posts.mapNotNull { topicPosts ->
-                val filtered = topicPosts.entries.filterNot { it.id in idSet }
-                if (filtered.isEmpty()) {
-                    null
-                } else if (filtered.size == topicPosts.entries.size) {
-                    topicPosts
-                } else {
-                    topicPosts.copy(entries = filtered)
-                }
-            }
+        val nextPosts = removePostsFromTopicState(posts, idSet)
         setPosts(nextPosts)
         if (selectedPost?.id in idSet) {
             setSelectedPost(null)
             setReplies(null)
-        }
-        replies?.let { currentReplies ->
-            if (currentReplies.entries.any { it.id in idSet }) {
-                val filtered = currentReplies.entries.filterNot { it.id in idSet }
-                setReplies(currentReplies.copy(entries = filtered))
-            }
+        } else {
+            setReplies(removeRepliesFromStateEntries(replies, idSet))
         }
         if (deleteCandidate?.id in idSet) {
             setDeleteCandidate(null)
@@ -890,22 +837,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     fun updateTopicPosts(updated: TopicPosts) {
-        setPosts { current ->
-            val replaced =
-                current
-                    .map { topicPosts ->
-                        if (topicPosts.topic.title == updated.topic.title) {
-                            updated
-                        } else {
-                            topicPosts
-                        }
-                    }
-            if (replaced.any { it.topic.title == updated.topic.title }) {
-                replaced
-            } else {
-                replaced + updated
-            }
-        }
+        setPosts { current -> replaceTopicPosts(current, updated) }
     }
 
     suspend fun refreshPosts(currentTopic: Topic?): Boolean {
@@ -1006,7 +938,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         scope.launch {
             val loadedTopics = repository.all()
             setTopics(loadedTopics)
-            val filters = filtersFromTopics(loadedTopics)
+            val filters = extractTopicFilters(loadedTopics)
             setTopicFilters(filters)
             val snapshot = runCatching { sessionStore.load() }.getOrNull()
             val storedSelection = snapshot?.selectedTopicTitle
@@ -1734,8 +1666,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                         val eventTarget = event.target as? Element
                         val topicTitle = closestAttribute(eventTarget, "data-topic-title")
                         val postId = closestAttribute(eventTarget, "data-post-id")
-                        targets.topic = findTopicByTitle(topicTitle)
-                        targets.post = findPostById(postId)
+                        targets.topic = findTopicByTitle(topics, topicTitle)
+                        targets.post = findPostById(posts, postId)
                         swipeActiveRef.current = true
                         setSwipeOffsetPercent(0.0)
                     }

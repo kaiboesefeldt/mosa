@@ -33,3 +33,13 @@ Wichtige Randbedingungen:
 - Keine Sammeldatei schaffen, die den Monolithen nur verlagert.
 - Die 300-Zeilen-Grenze gilt fuer die neu entstehenden Teile dieser View-Struktur als harte Leitplanke.
 - Die bestehenden Client-Tests fuer `IdentityConnectedView` bleiben die primaere Absicherung; bei Bedarf duerfen gezielte Tests fuer extrahierte, oeffentlich erreichbare Logik ergaenzt werden.
+
+Festgelegter Zielzuschnitt:
+
+- `IdentityConnectedView.kt`: nur Service-Zugriff, Hook-Komposition und Shell-Zusammensetzung, Ziel `<= 220` Zeilen
+- `IdentityConnectedViewContentController.kt`: Topic-, Post- und Reply-Lifecycle, Ziel `<= 280` Zeilen
+- `IdentityConnectedViewContentState.kt`: kleine pure Content-State-Helfer, Ziel `<= 180` Zeilen
+- `IdentityConnectedViewModerationController.kt`: Inbox- und Complaint-Queue-Steuerung, Ziel `<= 280` Zeilen
+- `IdentityConnectedViewAdminController.kt`: Admin-User-Card, History und Messaging, Ziel `<= 260` Zeilen
+- `IdentityConnectedViewMobileShell.kt`: Mobile-Pane-, Resize-, Swipe- und Observer-Verdrahtung, Ziel `<= 300` Zeilen
+- `IdentityConnectedViewUiState.kt`: kleine berechnete UI-Ableitungen, Ziel `<= 180` Zeilen
