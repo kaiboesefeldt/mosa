@@ -141,32 +141,16 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             IdentityVisualsFactory(nameGenerator, avatarGenerator)
         }
     val scope = useMemo(*noDependencies) { MainScope() }
-    val (topics, setTopics) = useState<List<Topic>>(emptyList())
-    val (selectedTopic, setSelectedTopic) = useState<Topic?>(null)
-    val (posts, setPosts) = useState<List<TopicPosts>>(emptyList())
-    val (selectedPost, setSelectedPost) = useState<QueryResult.Entry?>(null)
-    val (replies, setReplies) = useState<ThreadReplies?>(null)
-    val (isLoadingReplies, setLoadingReplies) = useState(false)
-    val (topicFilters, setTopicFilters) = useState<Map<String, Float>>(emptyMap())
-    val (isLoadingPosts, setLoadingPosts) = useState(false)
     val postsContainerRef = useRef<HTMLDivElement>()
     val loadMoreRef = useRef<HTMLDivElement>()
-    val isAppendingPostsRef = useRef(false)
-    val postsRequestVersion = useRef(0)
     val repliesContainerRef = useRef<HTMLDivElement>()
     val repliesLoadMoreRef = useRef<HTMLDivElement>()
-    val isAppendingRepliesRef = useRef(false)
-    val repliesRequestVersion = useRef(0)
     val (isProfileVisible, setProfileVisible) = useState(false)
     val (profileEntryAnimation, setProfileEntryAnimation) = useState(ProfileEntryAnimation.None)
     val profileEntryTimerRef = useRef<Int>()
     val (profileExitAnimation, setProfileExitAnimation) = useState(ProfileExitAnimation.None)
     val profileExitTimerRef = useRef<Int>()
     val profileAnimationDurationMs = 760
-    val (isComposerOpen, setComposerOpen) = useState(false)
-    val (composerText, setComposerText) = useState("")
-    val (isPublishing, setPublishing) = useState(false)
-    val (publishError, setPublishError) = useState<String?>(null)
     val (toastMessage, setToastMessage) = useState<String?>(null)
     val toastTimerRef = useRef<Int>()
     val (isInboxOpen, setInboxOpen) = useState(false)
@@ -200,14 +184,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val (complaintDecisionText, setComplaintDecisionText) = useState("")
     val (complaintDecisionError, setComplaintDecisionError) = useState<String?>(null)
     val (isComplaintDecisionSubmitting, setComplaintDecisionSubmitting) = useState(false)
-    val (deleteCandidate, setDeleteCandidate) = useState<QueryResult.Entry?>(null)
-    val (isDeletingPost, setDeletingPost) = useState(false)
-    val (isDeletingAllPosts, setDeletingAllPosts) = useState(false)
-    val (deleteError, setDeleteError) = useState<String?>(null)
-    val (isReplyComposerOpen, setReplyComposerOpen) = useState(false)
-    val (replyComposerText, setReplyComposerText) = useState("")
-    val (isReplyPublishing, setReplyPublishing) = useState(false)
-    val (replyPublishError, setReplyPublishError) = useState<String?>(null)
     val (adminUserCardAnchorId, setAdminUserCardAnchorId) = useState<String?>(null)
     val (adminMessageRecipientGid, setAdminMessageRecipientGid) = useState<String?>(null)
     val (adminMessageRecipientName, setAdminMessageRecipientName) = useState<String?>(null)
@@ -232,7 +208,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val swipeActiveRef = useRef(false)
     val swipeTargetsRef = useRef(SwipeTargets(null, null))
     val (swipeOffsetPercent, setSwipeOffsetPercent) = useState(0.0)
-    val snapshotRefreshVersionRef = useRef(props.profile.snapshotRefreshVersion)
     val connectedIdentityGidRef = useRef(props.profile.connectedIdentityGid)
     val isInboxOpenRef = useRef(false)
     val isComplaintQueueOpenRef = useRef(false)
@@ -250,6 +225,16 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     complaintQueueEntriesRef.current = complaintQueueEntries
     adminUserCardAnchorIdRef.current = adminUserCardAnchorId ?: ""
 
+    fun setPaneForSelectedTopic(topic: Topic?) {
+        if (!isMobile) return
+        setMobilePane(if (topic == null) MobilePane.Topics else MobilePane.Posts)
+    }
+
+    fun setPaneForSelectedPost(entry: QueryResult.Entry?) {
+        if (!isMobile) return
+        setMobilePane(if (entry == null) MobilePane.Posts else MobilePane.Replies)
+    }
+
     useEffect(sessionStore) {
         scope.launch {
             val snapshot = runCatching { sessionStore.load() }.getOrNull()
@@ -264,7 +249,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             contentCapabilitiesService = contentCapabilitiesService,
             scope = scope,
         )
-
     suspend fun persistSessionSnapshot(
         builder: (IdentitySessionSnapshot?) -> IdentitySessionSnapshot,
     ) {
@@ -288,6 +272,50 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             }, 3200)
         toastTimerRef.current = timerId
     }
+
+    val content =
+        useIdentityConnectedViewContentController(
+            translator = translator,
+            repository = repository,
+            sessionStore = sessionStore,
+            searchService = searchService,
+            postCache = postCache,
+            replyCache = replyCache,
+            postPublisher = postPublisher,
+            postDeletionService = postDeletionService,
+            allPostsDeletionService = allPostsDeletionService,
+            replyPublisher = replyPublisher,
+            replySearchService = replySearchService,
+            scope = scope,
+            isMobile = isMobile,
+            snapshotRefreshVersion = props.profile.snapshotRefreshVersion,
+            postsContainerRef = postsContainerRef,
+            repliesContainerRef = repliesContainerRef,
+            showToast = ::showToast,
+            persistSessionSnapshot = ::persistSessionSnapshot,
+            onTopicPaneRequested = ::setPaneForSelectedTopic,
+            onPostPaneRequested = ::setPaneForSelectedPost,
+        )
+    val topics = content.topics
+    val selectedTopic = content.selectedTopic
+    val posts = content.posts
+    val selectedPost = content.selectedPost
+    val replies = content.replies
+    val isLoadingReplies = content.isLoadingReplies
+    val topicFilters = content.topicFilters
+    val isLoadingPosts = content.isLoadingPosts
+    val isComposerOpen = content.isComposerOpen
+    val composerText = content.composerText
+    val isPublishing = content.isPublishing
+    val publishError = content.publishError
+    val deleteCandidate = content.deleteCandidate
+    val isDeletingPost = content.isDeletingPost
+    val isDeletingAllPosts = content.isDeletingAllPosts
+    val deleteError = content.deleteError
+    val isReplyComposerOpen = content.isReplyComposerOpen
+    val replyComposerText = content.replyComposerText
+    val isReplyPublishing = content.isReplyPublishing
+    val replyPublishError = content.replyPublishError
 
     fun closeAdminUserCard() {
         if (isAdminMessageSending) return
@@ -742,58 +770,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    fun updateTopicFilterState(filters: Map<String, Float>) {
-        if (topics.isEmpty()) return
-        val nextTopics =
-            topics.map { topic ->
-                val nextFilter = filters[topic.title]
-                if (topic.scoreMustBeAbove == nextFilter) {
-                    topic
-                } else {
-                    topic.copy(scoreMustBeAbove = nextFilter)
-                }
-            }
-        if (nextTopics == topics) return
-        val selectedTitle = selectedTopic?.title
-        setTopics(nextTopics)
-        if (selectedTitle != null) {
-            val refreshed = nextTopics.firstOrNull { it.title == selectedTitle } ?: return
-            setSelectedTopic(refreshed)
-        }
-    }
-
-    fun clearDeleteCandidate() {
-        if (isDeletingPost) return
-        setDeleteCandidate(null)
-        setDeleteError(null)
-    }
-
-    fun removePostFromState(postId: String) {
-        val nextPosts = removePostsFromTopicState(posts, setOf(postId))
-        setPosts(nextPosts)
-        setSelectedPost(selectedPost.takeUnless { it?.id == postId })
-        setReplies(removeRepliesFromStateEntries(replies, setOf(postId)))
-        if (deleteCandidate?.id == postId) {
-            setDeleteCandidate(null)
-        }
-    }
-
-    fun removePostsFromState(postIds: Collection<String>) {
-        if (postIds.isEmpty()) return
-        val idSet = postIds.toSet()
-        val nextPosts = removePostsFromTopicState(posts, idSet)
-        setPosts(nextPosts)
-        if (selectedPost?.id in idSet) {
-            setSelectedPost(null)
-            setReplies(null)
-        } else {
-            setReplies(removeRepliesFromStateEntries(replies, idSet))
-        }
-        if (deleteCandidate?.id in idSet) {
-            setDeleteCandidate(null)
-        }
-    }
-
     fun closestAttribute(element: Element?, attribute: String): String? {
         var current = element
         while (current != null) {
@@ -802,84 +778,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             current = current.parentElement
         }
         return null
-    }
-
-    fun setAppendingState(active: Boolean) {
-        isAppendingPostsRef.current = active
-    }
-
-    fun setPaneForSelectedTopic(topic: Topic?) {
-        if (!isMobile) return
-        val nextPane = if (topic == null) MobilePane.Topics else MobilePane.Posts
-        setMobilePane(nextPane)
-    }
-
-    fun setPaneForSelectedPost(entry: QueryResult.Entry?) {
-        if (!isMobile) return
-        val nextPane = if (entry == null) MobilePane.Posts else MobilePane.Replies
-        setMobilePane(nextPane)
-    }
-
-    fun resetReplyComposer() {
-        setReplyComposerOpen(false)
-        setReplyComposerText("")
-        setReplyPublishError(null)
-        setReplyPublishing(false)
-    }
-
-    fun clearReplies() {
-        repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
-        setSelectedPost(null)
-        setReplies(null)
-        setLoadingReplies(false)
-        isAppendingRepliesRef.current = false
-        resetReplyComposer()
-    }
-
-    fun updateTopicPosts(updated: TopicPosts) {
-        setPosts { current -> replaceTopicPosts(current, updated) }
-    }
-
-    suspend fun refreshPosts(currentTopic: Topic?): Boolean {
-        val nextVersion = (postsRequestVersion.current ?: 0) + 1
-        postsRequestVersion.current = nextVersion
-        val version = nextVersion
-        postsContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
-        if (currentTopic == null) {
-            setPosts(emptyList())
-            setLoadingPosts(false)
-            return true
-        }
-        setAppendingState(false)
-        setLoadingPosts(true)
-        val results =
-            runCatching { searchService.fetchFor(listOf(currentTopic)) }
-                .getOrElse {
-                    if (postsRequestVersion.current == version) {
-                        setLoadingPosts(false)
-                    }
-                    return false
-                }
-        if (postsRequestVersion.current != version) return false
-        setPosts(results)
-        setLoadingPosts(false)
-        return true
-    }
-
-    useEffect(props.profile.snapshotRefreshVersion) {
-        val nextVersion = props.profile.snapshotRefreshVersion
-        if (nextVersion == snapshotRefreshVersionRef.current) return@useEffect
-        snapshotRefreshVersionRef.current = nextVersion
-        val topicForRefresh = selectedTopic
-        clearReplies()
-        scope.launch {
-            postCache.clearAll()
-            replyCache.clearAll()
-            val refreshed = refreshPosts(topicForRefresh)
-            if (!refreshed && selectedTopic?.title == topicForRefresh?.title) {
-                showToast(translator.translate("connected.composer.refresh.error"))
-            }
-        }
     }
 
     useEffect(props.profile.connectedIdentityGid) {
@@ -899,53 +797,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             return@useEffect
         }
         refreshInbox(openAfterLoad = false)
-    }
-
-    fun persistFilters(updated: Map<String, Float>) {
-        val sanitized = TopicFilters.sanitize(updated)
-        if (sanitized == topicFilters) return
-        updateTopicFilterState(sanitized)
-        setTopicFilters(sanitized)
-        scope.launch {
-            repository.applyFilters(sanitized)
-        }
-    }
-
-    fun selectTopic(topic: Topic?) {
-        if (topic == selectedTopic) {
-            if (isMobile && topic != null) {
-                clearReplies()
-                setPaneForSelectedTopic(topic)
-            }
-            return
-        }
-        clearReplies()
-        setPaneForSelectedTopic(topic)
-        setSelectedTopic(topic)
-        scope.launch {
-            persistSessionSnapshot { snapshot ->
-                IdentitySessionSnapshot(
-                    connectedIdentityGid = snapshot?.connectedIdentityGid,
-                    isProfileVisible = snapshot?.isProfileVisible ?: false,
-                    selectedTopicTitle = topic?.title,
-                )
-            }
-            refreshPosts(topic)
-        }
-    }
-
-    useEffect(*noDependencies) {
-        scope.launch {
-            val loadedTopics = repository.all()
-            setTopics(loadedTopics)
-            val filters = extractTopicFilters(loadedTopics)
-            setTopicFilters(filters)
-            val snapshot = runCatching { sessionStore.load() }.getOrNull()
-            val storedSelection = snapshot?.selectedTopicTitle
-            val initialSelection =
-                loadedTopics.firstOrNull { it.title == storedSelection } ?: loadedTopics.firstOrNull()
-            selectTopic(initialSelection)
-        }
     }
 
     fun clearProfileExitTimer() {
@@ -1054,33 +905,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         }
     }
 
-    fun addTopic() {
-        val text = window.prompt(translator.translate("connected.topics.prompt")) ?: return
-        val sanitized = text.trim()
-        if (sanitized.isEmpty()) return
-        scope.launch {
-            val updated = repository.add(sanitized)
-            setTopics(updated)
-            selectTopic(updated.lastOrNull())
-        }
-    }
-
-    fun removeTopic(topic: Topic) {
-        val removalIndex = topics.indexOfFirst { it.title == topic.title }
-        val wasSelected = selectedTopic?.title == topic.title
-        if (removalIndex < 0) return
-        scope.launch {
-            val updated = repository.remove(topic)
-            setTopics(updated)
-            if (topicFilters.containsKey(topic.title)) {
-                persistFilters(topicFilters - topic.title)
-            }
-            if (wasSelected) {
-                selectTopic(updated.getOrNull(removalIndex))
-            }
-        }
-    }
-
     fun showProfile() {
         if (isProfileVisible) {
             if (!props.profile.isPersisted) {
@@ -1113,230 +937,6 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         profileExitTimerRef.current = timerId
     }
 
-    fun openComposer() {
-        setPublishError(null)
-        setComposerOpen(true)
-    }
-
-    fun closeComposer() {
-        if (isPublishing) return
-        setPublishError(null)
-        setComposerOpen(false)
-    }
-
-    fun sendPost() {
-        if (isPublishing) return
-        val text = composerText.trim()
-        if (text.isEmpty()) return
-        val topicForRefresh = selectedTopic
-        setPublishing(true)
-        setPublishError(null)
-        scope.launch {
-            try {
-                val success = postPublisher.publish(text)
-                if (success) {
-                    setComposerText("")
-                    setComposerOpen(false)
-                    topicForRefresh?.let { topic ->
-                        runCatching { postCache.clear(topic.title) }
-                    }
-                    val refreshed = refreshPosts(topicForRefresh)
-                    if (!refreshed && selectedTopic?.title == topicForRefresh?.title) {
-                        showToast(translator.translate("connected.composer.refresh.error"))
-                    }
-                } else {
-                    setPublishError(translator.translate("connected.composer.error"))
-                }
-            } finally {
-                setPublishing(false)
-            }
-        }
-    }
-
-    fun requestDelete(entry: QueryResult.Entry) {
-        if (isDeletingPost) return
-        setDeleteCandidate(entry)
-        setDeleteError(null)
-    }
-
-    fun confirmDelete(entry: QueryResult.Entry) {
-        if (isDeletingPost) return
-        setDeletingPost(true)
-        setDeleteError(null)
-        scope.launch {
-            val success = postDeletionService.delete(entry.id)
-            setDeletingPost(false)
-            if (success) {
-                removePostFromState(entry.id)
-            } else {
-                setDeleteError(translator.translate("connected.posts.delete.error"))
-            }
-        }
-    }
-
-    fun deleteAllPosts() {
-        if (isDeletingAllPosts) return
-        setDeletingAllPosts(true)
-        scope.launch {
-            val deletedIds = allPostsDeletionService.deleteAll()
-            setDeletingAllPosts(false)
-            if (deletedIds == null) {
-                showToast(translator.translate("identity.posts.delete.error"))
-            } else {
-                removePostsFromState(deletedIds)
-                showToast(translator.translate("identity.posts.delete.success"))
-            }
-        }
-    }
-
-    fun openReplyComposer() {
-        if (selectedPost == null || isReplyPublishing) return
-        setReplyPublishError(null)
-        setReplyComposerOpen(true)
-    }
-
-    fun closeReplyComposer() {
-        if (isReplyPublishing) return
-        setReplyPublishError(null)
-        setReplyComposerOpen(false)
-    }
-
-    fun sendReply() {
-        if (isReplyPublishing) return
-        val targetPost = selectedPost ?: return
-        val text = replyComposerText.trim()
-        if (text.isEmpty()) return
-        val rootId = rootIdFor(targetPost)
-        setReplyPublishing(true)
-        setReplyPublishError(null)
-        scope.launch {
-            val published = replyPublisher.publish(text, rootId)
-            if (!published) {
-                setReplyPublishError(translator.translate("connected.replies.compose.error"))
-                setReplyPublishing(false)
-                return@launch
-            }
-            setReplyComposerText("")
-            setReplyComposerOpen(false)
-            val currentRoot = selectedPost.let { rootIdFor(it) }
-            if (currentRoot != rootId) {
-                setReplyPublishing(false)
-                return@launch
-            }
-            val nextVersion = (repliesRequestVersion.current ?: 0) + 1
-            repliesRequestVersion.current = nextVersion
-            setLoadingReplies(true)
-            repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
-            val refreshed =
-                runCatching { replySearchService.fetchFor(rootId) }
-                    .getOrElse {
-                        if (repliesRequestVersion.current == nextVersion) {
-                            setLoadingReplies(false)
-                        }
-                        null
-                    }
-            if (repliesRequestVersion.current != nextVersion) {
-                setReplyPublishing(false)
-                return@launch
-            }
-            if (refreshed != null) {
-                setReplies(refreshed)
-            }
-            setLoadingReplies(false)
-            setReplyPublishing(false)
-        }
-    }
-
-    fun clearTopicFilter(topic: Topic) {
-        val previousFilter = topicFilters[topic.title] ?: return
-        persistFilters(topicFilters - topic.title)
-        val clearedTopic = topic.copy(scoreMustBeAbove = null)
-        scope.launch {
-            searchService.filterCleared(clearedTopic, previousFilter)
-            if (selectedTopic?.title == topic.title) {
-                refreshPosts(clearedTopic)
-            }
-        }
-    }
-
-    fun toggleTopicFilter(topic: Topic, entry: QueryResult.Entry) {
-        val currentScore = topicFilters[topic.title]
-        if (currentScore != null && currentScore == entry.similarity) {
-            clearTopicFilter(topic)
-            return
-        }
-        persistFilters(topicFilters + (topic.title to entry.similarity))
-    }
-
-    fun loadMorePosts() {
-        val topic = selectedTopic ?: return
-        if (isLoadingPosts || isAppendingPostsRef.current == true) return
-        val currentPosts = posts.firstOrNull { it.topic.title == topic.title } ?: return
-        if (currentPosts.entries.isEmpty()) return
-        val hasAnchorEntry =
-            currentPosts.entries.any { entry ->
-                val threshold = topic.scoreMustBeAbove
-                threshold == null || entry.similarity > threshold
-            }
-        if (!hasAnchorEntry) return
-        postsContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
-        setAppendingState(true)
-        scope.launch {
-            try {
-                val additionalPosts = searchService.fetchMore(topic)
-                if (additionalPosts != null) {
-                    updateTopicPosts(additionalPosts)
-                }
-            } finally {
-                setAppendingState(false)
-            }
-        }
-    }
-
-    fun loadMoreReplies() {
-        val rootId = replies?.rootId ?: return
-        if (isLoadingReplies || isAppendingRepliesRef.current == true) return
-        repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
-        isAppendingRepliesRef.current = true
-        scope.launch {
-            try {
-                val additionalReplies = replySearchService.fetchMore(rootId)
-                if (additionalReplies != null) {
-                    setReplies(additionalReplies)
-                }
-            } finally {
-                isAppendingRepliesRef.current = false
-            }
-        }
-    }
-
-    fun selectPost(entry: QueryResult.Entry) {
-        resetReplyComposer()
-        val rootId = rootIdFor(entry)
-        val nextVersion = (repliesRequestVersion.current ?: 0) + 1
-        repliesRequestVersion.current = nextVersion
-        setSelectedPost(entry)
-        setPaneForSelectedPost(entry)
-        setReplies(null)
-        repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
-        isAppendingRepliesRef.current = false
-        setLoadingReplies(true)
-        scope.launch {
-            val result =
-                runCatching { replySearchService.fetchFor(rootId) }
-                    .getOrElse {
-                        if (repliesRequestVersion.current == nextVersion) {
-                            setReplies(null)
-                            setLoadingReplies(false)
-                        }
-                        return@launch
-                    }
-            if (repliesRequestVersion.current != nextVersion) return@launch
-            setReplies(result)
-            setLoadingReplies(false)
-        }
-    }
-
     useEffect(arrayOf(posts, selectedTopic, isMobile, mobilePane)) {
         val target = loadMoreRef.current ?: return@useEffect
         val container = postsContainerRef.current ?: return@useEffect
@@ -1358,7 +958,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     val shouldLoadMore = entries.any { entry -> entry.isIntersecting }
                     val hasScrollIntent = container.dataset["mosaScrollReady"] == "true"
                     if (shouldLoadMore && hasScrollIntent) {
-                        loadMorePosts()
+                        content.loadMorePosts()
                     }
                 },
                 options,
@@ -1392,7 +992,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     val shouldLoadMore = entries.any { entry -> entry.isIntersecting }
                     val hasScrollIntent = container.dataset["mosaScrollReady"] == "true"
                     if (shouldLoadMore && hasScrollIntent) {
-                        loadMoreReplies()
+                        content.loadMoreReplies()
                     }
                 },
                 options,
@@ -1666,8 +1266,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                         val eventTarget = event.target as? Element
                         val topicTitle = closestAttribute(eventTarget, "data-topic-title")
                         val postId = closestAttribute(eventTarget, "data-post-id")
-                        targets.topic = findTopicByTitle(topics, topicTitle)
-                        targets.post = findPostById(posts, postId)
+                        targets.topic = content.findTopicByTitle(topicTitle)
+                        targets.post = content.findPostById(postId)
                         swipeActiveRef.current = true
                         setSwipeOffsetPercent(0.0)
                     }
@@ -1741,11 +1341,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                         if (forwardThresholdReached) {
                             when (activePane) {
                                 MobilePane.Topics -> targets.topic?.let { target ->
-                                    selectTopic(target)
+                                    content.selectTopic(target)
                                     setMobilePane(MobilePane.Posts)
                                 }
                                 MobilePane.Posts -> targets.post?.let { post ->
-                                    selectPost(post)
+                                    content.selectPost(post)
                                 }
                                 MobilePane.Replies -> Unit
                             }
@@ -1760,7 +1360,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     onTouchEnd = handleEnd
                     onTouchCancel = handleEnd
                 }
-                topicColumn(translator, topics, selectedTopic, ::addTopic, ::selectTopic, ::removeTopic)
+                topicColumn(translator, topics, selectedTopic, content.addTopic, content.selectTopic, content.removeTopic)
                 postsColumn(
                     translator = translator,
                     visualsFactory = visualsFactory,
@@ -1769,17 +1369,17 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     selectedPost = selectedPost,
                     isLoading = isLoadingPosts,
                     activeFilters = topicFilters,
-                    onToggleFilter = ::toggleTopicFilter,
-                    onClearFilter = ::clearTopicFilter,
-                    onSelectPost = ::selectPost,
+                    onToggleFilter = content.toggleTopicFilter,
+                    onClearFilter = content.clearTopicFilter,
+                    onSelectPost = content.selectPost,
                     connectedGid = props.profile.connectedIdentityGid,
                     canDeleteAsAdmin = adminPresentation.canDeleteAsAdmin,
                     deleteCandidateId = deleteCandidate?.id,
                     isDeleting = isDeletingPost,
                     deleteError = deleteError,
-                    onRequestDelete = ::requestDelete,
-                    onCancelDelete = ::clearDeleteCandidate,
-                    onConfirmDelete = ::confirmDelete,
+                    onRequestDelete = content.requestDelete,
+                    onCancelDelete = content.clearDeleteCandidate,
+                    onConfirmDelete = content.confirmDelete,
                     complaintActionPostId = complaintActionPostId,
                     complaintComposerPostId = complaintComposerPostId,
                     complaintComposerText = complaintComposerText,
@@ -1824,9 +1424,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     deleteCandidateId = deleteCandidate?.id,
                     isDeleting = isDeletingPost,
                     deleteError = deleteError,
-                    onRequestDelete = ::requestDelete,
-                    onCancelDelete = ::clearDeleteCandidate,
-                    onConfirmDelete = ::confirmDelete,
+                    onRequestDelete = content.requestDelete,
+                    onCancelDelete = content.clearDeleteCandidate,
+                    onConfirmDelete = content.confirmDelete,
                     complaintActionPostId = complaintActionPostId,
                     complaintComposerPostId = complaintComposerPostId,
                     complaintComposerText = complaintComposerText,
@@ -1857,10 +1457,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     canActivateComposer = selectedPost != null && !isReplyPublishing,
                     isPublishing = isReplyPublishing,
                     errorText = replyPublishError,
-                    onOpenComposer = ::openReplyComposer,
-                    onCloseComposer = ::closeReplyComposer,
-                    onReplyTextChange = { next -> setReplyComposerText(next) },
-                    onSendReply = ::sendReply,
+                    onOpenComposer = content.openReplyComposer,
+                    onCloseComposer = content.closeReplyComposer,
+                    onReplyTextChange = content.setReplyComposerText,
+                    onSendReply = content.sendReply,
                     canComposeAdminMessage = adminPresentation.canDeleteAsAdmin,
                     adminUserCardAnchorId = adminUserCardAnchorId,
                     adminMessageRecipientName = adminMessageRecipientName,
@@ -1881,7 +1481,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         if (!isMobile || mobilePane != MobilePane.Replies) {
             floatingComposerButton(
                 label = translator.translate("connected.composer.open"),
-                onActivate = ::openComposer,
+                onActivate = content.openComposer,
             )
         }
     }
@@ -1898,7 +1498,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 hideProfileWithSuction()
             }
             canDeletePosts = props.profile.canDeletePosts && !isDeletingAllPosts
-            onDeletePosts = ::deleteAllPosts
+            onDeletePosts = content.deleteAllPosts
             exitAnimation = profileExitAnimation
             entryAnimation = profileEntryAnimation
         }
@@ -1908,9 +1508,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         composerDialog(
             translator = translator,
             text = composerText,
-            onTextChange = { next -> setComposerText(next) },
-            onClose = ::closeComposer,
-            onSend = ::sendPost,
+            onTextChange = content.setComposerText,
+            onClose = content.closeComposer,
+            onSend = content.sendPost,
             isPublishing = isPublishing,
             errorText = publishError,
         )
