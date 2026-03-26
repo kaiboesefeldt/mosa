@@ -35,6 +35,7 @@ import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
+import straightway.mosa.client.ui.identityconnected.IdentityConnectedView
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.client.util.Base64.toBase64Url
 import straightway.mosa.client.pod.PodAccess

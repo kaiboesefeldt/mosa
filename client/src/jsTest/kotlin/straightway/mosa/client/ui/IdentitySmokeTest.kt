@@ -20,6 +20,7 @@ import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentityGenerator
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
+import straightway.mosa.client.ui.identityconnected.IdentityConnectedView
 import straightway.mosa.client.testing.RenderResult
 import straightway.mosa.client.testing.cleanup
 import straightway.mosa.client.testing.render

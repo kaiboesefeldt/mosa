@@ -37,7 +37,7 @@ import straightway.mosa.client.legal.LegalViewportIndicator
 import straightway.mosa.client.legal.computeLegalViewportIndicator
 import straightway.mosa.client.legal.MarkdownToHtmlRenderer
 import straightway.mosa.client.legal.quantizeRailMarkers
-import straightway.mosa.client.ui.IdentityConnectedView
+import straightway.mosa.client.ui.identityconnected.IdentityConnectedView
 import straightway.mosa.client.ui.IdentityProfileView
 import straightway.mosa.client.ui.applyFrom
 import straightway.mosa.client.ui.IdentityScreen
