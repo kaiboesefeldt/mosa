@@ -12,6 +12,8 @@ Die Subtask liefert eine belastbare Zielstruktur fuer alle betroffenen ClearTerm
 - expliziter Ausnahmen, falls ein `ClearTerms`-Praefix oder ein laengerer Name ausnahmsweise behalten werden soll,
 - einer kurzen Begruendung fuer kritische Namensentscheidungen.
 
+Das Ergebnis liegt in `TargetNamingAndPackages.md` im selben Aufgabenordner.
+
 ## Leitplanken
 
 - Das Ergebnis muss fuer die anschliessende Implementierung konkret genug sein, dass Umbenennungen ohne neue Grundsatzdiskussionen ausgefuehrt werden koennen.
