@@ -23,34 +23,40 @@ internal data class IdentityConnectedViewContentActionDependencies(
     val postsContainerRef: RefObject<HTMLDivElement>,
 )
 
-internal data class IdentityConnectedViewContentActionState(
-    val topics: () -> List<Topic>,
-    val selectedTopic: () -> Topic?,
-    val topicFilters: () -> Map<String, Float>,
-    val posts: () -> List<TopicPosts>,
-    val isLoadingPosts: () -> Boolean,
-    val isAppendingPosts: () -> Boolean,
-    val isPublishing: () -> Boolean,
-    val isDeletingPost: () -> Boolean,
-    val isDeletingAllPosts: () -> Boolean,
-    val composerText: () -> String,
-)
-
-internal data class IdentityConnectedViewContentActionMutations(
-    val setTopics: (List<Topic>) -> Unit,
-    val setPosts: (List<TopicPosts>) -> Unit,
+internal data class IdentityConnectedViewContentTopicsModel(
+    val topics: List<Topic>,
+    val selectedTopic: Topic?,
+    val topicFilters: Map<String, Float>,
+    val updateTopics: (List<Topic>) -> Unit,
     val selectTopic: (Topic?) -> Unit,
     val persistFilters: (Map<String, Float>) -> Unit,
-    val refreshPosts: suspend (Topic?) -> Boolean,
-    val setAppendingState: (Boolean) -> Unit,
-    val setComposerOpen: (Boolean) -> Unit,
-    val setComposerText: (String) -> Unit,
+)
+
+internal data class IdentityConnectedViewContentComposerModel(
+    val text: String,
+    val isPublishing: Boolean,
+    val setOpen: (Boolean) -> Unit,
+    val setText: (String) -> Unit,
     val setPublishing: (Boolean) -> Unit,
-    val setPublishError: (String?) -> Unit,
-    val setDeleteCandidate: (QueryResult.Entry?) -> Unit,
-    val setDeleteError: (String?) -> Unit,
+    val setError: (String?) -> Unit,
+)
+
+internal data class IdentityConnectedViewContentDeletionModel(
+    val isDeletingPost: Boolean,
+    val isDeletingAllPosts: Boolean,
+    val setCandidate: (QueryResult.Entry?) -> Unit,
+    val setError: (String?) -> Unit,
     val setDeletingPost: (Boolean) -> Unit,
     val setDeletingAllPosts: (Boolean) -> Unit,
     val removePost: (String) -> Unit,
     val removePosts: (Collection<String>) -> Unit,
+)
+
+internal data class IdentityConnectedViewContentPostFeedModel(
+    val posts: List<TopicPosts>,
+    val isLoadingPosts: Boolean,
+    val isAppendingPosts: Boolean,
+    val refreshPosts: suspend (Topic?) -> Boolean,
+    val updatePosts: (List<TopicPosts>) -> Unit,
+    val setAppending: (Boolean) -> Unit,
 )

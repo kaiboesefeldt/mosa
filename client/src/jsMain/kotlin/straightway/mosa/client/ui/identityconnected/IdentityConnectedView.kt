@@ -141,7 +141,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 context = feedbackContext,
                 adminMessageHistoryService = adminMessageHistoryService,
                 adminMessagePublisher = adminMessagePublisher,
-                canDeleteAsAdmin = { adminPresentation.canDeleteAsAdmin },
+                canDeleteAsAdmin = adminPresentation.canDeleteAsAdmin,
             ),
         )
     val shell =

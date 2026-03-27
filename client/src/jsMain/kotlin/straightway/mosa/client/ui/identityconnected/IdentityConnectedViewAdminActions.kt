@@ -20,51 +20,52 @@ internal data class IdentityConnectedViewAdminActions(
 
 internal fun buildIdentityConnectedViewAdminActions(
     dependencies: IdentityConnectedViewAdminActionDependencies,
-    state: IdentityConnectedViewAdminActionState,
-    mutations: IdentityConnectedViewAdminActionMutations,
+    recipient: IdentityConnectedViewAdminRecipientModel,
+    composer: IdentityConnectedViewAdminComposerModel,
+    history: IdentityConnectedViewAdminHistoryModel,
 ): IdentityConnectedViewAdminActions {
     fun applyAdminHistoryPage(result: AdminMessageListResult, append: Boolean) {
         val nextEntries =
             if (append) {
-                (state.adminHistoryEntries() + result.entries).distinctBy(AdminMessage::id)
+                (history.entries + result.entries).distinctBy(AdminMessage::id)
             } else {
                 result.entries
             }
-        mutations.setAdminHistoryEntries(nextEntries)
-        mutations.setAdminHistoryPage(result.page)
-        mutations.setAdminHistoryHasMore(result.hasMore)
+        history.setEntries(nextEntries)
+        history.setPage(result.page)
+        history.setHasMore(result.hasMore)
     }
 
     fun closeAdminUserCard() {
-        if (state.isAdminMessageSending()) return
-        mutations.setAdminUserCardAnchorId(null)
-        mutations.setAdminMessageRecipientGid(null)
-        mutations.setAdminMessageRecipientName(null)
-        mutations.setAdminMessageRecipientAvatar(null)
-        mutations.setAdminMessageSubjectState("")
-        mutations.setAdminMessageBodyState("")
-        mutations.setAdminMessageError(null)
-        mutations.setAdminMessageComposerOpen(false)
-        mutations.setAdminHistoryEntries(emptyList())
-        mutations.setAdminHistoryLoading(false)
-        mutations.setAdminHistoryAppending(false)
-        mutations.setAdminHistoryError(null)
-        mutations.setAdminHistoryPage(1)
-        mutations.setAdminHistoryHasMore(false)
+        if (composer.isSending) return
+        recipient.setAnchorId(null)
+        recipient.setRecipientGid(null)
+        recipient.setRecipientName(null)
+        recipient.setRecipientAvatar(null)
+        composer.setSubject("")
+        composer.setBody("")
+        composer.setError(null)
+        composer.setOpen(false)
+        history.setEntries(emptyList())
+        history.setLoading(false)
+        history.setAppending(false)
+        history.setError(null)
+        history.setPage(1)
+        history.setHasMore(false)
     }
 
     fun refreshAdminHistory(recipientGid: String) {
-        mutations.setAdminHistoryLoading(true)
-        mutations.setAdminHistoryAppending(false)
-        mutations.setAdminHistoryError(null)
+        history.setLoading(true)
+        history.setAppending(false)
+        history.setError(null)
         dependencies.context.async.scope.launch {
             val result = runCatching { dependencies.adminMessageHistoryService.fetch(recipientGid, page = 1) }.getOrNull()
-            mutations.setAdminHistoryLoading(false)
+            history.setLoading(false)
             if (result == null) {
-                mutations.setAdminHistoryEntries(emptyList())
-                mutations.setAdminHistoryPage(1)
-                mutations.setAdminHistoryHasMore(false)
-                mutations.setAdminHistoryError(dependencies.context.async.translator.translate("connected.messages.actions.history.error"))
+                history.setEntries(emptyList())
+                history.setPage(1)
+                history.setHasMore(false)
+                history.setError(dependencies.context.async.translator.translate("connected.messages.actions.history.error"))
             } else {
                 applyAdminHistoryPage(result, append = false)
             }
@@ -73,71 +74,71 @@ internal fun buildIdentityConnectedViewAdminActions(
 
     return IdentityConnectedViewAdminActions(
         toggleAdminUserCard = { anchorId, recipientGid, recipientName, recipientAvatar ->
-            if (!dependencies.canDeleteAsAdmin()) return@IdentityConnectedViewAdminActions
-            if (state.adminUserCardAnchorId() == anchorId) {
+            if (!dependencies.canDeleteAsAdmin) return@IdentityConnectedViewAdminActions
+            if (recipient.anchorId == anchorId) {
                 closeAdminUserCard()
                 return@IdentityConnectedViewAdminActions
             }
-            mutations.setAdminUserCardAnchorId(anchorId)
-            mutations.setAdminMessageRecipientGid(recipientGid)
-            mutations.setAdminMessageRecipientName(recipientName)
-            mutations.setAdminMessageRecipientAvatar(recipientAvatar)
-            mutations.setAdminMessageSubjectState("")
-            mutations.setAdminMessageBodyState("")
-            mutations.setAdminMessageError(null)
-            mutations.setAdminMessageComposerOpen(false)
+            recipient.setAnchorId(anchorId)
+            recipient.setRecipientGid(recipientGid)
+            recipient.setRecipientName(recipientName)
+            recipient.setRecipientAvatar(recipientAvatar)
+            composer.setSubject("")
+            composer.setBody("")
+            composer.setError(null)
+            composer.setOpen(false)
             refreshAdminHistory(recipientGid)
         },
         openAdminMessageCompose = {
-            if (state.adminUserCardAnchorId() == null || state.adminMessageRecipientGid() == null) return@IdentityConnectedViewAdminActions
-            mutations.setAdminMessageError(null)
-            mutations.setAdminMessageComposerOpen(true)
+            if (recipient.anchorId == null || recipient.recipientGid == null) return@IdentityConnectedViewAdminActions
+            composer.setError(null)
+            composer.setOpen(true)
         },
-        setAdminMessageSubject = { value -> mutations.setAdminMessageSubjectState(value) },
-        setAdminMessageBody = { value -> mutations.setAdminMessageBodyState(value) },
+        setAdminMessageSubject = { value -> composer.setSubject(value) },
+        setAdminMessageBody = { value -> composer.setBody(value) },
         closeAdminUserCard = ::closeAdminUserCard,
         sendAdminMessageToCurrentRecipient = {
-            val recipientGid = state.adminMessageRecipientGid() ?: return@IdentityConnectedViewAdminActions
+            val recipientGid = recipient.recipientGid ?: return@IdentityConnectedViewAdminActions
             dependencies.context.async.scope.launch {
-                mutations.setAdminMessageSending(true)
-                mutations.setAdminMessageError(null)
+                composer.setSending(true)
+                composer.setError(null)
                 val wasSent =
                     runCatching {
                         dependencies.adminMessagePublisher.send(
                             recipientGid,
-                            state.adminMessageSubject(),
-                            state.adminMessageBody(),
+                            composer.subject,
+                            composer.body,
                         )
                     }.getOrDefault(false)
-                mutations.setAdminMessageSending(false)
+                composer.setSending(false)
                 if (wasSent) {
-                    mutations.setAdminMessageSubjectState("")
-                    mutations.setAdminMessageBodyState("")
-                    mutations.setAdminMessageError(null)
-                    mutations.setAdminMessageComposerOpen(false)
+                    composer.setSubject("")
+                    composer.setBody("")
+                    composer.setError(null)
+                    composer.setOpen(false)
                     refreshAdminHistory(recipientGid)
                     dependencies.context.showToast(
                         dependencies.context.async.translator.translate("connected.messages.compose.success"),
                     )
                 } else {
-                    mutations.setAdminMessageError(dependencies.context.async.translator.translate("connected.messages.compose.error"))
+                    composer.setError(dependencies.context.async.translator.translate("connected.messages.compose.error"))
                 }
             }
         },
         loadMoreAdminHistory = {
-            val recipientGid = state.adminMessageRecipientGid() ?: return@IdentityConnectedViewAdminActions
-            if (state.isAdminHistoryLoading() || state.isAdminHistoryAppending() || !state.adminHistoryHasMore()) {
+            val recipientGid = recipient.recipientGid ?: return@IdentityConnectedViewAdminActions
+            if (history.isLoading || history.isAppending || !history.hasMore) {
                 return@IdentityConnectedViewAdminActions
             }
-            mutations.rememberAdminHistoryScrollTop()
-            mutations.setAdminHistoryAppending(true)
-            mutations.setAdminHistoryError(null)
-            val nextPage = state.adminHistoryPage() + 1
+            history.rememberAdminHistoryScrollTop()
+            history.setAppending(true)
+            history.setError(null)
+            val nextPage = history.page + 1
             dependencies.context.async.scope.launch {
                 val result = runCatching { dependencies.adminMessageHistoryService.fetch(recipientGid, page = nextPage) }.getOrNull()
-                mutations.setAdminHistoryAppending(false)
+                history.setAppending(false)
                 if (result == null) {
-                    mutations.setAdminHistoryError(dependencies.context.async.translator.translate("connected.messages.actions.history.error"))
+                    history.setError(dependencies.context.async.translator.translate("connected.messages.actions.history.error"))
                 } else {
                     applyAdminHistoryPage(result, append = true)
                 }

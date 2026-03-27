@@ -32,15 +32,15 @@ internal data class IdentityConnectedViewModerationActions(
 
 internal fun buildIdentityConnectedViewModerationActions(
     dependencies: IdentityConnectedViewModerationActionDependencies,
-    inbox: IdentityConnectedViewModerationInboxState,
-    complaint: IdentityConnectedViewModerationComplaintState,
+    inbox: IdentityConnectedViewModerationInboxModel,
+    complaint: IdentityConnectedViewModerationComplaintQueueModel,
 ): IdentityConnectedViewModerationActions {
     fun refreshComplaintQueue(
         openAfterLoad: Boolean,
-        includeProcessed: Boolean = complaint.showProcessedComplaintEntries(),
+        includeProcessed: Boolean = complaint.showProcessedEntries,
     ) {
-        if (complaint.isComplaintQueueLoading() || complaint.isComplaintQueueAppending()) return
-        complaint.setComplaintQueueOpen(openAfterLoad || complaint.isComplaintQueueOpen())
+        if (complaint.isLoading || complaint.isAppending) return
+        complaint.setComplaintQueueOpen(openAfterLoad || complaint.isOpen)
         complaint.setComplaintQueueLoading(true)
         complaint.setComplaintQueueAppending(false)
         complaint.setComplaintQueueError(null)
@@ -66,48 +66,48 @@ internal fun buildIdentityConnectedViewModerationActions(
         loadInbox = { inbox.refreshInbox(true) },
         closeInbox = { inbox.setInboxOpen(false) },
         loadMoreInbox = {
-            if (!inbox.isInboxOpen() || inbox.isInboxLoading() || inbox.isInboxAppending() || !inbox.inboxHasMore()) {
+            if (!inbox.isOpen || inbox.isLoading || inbox.isAppending || !inbox.hasMore) {
                 return@IdentityConnectedViewModerationActions
             }
             inbox.rememberInboxScrollTop()
             inbox.setInboxAppending(true)
             inbox.setInboxError(null)
-            val nextPage = inbox.inboxPage() + 1
+            val nextPage = inbox.page + 1
             dependencies.context.async.scope.launch {
                 val result =
                     runCatching {
-                        dependencies.adminMessageInboxService.fetch(page = nextPage, fromTime = inbox.inboxRefreshFromTime())
+                        dependencies.adminMessageInboxService.fetch(page = nextPage, fromTime = inbox.refreshFromTime)
                     }.getOrNull()
                 inbox.setInboxAppending(false)
                 if (result == null) {
                     inbox.setInboxError(dependencies.context.async.translator.translate("connected.messages.inbox.error"))
                 } else {
-                    inbox.applyInboxPage(result, true, inbox.hiddenSeenInboxMessageIds())
+                    inbox.applyInboxPage(result, true, inbox.hiddenSeenMessageIds)
                 }
             }
         },
         loadComplaintQueue = { refreshComplaintQueue(true) },
         closeComplaintQueue = { complaint.setComplaintQueueOpen(false) },
         toggleProcessedComplaintVisibility = {
-            val willShowProcessedEntries = !complaint.showProcessedComplaintEntries()
+            val willShowProcessedEntries = !complaint.showProcessedEntries
             complaint.setShowProcessedComplaintEntries(willShowProcessedEntries)
-            if (complaint.isComplaintQueueOpen()) {
+            if (complaint.isOpen) {
                 refreshComplaintQueue(openAfterLoad = true, includeProcessed = willShowProcessedEntries)
             }
         },
         loadMoreComplaintQueue = {
             if (
-                !complaint.isComplaintQueueOpen() ||
-                complaint.isComplaintQueueLoading() ||
-                complaint.isComplaintQueueAppending() ||
-                !complaint.complaintQueueHasMore()
+                !complaint.isOpen ||
+                complaint.isLoading ||
+                complaint.isAppending ||
+                !complaint.hasMore
             ) {
                 return@IdentityConnectedViewModerationActions
             }
             complaint.setComplaintQueueAppending(true)
             complaint.setComplaintQueueError(null)
-            val nextPage = complaint.complaintQueuePage() + 1
-            val includeProcessed = complaint.showProcessedComplaintEntries()
+            val nextPage = complaint.page + 1
+            val includeProcessed = complaint.showProcessedEntries
             dependencies.context.async.scope.launch {
                 val result =
                     runCatching {
@@ -123,13 +123,13 @@ internal fun buildIdentityConnectedViewModerationActions(
         },
         requestPostComplaint = { entry ->
             if (
-                complaint.complaintActionPostId() != null ||
-                complaint.complaintComposerPostId() != null ||
-                dependencies.connectedIdentityGid() == null
+                complaint.actionPostId != null ||
+                complaint.composerPostId != null ||
+                dependencies.connectedIdentityGid == null
             ) {
                 return@IdentityConnectedViewModerationActions
             }
-            if (entry.authorGID == dependencies.connectedIdentityGid()) return@IdentityConnectedViewModerationActions
+            if (entry.authorGID == dependencies.connectedIdentityGid) return@IdentityConnectedViewModerationActions
             complaint.setComplaintActionPostId(entry.id)
             dependencies.context.async.scope.launch {
                 try {
@@ -162,14 +162,14 @@ internal fun buildIdentityConnectedViewModerationActions(
             complaint.setComplaintComposerError(null)
         },
         closeComplaintComposer = {
-            if (complaint.isComplaintSubmitting()) return@IdentityConnectedViewModerationActions
+            if (complaint.isSubmitting) return@IdentityConnectedViewModerationActions
             complaint.setComplaintComposerPostId(null)
             complaint.setComplaintComposerTextState("")
             complaint.setComplaintComposerError(null)
         },
         submitPostComplaint = {
-            val postId = complaint.complaintComposerPostId() ?: return@IdentityConnectedViewModerationActions
-            val reason = complaint.complaintComposerText().trim()
+            val postId = complaint.composerPostId ?: return@IdentityConnectedViewModerationActions
+            val reason = complaint.composerText.trim()
             if (reason.isEmpty()) {
                 complaint.setComplaintComposerError(
                     dependencies.context.async.translator.translate("connected.complaints.post.reasonRequired"),
@@ -202,7 +202,7 @@ internal fun buildIdentityConnectedViewModerationActions(
             }
         },
         startComplaintDecision = { entry, targetStatus ->
-            if (!entry.canTransitionTo(targetStatus) || complaint.isComplaintDecisionSubmitting()) {
+            if (!entry.canTransitionTo(targetStatus) || complaint.isDecisionSubmitting) {
                 return@IdentityConnectedViewModerationActions
             }
             complaint.setComplaintDecisionEntryId(entry.complaintId)
@@ -215,19 +215,19 @@ internal fun buildIdentityConnectedViewModerationActions(
             complaint.setComplaintDecisionError(null)
         },
         closeComplaintDecisionComposer = {
-            if (complaint.isComplaintDecisionSubmitting()) return@IdentityConnectedViewModerationActions
+            if (complaint.isDecisionSubmitting) return@IdentityConnectedViewModerationActions
             complaint.setComplaintDecisionEntryId(null)
             complaint.setComplaintDecisionTargetStatus(null)
             complaint.setComplaintDecisionTextState("")
             complaint.setComplaintDecisionError(null)
         },
         submitComplaintDecision = {
-            val complaintId = complaint.complaintDecisionEntryId() ?: return@IdentityConnectedViewModerationActions
-            val targetStatus = complaint.complaintDecisionTargetStatus() ?: return@IdentityConnectedViewModerationActions
+            val complaintId = complaint.decisionEntryId ?: return@IdentityConnectedViewModerationActions
+            val targetStatus = complaint.decisionTargetStatus ?: return@IdentityConnectedViewModerationActions
             val entry =
-                complaint.complaintQueueEntries().firstOrNull { it.complaintId == complaintId }
+                complaint.entries.firstOrNull { it.complaintId == complaintId }
                     ?: return@IdentityConnectedViewModerationActions
-            val feedback = complaint.complaintDecisionText().trim()
+            val feedback = complaint.decisionText.trim()
             if (feedback.isEmpty()) {
                 complaint.setComplaintDecisionError(
                     dependencies.context.async.translator.translate("connected.complaints.admin.feedbackRequired"),
@@ -253,7 +253,7 @@ internal fun buildIdentityConnectedViewModerationActions(
                 complaint.setComplaintDecisionSubmitting(false)
                 if (success) {
                     complaint.updateComplaintQueueEntries(
-                        complaint.complaintQueueEntries().map { currentEntry ->
+                        complaint.entries.map { currentEntry ->
                             if (currentEntry.complaintId == complaintId) currentEntry.copy(state = targetStatus) else currentEntry
                         },
                     )
@@ -263,7 +263,7 @@ internal fun buildIdentityConnectedViewModerationActions(
                     dependencies.context.showToast(
                         dependencies.context.async.translator.translate("connected.complaints.admin.decided"),
                     )
-                    refreshComplaintQueue(openAfterLoad = complaint.complaintQueueEntries().size > 1)
+                    refreshComplaintQueue(openAfterLoad = complaint.entries.size > 1)
                     inbox.refreshInbox(false)
                 } else {
                     complaint.setComplaintDecisionError(

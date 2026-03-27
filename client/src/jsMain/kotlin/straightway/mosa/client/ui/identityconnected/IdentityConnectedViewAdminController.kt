@@ -43,36 +43,39 @@ internal fun useIdentityConnectedViewAdminController(
     val actions =
         buildIdentityConnectedViewAdminActions(
             dependencies = dependencies,
-            state =
-                IdentityConnectedViewAdminActionState(
-                    adminUserCardAnchorId = { adminUserCardAnchorId },
-                    adminMessageRecipientGid = { adminMessageRecipientGid },
-                    adminMessageSubject = { adminMessageSubject },
-                    adminMessageBody = { adminMessageBody },
-                    isAdminMessageSending = { isAdminMessageSending },
-                    isAdminHistoryLoading = { isAdminHistoryLoading },
-                    isAdminHistoryAppending = { isAdminHistoryAppending },
-                    adminHistoryHasMore = { adminHistoryHasMore },
-                    adminHistoryPage = { adminHistoryPage },
-                    adminHistoryEntries = { adminHistoryEntries },
+            recipient =
+                IdentityConnectedViewAdminRecipientModel(
+                    anchorId = adminUserCardAnchorId,
+                    recipientGid = adminMessageRecipientGid,
+                    setAnchorId = { adminUserCardAnchorId = it },
+                    setRecipientGid = { adminMessageRecipientGid = it },
+                    setRecipientName = { adminMessageRecipientName = it },
+                    setRecipientAvatar = { adminMessageRecipientAvatar = it },
                 ),
-            mutations =
-                IdentityConnectedViewAdminActionMutations(
-                    setAdminUserCardAnchorId = { adminUserCardAnchorId = it },
-                    setAdminMessageRecipientGid = { adminMessageRecipientGid = it },
-                    setAdminMessageRecipientName = { adminMessageRecipientName = it },
-                    setAdminMessageRecipientAvatar = { adminMessageRecipientAvatar = it },
-                    setAdminMessageSubjectState = { adminMessageSubject = it },
-                    setAdminMessageBodyState = { adminMessageBody = it },
-                    setAdminMessageSending = { isAdminMessageSending = it },
-                    setAdminMessageError = { adminMessageError = it },
-                    setAdminMessageComposerOpen = { isAdminMessageComposerOpen = it },
-                    setAdminHistoryEntries = { adminHistoryEntries = it },
-                    setAdminHistoryLoading = { isAdminHistoryLoading = it },
-                    setAdminHistoryAppending = { isAdminHistoryAppending = it },
-                    setAdminHistoryError = { adminHistoryError = it },
-                    setAdminHistoryPage = { adminHistoryPage = it },
-                    setAdminHistoryHasMore = { adminHistoryHasMore = it },
+            composer =
+                IdentityConnectedViewAdminComposerModel(
+                    subject = adminMessageSubject,
+                    body = adminMessageBody,
+                    isSending = isAdminMessageSending,
+                    setSubject = { adminMessageSubject = it },
+                    setBody = { adminMessageBody = it },
+                    setSending = { isAdminMessageSending = it },
+                    setError = { adminMessageError = it },
+                    setOpen = { isAdminMessageComposerOpen = it },
+                ),
+            history =
+                IdentityConnectedViewAdminHistoryModel(
+                    entries = adminHistoryEntries,
+                    isLoading = isAdminHistoryLoading,
+                    isAppending = isAdminHistoryAppending,
+                    hasMore = adminHistoryHasMore,
+                    page = adminHistoryPage,
+                    setEntries = { adminHistoryEntries = it },
+                    setLoading = { isAdminHistoryLoading = it },
+                    setAppending = { isAdminHistoryAppending = it },
+                    setError = { adminHistoryError = it },
+                    setPage = { adminHistoryPage = it },
+                    setHasMore = { adminHistoryHasMore = it },
                     rememberAdminHistoryScrollTop = { adminHistoryScrollRestoreRef.current = adminHistoryListRef.current?.scrollTop },
                 ),
         )

@@ -31,8 +31,10 @@ internal data class IdentityConnectedViewContentActions(
 
 internal fun buildIdentityConnectedViewContentActions(
     dependencies: IdentityConnectedViewContentActionDependencies,
-    state: IdentityConnectedViewContentActionState,
-    mutations: IdentityConnectedViewContentActionMutations,
+    topics: IdentityConnectedViewContentTopicsModel,
+    composer: IdentityConnectedViewContentComposerModel,
+    deletion: IdentityConnectedViewContentDeletionModel,
+    postFeed: IdentityConnectedViewContentPostFeedModel,
 ): IdentityConnectedViewContentActions =
     IdentityConnectedViewContentActions(
         addTopic = {
@@ -40,125 +42,125 @@ internal fun buildIdentityConnectedViewContentActions(
             if (sanitized.isEmpty()) return@IdentityConnectedViewContentActions
             dependencies.context.async.scope.launch {
                 val updated = dependencies.repository.add(sanitized)
-                mutations.setTopics(updated)
-                mutations.selectTopic(updated.lastOrNull())
+                topics.updateTopics(updated)
+                topics.selectTopic(updated.lastOrNull())
             }
         },
         removeTopic = { topic ->
-            val removalIndex = state.topics().indexOfFirst { it.title == topic.title }
-            val wasSelected = state.selectedTopic()?.title == topic.title
+            val removalIndex = topics.topics.indexOfFirst { it.title == topic.title }
+            val wasSelected = topics.selectedTopic?.title == topic.title
             if (removalIndex < 0) return@IdentityConnectedViewContentActions
             dependencies.context.async.scope.launch {
                 val updated = dependencies.repository.remove(topic)
-                mutations.setTopics(updated)
-                if (state.topicFilters().containsKey(topic.title)) {
-                    mutations.persistFilters(state.topicFilters() - topic.title)
+                topics.updateTopics(updated)
+                if (topics.topicFilters.containsKey(topic.title)) {
+                    topics.persistFilters(topics.topicFilters - topic.title)
                 }
-                if (wasSelected) mutations.selectTopic(updated.getOrNull(removalIndex))
+                if (wasSelected) topics.selectTopic(updated.getOrNull(removalIndex))
             }
         },
         openComposer = {
-            mutations.setPublishError(null)
-            mutations.setComposerOpen(true)
+            composer.setError(null)
+            composer.setOpen(true)
         },
         closeComposer = {
-            if (state.isPublishing()) return@IdentityConnectedViewContentActions
-            mutations.setPublishError(null)
-            mutations.setComposerOpen(false)
+            if (composer.isPublishing) return@IdentityConnectedViewContentActions
+            composer.setError(null)
+            composer.setOpen(false)
         },
         sendPost = {
-            if (state.isPublishing()) return@IdentityConnectedViewContentActions
-            val text = state.composerText().trim()
+            if (composer.isPublishing) return@IdentityConnectedViewContentActions
+            val text = composer.text.trim()
             if (text.isEmpty()) return@IdentityConnectedViewContentActions
-            val topicForRefresh = state.selectedTopic()
-            mutations.setPublishing(true)
-            mutations.setPublishError(null)
+            val topicForRefresh = topics.selectedTopic
+            composer.setPublishing(true)
+            composer.setError(null)
             dependencies.context.async.scope.launch {
                 try {
                     val success = dependencies.postPublisher.publish(text)
                     if (success) {
-                        mutations.setComposerText("")
-                        mutations.setComposerOpen(false)
+                        composer.setText("")
+                        composer.setOpen(false)
                         topicForRefresh?.let { topic -> runCatching { dependencies.postCache.clear(topic.title) } }
-                        val refreshed = mutations.refreshPosts(topicForRefresh)
-                        if (!refreshed && state.selectedTopic()?.title == topicForRefresh?.title) {
+                        val refreshed = postFeed.refreshPosts(topicForRefresh)
+                        if (!refreshed && topics.selectedTopic?.title == topicForRefresh?.title) {
                             dependencies.context.showToast(
                                 dependencies.context.async.translator.translate("connected.composer.refresh.error"),
                             )
                         }
                     } else {
-                        mutations.setPublishError(dependencies.context.async.translator.translate("connected.composer.error"))
+                        composer.setError(dependencies.context.async.translator.translate("connected.composer.error"))
                     }
                 } finally {
-                    mutations.setPublishing(false)
+                    composer.setPublishing(false)
                 }
             }
         },
         requestDelete = { entry ->
-            if (state.isDeletingPost()) return@IdentityConnectedViewContentActions
-            mutations.setDeleteCandidate(entry)
-            mutations.setDeleteError(null)
+            if (deletion.isDeletingPost) return@IdentityConnectedViewContentActions
+            deletion.setCandidate(entry)
+            deletion.setError(null)
         },
         clearDeleteCandidate = {
-            if (state.isDeletingPost()) return@IdentityConnectedViewContentActions
-            mutations.setDeleteCandidate(null)
-            mutations.setDeleteError(null)
+            if (deletion.isDeletingPost) return@IdentityConnectedViewContentActions
+            deletion.setCandidate(null)
+            deletion.setError(null)
         },
         confirmDelete = { entry ->
-            if (state.isDeletingPost()) return@IdentityConnectedViewContentActions
-            mutations.setDeletingPost(true)
-            mutations.setDeleteError(null)
+            if (deletion.isDeletingPost) return@IdentityConnectedViewContentActions
+            deletion.setDeletingPost(true)
+            deletion.setError(null)
             dependencies.context.async.scope.launch {
                 val success = dependencies.postDeletionService.delete(entry.id)
-                mutations.setDeletingPost(false)
+                deletion.setDeletingPost(false)
                 if (success) {
-                    mutations.removePost(entry.id)
+                    deletion.removePost(entry.id)
                 } else {
-                    mutations.setDeleteError(dependencies.context.async.translator.translate("connected.posts.delete.error"))
+                    deletion.setError(dependencies.context.async.translator.translate("connected.posts.delete.error"))
                 }
             }
         },
         deleteAllPosts = {
-            if (state.isDeletingAllPosts()) return@IdentityConnectedViewContentActions
-            mutations.setDeletingAllPosts(true)
+            if (deletion.isDeletingAllPosts) return@IdentityConnectedViewContentActions
+            deletion.setDeletingAllPosts(true)
             dependencies.context.async.scope.launch {
                 val deletedIds = dependencies.allPostsDeletionService.deleteAll()
-                mutations.setDeletingAllPosts(false)
+                deletion.setDeletingAllPosts(false)
                 if (deletedIds == null) {
                     dependencies.context.showToast(dependencies.context.async.translator.translate("identity.posts.delete.error"))
                 } else {
-                    mutations.removePosts(deletedIds)
+                    deletion.removePosts(deletedIds)
                     dependencies.context.showToast(dependencies.context.async.translator.translate("identity.posts.delete.success"))
                 }
             }
         },
         clearTopicFilter = { topic ->
-            val previousFilter = state.topicFilters()[topic.title] ?: return@IdentityConnectedViewContentActions
-            mutations.persistFilters(state.topicFilters() - topic.title)
+            val previousFilter = topics.topicFilters[topic.title] ?: return@IdentityConnectedViewContentActions
+            topics.persistFilters(topics.topicFilters - topic.title)
             val clearedTopic = topic.copy(scoreMustBeAbove = null)
             dependencies.context.async.scope.launch {
                 dependencies.searchService.filterCleared(clearedTopic, previousFilter)
-                if (state.selectedTopic()?.title == topic.title) mutations.refreshPosts(clearedTopic)
+                if (topics.selectedTopic?.title == topic.title) postFeed.refreshPosts(clearedTopic)
             }
         },
         toggleTopicFilter = { topic, entry ->
-            val currentScore = state.topicFilters()[topic.title]
+            val currentScore = topics.topicFilters[topic.title]
             if (currentScore != null && currentScore == entry.similarity) {
                 val previousFilter = currentScore
-                mutations.persistFilters(state.topicFilters() - topic.title)
+                topics.persistFilters(topics.topicFilters - topic.title)
                 val clearedTopic = topic.copy(scoreMustBeAbove = null)
                 dependencies.context.async.scope.launch {
                     dependencies.searchService.filterCleared(clearedTopic, previousFilter)
-                    if (state.selectedTopic()?.title == topic.title) mutations.refreshPosts(clearedTopic)
+                    if (topics.selectedTopic?.title == topic.title) postFeed.refreshPosts(clearedTopic)
                 }
             } else {
-                mutations.persistFilters(state.topicFilters() + (topic.title to entry.similarity))
+                topics.persistFilters(topics.topicFilters + (topic.title to entry.similarity))
             }
         },
         loadMorePosts = {
-            val topic = state.selectedTopic() ?: return@IdentityConnectedViewContentActions
-            if (state.isLoadingPosts() || state.isAppendingPosts()) return@IdentityConnectedViewContentActions
-            val currentPosts = state.posts().firstOrNull { it.topic.title == topic.title } ?: return@IdentityConnectedViewContentActions
+            val topic = topics.selectedTopic ?: return@IdentityConnectedViewContentActions
+            if (postFeed.isLoadingPosts || postFeed.isAppendingPosts) return@IdentityConnectedViewContentActions
+            val currentPosts = postFeed.posts.firstOrNull { it.topic.title == topic.title } ?: return@IdentityConnectedViewContentActions
             if (currentPosts.entries.isEmpty()) return@IdentityConnectedViewContentActions
             val hasAnchorEntry =
                 currentPosts.entries.any { entry ->
@@ -167,14 +169,14 @@ internal fun buildIdentityConnectedViewContentActions(
                 }
             if (!hasAnchorEntry) return@IdentityConnectedViewContentActions
             dependencies.postsContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
-            mutations.setAppendingState(true)
+            postFeed.setAppending(true)
             dependencies.context.async.scope.launch {
                 try {
                     dependencies.searchService.fetchMore(topic)?.let { additional ->
-                        mutations.setPosts(replaceTopicPosts(state.posts(), additional))
+                        postFeed.updatePosts(replaceTopicPosts(postFeed.posts, additional))
                     }
                 } finally {
-                    mutations.setAppendingState(false)
+                    postFeed.setAppending(false)
                 }
             }
         },

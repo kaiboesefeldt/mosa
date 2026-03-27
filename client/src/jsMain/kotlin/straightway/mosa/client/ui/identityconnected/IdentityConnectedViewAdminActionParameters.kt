@@ -8,37 +8,40 @@ internal data class IdentityConnectedViewAdminActionDependencies(
     val context: IdentityConnectedViewFeedbackContext,
     val adminMessageHistoryService: AdminMessageHistoryService,
     val adminMessagePublisher: AdminMessagePublisher,
-    val canDeleteAsAdmin: () -> Boolean,
+    val canDeleteAsAdmin: Boolean,
 )
 
-internal data class IdentityConnectedViewAdminActionState(
-    val adminUserCardAnchorId: () -> String?,
-    val adminMessageRecipientGid: () -> String?,
-    val adminMessageSubject: () -> String,
-    val adminMessageBody: () -> String,
-    val isAdminMessageSending: () -> Boolean,
-    val isAdminHistoryLoading: () -> Boolean,
-    val isAdminHistoryAppending: () -> Boolean,
-    val adminHistoryHasMore: () -> Boolean,
-    val adminHistoryPage: () -> Int,
-    val adminHistoryEntries: () -> List<AdminMessage>,
+internal data class IdentityConnectedViewAdminRecipientModel(
+    val anchorId: String?,
+    val recipientGid: String?,
+    val setAnchorId: (String?) -> Unit,
+    val setRecipientGid: (String?) -> Unit,
+    val setRecipientName: (String?) -> Unit,
+    val setRecipientAvatar: (String?) -> Unit,
 )
 
-internal data class IdentityConnectedViewAdminActionMutations(
-    val setAdminUserCardAnchorId: (String?) -> Unit,
-    val setAdminMessageRecipientGid: (String?) -> Unit,
-    val setAdminMessageRecipientName: (String?) -> Unit,
-    val setAdminMessageRecipientAvatar: (String?) -> Unit,
-    val setAdminMessageSubjectState: (String) -> Unit,
-    val setAdminMessageBodyState: (String) -> Unit,
-    val setAdminMessageSending: (Boolean) -> Unit,
-    val setAdminMessageError: (String?) -> Unit,
-    val setAdminMessageComposerOpen: (Boolean) -> Unit,
-    val setAdminHistoryEntries: (List<AdminMessage>) -> Unit,
-    val setAdminHistoryLoading: (Boolean) -> Unit,
-    val setAdminHistoryAppending: (Boolean) -> Unit,
-    val setAdminHistoryError: (String?) -> Unit,
-    val setAdminHistoryPage: (Int) -> Unit,
-    val setAdminHistoryHasMore: (Boolean) -> Unit,
+internal data class IdentityConnectedViewAdminComposerModel(
+    val subject: String,
+    val body: String,
+    val isSending: Boolean,
+    val setSubject: (String) -> Unit,
+    val setBody: (String) -> Unit,
+    val setSending: (Boolean) -> Unit,
+    val setError: (String?) -> Unit,
+    val setOpen: (Boolean) -> Unit,
+)
+
+internal data class IdentityConnectedViewAdminHistoryModel(
+    val entries: List<AdminMessage>,
+    val isLoading: Boolean,
+    val isAppending: Boolean,
+    val hasMore: Boolean,
+    val page: Int,
+    val setEntries: (List<AdminMessage>) -> Unit,
+    val setLoading: (Boolean) -> Unit,
+    val setAppending: (Boolean) -> Unit,
+    val setError: (String?) -> Unit,
+    val setPage: (Int) -> Unit,
+    val setHasMore: (Boolean) -> Unit,
     val rememberAdminHistoryScrollTop: () -> Unit,
 )

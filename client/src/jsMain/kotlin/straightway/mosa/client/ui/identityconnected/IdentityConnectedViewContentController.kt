@@ -174,37 +174,43 @@ internal fun useIdentityConnectedViewContentController(
                     allPostsDeletionService = dependencies.allPostsDeletionService,
                     postsContainerRef = dependencies.refs.postsContainerRef,
                 ),
-            state =
-                IdentityConnectedViewContentActionState(
-                    topics = { topics },
-                    selectedTopic = { selectedTopic },
-                    topicFilters = { topicFilters },
-                    posts = { posts },
-                    isLoadingPosts = { isLoadingPosts },
-                    isAppendingPosts = { isAppendingPostsRef.current == true },
-                    isPublishing = { isPublishing },
-                    isDeletingPost = { isDeletingPost },
-                    isDeletingAllPosts = { isDeletingAllPosts },
-                    composerText = { composerText },
-                ),
-            mutations =
-                IdentityConnectedViewContentActionMutations(
-                    setTopics = { topics = it },
-                    setPosts = { posts = it },
+            topics =
+                IdentityConnectedViewContentTopicsModel(
+                    topics = topics,
+                    selectedTopic = selectedTopic,
+                    topicFilters = topicFilters,
+                    updateTopics = { topics = it },
                     selectTopic = ::selectTopic,
                     persistFilters = ::persistFilters,
-                    refreshPosts = ::refreshPosts,
-                    setAppendingState = ::setAppendingState,
-                    setComposerOpen = { isComposerOpen = it },
-                    setComposerText = { composerText = it },
+                ),
+            composer =
+                IdentityConnectedViewContentComposerModel(
+                    text = composerText,
+                    isPublishing = isPublishing,
+                    setOpen = { isComposerOpen = it },
+                    setText = { composerText = it },
                     setPublishing = { isPublishing = it },
-                    setPublishError = { publishError = it },
-                    setDeleteCandidate = { deleteCandidate = it },
-                    setDeleteError = { deleteError = it },
+                    setError = { publishError = it },
+                ),
+            deletion =
+                IdentityConnectedViewContentDeletionModel(
+                    isDeletingPost = isDeletingPost,
+                    isDeletingAllPosts = isDeletingAllPosts,
+                    setCandidate = { deleteCandidate = it },
+                    setError = { deleteError = it },
                     setDeletingPost = { isDeletingPost = it },
                     setDeletingAllPosts = { isDeletingAllPosts = it },
                     removePost = ::removePost,
                     removePosts = ::removePosts,
+                ),
+            postFeed =
+                IdentityConnectedViewContentPostFeedModel(
+                    posts = posts,
+                    isLoadingPosts = isLoadingPosts,
+                    isAppendingPosts = isAppendingPostsRef.current == true,
+                    refreshPosts = ::refreshPosts,
+                    updatePosts = { posts = it },
+                    setAppending = ::setAppendingState,
                 ),
         )
 
