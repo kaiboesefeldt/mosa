@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
+import straightway.mosa.legal.clearterms.yaml.YamlCanonicalJsonConverter
+import straightway.mosa.legal.clearterms.yaml.YamlLanguageFragmentMerger
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Collections
@@ -83,11 +85,9 @@ class LegalProfileSourceTest {
         val source =
             LegalProfileSource(
                 canonicalJsonConverter =
-                    straightway.mosa.legal.clearterms
-                        .ClearTermsYamlCanonicalJsonConverter(),
+                    YamlCanonicalJsonConverter(),
                 languageFragmentMerger =
-                    straightway.mosa.legal.clearterms
-                        .ClearTermsYamlLanguageFragmentMerger(),
+                    YamlLanguageFragmentMerger(),
                 resourceTextReader =
                     { path ->
                         LegalProfileSource::class.java.classLoader
@@ -114,11 +114,9 @@ class LegalProfileSourceTest {
         val source =
             LegalProfileSource(
                 canonicalJsonConverter =
-                    straightway.mosa.legal.clearterms
-                        .ClearTermsYamlCanonicalJsonConverter(),
+                    YamlCanonicalJsonConverter(),
                 languageFragmentMerger =
-                    straightway.mosa.legal.clearterms
-                        .ClearTermsYamlLanguageFragmentMerger(),
+                    YamlLanguageFragmentMerger(),
                 resourceTextReader =
                     { path ->
                         LegalProfileSource::class.java.classLoader

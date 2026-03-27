@@ -5,14 +5,14 @@ import org.koin.core.qualifier.StringQualifier
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import straightway.mosa.base.BaseController
-import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
-import straightway.mosa.legal.clearterms.ClearTermsYamlLanguageFragmentMerger
-import straightway.mosa.legal.clearterms.canonical.ClearTermsCanonicalNodeRenderer
-import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
-import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderParser
-import straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker
-import straightway.mosa.legal.clearterms.validation.ClearTermsProfileValidator
+import straightway.mosa.legal.clearterms.canonical.CanonicalNodeRenderer
+import straightway.mosa.legal.clearterms.parse.DocumentReader
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.placeholder.PlaceholderParser
+import straightway.mosa.legal.clearterms.validation.ProfileChainCompletenessChecker
+import straightway.mosa.legal.clearterms.validation.ProfileValidator
+import straightway.mosa.legal.clearterms.yaml.YamlCanonicalJsonConverter
+import straightway.mosa.legal.clearterms.yaml.YamlLanguageFragmentMerger
 import java.nio.file.Path
 
 fun Module.configureLegalAppModule() {
@@ -20,28 +20,28 @@ fun Module.configureLegalAppModule() {
     single(legalTermsProfilePathQualifier) { Path.of("mosa_terms.yaml") }
     single(legalImprintPathQualifier) { Path.of("mosa_imprint.yaml") }
     single {
-        ClearTermsYamlCanonicalJsonConverter()
+        YamlCanonicalJsonConverter()
     }
     single {
-        ClearTermsYamlLanguageFragmentMerger()
+        YamlLanguageFragmentMerger()
     }
     single {
-        ClearTermsProfileChainCompletenessChecker()
+        ProfileChainCompletenessChecker()
     }
     single {
-        ClearTermsJsonParser()
+        JsonParser()
     }
     single {
-        ClearTermsDocumentReader()
+        DocumentReader()
     }
     single {
-        ClearTermsProfileValidator(placeholderParser = get())
+        ProfileValidator(placeholderParser = get())
     }
     single {
-        ClearTermsPlaceholderParser()
+        PlaceholderParser()
     }
     single {
-        ClearTermsCanonicalNodeRenderer()
+        CanonicalNodeRenderer()
     }
     single<ResourceTextReader> {
         ResourceTextReader { path ->

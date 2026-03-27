@@ -1,18 +1,18 @@
 package straightway.mosa.legal
 
-import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
-import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.parse.DocumentReader
+import straightway.mosa.legal.clearterms.parse.JsonNode
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.yaml.YamlCanonicalJsonConverter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class LegalDocumentFactoryTest {
-    private val converter = ClearTermsYamlCanonicalJsonConverter()
-    private val parser = ClearTermsJsonParser()
-    private val reader = ClearTermsDocumentReader()
+    private val converter = YamlCanonicalJsonConverter()
+    private val parser = JsonParser()
+    private val reader = DocumentReader()
 
     @Test
     fun `create fallback documents provide defaults for all placeholder types and unresolved texts`() {
@@ -33,11 +33,11 @@ class LegalDocumentFactoryTest {
         val texts = checkNotNull(fallbackProfile.overrides.texts)
 
         assertEquals("mosa-privacy-fallback-service", fallbackProfile.id)
-        assertEquals(0.0, (values.getValue("N_KEY") as ClearTermsJsonNode.ScalarNode.NumberNode).value)
-        assertEquals("mon", (values.getValue("W_KEY") as ClearTermsJsonNode.ScalarNode.StringNode).value)
-        assertEquals("infinite", (values.getValue("D_KEY") as ClearTermsJsonNode.ScalarNode.StringNode).value)
-        assertEquals("*-*-*", (values.getValue("T_KEY") as ClearTermsJsonNode.ScalarNode.StringNode).value)
-        assertEquals("not specified", (values.getValue("S_KEY") as ClearTermsJsonNode.ScalarNode.StringNode).value)
+        assertEquals(0.0, (values.getValue("N_KEY") as JsonNode.ScalarNode.NumberNode).value)
+        assertEquals("mon", (values.getValue("W_KEY") as JsonNode.ScalarNode.StringNode).value)
+        assertEquals("infinite", (values.getValue("D_KEY") as JsonNode.ScalarNode.StringNode).value)
+        assertEquals("*-*-*", (values.getValue("T_KEY") as JsonNode.ScalarNode.StringNode).value)
+        assertEquals("not specified", (values.getValue("S_KEY") as JsonNode.ScalarNode.StringNode).value)
         assertEquals(
             "Not specified (unresolved-slot).",
             texts.getValue("en").replace.getValue("unresolved-slot"),
@@ -63,14 +63,14 @@ class LegalDocumentFactoryTest {
                 kind = LegalDocumentKind.Terms,
                 operatorValuesOverride =
                     mapOf(
-                        "REQ_KEY" to ClearTermsJsonNode.ScalarNode.StringNode("Provided"),
+                        "REQ_KEY" to JsonNode.ScalarNode.StringNode("Provided"),
                     ),
             )
         val fallbackProfile = reader.readProfile(parser.parse(documents.lastProfileCanonicalJson))
         val values = checkNotNull(fallbackProfile.overrides.values)
 
         assertEquals("mosa-terms-fallback-operator", fallbackProfile.id)
-        assertEquals("Provided", (values.getValue("REQ_KEY") as ClearTermsJsonNode.ScalarNode.StringNode).value)
+        assertEquals("Provided", (values.getValue("REQ_KEY") as JsonNode.ScalarNode.StringNode).value)
         assertNull(fallbackProfile.overrides.texts)
     }
 
@@ -89,7 +89,7 @@ class LegalDocumentFactoryTest {
                 kind = LegalDocumentKind.Terms,
                 operatorValuesOverride =
                     mapOf(
-                        "REQ_KEY" to ClearTermsJsonNode.ScalarNode.NumberNode(42.0),
+                        "REQ_KEY" to JsonNode.ScalarNode.NumberNode(42.0),
                     ),
             )
         val fallbackProfile = reader.readProfile(parser.parse(documents.lastProfileCanonicalJson))
@@ -115,9 +115,9 @@ class LegalDocumentFactoryTest {
                 """.trimIndent(),
             )
 
-        assertEquals("Operator", (values.getValue("NAME") as ClearTermsJsonNode.ScalarNode.StringNode).value)
-        assertEquals(42.0, (values.getValue("COUNT") as ClearTermsJsonNode.ScalarNode.NumberNode).value)
-        assertTrue(values.getValue("NOTHING") is ClearTermsJsonNode.ScalarNode.NullNode)
+        assertEquals("Operator", (values.getValue("NAME") as JsonNode.ScalarNode.StringNode).value)
+        assertEquals(42.0, (values.getValue("COUNT") as JsonNode.ScalarNode.NumberNode).value)
+        assertTrue(values.getValue("NOTHING") is JsonNode.ScalarNode.NullNode)
         assertTrue("OBJECT" !in values)
     }
 

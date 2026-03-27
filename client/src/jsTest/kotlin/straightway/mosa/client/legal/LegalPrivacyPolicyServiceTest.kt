@@ -16,10 +16,10 @@ import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.SearchResult
 import straightway.mosa.legal.LegalDocumentChainResponse
-import straightway.mosa.legal.clearterms.ClearTermsRenderBackground
-import straightway.mosa.legal.clearterms.ClearTermsRenderedLanguage
-import straightway.mosa.legal.clearterms.ClearTermsRenderedBlock
-import straightway.mosa.legal.clearterms.ClearTermsValidationException
+import straightway.mosa.legal.clearterms.render.RenderBackground
+import straightway.mosa.legal.clearterms.render.RenderedLanguage
+import straightway.mosa.legal.clearterms.render.RenderedBlock
+import straightway.mosa.legal.clearterms.validation.ValidationException
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -116,7 +116,7 @@ class LegalPrivacyPolicyServiceTest {
                             baselineJson: String,
                             profileJsons: List<String>,
                             languageTag: String,
-                        ): ClearTermsRenderedLanguage {
+                        ): RenderedLanguage {
                             seenProfiles += profileJsons
                             return renderResultOf(mapOf("de" to "# Datenschutz")).forLanguage(languageTag)
                         }
@@ -144,13 +144,13 @@ class LegalPrivacyPolicyServiceTest {
                                 mapOf(
                                     "de" to
                                         listOf(
-                                            ClearTermsRenderedBlock(
+                                            RenderedBlock(
                                                 id = "main",
                                                 segments =
                                                     listOf(
-                                                        ClearTermsRenderedBlock.Segment("Operator: ", ClearTermsRenderBackground.NONE),
-                                                        ClearTermsRenderedBlock.Segment("Org A", ClearTermsRenderBackground.YELLOW),
-                                                        ClearTermsRenderedBlock.Segment(".", ClearTermsRenderBackground.NONE),
+                                                        RenderedBlock.Segment("Operator: ", RenderBackground.NONE),
+                                                        RenderedBlock.Segment("Org A", RenderBackground.YELLOW),
+                                                        RenderedBlock.Segment(".", RenderBackground.NONE),
                                                     ),
                                             ),
                                         ),
@@ -182,17 +182,17 @@ class LegalPrivacyPolicyServiceTest {
                                 mapOf(
                                     "de" to
                                         listOf(
-                                            ClearTermsRenderedBlock(
+                                            RenderedBlock(
                                                 id = "main",
                                                 segments =
                                                     listOf(
-                                                        ClearTermsRenderedBlock.Segment("In ", ClearTermsRenderBackground.NONE),
-                                                        ClearTermsRenderedBlock.Segment(
+                                                        RenderedBlock.Segment("In ", RenderBackground.NONE),
+                                                        RenderedBlock.Segment(
                                                             "Mosa",
-                                                            ClearTermsRenderBackground.NONE,
+                                                            RenderBackground.NONE,
                                                             isBaselineOverride = true,
                                                         ),
-                                                        ClearTermsRenderedBlock.Segment(" werden Daten genutzt.", ClearTermsRenderBackground.NONE),
+                                                        RenderedBlock.Segment(" werden Daten genutzt.", RenderBackground.NONE),
                                                     ),
                                             ),
                                         ),
@@ -225,7 +225,7 @@ class LegalPrivacyPolicyServiceTest {
             )
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 service.loadPrivacyPolicyHtml()
             }
 
@@ -293,11 +293,11 @@ class LegalPrivacyPolicyServiceTest {
                                 mapOf(
                                     "de" to
                                         listOf(
-                                            ClearTermsRenderedBlock(
+                                            RenderedBlock(
                                                 id = "main",
                                                 segments =
                                                     listOf(
-                                                        ClearTermsRenderedBlock.Segment("Block text", ClearTermsRenderBackground.RED),
+                                                        RenderedBlock.Segment("Block text", RenderBackground.RED),
                                                     ),
                                             ),
                                         ),
@@ -333,12 +333,12 @@ class LegalPrivacyPolicyServiceTest {
                                 mapOf(
                                     "de" to
                                         listOf(
-                                            ClearTermsRenderedBlock(
+                                            RenderedBlock(
                                                 id = "main",
                                                 segments =
                                                     listOf(
-                                                        ClearTermsRenderedBlock.Segment("A", ClearTermsRenderBackground.RED),
-                                                        ClearTermsRenderedBlock.Segment("B", ClearTermsRenderBackground.YELLOW),
+                                                        RenderedBlock.Segment("A", RenderBackground.RED),
+                                                        RenderedBlock.Segment("B", RenderBackground.YELLOW),
                                                     ),
                                             ),
                                         ),
@@ -370,12 +370,12 @@ class LegalPrivacyPolicyServiceTest {
                                 mapOf(
                                     "de" to
                                         listOf(
-                                            ClearTermsRenderedBlock(
+                                            RenderedBlock(
                                                 id = "main",
                                                 isBaselineOverride = true,
                                                 segments =
                                                     listOf(
-                                                        ClearTermsRenderedBlock.Segment("Changed text", ClearTermsRenderBackground.NONE),
+                                                        RenderedBlock.Segment("Changed text", RenderBackground.NONE),
                                                     ),
                                             ),
                                         ),
@@ -404,19 +404,19 @@ class LegalPrivacyPolicyServiceTest {
                                 mapOf(
                                     "de" to
                                         listOf(
-                                            ClearTermsRenderedBlock(
+                                            RenderedBlock(
                                                 id = "rights-access-label",
                                                 inlineWithNext = true,
                                                 segments =
                                                     listOf(
-                                                        ClearTermsRenderedBlock.Segment("- Access: ", ClearTermsRenderBackground.NONE),
+                                                        RenderedBlock.Segment("- Access: ", RenderBackground.NONE),
                                                     ),
                                             ),
-                                            ClearTermsRenderedBlock(
+                                            RenderedBlock(
                                                 id = "rights-access-action-slot-service",
                                                 segments =
                                                     listOf(
-                                                        ClearTermsRenderedBlock.Segment("Download data", ClearTermsRenderBackground.NONE),
+                                                        RenderedBlock.Segment("Download data", RenderBackground.NONE),
                                                     ),
                                             ),
                                         ),
@@ -439,7 +439,7 @@ class LegalPrivacyPolicyServiceTest {
                     baselineJson: String,
                     profileJsons: List<String>,
                     languageTag: String,
-                ): ClearTermsRenderedLanguage =
+                ): RenderedLanguage =
                     when (profileJsons.size) {
                         0,
                         1 ->
@@ -449,13 +449,13 @@ class LegalPrivacyPolicyServiceTest {
                                     mapOf(
                                         "en" to
                                             listOf(
-                                                ClearTermsRenderedBlock(
+                                                RenderedBlock(
                                                     id = "operator",
                                                     segments =
                                                         listOf(
-                                                            ClearTermsRenderedBlock.Segment(
+                                                            RenderedBlock.Segment(
                                                                 text = "Operator: Org A.",
-                                                                background = ClearTermsRenderBackground.NONE,
+                                                                background = RenderBackground.NONE,
                                                             ),
                                                         ),
                                                 ),
@@ -470,13 +470,13 @@ class LegalPrivacyPolicyServiceTest {
                                     mapOf(
                                         "en" to
                                             listOf(
-                                                ClearTermsRenderedBlock(
+                                                RenderedBlock(
                                                     id = "operator",
                                                     segments =
                                                         listOf(
-                                                            ClearTermsRenderedBlock.Segment(
+                                                            RenderedBlock.Segment(
                                                                 text = "Operator: Org B.",
-                                                                background = ClearTermsRenderBackground.RED,
+                                                                background = RenderBackground.RED,
                                                             ),
                                                         ),
                                                 ),
@@ -514,7 +514,7 @@ class LegalPrivacyPolicyServiceTest {
                     baselineJson: String,
                     profileJsons: List<String>,
                     languageTag: String,
-                ): ClearTermsRenderedLanguage =
+                ): RenderedLanguage =
                     when (profileJsons.size) {
                         1 ->
                             renderResultOf(
@@ -523,13 +523,13 @@ class LegalPrivacyPolicyServiceTest {
                                     mapOf(
                                         "en" to
                                             listOf(
-                                                ClearTermsRenderedBlock(
+                                                RenderedBlock(
                                                     id = "service",
                                                     segments =
                                                         listOf(
-                                                            ClearTermsRenderedBlock.Segment(
+                                                            RenderedBlock.Segment(
                                                                 text = "Service: Baseline text",
-                                                                background = ClearTermsRenderBackground.NONE,
+                                                                background = RenderBackground.NONE,
                                                             ),
                                                         ),
                                                 ),
@@ -545,13 +545,13 @@ class LegalPrivacyPolicyServiceTest {
                                     mapOf(
                                         "en" to
                                             listOf(
-                                                ClearTermsRenderedBlock(
+                                                RenderedBlock(
                                                     id = "service",
                                                     segments =
                                                         listOf(
-                                                            ClearTermsRenderedBlock.Segment(
+                                                            RenderedBlock.Segment(
                                                                 text = "Service: Final text",
-                                                                background = ClearTermsRenderBackground.RED,
+                                                                background = RenderBackground.RED,
                                                             ),
                                                     ),
                                                 ),
@@ -592,7 +592,7 @@ class LegalPrivacyPolicyServiceTest {
                     baselineJson: String,
                     profileJsons: List<String>,
                     languageTag: String,
-                ): ClearTermsRenderedLanguage {
+                ): RenderedLanguage {
                     calls += profileJsons.size
                     if (profileJsons.size != 3) {
                         throw IllegalStateException("intermediate render not available")
@@ -603,13 +603,13 @@ class LegalPrivacyPolicyServiceTest {
                             mapOf(
                                 "en" to
                                     listOf(
-                                        ClearTermsRenderedBlock(
+                                        RenderedBlock(
                                             id = "service",
                                             segments =
                                                 listOf(
-                                                    ClearTermsRenderedBlock.Segment(
+                                                    RenderedBlock.Segment(
                                                         text = "Service: Operator",
-                                                        background = ClearTermsRenderBackground.RED,
+                                                        background = RenderBackground.RED,
                                                     ),
                                                 ),
                                         ),
@@ -648,7 +648,7 @@ class LegalPrivacyPolicyServiceTest {
                     baselineJson: String,
                     profileJsons: List<String>,
                     languageTag: String,
-                ): ClearTermsRenderedLanguage {
+                ): RenderedLanguage {
                     if (profileJsons.size != 3) {
                         throw IllegalStateException("intermediate render not available")
                     }
@@ -658,13 +658,13 @@ class LegalPrivacyPolicyServiceTest {
                             mapOf(
                                 "de" to
                                     listOf(
-                                        ClearTermsRenderedBlock(
+                                        RenderedBlock(
                                             id = "retention",
                                             segments =
                                                 listOf(
-                                                    ClearTermsRenderedBlock.Segment(
+                                                    RenderedBlock.Segment(
                                                         text = "Aufbewahrung: 30 Tage.",
-                                                        background = ClearTermsRenderBackground.YELLOW,
+                                                        background = RenderBackground.YELLOW,
                                                     ),
                                                 ),
                                         ),
@@ -709,12 +709,12 @@ class LegalPrivacyPolicyServiceTest {
                                 mapOf(
                                     "de" to
                                         listOf(
-                                            ClearTermsRenderedBlock(
+                                            RenderedBlock(
                                                 id = "main",
                                                 segments =
                                                     listOf(
-                                                        ClearTermsRenderedBlock.Segment("Hinweis ", ClearTermsRenderBackground.NONE),
-                                                        ClearTermsRenderedBlock.Segment("kritisch", ClearTermsRenderBackground.RED),
+                                                        RenderedBlock.Segment("Hinweis ", RenderBackground.NONE),
+                                                        RenderedBlock.Segment("kritisch", RenderBackground.RED),
                                                     ),
                                             ),
                                         ),
@@ -737,7 +737,7 @@ class LegalPrivacyPolicyServiceTest {
                     baselineJson: String,
                     profileJsons: List<String>,
                     languageTag: String,
-                ): ClearTermsRenderedLanguage =
+                ): RenderedLanguage =
                     when (profileJsons.size) {
                         0,
                         1 ->
@@ -747,13 +747,13 @@ class LegalPrivacyPolicyServiceTest {
                                     mapOf(
                                         "en" to
                                             listOf(
-                                                ClearTermsRenderedBlock(
+                                                RenderedBlock(
                                                     id = "operator",
                                                     segments =
                                                         listOf(
-                                                            ClearTermsRenderedBlock.Segment(
+                                                            RenderedBlock.Segment(
                                                                 text = "Operator: {{string:operator_name}}.",
-                                                                background = ClearTermsRenderBackground.NONE,
+                                                                background = RenderBackground.NONE,
                                                             ),
                                                         ),
                                                 ),
@@ -768,13 +768,13 @@ class LegalPrivacyPolicyServiceTest {
                                     mapOf(
                                         "en" to
                                             listOf(
-                                                ClearTermsRenderedBlock(
+                                                RenderedBlock(
                                                     id = "operator",
                                                     segments =
                                                         listOf(
-                                                            ClearTermsRenderedBlock.Segment(
+                                                            RenderedBlock.Segment(
                                                                 text = "Operator: Org B.",
-                                                                background = ClearTermsRenderBackground.RED,
+                                                                background = RenderBackground.RED,
                                                             ),
                                                         ),
                                                 ),
@@ -812,7 +812,7 @@ class LegalPrivacyPolicyServiceTest {
                     baselineJson: String,
                     profileJsons: List<String>,
                     languageTag: String,
-                ): ClearTermsRenderedLanguage {
+                ): RenderedLanguage {
                     if (profileJsons.size == 1) {
                         throw IllegalStateException("Text block 'service-description-slot-service' is unresolved for 'de'")
                     }
@@ -822,13 +822,13 @@ class LegalPrivacyPolicyServiceTest {
                             mapOf(
                                 "de" to
                                     listOf(
-                                        ClearTermsRenderedBlock(
+                                        RenderedBlock(
                                             id = "service-description-slot-service",
                                             segments =
                                                 listOf(
-                                                    ClearTermsRenderedBlock.Segment(
+                                                    RenderedBlock.Segment(
                                                         text = "Finaler Text",
-                                                        background = ClearTermsRenderBackground.RED,
+                                                        background = RenderBackground.RED,
                                                     ),
                                                 ),
                                         ),
@@ -873,20 +873,20 @@ private fun fixedContentProvider(result: StubRenderedLanguageSet): PrivacyClearT
             baselineJson: String,
             profileJsons: List<String>,
             languageTag: String,
-        ): ClearTermsRenderedLanguage = result.forLanguage(languageTag)
+        ): RenderedLanguage = result.forLanguage(languageTag)
     }
 
 private fun renderResultOf(
     textsByLanguage: Map<String, String>,
-    blocksByLanguage: Map<String, List<ClearTermsRenderedBlock>> = emptyMap(),
+    blocksByLanguage: Map<String, List<RenderedBlock>> = emptyMap(),
 ): StubRenderedLanguageSet = StubRenderedLanguageSet(textsByLanguage, blocksByLanguage)
 
 private data class StubRenderedLanguageSet(
     val textsByLanguage: Map<String, String>,
-    val blocksByLanguage: Map<String, List<ClearTermsRenderedBlock>> = emptyMap(),
+    val blocksByLanguage: Map<String, List<RenderedBlock>> = emptyMap(),
 )
 
-private fun StubRenderedLanguageSet.forLanguage(languageTag: String): ClearTermsRenderedLanguage {
+private fun StubRenderedLanguageSet.forLanguage(languageTag: String): RenderedLanguage {
     val normalizedLanguageTag = languageTag.trim().lowercase()
     val textEntry =
         textsByLanguage.entries.firstOrNull { (tag, _) -> tag.trim().lowercase() == normalizedLanguageTag }
@@ -895,7 +895,7 @@ private fun StubRenderedLanguageSet.forLanguage(languageTag: String): ClearTerms
     val blocks =
         blocksByLanguage.entries.firstOrNull { (tag, _) -> tag.trim().lowercase() == normalizedLanguageTag }?.value
             ?: emptyList()
-    return ClearTermsRenderedLanguage(textEntry.key, textEntry.value, blocks)
+    return RenderedLanguage(textEntry.key, textEntry.value, blocks)
 }
 
 private fun profileIdOf(profileJson: String): String =

@@ -1,38 +1,50 @@
 package straightway.mosa.legal.clearterms
 
-import straightway.mosa.legal.clearterms.canonical.ClearTermsCanonicalNodeRenderer
-import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
-import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderParser
-import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderType
-import straightway.mosa.legal.clearterms.render.ClearTermsBlockBackgroundResolver
-import straightway.mosa.legal.clearterms.render.ClearTermsTimeTextRenderer
-import straightway.mosa.legal.clearterms.render.ClearTermsValueRenderer
-import straightway.mosa.legal.clearterms.validation.ClearTermsProfileValidator
+import straightway.mosa.legal.clearterms.canonical.CanonicalNodeRenderer
+import straightway.mosa.legal.clearterms.document.Baseline
+import straightway.mosa.legal.clearterms.document.Profile
+import straightway.mosa.legal.clearterms.document.TextBlock
+import straightway.mosa.legal.clearterms.locale.LocaleProvider
+import straightway.mosa.legal.clearterms.parse.DocumentReader
+import straightway.mosa.legal.clearterms.parse.JsonNode
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.placeholder.PlaceholderParser
+import straightway.mosa.legal.clearterms.placeholder.PlaceholderType
+import straightway.mosa.legal.clearterms.render.BlockBackgroundResolver
+import straightway.mosa.legal.clearterms.render.RenderBackground
+import straightway.mosa.legal.clearterms.render.RenderedBlock
+import straightway.mosa.legal.clearterms.render.RenderedLanguage
+import straightway.mosa.legal.clearterms.render.TimeTextRenderer
+import straightway.mosa.legal.clearterms.render.TimeZoneDisplayConverter
+import straightway.mosa.legal.clearterms.render.ValueRenderer
+import straightway.mosa.legal.clearterms.spi.HashProvider
+import straightway.mosa.legal.clearterms.spi.TextEncoder
+import straightway.mosa.legal.clearterms.validation.ProfileValidator
+import straightway.mosa.legal.clearterms.validation.ValidationException
+import straightway.mosa.legal.clearterms.value.Value
 
 class ClearTermsRenderer(
-    private val parser: ClearTermsJsonParser,
-    private val hashProvider: ClearTermsHashProvider,
-    private val textEncoder: ClearTermsTextEncoder,
-    private val canonicalizer: ClearTermsCanonicalNodeRenderer = ClearTermsCanonicalNodeRenderer(),
-    private val placeholderParser: ClearTermsPlaceholderParser = ClearTermsPlaceholderParser(),
-    private val reader: ClearTermsDocumentReader = ClearTermsDocumentReader(),
-    private val localeProvider: ClearTermsLocaleProvider,
-    private val profileValidator: ClearTermsProfileValidator = ClearTermsProfileValidator(placeholderParser),
-    private val timeZoneDisplayConverter: ClearTermsTimeZoneDisplayConverter = ClearTermsTimeZoneDisplayConverter.NoOp,
-    private val valueRenderer: ClearTermsValueRenderer =
-        ClearTermsValueRenderer(
+    private val parser: JsonParser,
+    private val hashProvider: HashProvider,
+    private val textEncoder: TextEncoder,
+    private val canonicalizer: CanonicalNodeRenderer = CanonicalNodeRenderer(),
+    private val placeholderParser: PlaceholderParser = PlaceholderParser(),
+    private val reader: DocumentReader = DocumentReader(),
+    private val localeProvider: LocaleProvider,
+    private val profileValidator: ProfileValidator = ProfileValidator(placeholderParser),
+    private val timeZoneDisplayConverter: TimeZoneDisplayConverter = TimeZoneDisplayConverter.NoOp,
+    private val valueRenderer: ValueRenderer =
+        ValueRenderer(
             placeholderParser,
             localeProvider,
-            timeTextRenderer = ClearTermsTimeTextRenderer(timeZoneDisplayConverter = timeZoneDisplayConverter),
+            timeTextRenderer = TimeTextRenderer(timeZoneDisplayConverter = timeZoneDisplayConverter),
         ),
 ) {
     suspend fun renderLanguage(
         baselineJson: String,
         profileJsons: List<String>,
         languageTag: String,
-    ): ClearTermsRenderedLanguage {
+    ): RenderedLanguage {
         requireProfiles(profileJsons)
         val baselineNode = parseObject(baselineJson)
         val baseline = readBaseline(baselineNode)
@@ -42,11 +54,11 @@ class ClearTermsRenderer(
     }
 
     private fun renderWithParsedProfiles(
-        baseline: ClearTermsBaseline,
+        baseline: Baseline,
         baselineHash: String,
         parsedProfiles: List<ParsedProfile>,
         languageTag: String,
-    ): ClearTermsRenderedLanguage {
+    ): RenderedLanguage {
         val state = buildRenderState(baseline, baselineHash, parsedProfiles)
         profileValidator.validateFinalTextsResolved(state.textsByLanguage)
         val languageBlocks = selectLanguageBlocks(state, languageTag)
@@ -54,10 +66,10 @@ class ClearTermsRenderer(
         val renderedBlocks = renderBlocks(languageTag, languageBlocks, state, finalData)
         val text = renderText(renderedBlocks)
         ensureResolved(text)
-        return ClearTermsRenderedLanguage(languageTag, text, renderedBlocks)
+        return RenderedLanguage(languageTag, text, renderedBlocks)
     }
 
-    private suspend fun hashFor(node: ClearTermsJsonNode.ObjectNode): String {
+    private suspend fun hashFor(node: JsonNode.ObjectNode): String {
         val canonical = canonicalizer.render(node)
         val digest = hashProvider.sha256(textEncoder.encode(canonical))
         return "sha256:${digest.toHexLower()}"
@@ -65,13 +77,13 @@ class ClearTermsRenderer(
 
     private fun requireProfiles(profileJsons: List<String>) {
         if (profileJsons.isEmpty()) {
-            throw ClearTermsValidationException("At least one profile is required")
+            throw ValidationException("At least one profile is required")
         }
     }
 
-    private fun parseObject(json: String): ClearTermsJsonNode.ObjectNode = parser.parse(json)
+    private fun parseObject(json: String): JsonNode.ObjectNode = parser.parse(json)
 
-    private fun readBaseline(node: ClearTermsJsonNode.ObjectNode): ClearTermsBaseline {
+    private fun readBaseline(node: JsonNode.ObjectNode): Baseline {
         val baseline = reader.readBaseline(node)
         profileValidator.validateBaselineStructure(baseline)
         return baseline
@@ -93,7 +105,7 @@ class ClearTermsRenderer(
         }
 
     private data class ParsedProfile(
-        val profile: ClearTermsProfile,
+        val profile: Profile,
         val hash: String,
     )
 
@@ -101,21 +113,21 @@ class ClearTermsRenderer(
         var parentId: String,
         var parentVersion: String,
         var parentHash: String,
-        val mergedRawValues: MutableMap<String, ClearTermsJsonNode.ScalarNode>,
-        var textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
+        val mergedRawValues: MutableMap<String, JsonNode.ScalarNode>,
+        var textsByLanguage: Map<String, List<TextBlock>>,
         val blockOverrideCount: MutableMap<String, Int>,
         val placeholderOverrideCount: MutableMap<String, Int>,
-        val baselineBlocksById: Map<String, ClearTermsTextBlock>,
+        val baselineBlocksById: Map<String, TextBlock>,
         val baselineBlockIds: Set<String>,
     )
 
     private data class FinalRenderData(
-        val placeholders: Map<String, ClearTermsPlaceholderType>,
-        val values: Map<String, ClearTermsValue>,
+        val placeholders: Map<String, PlaceholderType>,
+        val values: Map<String, Value>,
     )
 
     private fun buildRenderState(
-        baseline: ClearTermsBaseline,
+        baseline: Baseline,
         baselineHash: String,
         parsedProfiles: List<ParsedProfile>,
     ): RenderState {
@@ -125,7 +137,7 @@ class ClearTermsRenderer(
     }
 
     private fun initialRenderState(
-        baseline: ClearTermsBaseline,
+        baseline: Baseline,
         baselineHash: String,
     ): RenderState {
         val baselineBlocksById =
@@ -206,14 +218,14 @@ class ClearTermsRenderer(
     private fun selectLanguageBlocks(
         state: RenderState,
         languageTag: String,
-    ): List<ClearTermsTextBlock> =
+    ): List<TextBlock> =
         state.textsByLanguage[languageTag]
-            ?: throw ClearTermsValidationException("Language '$languageTag' not available")
+            ?: throw ValidationException("Language '$languageTag' not available")
 
     private fun resolveFinalData(
         languageTag: String,
-        languageBlocks: List<ClearTermsTextBlock>,
-        rawValues: Map<String, ClearTermsJsonNode.ScalarNode>,
+        languageBlocks: List<TextBlock>,
+        rawValues: Map<String, JsonNode.ScalarNode>,
     ): FinalRenderData {
         val textsByLanguage = mapOf(languageTag to languageBlocks)
         profileValidator.validateFinalTextsResolved(textsByLanguage)
@@ -229,20 +241,20 @@ class ClearTermsRenderer(
 
     private fun renderBlocks(
         language: String,
-        blocks: List<ClearTermsTextBlock>,
+        blocks: List<TextBlock>,
         state: RenderState,
         finalData: FinalRenderData,
-    ): List<ClearTermsRenderedBlock> = blocks.map { renderBlock(language, it, state, finalData) }
+    ): List<RenderedBlock> = blocks.map { renderBlock(language, it, state, finalData) }
 
     private fun renderBlock(
         language: String,
-        block: ClearTermsTextBlock,
+        block: TextBlock,
         state: RenderState,
         finalData: FinalRenderData,
-    ): ClearTermsRenderedBlock {
+    ): RenderedBlock {
         val background = resolveBlockBackground(block.id, state)
         val segments = renderSegments(language, block, background, state, finalData)
-        return ClearTermsRenderedBlock(
+        return RenderedBlock(
             id = block.id,
             isBaselineOverride = hasBlockOverride(block.id, state.blockOverrideCount),
             inlineWithNext = block.hints?.inlineWithNext == true,
@@ -252,12 +264,12 @@ class ClearTermsRenderer(
 
     private fun renderSegments(
         language: String,
-        block: ClearTermsTextBlock,
-        background: ClearTermsRenderBackground,
+        block: TextBlock,
+        background: RenderBackground,
         state: RenderState,
         finalData: FinalRenderData,
-    ): List<ClearTermsRenderedBlock.Segment> =
-        if (background == ClearTermsRenderBackground.NONE) {
+    ): List<RenderedBlock.Segment> =
+        if (background == RenderBackground.NONE) {
             renderSegmentDetails(language, block, state, finalData)
         } else {
             renderSingleBackgroundSegment(language, block, background, finalData.values)
@@ -265,10 +277,10 @@ class ClearTermsRenderer(
 
     private fun renderSegmentDetails(
         language: String,
-        block: ClearTermsTextBlock,
+        block: TextBlock,
         state: RenderState,
         finalData: FinalRenderData,
-    ): List<ClearTermsRenderedBlock.Segment> =
+    ): List<RenderedBlock.Segment> =
         valueRenderer.renderBlockSegments(
             block = block,
             values = finalData.values,
@@ -287,18 +299,18 @@ class ClearTermsRenderer(
 
     private fun renderSingleBackgroundSegment(
         language: String,
-        block: ClearTermsTextBlock,
-        background: ClearTermsRenderBackground,
-        values: Map<String, ClearTermsValue>,
-    ): List<ClearTermsRenderedBlock.Segment> {
+        block: TextBlock,
+        background: RenderBackground,
+        values: Map<String, Value>,
+    ): List<RenderedBlock.Segment> {
         val text = renderPlainText(language, block, values)
-        return listOf(ClearTermsRenderedBlock.Segment(text, background))
+        return listOf(RenderedBlock.Segment(text, background))
     }
 
     private fun renderPlainText(
         language: String,
-        block: ClearTermsTextBlock,
-        values: Map<String, ClearTermsValue>,
+        block: TextBlock,
+        values: Map<String, Value>,
     ): String =
         valueRenderer
             .renderBlockSegments(
@@ -309,16 +321,16 @@ class ClearTermsRenderer(
                 placeholderIsBaselineOverrideByKey = emptyMap(),
             ).joinToString("") { it.text }
 
-    private fun renderText(blocks: List<ClearTermsRenderedBlock>): String = blocks.joinToString("") { renderBlockText(it) }
+    private fun renderText(blocks: List<RenderedBlock>): String = blocks.joinToString("") { renderBlockText(it) }
 
-    private fun renderBlockText(block: ClearTermsRenderedBlock): String = block.segments.joinToString("") { it.text }
+    private fun renderBlockText(block: RenderedBlock): String = block.segments.joinToString("") { it.text }
 
     private fun ensureResolved(text: String) {
         valueRenderer.ensureNoUnresolvedPlaceholders(text)
     }
 
     private fun countBlockOverrides(
-        overrides: Map<String, ClearTermsProfile.TextOverrides>?,
+        overrides: Map<String, Profile.TextOverrides>?,
         blockOverrideCount: MutableMap<String, Int>,
     ) {
         if (overrides == null) {
@@ -337,7 +349,7 @@ class ClearTermsRenderer(
     }
 
     private fun countPlaceholderOverrides(
-        values: Map<String, ClearTermsJsonNode.ScalarNode>?,
+        values: Map<String, JsonNode.ScalarNode>?,
         placeholderOverrideCount: MutableMap<String, Int>,
     ) {
         values?.keys?.forEach { key ->
@@ -348,8 +360,8 @@ class ClearTermsRenderer(
     private fun resolveBlockBackground(
         blockId: String,
         state: RenderState,
-    ): ClearTermsRenderBackground =
-        ClearTermsBlockBackgroundResolver.resolve(
+    ): RenderBackground =
+        BlockBackgroundResolver.resolve(
             blockId = blockId,
             blockOverrideCount = state.blockOverrideCount,
             baselineBlocksById = state.baselineBlocksById,
@@ -362,10 +374,10 @@ class ClearTermsRenderer(
     ): Boolean = (blockOverrideCount[blockId] ?: 0) > 0
 
     private fun placeholderBackgroundByKey(
-        finalPlaceholders: Map<String, ClearTermsPlaceholderType>,
+        finalPlaceholders: Map<String, PlaceholderType>,
         placeholderOverrideCount: Map<String, Int>,
-    ): Map<String, ClearTermsRenderBackground> {
-        val backgrounds = linkedMapOf<String, ClearTermsRenderBackground>()
+    ): Map<String, RenderBackground> {
+        val backgrounds = linkedMapOf<String, RenderBackground>()
         finalPlaceholders.keys.forEach { key ->
             backgrounds[key] = resolvePlaceholderBackground(key, placeholderOverrideCount)
         }
@@ -375,15 +387,15 @@ class ClearTermsRenderer(
     private fun resolvePlaceholderBackground(
         key: String,
         placeholderOverrideCount: Map<String, Int>,
-    ): ClearTermsRenderBackground =
+    ): RenderBackground =
         if ((placeholderOverrideCount[key] ?: 0) > 1) {
-            ClearTermsRenderBackground.YELLOW
+            RenderBackground.YELLOW
         } else {
-            ClearTermsRenderBackground.NONE
+            RenderBackground.NONE
         }
 
     private fun placeholderIsBaselineOverrideByKey(
-        finalPlaceholders: Map<String, ClearTermsPlaceholderType>,
+        finalPlaceholders: Map<String, PlaceholderType>,
         placeholderOverrideCount: Map<String, Int>,
     ): Map<String, Boolean> {
         val overrides = linkedMapOf<String, Boolean>()

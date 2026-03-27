@@ -1,6 +1,14 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
 import kotlinx.serialization.json.Json
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -8,7 +16,7 @@ class ClearTermsLocaleSerializationTest {
     @Test
     fun `serializes and deserializes locale`() {
         val locale =
-            ClearTermsLocale(
+            Locale(
                 language = "en",
                 months = listOf("January", "February"),
                 weekdays = mapOf("mon" to "Monday"),
@@ -16,7 +24,7 @@ class ClearTermsLocaleSerializationTest {
                 groupingSeparator = ",",
                 atWord = "at",
                 patterns =
-                    ClearTermsLocale.Patterns(
+                    Locale.Patterns(
                         onFullDate = "on {month} {day}, {year}",
                         inMonthYear = "in {month} {year}",
                         onDayOfEveryMonthInYear = "on day {day} of every month in {year}",
@@ -34,7 +42,7 @@ class ClearTermsLocaleSerializationTest {
 
         val json = Json.encodeToString(locale)
 
-        val decoded = Json.decodeFromString<ClearTermsLocale>(json)
+        val decoded = Json.decodeFromString<Locale>(json)
 
         assertEquals(locale, decoded)
     }
@@ -42,7 +50,7 @@ class ClearTermsLocaleSerializationTest {
     @Test
     fun `serializes and deserializes locale patterns`() {
         val patterns =
-            ClearTermsLocale.Patterns(
+            Locale.Patterns(
                 onFullDate = "on {month} {day}, {year}",
                 inMonthYear = "in {month} {year}",
                 onDayOfEveryMonthInYear = "on day {day} of every month in {year}",
@@ -59,7 +67,7 @@ class ClearTermsLocaleSerializationTest {
 
         val json = Json.encodeToString(patterns)
 
-        val decoded = Json.decodeFromString<ClearTermsLocale.Patterns>(json)
+        val decoded = Json.decodeFromString<Locale.Patterns>(json)
 
         assertEquals(patterns, decoded)
     }

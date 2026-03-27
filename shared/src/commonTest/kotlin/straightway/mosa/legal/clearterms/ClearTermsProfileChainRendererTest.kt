@@ -1,7 +1,15 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
 import kotlinx.coroutines.test.runTest
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -10,7 +18,7 @@ class ClearTermsProfileChainRendererTest {
     private val hasher = SequenceHashProvider()
     private val encoder = FixedTextEncoder()
     private val localeProvider = TestClearTermsLocaleProvider()
-    private val renderer = ClearTermsRenderer(ClearTermsJsonParser(), hasher, encoder, localeProvider = localeProvider)
+    private val renderer = ClearTermsRenderer(JsonParser(), hasher, encoder, localeProvider = localeProvider)
 
     @Test
     fun `renders final text for profile chain`() =
@@ -83,7 +91,7 @@ class ClearTermsProfileChainRendererTest {
                 """.trimIndent()
 
             val exception =
-                assertFailsWith<ClearTermsValidationException> {
+                assertFailsWith<ValidationException> {
                     renderer.renderLanguage(baseline, emptyList(), "en").text
                 }
 
@@ -119,7 +127,7 @@ class ClearTermsProfileChainRendererTest {
                 """.trimIndent()
 
             val exception =
-                assertFailsWith<ClearTermsValidationException> {
+                assertFailsWith<ValidationException> {
                     renderer.renderLanguage(baseline, listOf(profile), "en").text
                 }
 
@@ -243,7 +251,7 @@ class ClearTermsProfileChainRendererTest {
                 """.trimIndent()
 
             val exception =
-                assertFailsWith<ClearTermsValidationException> {
+                assertFailsWith<ValidationException> {
                     renderer.renderLanguage(baseline, listOf(profileA, profileB), "en").text
                 }
 
@@ -279,7 +287,7 @@ class ClearTermsProfileChainRendererTest {
                 """.trimIndent()
 
             val exception =
-                assertFailsWith<ClearTermsValidationException> {
+                assertFailsWith<ValidationException> {
                     renderer.renderLanguage(baseline, listOf(profile), "de").text
                 }
 
@@ -371,14 +379,14 @@ class ClearTermsProfileChainRendererTest {
                 """.trimIndent()
 
             val exception =
-                assertFailsWith<ClearTermsValidationException> {
+                assertFailsWith<ValidationException> {
                     renderer.renderLanguage(baseline, listOf(profile), "en").text
                 }
 
             assertEquals("No languages available after applying profile chain", exception.message)
         }
 
-    private class SequenceHashProvider : ClearTermsHashProvider {
+    private class SequenceHashProvider : HashProvider {
         private var index = 0
 
         override suspend fun sha256(data: ByteArray): ByteArray {
@@ -391,13 +399,13 @@ class ClearTermsProfileChainRendererTest {
         }
     }
 
-    private class FixedTextEncoder : ClearTermsTextEncoder {
+    private class FixedTextEncoder : TextEncoder {
         override fun encode(value: String): ByteArray = value.encodeToByteArray()
     }
 
-    private class TestClearTermsLocaleProvider : ClearTermsLocaleProvider {
-        override fun resolve(languageTag: String): ClearTermsLocale =
-            ClearTermsLocale(
+    private class TestClearTermsLocaleProvider : LocaleProvider {
+        override fun resolve(languageTag: String): Locale =
+            Locale(
                 language = "en",
                 months =
                     listOf(
@@ -428,7 +436,7 @@ class ClearTermsProfileChainRendererTest {
                 groupingSeparator = ",",
                 atWord = "at",
                 patterns =
-                    ClearTermsLocale.Patterns(
+                    Locale.Patterns(
                         onFullDate = "on {month} {day}, {year}",
                         inMonthYear = "in {month} {year}",
                         onDayOfEveryMonthInYear = "on day {day} of every month in {year}",

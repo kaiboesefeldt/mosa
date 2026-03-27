@@ -2,23 +2,23 @@ package straightway.mosa.client.legal
 
 import straightway.mosa.client.content.PodAccessFactory
 import straightway.mosa.client.pod.PodBaseProvider
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
-import straightway.mosa.legal.clearterms.render.ClearTermsBlockBackgroundResolver
-import straightway.mosa.legal.clearterms.ClearTermsLocaleProvider
-import straightway.mosa.legal.clearterms.locale.ClearTermsLocaleRepository
-import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderParser
-import straightway.mosa.legal.clearterms.ClearTermsProfile
-import straightway.mosa.legal.clearterms.validation.ClearTermsProfileValidator
-import straightway.mosa.legal.clearterms.ClearTermsRenderBackground
-import straightway.mosa.legal.clearterms.ClearTermsRenderedLanguage
-import straightway.mosa.legal.clearterms.ClearTermsRenderedBlock
-import straightway.mosa.legal.clearterms.ClearTermsTextBlock
-import straightway.mosa.legal.clearterms.render.ClearTermsTimeTextRenderer
-import straightway.mosa.legal.clearterms.ClearTermsTimeZoneDisplayConverter
-import straightway.mosa.legal.clearterms.render.ClearTermsValueRenderer
-import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
-import straightway.mosa.legal.clearterms.JsClearTermsResourceReader
+import straightway.mosa.legal.clearterms.parse.JsonNode
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.render.BlockBackgroundResolver
+import straightway.mosa.legal.clearterms.locale.LocaleProvider
+import straightway.mosa.legal.clearterms.locale.LocaleRepository
+import straightway.mosa.legal.clearterms.placeholder.PlaceholderParser
+import straightway.mosa.legal.clearterms.document.Profile
+import straightway.mosa.legal.clearterms.validation.ProfileValidator
+import straightway.mosa.legal.clearterms.render.RenderBackground
+import straightway.mosa.legal.clearterms.render.RenderedLanguage
+import straightway.mosa.legal.clearterms.render.RenderedBlock
+import straightway.mosa.legal.clearterms.document.TextBlock
+import straightway.mosa.legal.clearterms.render.TimeTextRenderer
+import straightway.mosa.legal.clearterms.render.TimeZoneDisplayConverter
+import straightway.mosa.legal.clearterms.render.ValueRenderer
+import straightway.mosa.legal.clearterms.parse.DocumentReader
+import straightway.mosa.legal.clearterms.spi.browser.BrowserResourceReader
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -28,18 +28,18 @@ class LegalPrivacyPolicyService(
     private val preferredLanguageTagsProvider: () -> List<String>,
     private val clearTermsContentProvider: PrivacyClearTermsContentProvider,
     private val markdownToHtmlRenderer: MarkdownToHtmlRenderer = MarkdownToHtmlRenderer(),
-    private val clearTermsLocaleProvider: ClearTermsLocaleProvider = ClearTermsLocaleRepository(JsClearTermsResourceReader()),
-    private val timeZoneDisplayConverter: ClearTermsTimeZoneDisplayConverter = ClearTermsTimeZoneDisplayConverter.NoOp,
+    private val clearTermsLocaleProvider: LocaleProvider = LocaleRepository(BrowserResourceReader()),
+    private val timeZoneDisplayConverter: TimeZoneDisplayConverter = TimeZoneDisplayConverter.NoOp,
 ) {
-    private val clearTermsJsonParser = ClearTermsJsonParser()
-    private val clearTermsDocumentReader = ClearTermsDocumentReader()
-    private val clearTermsPlaceholderParser = ClearTermsPlaceholderParser()
-    private val clearTermsProfileValidator = ClearTermsProfileValidator(clearTermsPlaceholderParser)
+    private val clearTermsJsonParser = JsonParser()
+    private val clearTermsDocumentReader = DocumentReader()
+    private val clearTermsPlaceholderParser = PlaceholderParser()
+    private val clearTermsProfileValidator = ProfileValidator(clearTermsPlaceholderParser)
     private val clearTermsValueRenderer =
-        ClearTermsValueRenderer(
+        ValueRenderer(
             clearTermsPlaceholderParser,
             clearTermsLocaleProvider,
-            timeTextRenderer = ClearTermsTimeTextRenderer(timeZoneDisplayConverter = timeZoneDisplayConverter),
+            timeTextRenderer = TimeTextRenderer(timeZoneDisplayConverter = timeZoneDisplayConverter),
         )
 
     suspend fun loadPrivacyPolicyHtml(): String {
@@ -139,20 +139,20 @@ class LegalPrivacyPolicyService(
     }
 
     private fun renderBlock(
-        block: ClearTermsRenderedBlock,
+        block: RenderedBlock,
         groupId: String = block.id,
     ): String {
         val markdown = block.toMarkedMarkdown()
         val html = markdownToHtmlRenderer.render(markdown)
         val blockBackground = block.blockBackground()
         val dataAttributes = """data-ct-group-id="${escapeAttribute(groupId)}" data-ct-block-ids="${escapeAttribute(block.id)}""""
-        return if (blockBackground == ClearTermsRenderBackground.NONE && !block.isBaselineOverride) {
+        return if (blockBackground == RenderBackground.NONE && !block.isBaselineOverride) {
             """<div class="legal-ct-block" $dataAttributes>$html</div>"""
         } else {
             val classes =
                 buildList {
                     add("legal-ct-block")
-                    if (blockBackground != ClearTermsRenderBackground.NONE) {
+                    if (blockBackground != RenderBackground.NONE) {
                         add(cssClassFor(blockBackground))
                     }
                     if (block.isBaselineOverride) {
@@ -168,7 +168,7 @@ class LegalPrivacyPolicyService(
         }
     }
 
-    private fun renderBlocks(blocks: List<ClearTermsRenderedBlock>): String {
+    private fun renderBlocks(blocks: List<RenderedBlock>): String {
         val html = StringBuilder()
         var index = 0
         while (index < blocks.size) {
@@ -186,8 +186,8 @@ class LegalPrivacyPolicyService(
     }
 
     private fun renderInlinePair(
-        current: ClearTermsRenderedBlock,
-        next: ClearTermsRenderedBlock,
+        current: RenderedBlock,
+        next: RenderedBlock,
     ): String {
         val groupId = "${current.id}|${next.id}"
         val markdown =
@@ -199,13 +199,13 @@ class LegalPrivacyPolicyService(
         return """<div class="legal-ct-inline-group" $attributes>$html</div>"""
     }
 
-    private fun ClearTermsRenderedBlock.toMarkedMarkdown(
+    private fun RenderedBlock.toMarkedMarkdown(
         includeBaselineOverrideMarker: Boolean = false,
     ): String {
         val rendered =
             segments.joinToString("") { segment ->
                 when {
-                    segment.background != ClearTermsRenderBackground.NONE ->
+                    segment.background != RenderBackground.NONE ->
                         "${openMarkerFor(segment.background, id)}${segment.text}${MARKER_CLOSE}"
                     segment.isBaselineOverride ->
                         "$MARKER_OPEN_BASELINE${segment.text}$MARKER_CLOSE"
@@ -223,10 +223,10 @@ class LegalPrivacyPolicyService(
         languageTag: String,
         baselineJson: String,
         profileJsons: List<String>,
-        renderedBlocks: List<ClearTermsRenderedBlock>,
+        renderedBlocks: List<RenderedBlock>,
     ): Map<String, String> {
-        val renderResultsByChainStep = linkedMapOf<Int, ClearTermsRenderedLanguage>()
-        renderResultsByChainStep[profileJsons.size] = ClearTermsRenderedLanguage(languageTag = languageTag, text = "", blocks = renderedBlocks)
+        val renderResultsByChainStep = linkedMapOf<Int, RenderedLanguage>()
+        renderResultsByChainStep[profileJsons.size] = RenderedLanguage(languageTag = languageTag, text = "", blocks = renderedBlocks)
         for (profileCount in 1 until profileJsons.size) {
             runCatching {
                 clearTermsContentProvider.renderedLanguage(baselineJson, profileJsons.take(profileCount), languageTag)
@@ -249,7 +249,7 @@ class LegalPrivacyPolicyService(
         }
     }
 
-    private fun resolveUncriticalTextByBlockIdFromRenderResults(renderResultsByChainStep: Map<Int, ClearTermsRenderedLanguage>): Map<String, String> {
+    private fun resolveUncriticalTextByBlockIdFromRenderResults(renderResultsByChainStep: Map<Int, RenderedLanguage>): Map<String, String> {
         if (renderResultsByChainStep.isEmpty()) {
             return emptyMap()
         }
@@ -298,7 +298,7 @@ class LegalPrivacyPolicyService(
         languageTag: String,
         baselineJson: String,
         profileJsons: List<String>,
-        renderedBlocks: List<ClearTermsRenderedBlock>,
+        renderedBlocks: List<RenderedBlock>,
     ): Map<String, String> {
         if (renderedBlocks.isEmpty()) {
             return emptyMap()
@@ -345,15 +345,15 @@ class LegalPrivacyPolicyService(
     }
 
     private fun buildChainSteps(
-        baseline: straightway.mosa.legal.clearterms.ClearTermsBaseline,
-        profiles: List<ClearTermsProfile>,
+        baseline: straightway.mosa.legal.clearterms.document.Baseline,
+        profiles: List<Profile>,
     ): List<ChainStep> {
         val steps = mutableListOf<ChainStep>()
         var textsByLanguage =
             baseline.textsByLanguage.entries.associate { (language, blocks) ->
                 normalizeLanguageTag(language) to blocks
             }
-        val mergedValues = linkedMapOf<String, ClearTermsJsonNode.ScalarNode>()
+        val mergedValues = linkedMapOf<String, JsonNode.ScalarNode>()
         val blockOverrideCount = linkedMapOf<String, Int>()
         val placeholderOverrideCount = linkedMapOf<String, Int>()
         steps +=
@@ -382,7 +382,7 @@ class LegalPrivacyPolicyService(
     }
 
     private fun countBlockOverrides(
-        overrides: Map<String, ClearTermsProfile.TextOverrides>?,
+        overrides: Map<String, Profile.TextOverrides>?,
         blockOverrideCount: MutableMap<String, Int>,
     ) {
         if (overrides == null) {
@@ -398,16 +398,16 @@ class LegalPrivacyPolicyService(
         }
     }
 
-    private fun ClearTermsRenderedBlock.isHighlighted(): Boolean =
+    private fun RenderedBlock.isHighlighted(): Boolean =
         segments.any { segment ->
-            segment.background == ClearTermsRenderBackground.YELLOW ||
-                segment.background == ClearTermsRenderBackground.RED
+            segment.background == RenderBackground.YELLOW ||
+                segment.background == RenderBackground.RED
         }
 
     private fun ChainStep.isBlockHighlighted(
         languageTag: String,
         blockId: String,
-        baselineBlocksById: Map<String, ClearTermsTextBlock>,
+        baselineBlocksById: Map<String, TextBlock>,
         baselineBlockIds: Set<String>,
     ): Boolean {
         val block = textsByLanguage[languageTag].orEmpty().firstOrNull { candidate -> candidate.id == blockId } ?: return false
@@ -418,14 +418,14 @@ class LegalPrivacyPolicyService(
                 baselineBlocksById = baselineBlocksById,
                 baselineBlockIds = baselineBlockIds,
             )
-        if (blockBackground != ClearTermsRenderBackground.NONE) {
+        if (blockBackground != RenderBackground.NONE) {
             return true
         }
         val text = block.text ?: return false
         val placeholders =
             clearTermsPlaceholderParser
                 .parse(text)
-                .filterIsInstance<ClearTermsPlaceholderParser.Segment.Placeholder>()
+                .filterIsInstance<PlaceholderParser.Segment.Placeholder>()
         return placeholders.any { placeholder ->
             (placeholderOverrideCount[placeholder.placeholder.key] ?: 0) > 1
         }
@@ -459,25 +459,25 @@ class LegalPrivacyPolicyService(
         return renderedText.replace(unresolvedPlaceholderRegex, "...").ifBlank { "..." }
     }
 
-    private fun ClearTermsRenderedBlock.blockBackground(): ClearTermsRenderBackground {
-        val first = segments.firstOrNull()?.background ?: ClearTermsRenderBackground.NONE
-        if (first == ClearTermsRenderBackground.NONE) {
-            return ClearTermsRenderBackground.NONE
+    private fun RenderedBlock.blockBackground(): RenderBackground {
+        val first = segments.firstOrNull()?.background ?: RenderBackground.NONE
+        if (first == RenderBackground.NONE) {
+            return RenderBackground.NONE
         }
         return if (segments.all { it.background == first }) {
             first
         } else {
-            ClearTermsRenderBackground.NONE
+            RenderBackground.NONE
         }
     }
 
     private fun resolveBlockBackground(
         blockId: String,
         blockOverrideCount: Map<String, Int>,
-        baselineBlocksById: Map<String, ClearTermsTextBlock>,
+        baselineBlocksById: Map<String, TextBlock>,
         baselineBlockIds: Set<String>,
-    ): ClearTermsRenderBackground =
-        ClearTermsBlockBackgroundResolver.resolve(
+    ): RenderBackground =
+        BlockBackgroundResolver.resolve(
             blockId = blockId,
             blockOverrideCount = blockOverrideCount,
             baselineBlocksById = baselineBlocksById,
@@ -485,34 +485,34 @@ class LegalPrivacyPolicyService(
         )
 
     private data class ChainStep(
-        val textsByLanguage: Map<String, List<ClearTermsTextBlock>>,
-        val mergedValues: Map<String, ClearTermsJsonNode.ScalarNode>,
+        val textsByLanguage: Map<String, List<TextBlock>>,
+        val mergedValues: Map<String, JsonNode.ScalarNode>,
         val blockOverrideCount: Map<String, Int>,
         val placeholderOverrideCount: Map<String, Int>,
     )
 
-    private fun cssClassFor(background: ClearTermsRenderBackground): String =
+    private fun cssClassFor(background: RenderBackground): String =
         when (background) {
-            ClearTermsRenderBackground.NONE -> "legal-ct-bg-none"
-            ClearTermsRenderBackground.YELLOW -> "legal-ct-bg-yellow"
-            ClearTermsRenderBackground.RED -> "legal-ct-bg-red"
+            RenderBackground.NONE -> "legal-ct-bg-none"
+            RenderBackground.YELLOW -> "legal-ct-bg-yellow"
+            RenderBackground.RED -> "legal-ct-bg-red"
         }
 
     private fun openMarkerFor(
-        background: ClearTermsRenderBackground,
+        background: RenderBackground,
         blockId: String,
     ): String =
         when (background) {
-            ClearTermsRenderBackground.NONE -> ""
-            ClearTermsRenderBackground.YELLOW -> "$MARKER_OPEN_YELLOW:$blockId$MARKER_OPEN_SUFFIX"
-            ClearTermsRenderBackground.RED -> "$MARKER_OPEN_RED:$blockId$MARKER_OPEN_SUFFIX"
+            RenderBackground.NONE -> ""
+            RenderBackground.YELLOW -> "$MARKER_OPEN_YELLOW:$blockId$MARKER_OPEN_SUFFIX"
+            RenderBackground.RED -> "$MARKER_OPEN_RED:$blockId$MARKER_OPEN_SUFFIX"
         }
 
-    private fun inlineStyleFor(background: ClearTermsRenderBackground): String =
+    private fun inlineStyleFor(background: RenderBackground): String =
         when (background) {
-            ClearTermsRenderBackground.NONE -> ""
-            ClearTermsRenderBackground.YELLOW -> INLINE_STYLE_YELLOW
-            ClearTermsRenderBackground.RED -> INLINE_STYLE_RED
+            RenderBackground.NONE -> ""
+            RenderBackground.YELLOW -> INLINE_STYLE_YELLOW
+            RenderBackground.RED -> INLINE_STYLE_RED
         }
 
     private fun escapeAttribute(value: String): String =

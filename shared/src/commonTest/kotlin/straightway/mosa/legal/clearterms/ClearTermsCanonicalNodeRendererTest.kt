@@ -1,25 +1,33 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
-import straightway.mosa.legal.clearterms.canonical.ClearTermsCanonicalNodeRenderer
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
+import straightway.mosa.legal.clearterms.canonical.CanonicalNodeRenderer
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.parse.JsonNode
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class ClearTermsCanonicalNodeRendererTest {
-    private val canonicalizer = ClearTermsCanonicalNodeRenderer()
+    private val canonicalizer = CanonicalNodeRenderer()
 
     @Test
     fun `sorts keys lexicographically at all levels`() {
         val root =
-            ClearTermsJsonNode.ObjectNode(
+            JsonNode.ObjectNode(
                 mapOf(
-                    "b" to ClearTermsJsonNode.ScalarNode.StringNode("two"),
+                    "b" to JsonNode.ScalarNode.StringNode("two"),
                     "a" to
-                        ClearTermsJsonNode.ObjectNode(
+                        JsonNode.ObjectNode(
                             mapOf(
-                                "d" to ClearTermsJsonNode.ScalarNode.StringNode("four"),
-                                "c" to ClearTermsJsonNode.ScalarNode.StringNode("three"),
+                                "d" to JsonNode.ScalarNode.StringNode("four"),
+                                "c" to JsonNode.ScalarNode.StringNode("three"),
                             ),
                         ),
                 ),
@@ -34,14 +42,14 @@ class ClearTermsCanonicalNodeRendererTest {
     @Test
     fun `preserves array order`() {
         val root =
-            ClearTermsJsonNode.ObjectNode(
+            JsonNode.ObjectNode(
                 mapOf(
                     "list" to
-                        ClearTermsJsonNode.ArrayNode(
+                        JsonNode.ArrayNode(
                             listOf(
-                                ClearTermsJsonNode.ScalarNode.StringNode("first"),
-                                ClearTermsJsonNode.ScalarNode.StringNode("second"),
-                                ClearTermsJsonNode.ScalarNode.StringNode("third"),
+                                JsonNode.ScalarNode.StringNode("first"),
+                                JsonNode.ScalarNode.StringNode("second"),
+                                JsonNode.ScalarNode.StringNode("third"),
                             ),
                         ),
                 ),
@@ -56,21 +64,21 @@ class ClearTermsCanonicalNodeRendererTest {
     @Test
     fun `renders nested arrays and objects`() {
         val root =
-            ClearTermsJsonNode.ObjectNode(
+            JsonNode.ObjectNode(
                 mapOf(
                     "items" to
-                        ClearTermsJsonNode.ArrayNode(
+                        JsonNode.ArrayNode(
                             listOf(
-                                ClearTermsJsonNode.ObjectNode(
+                                JsonNode.ObjectNode(
                                     mapOf(
-                                        "id" to ClearTermsJsonNode.ScalarNode.StringNode("one"),
-                                        "value" to ClearTermsJsonNode.ScalarNode.NumberNode(1.0),
+                                        "id" to JsonNode.ScalarNode.StringNode("one"),
+                                        "value" to JsonNode.ScalarNode.NumberNode(1.0),
                                     ),
                                 ),
-                                ClearTermsJsonNode.ObjectNode(
+                                JsonNode.ObjectNode(
                                     mapOf(
-                                        "id" to ClearTermsJsonNode.ScalarNode.StringNode("two"),
-                                        "value" to ClearTermsJsonNode.ScalarNode.NumberNode(2.5),
+                                        "id" to JsonNode.ScalarNode.StringNode("two"),
+                                        "value" to JsonNode.ScalarNode.NumberNode(2.5),
                                     ),
                                 ),
                             ),
@@ -87,9 +95,9 @@ class ClearTermsCanonicalNodeRendererTest {
     @Test
     fun `renders nulls explicitly`() {
         val root =
-            ClearTermsJsonNode.ObjectNode(
+            JsonNode.ObjectNode(
                 mapOf(
-                    "value" to ClearTermsJsonNode.ScalarNode.NullNode,
+                    "value" to JsonNode.ScalarNode.NullNode,
                 ),
             )
 
@@ -101,10 +109,10 @@ class ClearTermsCanonicalNodeRendererTest {
     @Test
     fun `renders numbers without underscores`() {
         val root =
-            ClearTermsJsonNode.ObjectNode(
+            JsonNode.ObjectNode(
                 mapOf(
-                    "integer" to ClearTermsJsonNode.ScalarNode.NumberNode(10.0),
-                    "decimal" to ClearTermsJsonNode.ScalarNode.NumberNode(12.75),
+                    "integer" to JsonNode.ScalarNode.NumberNode(10.0),
+                    "decimal" to JsonNode.ScalarNode.NumberNode(12.75),
                 ),
             )
 
@@ -116,9 +124,9 @@ class ClearTermsCanonicalNodeRendererTest {
     @Test
     fun `escapes strings according to rules`() {
         val root =
-            ClearTermsJsonNode.ObjectNode(
+            JsonNode.ObjectNode(
                 mapOf(
-                    "text" to ClearTermsJsonNode.ScalarNode.StringNode("\" \\ \n \r \t \u0007 end"),
+                    "text" to JsonNode.ScalarNode.StringNode("\" \\ \n \r \t \u0007 end"),
                 ),
             )
 
@@ -130,9 +138,9 @@ class ClearTermsCanonicalNodeRendererTest {
     @Test
     fun `escapes backspace and formfeed`() {
         val root =
-            ClearTermsJsonNode.ObjectNode(
+            JsonNode.ObjectNode(
                 mapOf(
-                    "text" to ClearTermsJsonNode.ScalarNode.StringNode("a\b\u000c b"),
+                    "text" to JsonNode.ScalarNode.StringNode("a\b\u000c b"),
                 ),
             )
 
@@ -144,13 +152,13 @@ class ClearTermsCanonicalNodeRendererTest {
     @Test
     fun `rejects non finite numbers`() {
         val root =
-            ClearTermsJsonNode.ObjectNode(
+            JsonNode.ObjectNode(
                 mapOf(
-                    "value" to ClearTermsJsonNode.ScalarNode.NumberNode(Double.POSITIVE_INFINITY),
+                    "value" to JsonNode.ScalarNode.NumberNode(Double.POSITIVE_INFINITY),
                 ),
             )
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             canonicalizer.render(root)
         }
     }
@@ -158,10 +166,10 @@ class ClearTermsCanonicalNodeRendererTest {
     @Test
     fun `renders empty collections`() {
         val root =
-            ClearTermsJsonNode.ObjectNode(
+            JsonNode.ObjectNode(
                 mapOf(
-                    "emptyObject" to ClearTermsJsonNode.ObjectNode(emptyMap()),
-                    "emptyArray" to ClearTermsJsonNode.ArrayNode(emptyList()),
+                    "emptyObject" to JsonNode.ObjectNode(emptyMap()),
+                    "emptyArray" to JsonNode.ArrayNode(emptyList()),
                 ),
             )
 
@@ -172,7 +180,7 @@ class ClearTermsCanonicalNodeRendererTest {
 
     @Test
     fun `renders empty root object`() {
-        val root = ClearTermsJsonNode.ObjectNode(emptyMap())
+        val root = JsonNode.ObjectNode(emptyMap())
 
         val result = canonicalizer.render(root)
 
@@ -182,9 +190,9 @@ class ClearTermsCanonicalNodeRendererTest {
     @Test
     fun `escapes low control characters using unicode`() {
         val root =
-            ClearTermsJsonNode.ObjectNode(
+            JsonNode.ObjectNode(
                 mapOf(
-                    "text" to ClearTermsJsonNode.ScalarNode.StringNode("a\u0001\u001f b"),
+                    "text" to JsonNode.ScalarNode.StringNode("a\u0001\u001f b"),
                 ),
             )
 
@@ -196,13 +204,13 @@ class ClearTermsCanonicalNodeRendererTest {
     @Test
     fun `rejects NaN numbers`() {
         val root =
-            ClearTermsJsonNode.ObjectNode(
+            JsonNode.ObjectNode(
                 mapOf(
-                    "value" to ClearTermsJsonNode.ScalarNode.NumberNode(Double.NaN),
+                    "value" to JsonNode.ScalarNode.NumberNode(Double.NaN),
                 ),
             )
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             canonicalizer.render(root)
         }
     }

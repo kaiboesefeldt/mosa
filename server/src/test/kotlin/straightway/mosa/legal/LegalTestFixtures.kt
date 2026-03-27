@@ -1,13 +1,13 @@
 package straightway.mosa.legal
 
-import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
-import straightway.mosa.legal.clearterms.ClearTermsYamlLanguageFragmentMerger
-import straightway.mosa.legal.clearterms.canonical.ClearTermsCanonicalNodeRenderer
-import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
-import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderParser
-import straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker
-import straightway.mosa.legal.clearterms.validation.ClearTermsProfileValidator
+import straightway.mosa.legal.clearterms.canonical.CanonicalNodeRenderer
+import straightway.mosa.legal.clearterms.parse.DocumentReader
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.placeholder.PlaceholderParser
+import straightway.mosa.legal.clearterms.validation.ProfileChainCompletenessChecker
+import straightway.mosa.legal.clearterms.validation.ProfileValidator
+import straightway.mosa.legal.clearterms.yaml.YamlCanonicalJsonConverter
+import straightway.mosa.legal.clearterms.yaml.YamlLanguageFragmentMerger
 
 internal fun createLegalProfileSource(
     resourceTextReader: ResourceTextReader =
@@ -24,37 +24,37 @@ internal fun createLegalProfileSource(
             LegalProfileSource::class.java.classLoader.getResources(path)
         },
 ) = LegalProfileSource(
-    canonicalJsonConverter = ClearTermsYamlCanonicalJsonConverter(),
-    languageFragmentMerger = ClearTermsYamlLanguageFragmentMerger(),
+    canonicalJsonConverter = YamlCanonicalJsonConverter(),
+    languageFragmentMerger = YamlLanguageFragmentMerger(),
     resourceTextReader = resourceTextReader,
     resourceDirectoryEntriesProvider = resourceDirectoryEntriesProvider,
     resourceUrlsProvider = resourceUrlsProvider,
 )
 
 internal fun createLegalChainValidator(
-    completenessChecker: ClearTermsProfileChainCompletenessChecker,
+    completenessChecker: ProfileChainCompletenessChecker,
     profileSource: LegalProfileSource,
 ) = LegalChainValidator(
     completenessChecker = completenessChecker,
-    parser = ClearTermsJsonParser(),
-    reader = ClearTermsDocumentReader(),
-    profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
+    parser = JsonParser(),
+    reader = DocumentReader(),
+    profileValidator = ProfileValidator(PlaceholderParser()),
     profileSource = profileSource,
 )
 
 internal fun createLegalDocumentFactory() =
     LegalDocumentFactory(
-        parser = ClearTermsJsonParser(),
-        reader = ClearTermsDocumentReader(),
-        profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
-        canonicalNodeRenderer = ClearTermsCanonicalNodeRenderer(),
+        parser = JsonParser(),
+        reader = DocumentReader(),
+        profileValidator = ProfileValidator(PlaceholderParser()),
+        canonicalNodeRenderer = CanonicalNodeRenderer(),
     )
 
 internal fun createLegalService(
     operatorProfilePath: java.nio.file.Path,
     termsOperatorProfilePath: java.nio.file.Path,
-    completenessChecker: ClearTermsProfileChainCompletenessChecker,
-    canonicalJsonConverter: ClearTermsYamlCanonicalJsonConverter = ClearTermsYamlCanonicalJsonConverter(),
+    completenessChecker: ProfileChainCompletenessChecker,
+    canonicalJsonConverter: YamlCanonicalJsonConverter = YamlCanonicalJsonConverter(),
     resourceTextReader: ResourceTextReader =
         ResourceTextReader { path ->
             LegalService::class.java.classLoader
@@ -72,7 +72,7 @@ internal fun createLegalService(
     val profileSource =
         LegalProfileSource(
             canonicalJsonConverter = canonicalJsonConverter,
-            languageFragmentMerger = ClearTermsYamlLanguageFragmentMerger(),
+            languageFragmentMerger = YamlLanguageFragmentMerger(),
             resourceTextReader = resourceTextReader,
             resourceDirectoryEntriesProvider = resourceDirectoryEntriesProvider,
             resourceUrlsProvider = resourceUrlsProvider,
@@ -84,12 +84,12 @@ internal fun createLegalService(
         chainValidator =
             LegalChainValidator(
                 completenessChecker = completenessChecker,
-                parser = ClearTermsJsonParser(),
-                reader = ClearTermsDocumentReader(),
-                profileValidator = ClearTermsProfileValidator(ClearTermsPlaceholderParser()),
+                parser = JsonParser(),
+                reader = DocumentReader(),
+                profileValidator = ProfileValidator(PlaceholderParser()),
                 profileSource = profileSource,
             ),
-        templateWriter = LegalOperatorProfileTemplateWriter(ClearTermsProfileChainCompletenessChecker()),
+        templateWriter = LegalOperatorProfileTemplateWriter(ProfileChainCompletenessChecker()),
         documentFactory = createLegalDocumentFactory(),
     )
 }

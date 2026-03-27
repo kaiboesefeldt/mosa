@@ -85,18 +85,18 @@ import straightway.mosa.client.ui.BrowserAdminMessageInboxStateStore
 import straightway.mosa.client.ui.AdminMessageInboxStateStore
 import straightway.mosa.client.ui.IdentitySessionStore
 import straightway.mosa.identity.FictionalNameGenerator
-import straightway.mosa.legal.clearterms.ClearTermsBrowserHashProvider
-import straightway.mosa.legal.clearterms.ClearTermsBrowserTextEncoder
-import straightway.mosa.legal.clearterms.ClearTermsBrowserTimeZoneDisplayConverter
-import straightway.mosa.legal.clearterms.ClearTermsHashProvider
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
-import straightway.mosa.legal.clearterms.ClearTermsLocaleProvider
-import straightway.mosa.legal.clearterms.locale.ClearTermsLocaleRepository
+import straightway.mosa.legal.clearterms.spi.browser.BrowserHashProvider
+import straightway.mosa.legal.clearterms.spi.browser.BrowserTextEncoder
+import straightway.mosa.legal.clearterms.render.browser.BrowserTimeZoneDisplayConverter
+import straightway.mosa.legal.clearterms.spi.HashProvider
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.locale.LocaleProvider
+import straightway.mosa.legal.clearterms.locale.LocaleRepository
 import straightway.mosa.legal.clearterms.ClearTermsRenderer
-import straightway.mosa.legal.clearterms.ClearTermsResourceReader
-import straightway.mosa.legal.clearterms.ClearTermsTextEncoder
-import straightway.mosa.legal.clearterms.ClearTermsTimeZoneDisplayConverter
-import straightway.mosa.legal.clearterms.JsClearTermsResourceReader
+import straightway.mosa.legal.clearterms.spi.ResourceReader
+import straightway.mosa.legal.clearterms.spi.TextEncoder
+import straightway.mosa.legal.clearterms.render.TimeZoneDisplayConverter
+import straightway.mosa.legal.clearterms.spi.browser.BrowserResourceReader
 import web.idb.IDBFactory
 import web.idb.indexedDB
 
@@ -203,12 +203,12 @@ object AppModule : KoinComponent {
                         single { Translator(get<BrowserPrefs>().languages) }
                         single { DiceBearAvatarGenerator() }
                         single<Logger> { BrowserLogger() }
-                        single<ClearTermsResourceReader> { JsClearTermsResourceReader() }
-                        single<ClearTermsLocaleProvider> { ClearTermsLocaleRepository(get()) }
-                        single { ClearTermsJsonParser() }
-                        single<ClearTermsHashProvider> { ClearTermsBrowserHashProvider(get()) }
-                        single<ClearTermsTextEncoder> { ClearTermsBrowserTextEncoder() }
-                        single<ClearTermsTimeZoneDisplayConverter> { ClearTermsBrowserTimeZoneDisplayConverter() }
+                        single<ResourceReader> { BrowserResourceReader() }
+                        single<LocaleProvider> { LocaleRepository(get()) }
+                        single { JsonParser() }
+                        single<HashProvider> { BrowserHashProvider(get()) }
+                        single<TextEncoder> { BrowserTextEncoder() }
+                        single<TimeZoneDisplayConverter> { BrowserTimeZoneDisplayConverter() }
                         single {
                             ClearTermsRenderer(
                                 parser = get(),

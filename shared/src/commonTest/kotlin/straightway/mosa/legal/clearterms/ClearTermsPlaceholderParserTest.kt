@@ -1,34 +1,42 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
-import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderParser
-import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderType
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.placeholder.PlaceholderParser
+import straightway.mosa.legal.clearterms.placeholder.PlaceholderType
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class ClearTermsPlaceholderParserTest {
-    private val parser = ClearTermsPlaceholderParser()
+    private val parser = PlaceholderParser()
 
     @Test
     fun `parses single placeholder`() {
         val segments = parser.parse("Hello {{string:name}}!")
 
         assertEquals(3, segments.size)
-        assertEquals("Hello ", (segments[0] as ClearTermsPlaceholderParser.Segment.Literal).text)
-        val placeholder = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder
-        assertEquals(ClearTermsPlaceholderType.STRING, placeholder.type)
+        assertEquals("Hello ", (segments[0] as PlaceholderParser.Segment.Literal).text)
+        val placeholder = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder
+        assertEquals(PlaceholderType.STRING, placeholder.type)
         assertEquals("name", placeholder.key)
         assertEquals(null, placeholder.fallback)
         assertEquals(null, placeholder.numberOptions)
-        assertEquals("!", (segments[2] as ClearTermsPlaceholderParser.Segment.Literal).text)
+        assertEquals("!", (segments[2] as PlaceholderParser.Segment.Literal).text)
     }
 
     @Test
     fun `parses placeholder with fallback`() {
         val segments = parser.parse("Limit {{number:max_records??a limited number}}.")
 
-        val placeholder = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder
-        assertEquals(ClearTermsPlaceholderType.NUMBER, placeholder.type)
+        val placeholder = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder
+        assertEquals(PlaceholderType.NUMBER, placeholder.type)
         assertEquals("max_records", placeholder.key)
         assertEquals("a limited number", placeholder.fallback)
         assertEquals(null, placeholder.numberOptions)
@@ -39,9 +47,9 @@ class ClearTermsPlaceholderParserTest {
         val segments = parser.parse("{{string:one}} and {{string:two}}")
 
         assertEquals(3, segments.size)
-        assertEquals("one", (segments[0] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder.key)
-        assertEquals(" and ", (segments[1] as ClearTermsPlaceholderParser.Segment.Literal).text)
-        assertEquals("two", (segments[2] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder.key)
+        assertEquals("one", (segments[0] as PlaceholderParser.Segment.Placeholder).placeholder.key)
+        assertEquals(" and ", (segments[1] as PlaceholderParser.Segment.Literal).text)
+        assertEquals("two", (segments[2] as PlaceholderParser.Segment.Placeholder).placeholder.key)
     }
 
     @Test
@@ -49,43 +57,43 @@ class ClearTermsPlaceholderParserTest {
         val segments = parser.parse("Literal \\{{ and \\}} then {{string:name}}")
 
         assertEquals(2, segments.size)
-        assertEquals("Literal {{ and }} then ", (segments[0] as ClearTermsPlaceholderParser.Segment.Literal).text)
-        val placeholder = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder
+        assertEquals("Literal {{ and }} then ", (segments[0] as PlaceholderParser.Segment.Literal).text)
+        val placeholder = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder
         assertEquals("name", placeholder.key)
         assertEquals(null, placeholder.numberOptions)
     }
 
     @Test
     fun `rejects unterminated placeholder`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Hello {{string:name")
         }
     }
 
     @Test
     fun `rejects invalid placeholder syntax`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Hello {{stringname}}")
         }
     }
 
     @Test
     fun `rejects unknown placeholder type`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Hello {{boolean:flag}}")
         }
     }
 
     @Test
     fun `rejects empty key`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Hello {{string:}}")
         }
     }
 
     @Test
     fun `rejects whitespace in key`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Hello {{string:bad key}}")
         }
     }
@@ -94,8 +102,8 @@ class ClearTermsPlaceholderParserTest {
     fun `parses fallback on string placeholders`() {
         val segments = parser.parse("Hello {{string:name??fallback}}")
 
-        val placeholder = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder
-        assertEquals(ClearTermsPlaceholderType.STRING, placeholder.type)
+        val placeholder = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder
+        assertEquals(PlaceholderType.STRING, placeholder.type)
         assertEquals("name", placeholder.key)
         assertEquals("fallback", placeholder.fallback)
     }
@@ -104,7 +112,7 @@ class ClearTermsPlaceholderParserTest {
     fun `allows fallback containing colons`() {
         val segments = parser.parse("Time {{time:start_time??12:00}}")
 
-        val placeholder = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder
+        val placeholder = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder
         assertEquals("start_time", placeholder.key)
         assertEquals("12:00", placeholder.fallback)
         assertEquals(null, placeholder.numberOptions)
@@ -115,23 +123,23 @@ class ClearTermsPlaceholderParserTest {
         val segments = parser.parse("\\{{ only literal \\}}")
 
         assertEquals(1, segments.size)
-        assertEquals("{{ only literal }}", (segments[0] as ClearTermsPlaceholderParser.Segment.Literal).text)
+        assertEquals("{{ only literal }}", (segments[0] as PlaceholderParser.Segment.Literal).text)
     }
 
     @Test
     fun `preserves text around placeholders`() {
         val segments = parser.parse("A {{string:one}} B {{number:two??2}} C")
 
-        assertEquals("A ", (segments[0] as ClearTermsPlaceholderParser.Segment.Literal).text)
-        assertEquals(" B ", (segments[2] as ClearTermsPlaceholderParser.Segment.Literal).text)
-        assertEquals(" C", (segments[4] as ClearTermsPlaceholderParser.Segment.Literal).text)
+        assertEquals("A ", (segments[0] as PlaceholderParser.Segment.Literal).text)
+        assertEquals(" B ", (segments[2] as PlaceholderParser.Segment.Literal).text)
+        assertEquals(" C", (segments[4] as PlaceholderParser.Segment.Literal).text)
     }
 
     @Test
     fun `skips escaped placeholder ends`() {
         val segments = parser.parse("Value {{number:limit??\\}}}} end")
 
-        val placeholder = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder
+        val placeholder = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder
         assertEquals("limit", placeholder.key)
         assertEquals("\\}}", placeholder.fallback)
         assertEquals(null, placeholder.numberOptions)
@@ -141,57 +149,57 @@ class ClearTermsPlaceholderParserTest {
     fun `parses number placeholder options`() {
         val segments = parser.parse("Total {{number:price?format=decimal(2)&grouping=off}}.")
 
-        val placeholder = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder
+        val placeholder = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder
         val options = placeholder.numberOptions
-        assertEquals(ClearTermsNumberFormat.Decimal(2), options?.format)
-        assertEquals(ClearTermsNumberGrouping.OFF, options?.grouping)
+        assertEquals(NumberFormat.Decimal(2), options?.format)
+        assertEquals(NumberGrouping.OFF, options?.grouping)
     }
 
     @Test
     fun `rejects options for non number placeholders`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Hello {{string:name?format=integer}}")
         }
     }
 
     @Test
     fun `rejects unknown number options`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Total {{number:price?scale=2}}")
         }
     }
 
     @Test
     fun `rejects invalid number format option`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Total {{number:price?format=decimal(x)}}")
         }
     }
 
     @Test
     fun `rejects fallback containing double question marks`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Total {{number:price??too??much}}")
         }
     }
 
     @Test
     fun `rejects blank placeholder options`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Total {{number:price?}}")
         }
     }
 
     @Test
     fun `rejects malformed number options`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Total {{number:price?format}}")
         }
     }
 
     @Test
     fun `rejects duplicate number options`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Total {{number:price?format=integer&format=auto}}")
         }
     }
@@ -200,48 +208,48 @@ class ClearTermsPlaceholderParserTest {
     fun `parses default format when only grouping option is provided`() {
         val segments = parser.parse("Total {{number:price?grouping=off}}")
 
-        val options = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder.numberOptions
-        assertEquals(ClearTermsNumberFormat.Auto, options?.format)
-        assertEquals(ClearTermsNumberGrouping.OFF, options?.grouping)
+        val options = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder.numberOptions
+        assertEquals(NumberFormat.Auto, options?.format)
+        assertEquals(NumberGrouping.OFF, options?.grouping)
     }
 
     @Test
     fun `parses default grouping when only format option is provided`() {
         val segments = parser.parse("Total {{number:price?format=integer}}")
 
-        val options = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder.numberOptions
-        assertEquals(ClearTermsNumberFormat.Integer, options?.format)
-        assertEquals(ClearTermsNumberGrouping.ON, options?.grouping)
+        val options = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder.numberOptions
+        assertEquals(NumberFormat.Integer, options?.format)
+        assertEquals(NumberGrouping.ON, options?.grouping)
     }
 
     @Test
     fun `parses explicit auto format`() {
         val segments = parser.parse("Total {{number:price?format=auto&grouping=off}}")
 
-        val options = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder.numberOptions
-        assertEquals(ClearTermsNumberFormat.Auto, options?.format)
-        assertEquals(ClearTermsNumberGrouping.OFF, options?.grouping)
+        val options = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder.numberOptions
+        assertEquals(NumberFormat.Auto, options?.format)
+        assertEquals(NumberGrouping.OFF, options?.grouping)
     }
 
     @Test
     fun `parses explicit grouping on`() {
         val segments = parser.parse("Total {{number:price?format=integer&grouping=on}}")
 
-        val options = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder.numberOptions
-        assertEquals(ClearTermsNumberFormat.Integer, options?.format)
-        assertEquals(ClearTermsNumberGrouping.ON, options?.grouping)
+        val options = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder.numberOptions
+        assertEquals(NumberFormat.Integer, options?.format)
+        assertEquals(NumberGrouping.ON, options?.grouping)
     }
 
     @Test
     fun `rejects negative decimal scale`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Total {{number:price?format=decimal(-1)}}")
         }
     }
 
     @Test
     fun `rejects invalid number grouping option`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("Total {{number:price?grouping=maybe}}")
         }
     }
@@ -250,15 +258,15 @@ class ClearTermsPlaceholderParserTest {
     fun `parses duration placeholder type`() {
         val segments = parser.parse("Expires after {{duration:term}}.")
 
-        val placeholder = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder
-        assertEquals(ClearTermsPlaceholderType.DURATION, placeholder.type)
+        val placeholder = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder
+        assertEquals(PlaceholderType.DURATION, placeholder.type)
     }
 
     @Test
     fun `parses weekday placeholder type`() {
         val segments = parser.parse("Occurs on {{weekday:day}}.")
 
-        val placeholder = (segments[1] as ClearTermsPlaceholderParser.Segment.Placeholder).placeholder
-        assertEquals(ClearTermsPlaceholderType.WEEKDAY, placeholder.type)
+        val placeholder = (segments[1] as PlaceholderParser.Segment.Placeholder).placeholder
+        assertEquals(PlaceholderType.WEEKDAY, placeholder.type)
     }
 }

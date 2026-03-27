@@ -1,9 +1,9 @@
 package straightway.mosa.legal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import straightway.mosa.legal.clearterms.ClearTermsValidationException
-import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
+import straightway.mosa.legal.clearterms.parse.JsonNode
+import straightway.mosa.legal.clearterms.validation.ValidationException
+import straightway.mosa.legal.clearterms.yaml.YamlCanonicalJsonConverter
 import java.nio.file.Path
 
 class LegalService internal constructor(
@@ -92,7 +92,7 @@ class LegalService internal constructor(
                     mandatoryContext = mandatoryContext,
                     operatorYaml = operatorYaml,
                 )
-            } catch (exception: ClearTermsValidationException) {
+            } catch (exception: ValidationException) {
                 return fallbackToOperatorProfile(
                     mandatoryConversion = mandatoryContext.conversion,
                     kind = kind,
@@ -170,11 +170,11 @@ class LegalService internal constructor(
     }
 
     private fun fallbackToOperatorProfile(
-        mandatoryConversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
+        mandatoryConversion: YamlCanonicalJsonConverter.ConversionResult,
         kind: LegalDocumentKind,
         reason: String,
         affectedProfilePath: Path,
-        operatorValuesOverride: Map<String, ClearTermsJsonNode.ScalarNode>,
+        operatorValuesOverride: Map<String, JsonNode.ScalarNode>,
     ): LegalDocuments {
         logMissingOrIncompleteOperatorProfiles(
             reason = "$reason Falling back to mosa service profile.",

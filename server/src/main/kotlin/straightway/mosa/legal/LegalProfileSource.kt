@@ -3,15 +3,15 @@ package straightway.mosa.legal
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
-import straightway.mosa.legal.clearterms.ClearTermsYamlLanguageFragmentMerger
+import straightway.mosa.legal.clearterms.yaml.YamlCanonicalJsonConverter
+import straightway.mosa.legal.clearterms.yaml.YamlLanguageFragmentMerger
 import java.net.JarURLConnection
 import java.nio.file.Files
 import java.nio.file.Path
 
 internal class LegalProfileSource(
-    private val canonicalJsonConverter: ClearTermsYamlCanonicalJsonConverter,
-    private val languageFragmentMerger: ClearTermsYamlLanguageFragmentMerger,
+    private val canonicalJsonConverter: YamlCanonicalJsonConverter,
+    private val languageFragmentMerger: YamlLanguageFragmentMerger,
     private val resourceTextReader: ResourceTextReader,
     private val resourceDirectoryEntriesProvider: ResourceDirectoryEntriesProvider,
     private val resourceUrlsProvider: ResourceUrlsProvider,
@@ -48,7 +48,7 @@ internal class LegalProfileSource(
     fun convertFullChain(
         mandatoryContext: MandatoryChainContext,
         operatorYaml: String,
-    ): ClearTermsYamlCanonicalJsonConverter.ConversionResult =
+    ): YamlCanonicalJsonConverter.ConversionResult =
         canonicalJsonConverter.convert(
             mandatoryContext.baselineYaml,
             mandatoryContext.profileYamls + operatorYaml,

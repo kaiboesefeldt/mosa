@@ -1,6 +1,14 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
-import straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.validation.ProfileChainCompletenessChecker
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -8,7 +16,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ClearTermsProfileChainCompletenessCheckerTest {
-    private val checker = ClearTermsProfileChainCompletenessChecker()
+    private val checker = ProfileChainCompletenessChecker()
 
     @Test
     fun `returns incomplete with skeleton when chain is missing required overrides`() {
@@ -319,7 +327,7 @@ class ClearTermsProfileChainCompletenessCheckerTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 checker.analyze(
                     baselineCanonicalJson = baselineCanonicalJson,
                     profileChainCanonicalJsons = emptyList(),
@@ -531,7 +539,7 @@ class ClearTermsProfileChainCompletenessCheckerTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 checker.analyze(
                     baselineCanonicalJson = baselineCanonicalJson,
                     profileChainCanonicalJsons = listOf(profileCanonicalJson),
@@ -585,7 +593,7 @@ class ClearTermsProfileChainCompletenessCheckerTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 checker.analyze(
                     baselineCanonicalJson = baselineCanonicalJson,
                     profileChainCanonicalJsons = listOf(firstProfileCanonicalJson, secondProfileCanonicalJson),

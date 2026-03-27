@@ -1,12 +1,20 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
-import straightway.mosa.legal.clearterms.render.ClearTermsDurationTextRenderer
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.render.DurationTextRenderer
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class ClearTermsDurationTextRendererTest {
-    private val renderer = ClearTermsDurationTextRenderer()
+    private val renderer = DurationTextRenderer()
     private val englishLocale = locale(language = "en", decimalSeparator = ".", groupingSeparator = ",")
     private val germanLocale =
         locale(
@@ -14,16 +22,16 @@ class ClearTermsDurationTextRendererTest {
             decimalSeparator = ",",
             groupingSeparator = ".",
             duration =
-                ClearTermsLocale.DurationTexts(
+                Locale.DurationTexts(
                     infinite = "unbegrenzt",
                     units =
                         mapOf(
-                            "s" to ClearTermsLocale.DurationTexts.UnitTexts("Sekunde", "Sekunden"),
-                            "m" to ClearTermsLocale.DurationTexts.UnitTexts("Minute", "Minuten"),
-                            "h" to ClearTermsLocale.DurationTexts.UnitTexts("Stunde", "Stunden"),
-                            "d" to ClearTermsLocale.DurationTexts.UnitTexts("Tag", "Tage"),
-                            "w" to ClearTermsLocale.DurationTexts.UnitTexts("Woche", "Wochen"),
-                            "y" to ClearTermsLocale.DurationTexts.UnitTexts("Jahr", "Jahre"),
+                            "s" to Locale.DurationTexts.UnitTexts("Sekunde", "Sekunden"),
+                            "m" to Locale.DurationTexts.UnitTexts("Minute", "Minuten"),
+                            "h" to Locale.DurationTexts.UnitTexts("Stunde", "Stunden"),
+                            "d" to Locale.DurationTexts.UnitTexts("Tag", "Tage"),
+                            "w" to Locale.DurationTexts.UnitTexts("Woche", "Wochen"),
+                            "y" to Locale.DurationTexts.UnitTexts("Jahr", "Jahre"),
                         ),
                 ),
         )
@@ -58,7 +66,7 @@ class ClearTermsDurationTextRendererTest {
     @Test
     fun `throws for too short normalized value`() {
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 renderer.renderDurationValue(rawValue = "d", locale = englishLocale)
             }
 
@@ -68,7 +76,7 @@ class ClearTermsDurationTextRendererTest {
     @Test
     fun `throws for non numeric quantity`() {
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 renderer.renderDurationValue(rawValue = "xd", locale = englishLocale)
             }
 
@@ -78,7 +86,7 @@ class ClearTermsDurationTextRendererTest {
     @Test
     fun `throws for unsupported duration unit`() {
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 renderer.renderDurationValue(rawValue = "5q", locale = englishLocale)
             }
 
@@ -89,9 +97,9 @@ class ClearTermsDurationTextRendererTest {
         language: String,
         decimalSeparator: String,
         groupingSeparator: String,
-        duration: ClearTermsLocale.DurationTexts = ClearTermsLocale.DurationTexts(infinite = "indefinitely"),
-    ): ClearTermsLocale =
-        ClearTermsLocale(
+        duration: Locale.DurationTexts = Locale.DurationTexts(infinite = "indefinitely"),
+    ): Locale =
+        Locale(
             language = language,
             months =
                 listOf(
@@ -122,7 +130,7 @@ class ClearTermsDurationTextRendererTest {
             groupingSeparator = groupingSeparator,
             atWord = "at",
             patterns =
-                ClearTermsLocale.Patterns(
+                Locale.Patterns(
                     onFullDate = "on {month} {day}, {year}",
                     inMonthYear = "in {month} {year}",
                     onDayOfEveryMonthInYear = "on day {day} of every month in {year}",

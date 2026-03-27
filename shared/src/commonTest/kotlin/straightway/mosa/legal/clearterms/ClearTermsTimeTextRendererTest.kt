@@ -1,6 +1,14 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
-import straightway.mosa.legal.clearterms.render.ClearTermsTimeTextRenderer
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.render.TimeTextRenderer
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -8,14 +16,14 @@ class ClearTermsTimeTextRendererTest {
     @Test
     fun `renders converted local time without timezone suffix`() {
         val renderer =
-            ClearTermsTimeTextRenderer(
+            TimeTextRenderer(
                 timeZoneDisplayConverter =
-                    object : ClearTermsTimeZoneDisplayConverter {
+                    object : TimeZoneDisplayConverter {
                         override fun convert(
                             value: String,
-                            parsed: ClearTermsTimeValue,
-                        ): ClearTermsTimeDisplayValue? =
-                            ClearTermsTimeDisplayValue(
+                            parsed: TimeValue,
+                        ): TimeDisplayValue? =
+                            TimeDisplayValue(
                                 year = 2025,
                                 month = 1,
                                 day = 3,
@@ -29,8 +37,8 @@ class ClearTermsTimeTextRendererTest {
         assertEquals("on January 3, 2025 at 01:15:00", rendered)
     }
 
-    private fun englishLocale(): ClearTermsLocale =
-        ClearTermsLocale(
+    private fun englishLocale(): Locale =
+        Locale(
             language = "en",
             months =
                 listOf(
@@ -52,7 +60,7 @@ class ClearTermsTimeTextRendererTest {
             groupingSeparator = ",",
             atWord = "at",
             patterns =
-                ClearTermsLocale.Patterns(
+                Locale.Patterns(
                     onFullDate = "on {month} {day}, {year}",
                     inMonthYear = "in {month} {year}",
                     onDayOfEveryMonthInYear = "on day {day} of every month in {year}",
@@ -66,6 +74,6 @@ class ClearTermsTimeTextRendererTest {
                     onLastDayOfEveryMonthInYear = "on the last day of every month in {year}",
                     onLastDayOfEveryMonth = "on the last day of every month",
                 ),
-            duration = ClearTermsLocale.DurationTexts(infinite = "indefinitely"),
+            duration = Locale.DurationTexts(infinite = "indefinitely"),
         )
 }

@@ -1,11 +1,19 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
-import straightway.mosa.legal.clearterms.locale.ClearTermsLocaleRepository
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.locale.LocaleRepository
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ClearTermsLocaleRepositoryTest {
-    private val repository = ClearTermsLocaleRepository(FakeClearTermsResourceReader())
+    private val repository = LocaleRepository(FakeClearTermsResourceReader())
 
     @Test
     fun `resolves german locale from resources`() {
@@ -23,7 +31,7 @@ class ClearTermsLocaleRepositoryTest {
         assertEquals("January", locale.monthName(1))
     }
 
-    private class FakeClearTermsResourceReader : ClearTermsResourceReader {
+    private class FakeClearTermsResourceReader : ResourceReader {
         private val resources =
             mapOf(
                 "clearterms/locales/index.json" to """["en","de"]""",

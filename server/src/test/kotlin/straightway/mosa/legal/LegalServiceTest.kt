@@ -10,17 +10,17 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonPrimitive
 import org.slf4j.LoggerFactory
-import straightway.mosa.legal.clearterms.ClearTermsHashProvider
-import straightway.mosa.legal.clearterms.ClearTermsLocale
-import straightway.mosa.legal.clearterms.ClearTermsLocaleProvider
 import straightway.mosa.legal.clearterms.ClearTermsRenderer
-import straightway.mosa.legal.clearterms.ClearTermsTextEncoder
-import straightway.mosa.legal.clearterms.ClearTermsValidationException
-import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
-import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
-import straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker
+import straightway.mosa.legal.clearterms.locale.Locale
+import straightway.mosa.legal.clearterms.locale.LocaleProvider
+import straightway.mosa.legal.clearterms.parse.DocumentReader
+import straightway.mosa.legal.clearterms.parse.JsonNode
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.spi.HashProvider
+import straightway.mosa.legal.clearterms.spi.TextEncoder
+import straightway.mosa.legal.clearterms.validation.ProfileChainCompletenessChecker
+import straightway.mosa.legal.clearterms.validation.ValidationException
+import straightway.mosa.legal.clearterms.yaml.YamlCanonicalJsonConverter
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Files
@@ -33,8 +33,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class LegalServiceTest {
-    private val parser = ClearTermsJsonParser()
-    private val reader = ClearTermsDocumentReader()
+    private val parser = JsonParser()
+    private val reader = DocumentReader()
     private val yamlMapper = ObjectMapper(YAMLFactory())
 
     @Test
@@ -132,7 +132,7 @@ class LegalServiceTest {
 
             val renderer =
                 ClearTermsRenderer(
-                    parser = ClearTermsJsonParser(),
+                    parser = JsonParser(),
                     hashProvider = Sha256HashProvider(),
                     textEncoder = Utf8TextEncoder(),
                     localeProvider = MinimalLocaleProvider(),
@@ -167,7 +167,7 @@ class LegalServiceTest {
         val operatorProfile = reader.readProfile(parser.parse(service.termsOperatorCanonicalJson()))
         val values = checkNotNull(operatorProfile.overrides.values)
         val controllerName =
-            assertIs<straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode.ScalarNode.StringNode>(
+            assertIs<straightway.mosa.legal.clearterms.parse.JsonNode.ScalarNode.StringNode>(
                 values.getValue("ORG_CONTROLLER_NAME"),
             )
 
@@ -504,7 +504,7 @@ class LegalServiceTest {
 
             val renderer =
                 ClearTermsRenderer(
-                    parser = ClearTermsJsonParser(),
+                    parser = JsonParser(),
                     hashProvider = Sha256HashProvider(),
                     textEncoder = Utf8TextEncoder(),
                     localeProvider = MinimalLocaleProvider(),
@@ -577,11 +577,11 @@ class LegalServiceTest {
         val serviceProfile = reader.readProfile(parser.parse(service.privacyServiceCanonicalJson()))
         val values = checkNotNull(serviceProfile.overrides.values)
         val orgControllerName =
-            assertIs<straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode.ScalarNode.StringNode>(
+            assertIs<straightway.mosa.legal.clearterms.parse.JsonNode.ScalarNode.StringNode>(
                 values.getValue("ORG_CONTROLLER_NAME"),
             )
         val serviceDisplayName =
-            assertIs<straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode.ScalarNode.StringNode>(
+            assertIs<straightway.mosa.legal.clearterms.parse.JsonNode.ScalarNode.StringNode>(
                 values.getValue("SERVICE_DISPLAY_NAME"),
             )
 
@@ -685,7 +685,7 @@ class LegalServiceTest {
         )
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 createLegalService(
                     operatorProfilePath = path,
                     completenessChecker = completenessChecker(complete = true),
@@ -742,11 +742,11 @@ class LegalServiceTest {
         val serviceProfile = reader.readProfile(parser.parse(service.privacyServiceCanonicalJson()))
         val values = checkNotNull(serviceProfile.overrides.values)
         val serviceDisplayName =
-            assertIs<straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode.ScalarNode.StringNode>(
+            assertIs<straightway.mosa.legal.clearterms.parse.JsonNode.ScalarNode.StringNode>(
                 values.getValue("SERVICE_DISPLAY_NAME"),
             )
         val retentionOperationalLogData =
-            assertIs<straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode.ScalarNode.StringNode>(
+            assertIs<straightway.mosa.legal.clearterms.parse.JsonNode.ScalarNode.StringNode>(
                 values.getValue("RETENTION_OPERATIONAL_LOG_DATA"),
             )
 
@@ -758,7 +758,7 @@ class LegalServiceTest {
 
     @Test
     fun `logs example profile defaults for all placeholder types and unresolved english text`() {
-        val converter = ClearTermsYamlCanonicalJsonConverter()
+        val converter = YamlCanonicalJsonConverter()
         val customMandatoryConversion =
             converter.convert(
                 baselineYaml = syntheticBaselineWithAllPlaceholderTypesAndUnresolvedEnglishText(),
@@ -768,7 +768,7 @@ class LegalServiceTest {
                         syntheticProfileYaml("synthetic-mosa", "synthetic-default"),
                     ),
             )
-        val canonicalJsonConverter = mockk<ClearTermsYamlCanonicalJsonConverter>()
+        val canonicalJsonConverter = mockk<YamlCanonicalJsonConverter>()
         every { canonicalJsonConverter.convert(any(), any()) } returns customMandatoryConversion
         val missingPath = Files.createTempDirectory("legal-service-synthetic-missing").resolve("mosa_privacy.yaml")
         val exception =
@@ -786,7 +786,7 @@ class LegalServiceTest {
 
     @Test
     fun `logs unresolved german block as structured error without stdout yaml dump`() {
-        val converter = ClearTermsYamlCanonicalJsonConverter()
+        val converter = YamlCanonicalJsonConverter()
         val customMandatoryConversion =
             converter.convert(
                 baselineYaml = syntheticBaselineWithUnresolvedGermanText(),
@@ -796,7 +796,7 @@ class LegalServiceTest {
                         syntheticProfileYaml("synthetic-mosa", "synthetic-default"),
                     ),
             )
-        val canonicalJsonConverter = mockk<ClearTermsYamlCanonicalJsonConverter>()
+        val canonicalJsonConverter = mockk<YamlCanonicalJsonConverter>()
         every { canonicalJsonConverter.convert(any(), any()) } returns customMandatoryConversion
         val missingPath = Files.createTempDirectory("legal-service-synthetic-missing-de").resolve("mosa_privacy.yaml")
         val stdout = ByteArrayOutputStream()
@@ -822,7 +822,7 @@ class LegalServiceTest {
 
     @Test
     fun `fails when full profile list is empty`() {
-        val converter = ClearTermsYamlCanonicalJsonConverter()
+        val converter = YamlCanonicalJsonConverter()
         val mandatoryConversion =
             converter.convert(
                 baselineYaml = syntheticBaselineWithRequiredStringPlaceholder(),
@@ -833,11 +833,11 @@ class LegalServiceTest {
                     ),
             )
         val fullConversionWithNoProfiles =
-            ClearTermsYamlCanonicalJsonConverter.ConversionResult(
+            YamlCanonicalJsonConverter.ConversionResult(
                 baseline = mandatoryConversion.baseline,
                 profiles = emptyList(),
             )
-        val canonicalJsonConverter = mockk<ClearTermsYamlCanonicalJsonConverter>()
+        val canonicalJsonConverter = mockk<YamlCanonicalJsonConverter>()
         every { canonicalJsonConverter.convert(any(), match { it.size == 2 }) } returns mandatoryConversion
         every { canonicalJsonConverter.convert(any(), match { it.size == 3 }) } returns fullConversionWithNoProfiles
 
@@ -861,7 +861,7 @@ class LegalServiceTest {
 
     @Test
     fun `fails when last full profile has no values`() {
-        val converter = ClearTermsYamlCanonicalJsonConverter()
+        val converter = YamlCanonicalJsonConverter()
         val mandatoryConversion =
             converter.convert(
                 baselineYaml = syntheticBaselineWithRequiredStringPlaceholder(),
@@ -876,7 +876,7 @@ class LegalServiceTest {
                 baselineYaml = syntheticBaselineWithRequiredStringPlaceholder(),
                 profileChainYamls = listOf(syntheticProfileYaml("synthetic-operator-without-values", "synthetic-baseline")),
             )
-        val canonicalJsonConverter = mockk<ClearTermsYamlCanonicalJsonConverter>()
+        val canonicalJsonConverter = mockk<YamlCanonicalJsonConverter>()
         every { canonicalJsonConverter.convert(any(), match { it.size == 2 }) } returns mandatoryConversion
         every { canonicalJsonConverter.convert(any(), match { it.size == 3 }) } returns fullConversionWithSingleProfileWithoutValues
 
@@ -901,7 +901,7 @@ class LegalServiceTest {
     private fun createLegalService(
         operatorProfilePath: Path? = null,
         termsOperatorProfilePath: Path? = null,
-        completenessChecker: ClearTermsProfileChainCompletenessChecker? = null,
+        completenessChecker: ProfileChainCompletenessChecker? = null,
     ) = straightway.mosa.legal.createLegalService(
         operatorProfilePath = operatorProfilePath ?: writeOperatorProfile(),
         termsOperatorProfilePath = termsOperatorProfilePath ?: writeTermsOperatorProfile(),
@@ -928,15 +928,15 @@ class LegalServiceTest {
     private fun completenessChecker(
         complete: Boolean,
         skeletonYaml: String = "kind: profile",
-    ): ClearTermsProfileChainCompletenessChecker {
-        val checker = mockk<ClearTermsProfileChainCompletenessChecker>()
+    ): ProfileChainCompletenessChecker {
+        val checker = mockk<ProfileChainCompletenessChecker>()
         every {
             checker.analyze(
                 any(),
                 any(),
             )
         } returns
-            ClearTermsProfileChainCompletenessChecker.Result(
+            ProfileChainCompletenessChecker.Result(
                 complete = complete,
                 missingPlaceholderKeys = emptyList(),
                 unresolvedRequiredBlockIdsByLanguage = emptyMap(),
@@ -1207,17 +1207,17 @@ class LegalServiceTest {
         """.trimIndent()
 }
 
-private class Sha256HashProvider : ClearTermsHashProvider {
+private class Sha256HashProvider : HashProvider {
     override suspend fun sha256(data: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(data)
 }
 
-private class Utf8TextEncoder : ClearTermsTextEncoder {
+private class Utf8TextEncoder : TextEncoder {
     override fun encode(value: String): ByteArray = value.toByteArray(Charsets.UTF_8)
 }
 
-private class MinimalLocaleProvider : ClearTermsLocaleProvider {
-    override fun resolve(languageTag: String): ClearTermsLocale =
-        ClearTermsLocale(
+private class MinimalLocaleProvider : LocaleProvider {
+    override fun resolve(languageTag: String): Locale =
+        Locale(
             language = "de",
             months =
                 listOf(
@@ -1248,7 +1248,7 @@ private class MinimalLocaleProvider : ClearTermsLocaleProvider {
             groupingSeparator = ".",
             atWord = "um",
             patterns =
-                ClearTermsLocale.Patterns(
+                Locale.Patterns(
                     onFullDate = "{day}. {month} {year}",
                     inMonthYear = "{month} {year}",
                     onDayOfEveryMonthInYear = "{day}. jedes Monats im Jahr {year}",

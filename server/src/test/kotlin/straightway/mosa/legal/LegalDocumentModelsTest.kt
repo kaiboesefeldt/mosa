@@ -1,7 +1,7 @@
 package straightway.mosa.legal
 
-import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
+import straightway.mosa.legal.clearterms.parse.JsonNode
+import straightway.mosa.legal.clearterms.yaml.YamlCanonicalJsonConverter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -83,13 +83,13 @@ class LegalDocumentModelsTest {
     @Test
     fun `canonical artifact profile id extracts id field`() {
         val artifact =
-            ClearTermsYamlCanonicalJsonConverter.CanonicalArtifact(
+            YamlCanonicalJsonConverter.CanonicalArtifact(
                 canonicalJson = """{"id":"profile-id"}""",
                 hash = "hash",
                 json =
-                    ClearTermsJsonNode.ObjectNode(
+                    JsonNode.ObjectNode(
                         mapOf(
-                            "id" to ClearTermsJsonNode.ScalarNode.StringNode("profile-id"),
+                            "id" to JsonNode.ScalarNode.StringNode("profile-id"),
                         ),
                     ),
             )
@@ -98,15 +98,15 @@ class LegalDocumentModelsTest {
     }
 
     private fun dummyConversionResult() =
-        ClearTermsYamlCanonicalJsonConverter.ConversionResult(
+        YamlCanonicalJsonConverter.ConversionResult(
             baseline =
-                ClearTermsYamlCanonicalJsonConverter.CanonicalArtifact(
+                YamlCanonicalJsonConverter.CanonicalArtifact(
                     canonicalJson = """{"id":"baseline"}""",
                     hash = "baseline-hash",
                     json =
-                        ClearTermsJsonNode.ObjectNode(
+                        JsonNode.ObjectNode(
                             mapOf(
-                                "id" to ClearTermsJsonNode.ScalarNode.StringNode("baseline"),
+                                "id" to JsonNode.ScalarNode.StringNode("baseline"),
                             ),
                         ),
                 ),

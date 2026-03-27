@@ -3,10 +3,10 @@ package straightway.mosa.legal
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
-import straightway.mosa.legal.clearterms.ClearTermsProfile
-import straightway.mosa.legal.clearterms.ClearTermsTextBlock
-import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
+import straightway.mosa.legal.clearterms.document.Profile
+import straightway.mosa.legal.clearterms.document.TextBlock
+import straightway.mosa.legal.clearterms.parse.JsonNode
+import straightway.mosa.legal.clearterms.yaml.YamlCanonicalJsonConverter
 
 internal data class LegalDocuments(
     val baselineCanonicalJson: String,
@@ -29,7 +29,7 @@ internal data class LegalDocuments(
 internal data class MandatoryChainContext(
     val baselineYaml: String,
     val profileYamls: List<String>,
-    val conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
+    val conversion: YamlCanonicalJsonConverter.ConversionResult,
     val profileCanonicalJsons: List<String>,
     val lastProfile: ProfileMetadata,
     val availableProfileVersions: Map<String, List<String>>,
@@ -41,14 +41,14 @@ internal data class MandatoryChainContext(
 }
 
 internal data class FullChainContext(
-    val conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
-    val profiles: List<ClearTermsProfile>,
+    val conversion: YamlCanonicalJsonConverter.ConversionResult,
+    val profiles: List<Profile>,
     val profileCanonicalJsons: List<String>,
 )
 
 internal data class MergeResult(
-    val effectiveTexts: Map<String, List<ClearTermsTextBlock>>,
-    val mergedValues: Map<String, ClearTermsJsonNode.ScalarNode>,
+    val effectiveTexts: Map<String, List<TextBlock>>,
+    val mergedValues: Map<String, JsonNode.ScalarNode>,
 )
 
 internal data class ArtifactReference(
@@ -93,7 +93,7 @@ internal data class ResourceProfileCandidate(
     val yaml: String,
 )
 
-internal fun ClearTermsYamlCanonicalJsonConverter.CanonicalArtifact.profileId(): String =
-    (json.entries.getValue("id") as ClearTermsJsonNode.ScalarNode.StringNode).value
+internal fun YamlCanonicalJsonConverter.CanonicalArtifact.profileId(): String =
+    (json.entries.getValue("id") as JsonNode.ScalarNode.StringNode).value
 
 private fun jsonObjectOf(value: String): JsonObject = Json.parseToJsonElement(value).jsonObject

@@ -1,15 +1,23 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
-import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.parse.DocumentReader
+import straightway.mosa.legal.clearterms.parse.JsonNode
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class ClearTermsDocumentReaderTest {
-    private val parser = ClearTermsJsonParser()
-    private val reader = ClearTermsDocumentReader()
+    private val parser = JsonParser()
+    private val reader = DocumentReader()
 
     @Test
     fun `reads baseline with multiple languages`() {
@@ -52,7 +60,7 @@ class ClearTermsDocumentReaderTest {
             }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             reader.readBaseline(parser.parse(json))
         }
     }
@@ -70,7 +78,7 @@ class ClearTermsDocumentReaderTest {
             }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             reader.readBaseline(parser.parse(json))
         }
     }
@@ -87,7 +95,7 @@ class ClearTermsDocumentReaderTest {
             }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             reader.readBaseline(parser.parse(json))
         }
     }
@@ -104,7 +112,7 @@ class ClearTermsDocumentReaderTest {
             }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             reader.readBaseline(parser.parse(json))
         }
     }
@@ -121,7 +129,7 @@ class ClearTermsDocumentReaderTest {
             }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             reader.readBaseline(parser.parse(json))
         }
     }
@@ -138,7 +146,7 @@ class ClearTermsDocumentReaderTest {
             }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             reader.readBaseline(parser.parse(json))
         }
     }
@@ -155,7 +163,7 @@ class ClearTermsDocumentReaderTest {
             }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             reader.readBaseline(parser.parse(json))
         }
     }
@@ -172,7 +180,7 @@ class ClearTermsDocumentReaderTest {
             }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             reader.readBaseline(parser.parse(json))
         }
     }
@@ -190,7 +198,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readBaseline(parser.parse(json))
             }
 
@@ -249,7 +257,7 @@ class ClearTermsDocumentReaderTest {
         assertEquals("example-policy", profile.parent.id)
         assertEquals(
             "Example Organization",
-            (profile.overrides.values?.getValue("operator_name") as ClearTermsJsonNode.ScalarNode.StringNode).value,
+            (profile.overrides.values?.getValue("operator_name") as JsonNode.ScalarNode.StringNode).value,
         )
         assertEquals(
             "Contact: support@example.org.",
@@ -281,7 +289,7 @@ class ClearTermsDocumentReaderTest {
             }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             reader.readProfile(parser.parse(json))
         }
     }
@@ -308,7 +316,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readProfile(parser.parse(json))
             }
 
@@ -332,7 +340,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readProfile(parser.parse(json))
             }
 
@@ -386,7 +394,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readProfile(parser.parse(json))
             }
 
@@ -412,7 +420,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readProfile(parser.parse(json))
             }
 
@@ -441,7 +449,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readProfile(parser.parse(json))
             }
 
@@ -476,7 +484,7 @@ class ClearTermsDocumentReaderTest {
         val block = baseline.textsByLanguage.getValue("en").single()
 
         assertEquals("Provide support channels and response times.", block.hints?.expectedContent)
-        assertEquals(ClearTermsTextOverrideSeverity.ONCE, block.hints?.override)
+        assertEquals(TextOverrideSeverity.ONCE, block.hints?.override)
         assertEquals(true, block.hints?.inlineWithNext)
     }
 
@@ -503,7 +511,7 @@ class ClearTermsDocumentReaderTest {
         val baseline = reader.readBaseline(parser.parse(json))
         val block = baseline.textsByLanguage.getValue("en").single()
 
-        assertEquals(ClearTermsTextOverrideSeverity.OK, block.hints?.override)
+        assertEquals(TextOverrideSeverity.OK, block.hints?.override)
     }
 
     @Test
@@ -529,7 +537,7 @@ class ClearTermsDocumentReaderTest {
         val baseline = reader.readBaseline(parser.parse(json))
         val block = baseline.textsByLanguage.getValue("en").single()
 
-        assertEquals(ClearTermsTextOverrideSeverity.ALERT, block.hints?.override)
+        assertEquals(TextOverrideSeverity.ALERT, block.hints?.override)
     }
 
     @Test
@@ -555,7 +563,7 @@ class ClearTermsDocumentReaderTest {
         val baseline = reader.readBaseline(parser.parse(json))
         val block = baseline.textsByLanguage.getValue("en").single()
 
-        assertEquals(ClearTermsTextOverrideSeverity.WARN, block.hints?.override)
+        assertEquals(TextOverrideSeverity.WARN, block.hints?.override)
     }
 
     @Test
@@ -636,7 +644,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readProfile(parser.parse(json))
             }
 
@@ -664,7 +672,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readBaseline(parser.parse(json))
             }
 
@@ -692,7 +700,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readBaseline(parser.parse(json))
             }
 
@@ -720,7 +728,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readBaseline(parser.parse(json))
             }
 
@@ -748,7 +756,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readBaseline(parser.parse(json))
             }
 
@@ -776,7 +784,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readBaseline(parser.parse(json))
             }
 
@@ -810,7 +818,7 @@ class ClearTermsDocumentReaderTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 reader.readProfile(parser.parse(json))
             }
 

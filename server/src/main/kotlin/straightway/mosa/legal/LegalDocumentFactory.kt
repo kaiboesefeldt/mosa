@@ -3,25 +3,25 @@ package straightway.mosa.legal
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import straightway.mosa.legal.clearterms.ClearTermsBaseline
-import straightway.mosa.legal.clearterms.ClearTermsProfile
-import straightway.mosa.legal.clearterms.ClearTermsTextBlock
-import straightway.mosa.legal.clearterms.ClearTermsValidationException
-import straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter
-import straightway.mosa.legal.clearterms.canonical.ClearTermsCanonicalNodeRenderer
-import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
-import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderType
-import straightway.mosa.legal.clearterms.validation.ClearTermsProfileValidator
+import straightway.mosa.legal.clearterms.canonical.CanonicalNodeRenderer
+import straightway.mosa.legal.clearterms.document.Baseline
+import straightway.mosa.legal.clearterms.document.Profile
+import straightway.mosa.legal.clearterms.document.TextBlock
+import straightway.mosa.legal.clearterms.parse.DocumentReader
+import straightway.mosa.legal.clearterms.parse.JsonNode
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.placeholder.PlaceholderType
+import straightway.mosa.legal.clearterms.validation.ProfileValidator
+import straightway.mosa.legal.clearterms.validation.ValidationException
+import straightway.mosa.legal.clearterms.yaml.YamlCanonicalJsonConverter
 
 internal class LegalDocumentFactory(
-    private val parser: ClearTermsJsonParser,
-    private val reader: ClearTermsDocumentReader,
-    private val profileValidator: ClearTermsProfileValidator,
-    private val canonicalNodeRenderer: ClearTermsCanonicalNodeRenderer,
+    private val parser: JsonParser,
+    private val reader: DocumentReader,
+    private val profileValidator: ProfileValidator,
+    private val canonicalNodeRenderer: CanonicalNodeRenderer,
 ) {
-    fun createDocuments(conversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult): LegalDocuments =
+    fun createDocuments(conversion: YamlCanonicalJsonConverter.ConversionResult): LegalDocuments =
         LegalDocuments(
             baselineCanonicalJson = conversion.baseline.canonicalJson,
             profileCanonicalJsons = conversion.profiles.map { it.canonicalJson },
@@ -29,9 +29,9 @@ internal class LegalDocumentFactory(
         )
 
     fun createFallbackDocuments(
-        mandatoryConversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
+        mandatoryConversion: YamlCanonicalJsonConverter.ConversionResult,
         kind: LegalDocumentKind,
-        operatorValuesOverride: Map<String, ClearTermsJsonNode.ScalarNode> = emptyMap(),
+        operatorValuesOverride: Map<String, JsonNode.ScalarNode> = emptyMap(),
     ): LegalDocuments {
         val fallbackCanonicalJson =
             synthesizedFallbackProfileCanonicalJson(
@@ -48,7 +48,7 @@ internal class LegalDocumentFactory(
         )
     }
 
-    fun extractOperatorValuesBestEffort(operatorYaml: String): Map<String, ClearTermsJsonNode.ScalarNode> {
+    fun extractOperatorValuesBestEffort(operatorYaml: String): Map<String, JsonNode.ScalarNode> {
         val root =
             try {
                 yamlMapper.readTree(operatorYaml)
@@ -59,20 +59,20 @@ internal class LegalDocumentFactory(
         if (!valuesNode.isObject) {
             return emptyMap()
         }
-        val values = linkedMapOf<String, ClearTermsJsonNode.ScalarNode>()
+        val values = linkedMapOf<String, JsonNode.ScalarNode>()
         valuesNode.properties().forEach { (key, node) ->
             when {
-                node.isTextual -> values[key] = ClearTermsJsonNode.ScalarNode.StringNode(node.asText())
-                node.isNumber -> values[key] = ClearTermsJsonNode.ScalarNode.NumberNode(node.asDouble())
-                node.isNull -> values[key] = ClearTermsJsonNode.ScalarNode.NullNode
+                node.isTextual -> values[key] = JsonNode.ScalarNode.StringNode(node.asText())
+                node.isNumber -> values[key] = JsonNode.ScalarNode.NumberNode(node.asDouble())
+                node.isNull -> values[key] = JsonNode.ScalarNode.NullNode
             }
         }
         return values
     }
 
     private fun synthesizedFallbackProfileCanonicalJson(
-        mandatoryConversion: ClearTermsYamlCanonicalJsonConverter.ConversionResult,
-        operatorValuesOverride: Map<String, ClearTermsJsonNode.ScalarNode>,
+        mandatoryConversion: YamlCanonicalJsonConverter.ConversionResult,
+        operatorValuesOverride: Map<String, JsonNode.ScalarNode>,
         kind: LegalDocumentKind,
     ): String {
         val baseline = parseBaselineFrom(mandatoryConversion.baseline.canonicalJson)
@@ -97,18 +97,18 @@ internal class LegalDocumentFactory(
     }
 
     private fun fallbackValues(
-        effectiveTexts: Map<String, List<ClearTermsTextBlock>>,
-        mergedValues: Map<String, ClearTermsJsonNode.ScalarNode>,
-        operatorValuesOverride: Map<String, ClearTermsJsonNode.ScalarNode>,
-    ): Map<String, ClearTermsJsonNode.ScalarNode> {
-        val mergedWithOperatorOverrides = linkedMapOf<String, ClearTermsJsonNode.ScalarNode>()
+        effectiveTexts: Map<String, List<TextBlock>>,
+        mergedValues: Map<String, JsonNode.ScalarNode>,
+        operatorValuesOverride: Map<String, JsonNode.ScalarNode>,
+    ): Map<String, JsonNode.ScalarNode> {
+        val mergedWithOperatorOverrides = linkedMapOf<String, JsonNode.ScalarNode>()
         mergedWithOperatorOverrides.putAll(mergedValues)
         mergedWithOperatorOverrides.putAll(operatorValuesOverride)
         val placeholderTypes = profileValidator.placeholdersByKey(effectiveTexts)
-        val fallbackValues = linkedMapOf<String, ClearTermsJsonNode.ScalarNode>()
+        val fallbackValues = linkedMapOf<String, JsonNode.ScalarNode>()
         placeholderTypes.forEach { (key, type) ->
             val existing = mergedWithOperatorOverrides[key]
-            if (existing == null || existing is ClearTermsJsonNode.ScalarNode.NullNode) {
+            if (existing == null || existing is JsonNode.ScalarNode.NullNode) {
                 fallbackValues[key] = defaultValueNode(type)
             } else if (operatorValuesOverride.containsKey(key)) {
                 val coerced = coerceSingleValueOrNull(key, type, existing)
@@ -120,20 +120,20 @@ internal class LegalDocumentFactory(
         return fallbackValues
     }
 
-    private fun textOverridesForUnresolvedBlocks(effectiveTexts: Map<String, List<ClearTermsTextBlock>>): ClearTermsJsonNode.ObjectNode? {
+    private fun textOverridesForUnresolvedBlocks(effectiveTexts: Map<String, List<TextBlock>>): JsonNode.ObjectNode? {
         val unresolvedByLanguage = unresolvedBlockIdsByLanguage(effectiveTexts)
         if (unresolvedByLanguage.isEmpty()) {
             return null
         }
-        return ClearTermsJsonNode.ObjectNode(
+        return JsonNode.ObjectNode(
             unresolvedByLanguage.mapValues { (language, blockIds) ->
                 val replace =
-                    ClearTermsJsonNode.ObjectNode(
+                    JsonNode.ObjectNode(
                         blockIds.associateWith { blockId ->
-                            ClearTermsJsonNode.ScalarNode.StringNode(defaultReplacementText(language, blockId))
+                            JsonNode.ScalarNode.StringNode(defaultReplacementText(language, blockId))
                         },
                     )
-                ClearTermsJsonNode.ObjectNode(
+                JsonNode.ObjectNode(
                     mapOf(
                         "replace" to replace,
                     ),
@@ -142,51 +142,51 @@ internal class LegalDocumentFactory(
         )
     }
 
-    private fun unresolvedBlockIdsByLanguage(effectiveTexts: Map<String, List<ClearTermsTextBlock>>): Map<String, List<String>> =
+    private fun unresolvedBlockIdsByLanguage(effectiveTexts: Map<String, List<TextBlock>>): Map<String, List<String>> =
         effectiveTexts
             .mapValues { (_, blocks) ->
                 blocks.filter { block -> block.text == null }.map { block -> block.id }
             }.filterValues { ids -> ids.isNotEmpty() }
 
     private fun fallbackProfileNode(
-        parentProfile: ClearTermsProfile,
+        parentProfile: Profile,
         parentHash: String,
-        fallbackValues: Map<String, ClearTermsJsonNode.ScalarNode>,
-        textOverrides: ClearTermsJsonNode.ObjectNode?,
+        fallbackValues: Map<String, JsonNode.ScalarNode>,
+        textOverrides: JsonNode.ObjectNode?,
         kind: LegalDocumentKind,
-    ): ClearTermsJsonNode.ObjectNode {
+    ): JsonNode.ObjectNode {
         val overridesEntries =
-            linkedMapOf<String, ClearTermsJsonNode>().apply {
-                this["values"] = ClearTermsJsonNode.ObjectNode(fallbackValues)
+            linkedMapOf<String, JsonNode>().apply {
+                this["values"] = JsonNode.ObjectNode(fallbackValues)
                 if (textOverrides != null) {
                     this["texts"] = textOverrides
                 }
             }
-        return ClearTermsJsonNode.ObjectNode(
+        return JsonNode.ObjectNode(
             linkedMapOf(
-                "kind" to ClearTermsJsonNode.ScalarNode.StringNode("profile"),
-                "id" to ClearTermsJsonNode.ScalarNode.StringNode(kind.fallbackProfileId),
-                "version" to ClearTermsJsonNode.ScalarNode.StringNode("${parentProfile.version}-fallback"),
+                "kind" to JsonNode.ScalarNode.StringNode("profile"),
+                "id" to JsonNode.ScalarNode.StringNode(kind.fallbackProfileId),
+                "version" to JsonNode.ScalarNode.StringNode("${parentProfile.version}-fallback"),
                 "parent" to
-                    ClearTermsJsonNode.ObjectNode(
+                    JsonNode.ObjectNode(
                         linkedMapOf(
-                            "id" to ClearTermsJsonNode.ScalarNode.StringNode(parentProfile.id),
-                            "version" to ClearTermsJsonNode.ScalarNode.StringNode(parentProfile.version),
-                            "hash" to ClearTermsJsonNode.ScalarNode.StringNode(parentHash),
+                            "id" to JsonNode.ScalarNode.StringNode(parentProfile.id),
+                            "version" to JsonNode.ScalarNode.StringNode(parentProfile.version),
+                            "hash" to JsonNode.ScalarNode.StringNode(parentHash),
                         ),
                     ),
-                "overrides" to ClearTermsJsonNode.ObjectNode(overridesEntries),
+                "overrides" to JsonNode.ObjectNode(overridesEntries),
             ),
         )
     }
 
-    private fun defaultValueNode(type: ClearTermsPlaceholderType): ClearTermsJsonNode.ScalarNode =
+    private fun defaultValueNode(type: PlaceholderType): JsonNode.ScalarNode =
         when (type) {
-            ClearTermsPlaceholderType.STRING -> ClearTermsJsonNode.ScalarNode.StringNode("not specified")
-            ClearTermsPlaceholderType.NUMBER -> ClearTermsJsonNode.ScalarNode.NumberNode(0.0)
-            ClearTermsPlaceholderType.DURATION -> ClearTermsJsonNode.ScalarNode.StringNode("infinite")
-            ClearTermsPlaceholderType.TIME -> ClearTermsJsonNode.ScalarNode.StringNode("*-*-*")
-            ClearTermsPlaceholderType.WEEKDAY -> ClearTermsJsonNode.ScalarNode.StringNode("mon")
+            PlaceholderType.STRING -> JsonNode.ScalarNode.StringNode("not specified")
+            PlaceholderType.NUMBER -> JsonNode.ScalarNode.NumberNode(0.0)
+            PlaceholderType.DURATION -> JsonNode.ScalarNode.StringNode("infinite")
+            PlaceholderType.TIME -> JsonNode.ScalarNode.StringNode("*-*-*")
+            PlaceholderType.WEEKDAY -> JsonNode.ScalarNode.StringNode("mon")
         }
 
     private fun defaultReplacementText(
@@ -196,9 +196,9 @@ internal class LegalDocumentFactory(
 
     private fun coerceSingleValueOrNull(
         key: String,
-        type: ClearTermsPlaceholderType,
-        value: ClearTermsJsonNode.ScalarNode,
-    ): ClearTermsJsonNode.ScalarNode? =
+        type: PlaceholderType,
+        value: JsonNode.ScalarNode,
+    ): JsonNode.ScalarNode? =
         try {
             profileValidator.validateAndCoerceValues(
                 rawValues = mapOf(key to value),
@@ -206,12 +206,11 @@ internal class LegalDocumentFactory(
                 requireAll = true,
             )
             value
-        } catch (_: ClearTermsValidationException) {
+        } catch (_: ValidationException) {
             null
         }
 
-    private fun parseBaselineFrom(baselineCanonicalJson: String): ClearTermsBaseline =
-        reader.readBaseline(parser.parse(baselineCanonicalJson))
+    private fun parseBaselineFrom(baselineCanonicalJson: String): Baseline = reader.readBaseline(parser.parse(baselineCanonicalJson))
 
     private companion object {
         private val yamlMapper: ObjectMapper =

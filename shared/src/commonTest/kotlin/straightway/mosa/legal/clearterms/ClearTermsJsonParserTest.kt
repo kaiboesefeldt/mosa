@@ -1,14 +1,22 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.parse.JsonNode
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class ClearTermsJsonParserTest {
-    private val parser = ClearTermsJsonParser()
+    private val parser = JsonParser()
 
     @Test
     fun `parses object with scalars arrays and nested objects`() {
@@ -26,18 +34,18 @@ class ClearTermsJsonParserTest {
             """.trimIndent()
 
         val root = parser.parse(json)
-        val rootNode = root.entries.getValue("root") as ClearTermsJsonNode.ObjectNode
+        val rootNode = root.entries.getValue("root") as JsonNode.ObjectNode
 
-        val stringNode = rootNode.entries.getValue("string") as ClearTermsJsonNode.ScalarNode.StringNode
-        val numberNode = rootNode.entries.getValue("number") as ClearTermsJsonNode.ScalarNode.NumberNode
-        assertTrue(rootNode.entries.getValue("nullValue") is ClearTermsJsonNode.ScalarNode.NullNode)
-        val listNode = rootNode.entries.getValue("list") as ClearTermsJsonNode.ArrayNode
-        val nestedNode = rootNode.entries.getValue("nested") as ClearTermsJsonNode.ObjectNode
+        val stringNode = rootNode.entries.getValue("string") as JsonNode.ScalarNode.StringNode
+        val numberNode = rootNode.entries.getValue("number") as JsonNode.ScalarNode.NumberNode
+        assertTrue(rootNode.entries.getValue("nullValue") is JsonNode.ScalarNode.NullNode)
+        val listNode = rootNode.entries.getValue("list") as JsonNode.ArrayNode
+        val nestedNode = rootNode.entries.getValue("nested") as JsonNode.ObjectNode
 
         assertEquals("value", stringNode.value)
         assertEquals(12.5, numberNode.value)
         assertEquals(2, listNode.items.size)
-        assertEquals("nested-value", (nestedNode.entries.getValue("key") as ClearTermsJsonNode.ScalarNode.StringNode).value)
+        assertEquals("nested-value", (nestedNode.entries.getValue("key") as JsonNode.ScalarNode.StringNode).value)
     }
 
     @Test
@@ -47,7 +55,7 @@ class ClearTermsJsonParserTest {
             ["one", "two"]
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -59,7 +67,7 @@ class ClearTermsJsonParserTest {
             { "root": { "key": "one", "key": "two" } }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -72,8 +80,8 @@ class ClearTermsJsonParserTest {
             """.trimIndent()
 
         val root = parser.parse(json)
-        val trueValue = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.BooleanNode
-        val falseValue = root.entries.getValue("other") as ClearTermsJsonNode.ScalarNode.BooleanNode
+        val trueValue = root.entries.getValue("root") as JsonNode.ScalarNode.BooleanNode
+        val falseValue = root.entries.getValue("other") as JsonNode.ScalarNode.BooleanNode
 
         assertEquals(true, trueValue.value)
         assertEquals(false, falseValue.value)
@@ -86,7 +94,7 @@ class ClearTermsJsonParserTest {
             { "root": [ }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -98,7 +106,7 @@ class ClearTermsJsonParserTest {
             { "root": [
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -111,7 +119,7 @@ class ClearTermsJsonParserTest {
             """.trimIndent()
 
         val root = parser.parse(json)
-        val rootNode = root.entries.getValue("root") as ClearTermsJsonNode.ObjectNode
+        val rootNode = root.entries.getValue("root") as JsonNode.ObjectNode
 
         assertEquals(0, rootNode.entries.size)
     }
@@ -124,7 +132,7 @@ class ClearTermsJsonParserTest {
             """.trimIndent()
 
         val root = parser.parse(json)
-        val value = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.StringNode
+        val value = root.entries.getValue("root") as JsonNode.ScalarNode.StringNode
 
         assertEquals("A", value.value)
     }
@@ -137,7 +145,7 @@ class ClearTermsJsonParserTest {
             """.trimIndent()
 
         val root = parser.parse(json)
-        val value = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.StringNode
+        val value = root.entries.getValue("root") as JsonNode.ScalarNode.StringNode
 
         assertEquals("\u00af", value.value)
     }
@@ -150,7 +158,7 @@ class ClearTermsJsonParserTest {
             """.trimIndent()
 
         val root = parser.parse(json)
-        val value = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.StringNode
+        val value = root.entries.getValue("root") as JsonNode.ScalarNode.StringNode
 
         assertEquals("line1\nline2", value.value)
     }
@@ -162,7 +170,7 @@ class ClearTermsJsonParserTest {
             { "root": "\x" }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -174,14 +182,14 @@ class ClearTermsJsonParserTest {
             { "root": {} } trailing
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
 
     @Test
     fun `rejects empty input`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("")
         }
     }
@@ -194,7 +202,7 @@ class ClearTermsJsonParserTest {
             """.trimIndent()
 
         val root = parser.parse(json)
-        val value = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.NumberNode
+        val value = root.entries.getValue("root") as JsonNode.ScalarNode.NumberNode
 
         assertEquals(-12.0, value.value)
     }
@@ -206,14 +214,14 @@ class ClearTermsJsonParserTest {
             { "root": - }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
 
     @Test
     fun `rejects root negative sign without digits`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("-")
         }
     }
@@ -226,7 +234,7 @@ class ClearTermsJsonParserTest {
             """.trimIndent()
 
         val root = parser.parse(json)
-        val value = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.NumberNode
+        val value = root.entries.getValue("root") as JsonNode.ScalarNode.NumberNode
 
         assertEquals(0.0, value.value)
     }
@@ -238,7 +246,7 @@ class ClearTermsJsonParserTest {
             { "root": { "a": 1
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -250,7 +258,7 @@ class ClearTermsJsonParserTest {
             { "root": { "a": 1 "b": 2 } }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -262,7 +270,7 @@ class ClearTermsJsonParserTest {
             { "root" 1 }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -274,7 +282,7 @@ class ClearTermsJsonParserTest {
             { "root": [ 1
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -286,7 +294,7 @@ class ClearTermsJsonParserTest {
             { "root": [1 2] }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -296,7 +304,7 @@ class ClearTermsJsonParserTest {
         val control = 0x01.toChar()
         val json = "{ \"root\": \"$control\" }"
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -308,7 +316,7 @@ class ClearTermsJsonParserTest {
             { "root": "value }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -317,7 +325,7 @@ class ClearTermsJsonParserTest {
     fun `rejects unterminated escape`() {
         val json = "{ \"root\": \"value\\"
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -327,7 +335,7 @@ class ClearTermsJsonParserTest {
         val json = "{ \"root\": \"\\\" \\\\ \\/ \\b \\f \\n \\r \\t\" }"
 
         val root = parser.parse(json)
-        val value = root.entries.getValue("root") as ClearTermsJsonNode.ScalarNode.StringNode
+        val value = root.entries.getValue("root") as JsonNode.ScalarNode.StringNode
 
         assertEquals("\" \\ / \b \u000c \n \r \t", value.value)
     }
@@ -336,7 +344,7 @@ class ClearTermsJsonParserTest {
     fun `rejects invalid unicode escape length`() {
         val json = "{\"root\":\"\\u\"}"
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -345,7 +353,7 @@ class ClearTermsJsonParserTest {
     fun `rejects invalid unicode escape characters`() {
         val json = "{ \"root\": \"\\uZZZZ\" }"
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -357,14 +365,14 @@ class ClearTermsJsonParserTest {
             { "root": 1e }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
 
     @Test
     fun `rejects root exponent without digits`() {
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse("1e")
         }
     }
@@ -374,8 +382,8 @@ class ClearTermsJsonParserTest {
         val plusJson = """{ "root": 1e+2 }"""
         val minusJson = """{ "root": 1e-2 }"""
 
-        val plusValue = parser.parse(plusJson).entries.getValue("root") as ClearTermsJsonNode.ScalarNode.NumberNode
-        val minusValue = parser.parse(minusJson).entries.getValue("root") as ClearTermsJsonNode.ScalarNode.NumberNode
+        val plusValue = parser.parse(plusJson).entries.getValue("root") as JsonNode.ScalarNode.NumberNode
+        val minusValue = parser.parse(minusJson).entries.getValue("root") as JsonNode.ScalarNode.NumberNode
 
         assertEquals(100.0, plusValue.value)
         assertEquals(0.01, minusValue.value)
@@ -388,7 +396,7 @@ class ClearTermsJsonParserTest {
             {
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -400,7 +408,7 @@ class ClearTermsJsonParserTest {
             { "root": nul }
             """.trimIndent()
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }
@@ -409,7 +417,7 @@ class ClearTermsJsonParserTest {
     fun `rejects numbers with non ascii digits`() {
         val json = "{ \"root\": \u0661 }"
 
-        assertFailsWith<ClearTermsValidationException> {
+        assertFailsWith<ValidationException> {
             parser.parse(json)
         }
     }

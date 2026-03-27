@@ -1,6 +1,8 @@
 package straightway.mosa.legal.clearterms
 
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode
+import straightway.mosa.legal.clearterms.parse.JsonNode
+import straightway.mosa.legal.clearterms.validation.ValidationException
+import straightway.mosa.legal.clearterms.yaml.YamlCanonicalJsonConverter
 import java.security.MessageDigest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -8,7 +10,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class ClearTermsYamlCanonicalJsonConverterTest {
-    private val converter = ClearTermsYamlCanonicalJsonConverter()
+    private val converter = YamlCanonicalJsonConverter()
 
     @Test
     fun `converts baseline and profile chain to canonical clear terms json artifacts`() {
@@ -159,7 +161,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, emptyList())
             }
 
@@ -191,7 +193,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, listOf(profileYaml))
             }
 
@@ -223,7 +225,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, listOf(profileYaml))
             }
 
@@ -256,7 +258,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, listOf(profileYaml))
             }
 
@@ -289,7 +291,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, listOf(profileYaml))
             }
 
@@ -319,7 +321,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, listOf(profileYaml))
             }
 
@@ -349,7 +351,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, listOf(profileYaml))
             }
 
@@ -381,7 +383,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, listOf(profileYaml))
             }
 
@@ -414,7 +416,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, listOf(profileYaml))
             }
 
@@ -470,7 +472,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
         val invalidProfileYaml = "kind: profile\nid: profile-1\n:"
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, listOf(invalidProfileYaml))
             }
 
@@ -493,7 +495,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, listOf(profileYaml))
             }
 
@@ -526,7 +528,7 @@ class ClearTermsYamlCanonicalJsonConverterTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, listOf(profileYaml))
             }
 
@@ -548,16 +550,16 @@ class ClearTermsYamlCanonicalJsonConverterTest {
         val profileYaml = "- kind: profile"
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 converter.convert(baselineYaml, listOf(profileYaml))
             }
 
         assertEquals("Root document must be a mapping", exception.message)
     }
 
-    private fun Map<String, ClearTermsJsonNode>.parentHash(): String {
-        val parent = getValue("parent") as ClearTermsJsonNode.ObjectNode
-        val hashNode = parent.entries.getValue("hash") as ClearTermsJsonNode.ScalarNode.StringNode
+    private fun Map<String, JsonNode>.parentHash(): String {
+        val parent = getValue("parent") as JsonNode.ObjectNode
+        val hashNode = parent.entries.getValue("hash") as JsonNode.ScalarNode.StringNode
         return hashNode.value
     }
 

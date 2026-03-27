@@ -1,7 +1,15 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
 import kotlinx.coroutines.test.runTest
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -9,7 +17,7 @@ import kotlin.test.assertFailsWith
 class ClearTermsRenderHighlightTest {
     private val renderer =
         ClearTermsRenderer(
-            parser = ClearTermsJsonParser(),
+            parser = JsonParser(),
             hashProvider = IncrementingHashProvider(),
             textEncoder = PassthroughTextEncoder(),
             localeProvider = TestLocaleProvider(),
@@ -49,9 +57,9 @@ class ClearTermsRenderHighlightTest {
 
             assertEquals(
                 listOf(
-                    ClearTermsRenderBackground.NONE,
-                    ClearTermsRenderBackground.NONE,
-                    ClearTermsRenderBackground.NONE,
+                    RenderBackground.NONE,
+                    RenderBackground.NONE,
+                    RenderBackground.NONE,
                 ),
                 segments.map { it.background },
             )
@@ -93,9 +101,9 @@ class ClearTermsRenderHighlightTest {
 
             assertEquals(
                 listOf(
-                    ClearTermsRenderBackground.NONE,
-                    ClearTermsRenderBackground.NONE,
-                    ClearTermsRenderBackground.NONE,
+                    RenderBackground.NONE,
+                    RenderBackground.NONE,
+                    RenderBackground.NONE,
                 ),
                 segments.map { it.background },
             )
@@ -139,7 +147,7 @@ class ClearTermsRenderHighlightTest {
             val result = renderer.renderLanguage(baseline, listOf(profile), "en")
             val segments = result.blocks.single().segments
 
-            assertEquals(listOf(ClearTermsRenderBackground.RED), segments.map { it.background })
+            assertEquals(listOf(RenderBackground.RED), segments.map { it.background })
             assertEquals("Changed text.", segments.single().text)
         }
 
@@ -180,7 +188,7 @@ class ClearTermsRenderHighlightTest {
             val result = renderer.renderLanguage(baseline, listOf(profile), "en")
             val segments = result.blocks.single().segments
 
-            assertEquals(listOf(ClearTermsRenderBackground.YELLOW), segments.map { it.background })
+            assertEquals(listOf(RenderBackground.YELLOW), segments.map { it.background })
         }
 
     @Test
@@ -220,7 +228,7 @@ class ClearTermsRenderHighlightTest {
             val result = renderer.renderLanguage(baseline, listOf(profile), "en")
             val segments = result.blocks.single().segments
 
-            assertEquals(listOf(ClearTermsRenderBackground.NONE), segments.map { it.background })
+            assertEquals(listOf(RenderBackground.NONE), segments.map { it.background })
         }
 
     @Test
@@ -260,7 +268,7 @@ class ClearTermsRenderHighlightTest {
             val result = renderer.renderLanguage(baseline, listOf(profile), "en")
             val segments = result.blocks.single().segments
 
-            assertEquals(listOf(ClearTermsRenderBackground.NONE), segments.map { it.background })
+            assertEquals(listOf(RenderBackground.NONE), segments.map { it.background })
         }
 
     @Test
@@ -303,7 +311,7 @@ class ClearTermsRenderHighlightTest {
                     .single()
 
             assertEquals(true, block.isBaselineOverride)
-            assertEquals(listOf(ClearTermsRenderBackground.NONE), block.segments.map { it.background })
+            assertEquals(listOf(RenderBackground.NONE), block.segments.map { it.background })
         }
 
     @Test
@@ -352,9 +360,9 @@ class ClearTermsRenderHighlightTest {
 
             assertEquals(
                 listOf(
-                    ClearTermsRenderBackground.NONE,
-                    ClearTermsRenderBackground.YELLOW,
-                    ClearTermsRenderBackground.NONE,
+                    RenderBackground.NONE,
+                    RenderBackground.YELLOW,
+                    RenderBackground.NONE,
                 ),
                 segments.map { it.background },
             )
@@ -392,7 +400,7 @@ class ClearTermsRenderHighlightTest {
             val result = renderer.renderLanguage(baseline, listOf(profile), "en")
             val segments = result.blocks.single().segments
 
-            assertEquals(listOf(ClearTermsRenderBackground.NONE), segments.map { it.background })
+            assertEquals(listOf(RenderBackground.NONE), segments.map { it.background })
             assertEquals("Static baseline text.", segments.single().text)
         }
 
@@ -446,7 +454,7 @@ class ClearTermsRenderHighlightTest {
             val result = renderer.renderLanguage(baseline, listOf(profileA, profileB), "en")
             val segments = result.blocks.single().segments
 
-            assertEquals(listOf(ClearTermsRenderBackground.RED), segments.map { it.background })
+            assertEquals(listOf(RenderBackground.RED), segments.map { it.background })
             assertEquals("Step two.", segments.single().text)
         }
 
@@ -493,7 +501,7 @@ class ClearTermsRenderHighlightTest {
                     .single { it.id == "new-block" }
                     .segments
 
-            assertEquals(listOf(ClearTermsRenderBackground.RED), segments.map { it.background })
+            assertEquals(listOf(RenderBackground.RED), segments.map { it.background })
             assertEquals("Added block.", segments.single().text)
         }
 
@@ -547,9 +555,9 @@ class ClearTermsRenderHighlightTest {
 
             assertEquals(
                 listOf(
-                    ClearTermsRenderBackground.NONE,
-                    ClearTermsRenderBackground.YELLOW,
-                    ClearTermsRenderBackground.NONE,
+                    RenderBackground.NONE,
+                    RenderBackground.YELLOW,
+                    RenderBackground.NONE,
                 ),
                 segments.map { it.background },
             )
@@ -602,14 +610,14 @@ class ClearTermsRenderHighlightTest {
                 """.trimIndent()
 
             val exception =
-                assertFailsWith<ClearTermsValidationException> {
+                assertFailsWith<ValidationException> {
                     renderer.renderLanguage(baseline, listOf(firstProfile, secondProfile), "de")
                 }
 
             assertEquals("Language 'de' not available", exception.message)
         }
 
-    private class IncrementingHashProvider : ClearTermsHashProvider {
+    private class IncrementingHashProvider : HashProvider {
         private var counter = 0
 
         override suspend fun sha256(data: ByteArray): ByteArray {
@@ -618,13 +626,13 @@ class ClearTermsRenderHighlightTest {
         }
     }
 
-    private class PassthroughTextEncoder : ClearTermsTextEncoder {
+    private class PassthroughTextEncoder : TextEncoder {
         override fun encode(value: String): ByteArray = value.encodeToByteArray()
     }
 
-    private class TestLocaleProvider : ClearTermsLocaleProvider {
-        override fun resolve(languageTag: String): ClearTermsLocale =
-            ClearTermsLocale(
+    private class TestLocaleProvider : LocaleProvider {
+        override fun resolve(languageTag: String): Locale =
+            Locale(
                 language = "en",
                 months =
                     listOf(
@@ -655,7 +663,7 @@ class ClearTermsRenderHighlightTest {
                 groupingSeparator = ",",
                 atWord = "at",
                 patterns =
-                    ClearTermsLocale.Patterns(
+                    Locale.Patterns(
                         onFullDate = "on {month} {day}, {year}",
                         inMonthYear = "in {month} {year}",
                         onDayOfEveryMonthInYear = "on day {day} of every month in {year}",

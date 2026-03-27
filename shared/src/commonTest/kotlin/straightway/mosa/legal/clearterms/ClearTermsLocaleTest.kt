@@ -1,12 +1,20 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class ClearTermsLocaleTest {
     private val locale =
-        ClearTermsLocale(
+        Locale(
             language = "en",
             months = listOf("January", "February", "March"),
             weekdays = mapOf("mon" to "Monday"),
@@ -14,7 +22,7 @@ class ClearTermsLocaleTest {
             groupingSeparator = ",",
             atWord = "at",
             patterns =
-                ClearTermsLocale.Patterns(
+                Locale.Patterns(
                     onFullDate = "on {month} {day}, {year}",
                     inMonthYear = "in {month} {year}",
                     onDayOfEveryMonthInYear = "on day {day} of every month in {year}",
@@ -49,7 +57,7 @@ class ClearTermsLocaleTest {
 
     @Test
     fun `returns singular and plural labels for supported duration units`() {
-        val durationTexts = ClearTermsLocale.DurationTexts()
+        val durationTexts = Locale.DurationTexts()
 
         assertEquals("minute", durationTexts.labelFor('m', singular = true))
         assertEquals("minutes", durationTexts.labelFor('m', singular = false))
@@ -57,10 +65,10 @@ class ClearTermsLocaleTest {
 
     @Test
     fun `fails for unsupported duration unit`() {
-        val durationTexts = ClearTermsLocale.DurationTexts()
+        val durationTexts = Locale.DurationTexts()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 durationTexts.labelFor('q', singular = true)
             }
 

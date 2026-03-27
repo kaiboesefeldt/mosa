@@ -1,11 +1,11 @@
 package straightway.mosa.legal
 
-import straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker
+import straightway.mosa.legal.clearterms.validation.ProfileChainCompletenessChecker
 import java.nio.file.Files
 import java.nio.file.Path
 
 internal class LegalOperatorProfileTemplateWriter(
-    private val templateCompletenessChecker: ClearTermsProfileChainCompletenessChecker,
+    private val templateCompletenessChecker: ProfileChainCompletenessChecker,
 ) {
     fun createMissingOperatorProfileFile(
         profilePath: Path,

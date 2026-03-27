@@ -1,30 +1,38 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package straightway.mosa.legal.clearterms
 
-import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderParser
-import straightway.mosa.legal.clearterms.placeholder.ClearTermsPlaceholderType
-import straightway.mosa.legal.clearterms.render.ClearTermsValueRenderer
+import straightway.mosa.legal.clearterms.document.*
+import straightway.mosa.legal.clearterms.locale.*
+import straightway.mosa.legal.clearterms.placeholder.PlaceholderParser
+import straightway.mosa.legal.clearterms.placeholder.PlaceholderType
+import straightway.mosa.legal.clearterms.render.*
+import straightway.mosa.legal.clearterms.render.ValueRenderer
+import straightway.mosa.legal.clearterms.spi.*
+import straightway.mosa.legal.clearterms.validation.*
+import straightway.mosa.legal.clearterms.value.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class ClearTermsValueRendererTest {
-    private val renderer = ClearTermsValueRenderer(ClearTermsPlaceholderParser(), TestLocaleProvider())
+    private val renderer = ValueRenderer(PlaceholderParser(), TestLocaleProvider())
 
     @Test
     fun `throws when block text is unresolved`() {
         val renderer =
-            ClearTermsValueRenderer(
-                placeholderParser = ClearTermsPlaceholderParser(),
+            ValueRenderer(
+                placeholderParser = PlaceholderParser(),
                 localeProvider =
-                    object : ClearTermsLocaleProvider {
-                        override fun resolve(languageTag: String): ClearTermsLocale = throw IllegalStateException("must not be called")
+                    object : LocaleProvider {
+                        override fun resolve(languageTag: String): Locale = throw IllegalStateException("must not be called")
                     },
             )
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 renderer.renderBlocks(
-                    blocks = listOf(ClearTermsTextBlock(id = "contact", text = null)),
+                    blocks = listOf(TextBlock(id = "contact", text = null)),
                     values = emptyMap(),
                     languageTag = "en",
                 )
@@ -36,9 +44,9 @@ class ClearTermsValueRendererTest {
     @Test
     fun `throws when placeholder value is missing`() {
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 renderer.renderBlocks(
-                    blocks = listOf(ClearTermsTextBlock(id = "contact", text = "{{string:contact}}")),
+                    blocks = listOf(TextBlock(id = "contact", text = "{{string:contact}}")),
                     values = emptyMap(),
                     languageTag = "en",
                 )
@@ -53,7 +61,7 @@ class ClearTermsValueRendererTest {
             renderer.renderBlocks(
                 blocks =
                     listOf(
-                        ClearTermsTextBlock(
+                        TextBlock(
                             id = "main",
                             text =
                                 "User {{string:name}}, limit {{number:limit}}, duration {{duration:dur}}, time {{time:start}}, weekday {{weekday:day}}.",
@@ -61,11 +69,11 @@ class ClearTermsValueRendererTest {
                     ),
                 values =
                     mapOf(
-                        "name" to ClearTermsValue(ClearTermsPlaceholderType.STRING, "Alice"),
-                        "limit" to ClearTermsValue(ClearTermsPlaceholderType.NUMBER, 12.5),
-                        "dur" to ClearTermsValue(ClearTermsPlaceholderType.DURATION, "1d"),
-                        "start" to ClearTermsValue(ClearTermsPlaceholderType.TIME, "2025-01-15"),
-                        "day" to ClearTermsValue(ClearTermsPlaceholderType.WEEKDAY, "mon"),
+                        "name" to Value(PlaceholderType.STRING, "Alice"),
+                        "limit" to Value(PlaceholderType.NUMBER, 12.5),
+                        "dur" to Value(PlaceholderType.DURATION, "1d"),
+                        "start" to Value(PlaceholderType.TIME, "2025-01-15"),
+                        "day" to Value(PlaceholderType.WEEKDAY, "mon"),
                     ),
                 languageTag = "en",
             )
@@ -79,12 +87,12 @@ class ClearTermsValueRendererTest {
             renderer.renderBlocks(
                 blocks =
                     listOf(
-                        ClearTermsTextBlock(
+                        TextBlock(
                             id = "main",
                             text = "Aufbewahrung: {{duration:dur}}.",
                         ),
                     ),
-                values = mapOf("dur" to ClearTermsValue(ClearTermsPlaceholderType.DURATION, "14d")),
+                values = mapOf("dur" to Value(PlaceholderType.DURATION, "14d")),
                 languageTag = "de",
             )
 
@@ -97,12 +105,12 @@ class ClearTermsValueRendererTest {
             renderer.renderBlocks(
                 blocks =
                     listOf(
-                        ClearTermsTextBlock(
+                        TextBlock(
                             id = "main",
                             text = "Retention: {{duration:dur}}.",
                         ),
                     ),
-                values = mapOf("dur" to ClearTermsValue(ClearTermsPlaceholderType.DURATION, "infinite")),
+                values = mapOf("dur" to Value(PlaceholderType.DURATION, "infinite")),
                 languageTag = "en",
             )
 
@@ -113,8 +121,8 @@ class ClearTermsValueRendererTest {
     fun `renders fallback when value is null`() {
         val rendered =
             renderer.renderBlocks(
-                blocks = listOf(ClearTermsTextBlock(id = "main", text = "Limit {{number:limit??unknown}}.")),
-                values = mapOf("limit" to ClearTermsValue(ClearTermsPlaceholderType.NUMBER, null)),
+                blocks = listOf(TextBlock(id = "main", text = "Limit {{number:limit??unknown}}.")),
+                values = mapOf("limit" to Value(PlaceholderType.NUMBER, null)),
                 languageTag = "en",
             )
 
@@ -124,10 +132,10 @@ class ClearTermsValueRendererTest {
     @Test
     fun `throws when null value has no fallback`() {
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 renderer.renderBlocks(
-                    blocks = listOf(ClearTermsTextBlock(id = "main", text = "Limit {{number:limit}}.")),
-                    values = mapOf("limit" to ClearTermsValue(ClearTermsPlaceholderType.NUMBER, null)),
+                    blocks = listOf(TextBlock(id = "main", text = "Limit {{number:limit}}.")),
+                    values = mapOf("limit" to Value(PlaceholderType.NUMBER, null)),
                     languageTag = "en",
                 )
             }
@@ -139,26 +147,26 @@ class ClearTermsValueRendererTest {
     fun `renders block segments with configured and default backgrounds and merges adjacent`() {
         val segments =
             renderer.renderBlockSegments(
-                block = ClearTermsTextBlock(id = "main", text = "{{string:a}}{{string:b}} {{string:c}}"),
+                block = TextBlock(id = "main", text = "{{string:a}}{{string:b}} {{string:c}}"),
                 values =
                     mapOf(
-                        "a" to ClearTermsValue(ClearTermsPlaceholderType.STRING, "A"),
-                        "b" to ClearTermsValue(ClearTermsPlaceholderType.STRING, "B"),
-                        "c" to ClearTermsValue(ClearTermsPlaceholderType.STRING, "C"),
+                        "a" to Value(PlaceholderType.STRING, "A"),
+                        "b" to Value(PlaceholderType.STRING, "B"),
+                        "c" to Value(PlaceholderType.STRING, "C"),
                     ),
                 languageTag = "en",
                 placeholderBackgroundByKey =
                     mapOf(
-                        "a" to ClearTermsRenderBackground.YELLOW,
-                        "b" to ClearTermsRenderBackground.YELLOW,
+                        "a" to RenderBackground.YELLOW,
+                        "b" to RenderBackground.YELLOW,
                     ),
                 placeholderIsBaselineOverrideByKey = emptyMap(),
             )
 
         assertEquals(
             listOf(
-                ClearTermsRenderedBlock.Segment("AB", ClearTermsRenderBackground.YELLOW),
-                ClearTermsRenderedBlock.Segment(" C", ClearTermsRenderBackground.NONE),
+                RenderedBlock.Segment("AB", RenderBackground.YELLOW),
+                RenderedBlock.Segment(" C", RenderBackground.NONE),
             ),
             segments,
         )
@@ -168,8 +176,8 @@ class ClearTermsValueRendererTest {
     fun `returns empty segment list when only empty placeholder values are rendered`() {
         val segments =
             renderer.renderBlockSegments(
-                block = ClearTermsTextBlock(id = "main", text = "{{string:a}}"),
-                values = mapOf("a" to ClearTermsValue(ClearTermsPlaceholderType.STRING, "")),
+                block = TextBlock(id = "main", text = "{{string:a}}"),
+                values = mapOf("a" to Value(PlaceholderType.STRING, "")),
                 languageTag = "en",
                 placeholderBackgroundByKey = emptyMap(),
                 placeholderIsBaselineOverrideByKey = emptyMap(),
@@ -181,7 +189,7 @@ class ClearTermsValueRendererTest {
     @Test
     fun `throws when unresolved placeholder syntax remains in rendered text`() {
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 renderer.ensureNoUnresolvedPlaceholders("Hello {{string:name}}")
             }
 
@@ -191,7 +199,7 @@ class ClearTermsValueRendererTest {
     @Test
     fun `throws when rendered text contains unterminated placeholder`() {
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 renderer.ensureNoUnresolvedPlaceholders("Hello {{string:name")
             }
 
@@ -213,16 +221,16 @@ class ClearTermsValueRendererTest {
         renderer.ensureNoUnresolvedPlaceholders("No braces here")
     }
 
-    private class TestLocaleProvider : ClearTermsLocaleProvider {
-        override fun resolve(languageTag: String): ClearTermsLocale =
+    private class TestLocaleProvider : LocaleProvider {
+        override fun resolve(languageTag: String): Locale =
             if (languageTag.lowercase().startsWith("de")) {
                 germanLocale()
             } else {
                 englishLocale()
             }
 
-        private fun englishLocale(): ClearTermsLocale =
-            ClearTermsLocale(
+        private fun englishLocale(): Locale =
+            Locale(
                 language = "en",
                 months =
                     listOf(
@@ -253,7 +261,7 @@ class ClearTermsValueRendererTest {
                 groupingSeparator = ",",
                 atWord = "at",
                 patterns =
-                    ClearTermsLocale.Patterns(
+                    Locale.Patterns(
                         onFullDate = "on {month} {day}, {year}",
                         inMonthYear = "in {month} {year}",
                         onDayOfEveryMonthInYear = "on day {day} of every month in {year}",
@@ -268,13 +276,13 @@ class ClearTermsValueRendererTest {
                         onLastDayOfEveryMonth = "on the last day of every month",
                     ),
                 duration =
-                    ClearTermsLocale.DurationTexts(
+                    Locale.DurationTexts(
                         infinite = "indefinitely",
                     ),
             )
 
-        private fun germanLocale(): ClearTermsLocale =
-            ClearTermsLocale(
+        private fun germanLocale(): Locale =
+            Locale(
                 language = "de",
                 months =
                     listOf(
@@ -305,7 +313,7 @@ class ClearTermsValueRendererTest {
                 groupingSeparator = ".",
                 atWord = "um",
                 patterns =
-                    ClearTermsLocale.Patterns(
+                    Locale.Patterns(
                         onFullDate = "am {day}. {month} {year}",
                         inMonthYear = "im {month} {year}",
                         onDayOfEveryMonthInYear = "am {day}. jedes Monats im Jahr {year}",
@@ -320,16 +328,16 @@ class ClearTermsValueRendererTest {
                         onLastDayOfEveryMonth = "am letzten Tag jedes Monats",
                     ),
                 duration =
-                    ClearTermsLocale.DurationTexts(
+                    Locale.DurationTexts(
                         infinite = "unbegrenzt",
                         units =
                             mapOf(
-                                "s" to ClearTermsLocale.DurationTexts.UnitTexts("Sekunde", "Sekunden"),
-                                "m" to ClearTermsLocale.DurationTexts.UnitTexts("Minute", "Minuten"),
-                                "h" to ClearTermsLocale.DurationTexts.UnitTexts("Stunde", "Stunden"),
-                                "d" to ClearTermsLocale.DurationTexts.UnitTexts("Tag", "Tage"),
-                                "w" to ClearTermsLocale.DurationTexts.UnitTexts("Woche", "Wochen"),
-                                "y" to ClearTermsLocale.DurationTexts.UnitTexts("Jahr", "Jahre"),
+                                "s" to Locale.DurationTexts.UnitTexts("Sekunde", "Sekunden"),
+                                "m" to Locale.DurationTexts.UnitTexts("Minute", "Minuten"),
+                                "h" to Locale.DurationTexts.UnitTexts("Stunde", "Stunden"),
+                                "d" to Locale.DurationTexts.UnitTexts("Tag", "Tage"),
+                                "w" to Locale.DurationTexts.UnitTexts("Woche", "Wochen"),
+                                "y" to Locale.DurationTexts.UnitTexts("Jahr", "Jahre"),
                             ),
                     ),
             )

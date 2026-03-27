@@ -2,13 +2,15 @@ package straightway.mosa.legal.clearterms
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import straightway.mosa.legal.clearterms.validation.ValidationException
+import straightway.mosa.legal.clearterms.yaml.YamlLanguageFragmentMerger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class ClearTermsYamlLanguageFragmentMergerTest {
-    private val merger = ClearTermsYamlLanguageFragmentMerger()
+    private val merger = YamlLanguageFragmentMerger()
     private val yamlMapper = ObjectMapper(YAMLFactory())
 
     @Test
@@ -90,7 +92,7 @@ class ClearTermsYamlLanguageFragmentMergerTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 merger.merge(baseYaml, listOf(duplicateGermanFragment))
             }
 
@@ -127,7 +129,7 @@ class ClearTermsYamlLanguageFragmentMergerTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 merger.merge(baseYaml, listOf(fragment))
             }
 
@@ -145,7 +147,7 @@ class ClearTermsYamlLanguageFragmentMergerTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 merger.merge(baseYaml, listOf("texts: ["))
             }
 
@@ -163,7 +165,7 @@ class ClearTermsYamlLanguageFragmentMergerTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 merger.merge(baseYaml, listOf("- item"))
             }
 
@@ -185,7 +187,7 @@ class ClearTermsYamlLanguageFragmentMergerTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 merger.merge(baseYaml, listOf(fragment))
             }
 
@@ -211,7 +213,7 @@ class ClearTermsYamlLanguageFragmentMergerTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 merger.merge(baseYaml, listOf(fragment))
             }
 
@@ -259,7 +261,7 @@ class ClearTermsYamlLanguageFragmentMergerTest {
             """.trimIndent()
 
         val exception =
-            assertFailsWith<ClearTermsValidationException> {
+            assertFailsWith<ValidationException> {
                 merger.merge(baseYaml, listOf(fragment))
             }
 

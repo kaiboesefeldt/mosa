@@ -1,23 +1,23 @@
 package straightway.mosa.legal
 
-import straightway.mosa.legal.clearterms.ClearTermsBaseline
-import straightway.mosa.legal.clearterms.ClearTermsProfile
-import straightway.mosa.legal.clearterms.ClearTermsValidationException
-import straightway.mosa.legal.clearterms.parse.ClearTermsDocumentReader
-import straightway.mosa.legal.clearterms.parse.ClearTermsJsonParser
-import straightway.mosa.legal.clearterms.validation.ClearTermsProfileChainCompletenessChecker
-import straightway.mosa.legal.clearterms.validation.ClearTermsProfileValidator
+import straightway.mosa.legal.clearterms.document.Baseline
+import straightway.mosa.legal.clearterms.document.Profile
+import straightway.mosa.legal.clearterms.parse.DocumentReader
+import straightway.mosa.legal.clearterms.parse.JsonParser
+import straightway.mosa.legal.clearterms.validation.ProfileChainCompletenessChecker
+import straightway.mosa.legal.clearterms.validation.ProfileValidator
+import straightway.mosa.legal.clearterms.validation.ValidationException
 import java.nio.file.Path
 
 internal class LegalChainValidator(
-    private val completenessChecker: ClearTermsProfileChainCompletenessChecker,
-    private val parser: ClearTermsJsonParser,
-    private val reader: ClearTermsDocumentReader,
-    private val profileValidator: ClearTermsProfileValidator,
+    private val completenessChecker: ProfileChainCompletenessChecker,
+    private val parser: JsonParser,
+    private val reader: DocumentReader,
+    private val profileValidator: ProfileValidator,
     private val profileSource: LegalProfileSource,
 ) {
     fun createFullChainContext(
-        conversion: straightway.mosa.legal.clearterms.ClearTermsYamlCanonicalJsonConverter.ConversionResult,
+        conversion: straightway.mosa.legal.clearterms.yaml.YamlCanonicalJsonConverter.ConversionResult,
     ): FullChainContext =
         FullChainContext(
             conversion = conversion,
@@ -47,7 +47,7 @@ internal class LegalChainValidator(
                     mandatoryContext = mandatoryContext,
                     operatorYaml = operatorYaml,
                 )
-            } catch (exception: ClearTermsValidationException) {
+            } catch (exception: ValidationException) {
                 throw IllegalStateException(
                     startupValidationMessage(
                         kind = kind,
@@ -144,7 +144,7 @@ internal class LegalChainValidator(
             "reason=$reason; " +
             "availableVersions=$availableVersions"
 
-    private fun incompleteChainDetails(analysis: ClearTermsProfileChainCompletenessChecker.Result): String {
+    private fun incompleteChainDetails(analysis: ProfileChainCompletenessChecker.Result): String {
         val details = mutableListOf<String>()
         if (analysis.missingPlaceholderKeys.isNotEmpty()) {
             details += "missing placeholder keys: ${analysis.missingPlaceholderKeys.joinToString(", ")}"
@@ -158,7 +158,7 @@ internal class LegalChainValidator(
         return if (details.isEmpty()) "" else " (${details.joinToString("; ")})"
     }
 
-    private fun missingRequiredChainValuesError(fullChainContext: FullChainContext): ClearTermsValidationException? =
+    private fun missingRequiredChainValuesError(fullChainContext: FullChainContext): ValidationException? =
         validateChainValues(
             baselineCanonicalJson = fullChainContext.conversion.baseline.canonicalJson,
             profiles = fullChainContext.profiles,
@@ -168,7 +168,7 @@ internal class LegalChainValidator(
     private fun analyzeChainCompleteness(
         baselineCanonicalJson: String,
         profileCanonicalJsons: List<String>,
-    ): ClearTermsProfileChainCompletenessChecker.Result =
+    ): ProfileChainCompletenessChecker.Result =
         completenessChecker.analyze(
             baselineCanonicalJson = baselineCanonicalJson,
             profileChainCanonicalJsons = profileCanonicalJsons,
@@ -176,9 +176,9 @@ internal class LegalChainValidator(
 
     private fun validateChainValues(
         baselineCanonicalJson: String,
-        profiles: List<ClearTermsProfile>,
+        profiles: List<Profile>,
         requireAll: Boolean,
-    ): ClearTermsValidationException? =
+    ): ValidationException? =
         try {
             val baseline = parseBaselineFrom(baselineCanonicalJson)
             val (effectiveTexts, mergedValues) = baseline.mergeWithProfiles(profiles, profileValidator)
@@ -190,20 +190,19 @@ internal class LegalChainValidator(
                 requireAll = requireAll,
             )
             null
-        } catch (exception: ClearTermsValidationException) {
+        } catch (exception: ValidationException) {
             exception
         }
 
-    private fun parseBaselineFrom(baselineCanonicalJson: String): ClearTermsBaseline =
-        reader.readBaseline(parser.parse(baselineCanonicalJson))
+    private fun parseBaselineFrom(baselineCanonicalJson: String): Baseline = reader.readBaseline(parser.parse(baselineCanonicalJson))
 }
 
-internal fun ClearTermsBaseline.mergeWithProfiles(
-    profiles: List<ClearTermsProfile>,
-    profileValidator: ClearTermsProfileValidator,
+internal fun Baseline.mergeWithProfiles(
+    profiles: List<Profile>,
+    profileValidator: ProfileValidator,
 ): MergeResult {
     var effectiveTexts = textsByLanguage
-    val mergedValues = linkedMapOf<String, straightway.mosa.legal.clearterms.parse.ClearTermsJsonNode.ScalarNode>()
+    val mergedValues = linkedMapOf<String, straightway.mosa.legal.clearterms.parse.JsonNode.ScalarNode>()
     profiles.forEach { profile ->
         mergedValues.putAll(profile.overrides.values ?: emptyMap())
         effectiveTexts =
