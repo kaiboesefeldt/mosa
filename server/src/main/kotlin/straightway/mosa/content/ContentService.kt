@@ -1,7 +1,6 @@
 package straightway.mosa.content
 
 import io.ktor.server.plugins.BadRequestException
-import kotlinx.coroutines.flow.toList
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
@@ -11,7 +10,6 @@ import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
 import java.security.MessageDigest
-import java.time.Instant
 import java.util.UUID
 import kotlin.io.encoding.Base64
 import kotlin.time.ExperimentalTime
@@ -24,6 +22,10 @@ class ContentService(
     private val replyIdFactory: () -> String = { UUID.randomUUID().toString() },
     private val isAdmin: suspend (String) -> Boolean = { false },
 ) {
+    private val readService = ContentReadService(embeddingService, vectorStore, maxFetchItems)
+    private val deleteService = ContentDeleteService(vectorStore, isAdmin)
+    private val csvExportService = ContentCsvExportService(vectorStore)
+
     suspend fun publish(
         userGID: String,
         request: PublishRequest,
@@ -71,97 +73,26 @@ class ContentService(
     suspend fun delete(
         userGID: String,
         id: String,
-    ): List<String> {
-        if (id.isBlank()) throw BadRequestException("id must not be blank")
-        val post = vectorStore.fetch(listOf(id)).singleOrNull() ?: throw ContentNotFoundException()
-        val author = post.fields.requireContentMetadata(post.id, ContentMetadataField.AuthorGid)
-        if (author != userGID && !isAdmin(userGID)) throw ContentForbiddenException()
-        val deletedIds = linkedSetOf<String>()
-        vectorStore.writeAccess {
-            remove(post.id)
-        }
-        deletedIds.add(post.id)
-        if (post.fields[ROOT_ID_KEY] == null) {
-            deleteRepliesForRoot(post.id, deletedIds)
-        }
-        return deletedIds.toList()
-    }
+    ): List<String> = deleteService.delete(userGID, id)
 
-    suspend fun deleteAllForUser(userGID: String): List<String> {
-        val deletedIds = linkedSetOf<String>()
-        while (true) {
-            val queryResult =
-                vectorStore.query(
-                    VectorStore.Query(fields = mapOf(AUTHOR_GID_KEY to userGID)),
-                )
-            if (queryResult.resultsPage.isEmpty()) return deletedIds.toList()
-            val rootIds = queryResult.resultsPage.filter { it.fields[ROOT_ID_KEY] == null }.map { it.id }
-            removeQueryResults(queryResult, deletedIds)
-            rootIds.forEach { deleteRepliesForRoot(it, deletedIds) }
-        }
-    }
+    suspend fun deleteAllForUser(userGID: String): List<String> = deleteService.deleteAllForUser(userGID)
 
     suspend fun contentCapabilities(
         userGID: String,
         targetGID: String = userGID,
     ): ContentCapabilitiesResult = ContentCapabilitiesResult(isAdmin = isAdmin(targetGID))
 
-    suspend fun query(request: QueryRequest): QueryResult {
-        if (request == nilQueryRequest) throw BadRequestException("no search criteria")
-        val topicEmbedding = request.topic?.let { embeddingService.embed(it) }
-        val queryResults =
-            vectorStore.query(
-                VectorStore.Query(
-                    vector = topicEmbedding,
-                    fromTime = request.fromTime?.let { Instant.ofEpochSecond(it) },
-                    toTime = request.toTime?.let { Instant.ofEpochSecond(it) },
-                    scoreMustBeAbove = request.scoreMustBeAbove,
-                    scoreMustBeBelow = request.scoreMustBeBelow,
-                    fields = mapOf(ROOT_ID_KEY to request.threadRootId),
-                ),
-            )
+    suspend fun query(request: QueryRequest): QueryResult = readService.query(request)
 
-        return queryResults.toQueryResult()
-    }
-
-    suspend fun queryOn(request: QueryOnRequest): QueryResult {
-        val queryOnId =
-            runCatching {
-                if (request.queryOnId.isEmpty()) null else UUID.fromString(request.queryOnId)
-            }.getOrNull()
-        val queryResults = vectorStore.queryOn(queryOnId)
-
-        return queryResults.toQueryResult()
-    }
+    suspend fun queryOn(request: QueryOnRequest): QueryResult = readService.queryOn(request)
 
     suspend fun search(request: QueryRequest): SearchResult = query(request).toSearchResult()
 
     suspend fun searchOn(request: QueryOnRequest): SearchResult = queryOn(request).toSearchResult()
 
-    suspend fun fetch(request: FetchRequest): FetchResult {
-        if (maxFetchItems < request.itemIds.size) {
-            throw BadRequestException("too many itemIds")
-        }
-        val entries = vectorStore.fetch(request.itemIds).map { it.toFetchEntry() }
-        return FetchResult(entries)
-    }
+    suspend fun fetch(request: FetchRequest): FetchResult = readService.fetch(request)
 
-    suspend fun exportCsvForUser(userGID: String): String {
-        val lines =
-            vectorStore
-                .dumpAll()
-                .toList()
-                .asSequence()
-                .filter { it.fields.requireContentMetadata(it.id, ContentMetadataField.AuthorGid) == userGID }
-                .map { it.toCsvExportEntry() }
-                .sortedWith(compareBy<CsvExportEntry> { it.storedAtEpoch }.thenBy { it.id })
-                .map { it.toCsvRow() }
-                .toList()
-        return buildString {
-            appendLine(CSV_HEADER)
-            lines.forEach { appendLine(it) }
-        }.trimEnd()
-    }
+    suspend fun exportCsvForUser(userGID: String): String = csvExportService.exportCsvForUser(userGID)
 
     private fun QueryResult.toSearchResult(): SearchResult =
         SearchResult(
@@ -199,124 +130,15 @@ class ContentService(
         return id
     }
 
-    private fun VectorStore.QueryResult.toQueryResultEntry(): QueryResult.Entry =
-        QueryResult.Entry(
-            id = id,
-            content = text,
-            similarity = similarity,
-            rootId = fields[ROOT_ID_KEY],
-            authorGID = fields.requireContentMetadata(id, ContentMetadataField.AuthorGid),
-            authorPublicKey = fields.requireContentMetadata(id, ContentMetadataField.AuthorPublicKey),
-            authorSignature = fields.requireContentMetadata(id, ContentMetadataField.AuthorSignature),
-            signatureVersion = fields.requireContentMetadata(id, ContentMetadataField.SignatureVersion).toInt(),
-            storedAt =
-                fields.requireContentMetadata(id, ContentMetadataField.ReceivedAt).toLong(),
-        )
-
-    private fun VectorStore.PostDump.toFetchEntry(): FetchResult.Entry =
-        FetchResult.Entry(
-            id,
-            text,
-            authorGID = fields.requireContentMetadata(id, ContentMetadataField.AuthorGid),
-            storedAt = fields.requireContentMetadata(id, ContentMetadataField.ReceivedAt).toLong(),
-            rootId = fields[ROOT_ID_KEY],
-            authorPublicKey = fields.requireContentMetadata(id, ContentMetadataField.AuthorPublicKey),
-            authorSignature = fields.requireContentMetadata(id, ContentMetadataField.AuthorSignature),
-            signatureVersion = fields.requireContentMetadata(id, ContentMetadataField.SignatureVersion).toInt(),
-        )
-
-    private fun VectorStore.PostDump.toCsvExportEntry(): CsvExportEntry {
-        val storedAtEpoch = fields.requireContentMetadata(id, ContentMetadataField.ReceivedAt).toLong()
-        return CsvExportEntry(
-            id = id,
-            type = if (fields[ROOT_ID_KEY] == null) "post" else "reply",
-            rootId = fields[ROOT_ID_KEY].orEmpty(),
-            storedAtEpoch = storedAtEpoch,
-            storedAtIso8601 = Instant.ofEpochSecond(storedAtEpoch).toString(),
-            authorGid = fields.requireContentMetadata(id, ContentMetadataField.AuthorGid),
-            text = text,
-        )
-    }
-
-    private fun VectorStore.QueryResults.toQueryResult(): QueryResult =
-        QueryResult(
-            queryOnId =
-                if (queryOnId == null) {
-                    ""
-                } else {
-                    queryOnId.toString()
-                },
-            entries = resultsPage.map { it.toQueryResultEntry() },
-        )
-
     private fun String.hashId(): String =
         Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(
             hasherFactory().digest(toByteArray(Charsets.UTF_8)),
         )
 
     private companion object {
-        private const val CSV_HEADER = "id,type,root_id,stored_at_epoch,stored_at_iso8601,author_gid,text"
-        private val nilQueryRequest = QueryRequest()
-
         private fun validateLength(text: String) {
             if (text.length > MAX_POST_LENGTH) {
                 throw BadRequestException("text must be at most $MAX_POST_LENGTH characters")
-            }
-        }
-
-        private fun String.toCsvField(alwaysQuote: Boolean = false): String {
-            val escaped = replace("\"", "\"\"")
-            return if (alwaysQuote || escaped != this || contains(',') || contains('\n') || contains('\r')) {
-                "\"$escaped\""
-            } else {
-                escaped
-            }
-        }
-    }
-
-    private data class CsvExportEntry(
-        val id: String,
-        val type: String,
-        val rootId: String,
-        val storedAtEpoch: Long,
-        val storedAtIso8601: String,
-        val authorGid: String,
-        val text: String,
-    ) {
-        fun toCsvRow(): String =
-            listOf(
-                id.toCsvField(),
-                type.toCsvField(),
-                rootId.toCsvField(),
-                storedAtEpoch.toString().toCsvField(),
-                storedAtIso8601.toCsvField(),
-                authorGid.toCsvField(),
-                text.toCsvField(alwaysQuote = true),
-            ).joinToString(",")
-    }
-
-    private suspend fun deleteRepliesForRoot(
-        rootId: String,
-        deletedIds: MutableSet<String>,
-    ) {
-        while (true) {
-            val replies =
-                vectorStore.query(
-                    VectorStore.Query(fields = mapOf(ROOT_ID_KEY to rootId)),
-                )
-            if (replies.resultsPage.isEmpty()) return
-            removeQueryResults(replies, deletedIds)
-        }
-    }
-
-    private suspend fun removeQueryResults(
-        results: VectorStore.QueryResults,
-        deletedIds: MutableSet<String>,
-    ) {
-        vectorStore.writeAccess {
-            results.resultsPage.forEach {
-                remove(it.id)
-                deletedIds.add(it.id)
             }
         }
     }
