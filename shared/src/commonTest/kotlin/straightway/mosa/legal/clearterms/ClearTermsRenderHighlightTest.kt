@@ -617,7 +617,7 @@ class ClearTermsRenderHighlightTest {
             assertEquals("Language 'de' not available", exception.message)
         }
 
-    private class IncrementingHashProvider : HashProvider {
+    private class IncrementingHashProvider : ClearTermsHashProvider {
         private var counter = 0
 
         override suspend fun sha256(data: ByteArray): ByteArray {
@@ -626,11 +626,11 @@ class ClearTermsRenderHighlightTest {
         }
     }
 
-    private class PassthroughTextEncoder : TextEncoder {
+    private class PassthroughTextEncoder : ClearTermsTextEncoder {
         override fun encode(value: String): ByteArray = value.encodeToByteArray()
     }
 
-    private class TestLocaleProvider : LocaleProvider {
+    private class TestLocaleProvider : ClearTermsLocaleProvider {
         override fun resolve(languageTag: String): Locale =
             Locale(
                 language = "en",

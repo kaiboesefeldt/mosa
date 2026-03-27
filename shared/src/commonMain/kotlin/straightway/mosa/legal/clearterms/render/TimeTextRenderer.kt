@@ -1,15 +1,14 @@
 package straightway.mosa.legal.clearterms.render
 
+import straightway.mosa.legal.clearterms.ClearTermsTimeZoneDisplayConverter
 import straightway.mosa.legal.clearterms.locale.Locale
 import straightway.mosa.legal.clearterms.parse.ScalarStringNormalizer
-import straightway.mosa.legal.clearterms.render.TimeValue
-import straightway.mosa.legal.clearterms.render.TimeZoneDisplayConverter
 import straightway.mosa.legal.clearterms.validation.ValidationException
 
 class TimeTextRenderer(
     private val scalarStringNormalizer: ScalarStringNormalizer = ScalarStringNormalizer(),
     private val timeValueParser: TimeValueParser = TimeValueParser(),
-    private val timeZoneDisplayConverter: TimeZoneDisplayConverter = TimeZoneDisplayConverter.NoOp,
+    private val timeZoneDisplayConverter: ClearTermsTimeZoneDisplayConverter = ClearTermsTimeZoneDisplayConverter.NoOp,
 ) {
     fun renderTimeValue(
         value: String,

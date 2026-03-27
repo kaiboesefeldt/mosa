@@ -1,18 +1,16 @@
 package straightway.mosa.legal.clearterms.render
 
+import straightway.mosa.legal.clearterms.ClearTermsLocaleProvider
 import straightway.mosa.legal.clearterms.document.TextBlock
-import straightway.mosa.legal.clearterms.locale.LocaleProvider
 import straightway.mosa.legal.clearterms.placeholder.PlaceholderParser
 import straightway.mosa.legal.clearterms.placeholder.PlaceholderType
-import straightway.mosa.legal.clearterms.render.RenderBackground
-import straightway.mosa.legal.clearterms.render.RenderedBlock
 import straightway.mosa.legal.clearterms.validation.ValidationException
 import straightway.mosa.legal.clearterms.value.Value
 import straightway.mosa.legal.clearterms.placeholder.Placeholder as ParsedPlaceholder
 
 class ValueRenderer(
     private val placeholderParser: PlaceholderParser,
-    private val localeProvider: LocaleProvider,
+    private val localeProvider: ClearTermsLocaleProvider,
     private val numberRenderer: NumberRenderer = NumberRenderer(),
     private val durationTextRenderer: DurationTextRenderer = DurationTextRenderer(),
     private val timeTextRenderer: TimeTextRenderer = TimeTextRenderer(),

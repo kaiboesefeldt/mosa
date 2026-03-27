@@ -53,11 +53,8 @@ import straightway.mosa.client.content.AllPostsDeletionService
 import straightway.mosa.client.content.AdminMessageInboxService
 import straightway.mosa.client.content.AdminMessageHistoryService
 import straightway.mosa.client.content.AdminMessagePublisher
-import straightway.mosa.client.content.complaint.AdminPostComplaintService
 import straightway.mosa.client.content.ContentSigner
 import straightway.mosa.client.content.ContentSignatureVerifier
-import straightway.mosa.client.content.complaint.PostComplaintService
-import straightway.mosa.client.content.complaint.PostComplaintSigner
 import straightway.mosa.client.content.PostsCsvDownloader
 import straightway.mosa.client.content.PostsExportPort
 import straightway.mosa.client.content.PostsExportService
@@ -85,9 +82,9 @@ import straightway.mosa.client.ui.BrowserAdminMessageInboxStateStore
 import straightway.mosa.client.ui.AdminMessageInboxStateStore
 import straightway.mosa.client.ui.IdentitySessionStore
 import straightway.mosa.identity.FictionalNameGenerator
-import straightway.mosa.legal.clearterms.spi.browser.BrowserHashProvider
-import straightway.mosa.legal.clearterms.spi.browser.BrowserTextEncoder
-import straightway.mosa.legal.clearterms.render.browser.BrowserTimeZoneDisplayConverter
+import straightway.mosa.client.legal.clearterms.browser.spi.BrowserHashProvider
+import straightway.mosa.client.legal.clearterms.browser.spi.BrowserTextEncoder
+import straightway.mosa.client.legal.clearterms.browser.render.BrowserTimeZoneDisplayConverter
 import straightway.mosa.legal.clearterms.spi.HashProvider
 import straightway.mosa.legal.clearterms.parse.JsonParser
 import straightway.mosa.legal.clearterms.locale.LocaleProvider
@@ -96,7 +93,7 @@ import straightway.mosa.legal.clearterms.ClearTermsRenderer
 import straightway.mosa.legal.clearterms.spi.ResourceReader
 import straightway.mosa.legal.clearterms.spi.TextEncoder
 import straightway.mosa.legal.clearterms.render.TimeZoneDisplayConverter
-import straightway.mosa.legal.clearterms.spi.browser.BrowserResourceReader
+import straightway.mosa.client.legal.clearterms.browser.spi.BrowserResourceReader
 import web.idb.IDBFactory
 import web.idb.indexedDB
 

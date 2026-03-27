@@ -18,7 +18,7 @@ import straightway.mosa.legal.clearterms.render.TimeTextRenderer
 import straightway.mosa.legal.clearterms.render.TimeZoneDisplayConverter
 import straightway.mosa.legal.clearterms.render.ValueRenderer
 import straightway.mosa.legal.clearterms.parse.DocumentReader
-import straightway.mosa.legal.clearterms.spi.browser.BrowserResourceReader
+import straightway.mosa.client.legal.clearterms.browser.spi.BrowserResourceReader
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 

@@ -1,4 +1,4 @@
-package straightway.mosa.legal.clearterms.render.browser
+package straightway.mosa.client.legal.clearterms.browser.render
 
 import straightway.mosa.legal.clearterms.render.TimeDisplayValue
 import straightway.mosa.legal.clearterms.render.TimeValue

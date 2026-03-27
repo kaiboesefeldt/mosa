@@ -18,7 +18,7 @@ class ClearTermsTimeTextRendererTest {
         val renderer =
             TimeTextRenderer(
                 timeZoneDisplayConverter =
-                    object : TimeZoneDisplayConverter {
+                    object : ClearTermsTimeZoneDisplayConverter {
                         override fun convert(
                             value: String,
                             parsed: TimeValue,

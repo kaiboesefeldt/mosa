@@ -18,7 +18,53 @@ class ClearTermsRendererTest {
     private val hasher = FixedHashProvider(byteArrayOf(0x01, 0x02))
     private val encoder = FixedTextEncoder()
     private val localeProvider = TestClearTermsLocaleProvider()
-    private val renderer = ClearTermsRenderer(JsonParser(), hasher, encoder, localeProvider = localeProvider)
+    private val renderer =
+        ClearTermsRenderer(
+            hashProvider = hasher,
+            textEncoder = encoder,
+            localeProvider = localeProvider,
+            parser = JsonParser(),
+        )
+
+    @Test
+    fun `uses default json parser when none is provided`() =
+        runTest {
+            val renderer =
+                ClearTermsRenderer(
+                    hashProvider = hasher,
+                    textEncoder = encoder,
+                    localeProvider = localeProvider,
+                )
+            val baseline =
+                """
+                {
+                  "kind": "baseline",
+                  "id": "example-policy",
+                  "version": "1.0",
+                  "texts": {
+                    "en": [
+                      { "id": "operator", "text": "Operator: {{string:operator_name}}." }
+                    ]
+                  }
+                }
+                """.trimIndent()
+            val profile =
+                """
+                {
+                  "kind": "profile",
+                  "id": "example-policy-default",
+                  "version": "1.0",
+                  "parent": { "id": "example-policy", "version": "1.0", "hash": "sha256:0102" },
+                  "overrides": {
+                    "values": { "operator_name": "Example Organization" }
+                  }
+                }
+                """.trimIndent()
+
+            val result = renderer.renderLanguage(baseline, listOf(profile), "en").text
+
+            assertEquals("Operator: Example Organization.", result)
+        }
 
     @Test
     fun `renders baseline with two profile steps`() =
@@ -2271,13 +2317,13 @@ class ClearTermsRendererTest {
                 )
             val renderer =
                 ClearTermsRenderer(
-                    JsonParser(),
-                    hasher,
-                    encoder,
+                    hashProvider = hasher,
+                    textEncoder = encoder,
                     localeProvider =
-                        object : LocaleProvider {
+                        object : ClearTermsLocaleProvider {
                             override fun resolve(languageTag: String): Locale = locale
                         },
+                    parser = JsonParser(),
                 )
             val baseline =
                 baselineJson(
@@ -2747,15 +2793,15 @@ class ClearTermsRendererTest {
 
     private class FixedHashProvider(
         private val bytes: ByteArray,
-    ) : HashProvider {
+    ) : ClearTermsHashProvider {
         override suspend fun sha256(data: ByteArray): ByteArray = bytes
     }
 
-    private class FixedTextEncoder : TextEncoder {
+    private class FixedTextEncoder : ClearTermsTextEncoder {
         override fun encode(value: String): ByteArray = value.encodeToByteArray()
     }
 
-    private class TestClearTermsLocaleProvider : LocaleProvider {
+    private class TestClearTermsLocaleProvider : ClearTermsLocaleProvider {
         private val locales =
             mapOf(
                 "en" to

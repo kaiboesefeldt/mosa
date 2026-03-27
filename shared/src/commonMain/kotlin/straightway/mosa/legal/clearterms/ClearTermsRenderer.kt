@@ -4,7 +4,6 @@ import straightway.mosa.legal.clearterms.canonical.CanonicalNodeRenderer
 import straightway.mosa.legal.clearterms.document.Baseline
 import straightway.mosa.legal.clearterms.document.Profile
 import straightway.mosa.legal.clearterms.document.TextBlock
-import straightway.mosa.legal.clearterms.locale.LocaleProvider
 import straightway.mosa.legal.clearterms.parse.DocumentReader
 import straightway.mosa.legal.clearterms.parse.JsonNode
 import straightway.mosa.legal.clearterms.parse.JsonParser
@@ -15,24 +14,21 @@ import straightway.mosa.legal.clearterms.render.RenderBackground
 import straightway.mosa.legal.clearterms.render.RenderedBlock
 import straightway.mosa.legal.clearterms.render.RenderedLanguage
 import straightway.mosa.legal.clearterms.render.TimeTextRenderer
-import straightway.mosa.legal.clearterms.render.TimeZoneDisplayConverter
 import straightway.mosa.legal.clearterms.render.ValueRenderer
-import straightway.mosa.legal.clearterms.spi.HashProvider
-import straightway.mosa.legal.clearterms.spi.TextEncoder
 import straightway.mosa.legal.clearterms.validation.ProfileValidator
 import straightway.mosa.legal.clearterms.validation.ValidationException
 import straightway.mosa.legal.clearterms.value.Value
 
 class ClearTermsRenderer(
-    private val parser: JsonParser,
-    private val hashProvider: HashProvider,
-    private val textEncoder: TextEncoder,
+    private val hashProvider: ClearTermsHashProvider,
+    private val textEncoder: ClearTermsTextEncoder,
+    private val localeProvider: ClearTermsLocaleProvider,
+    private val parser: JsonParser = JsonParser(),
     private val canonicalizer: CanonicalNodeRenderer = CanonicalNodeRenderer(),
     private val placeholderParser: PlaceholderParser = PlaceholderParser(),
     private val reader: DocumentReader = DocumentReader(),
-    private val localeProvider: LocaleProvider,
     private val profileValidator: ProfileValidator = ProfileValidator(placeholderParser),
-    private val timeZoneDisplayConverter: TimeZoneDisplayConverter = TimeZoneDisplayConverter.NoOp,
+    private val timeZoneDisplayConverter: ClearTermsTimeZoneDisplayConverter = ClearTermsTimeZoneDisplayConverter.NoOp,
     private val valueRenderer: ValueRenderer =
         ValueRenderer(
             placeholderParser,

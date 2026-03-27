@@ -18,7 +18,13 @@ class ClearTermsProfileChainRendererTest {
     private val hasher = SequenceHashProvider()
     private val encoder = FixedTextEncoder()
     private val localeProvider = TestClearTermsLocaleProvider()
-    private val renderer = ClearTermsRenderer(JsonParser(), hasher, encoder, localeProvider = localeProvider)
+    private val renderer =
+        ClearTermsRenderer(
+            hashProvider = hasher,
+            textEncoder = encoder,
+            localeProvider = localeProvider,
+            parser = JsonParser(),
+        )
 
     @Test
     fun `renders final text for profile chain`() =
@@ -386,7 +392,7 @@ class ClearTermsProfileChainRendererTest {
             assertEquals("No languages available after applying profile chain", exception.message)
         }
 
-    private class SequenceHashProvider : HashProvider {
+    private class SequenceHashProvider : ClearTermsHashProvider {
         private var index = 0
 
         override suspend fun sha256(data: ByteArray): ByteArray {
@@ -399,11 +405,11 @@ class ClearTermsProfileChainRendererTest {
         }
     }
 
-    private class FixedTextEncoder : TextEncoder {
+    private class FixedTextEncoder : ClearTermsTextEncoder {
         override fun encode(value: String): ByteArray = value.encodeToByteArray()
     }
 
-    private class TestClearTermsLocaleProvider : LocaleProvider {
+    private class TestClearTermsLocaleProvider : ClearTermsLocaleProvider {
         override fun resolve(languageTag: String): Locale =
             Locale(
                 language = "en",

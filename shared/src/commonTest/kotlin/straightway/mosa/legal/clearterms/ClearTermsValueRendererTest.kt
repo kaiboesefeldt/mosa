@@ -24,7 +24,7 @@ class ClearTermsValueRendererTest {
             ValueRenderer(
                 placeholderParser = PlaceholderParser(),
                 localeProvider =
-                    object : LocaleProvider {
+                    object : ClearTermsLocaleProvider {
                         override fun resolve(languageTag: String): Locale = throw IllegalStateException("must not be called")
                     },
             )
@@ -221,7 +221,7 @@ class ClearTermsValueRendererTest {
         renderer.ensureNoUnresolvedPlaceholders("No braces here")
     }
 
-    private class TestLocaleProvider : LocaleProvider {
+    private class TestLocaleProvider : ClearTermsLocaleProvider {
         override fun resolve(languageTag: String): Locale =
             if (languageTag.lowercase().startsWith("de")) {
                 germanLocale()

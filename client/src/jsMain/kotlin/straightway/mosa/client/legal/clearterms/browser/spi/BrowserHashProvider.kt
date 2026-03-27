@@ -1,4 +1,4 @@
-package straightway.mosa.legal.clearterms.spi.browser
+package straightway.mosa.client.legal.clearterms.browser.spi
 
 import straightway.mosa.client.browser.SubtleCrypto
 import straightway.mosa.legal.clearterms.spi.HashProvider
