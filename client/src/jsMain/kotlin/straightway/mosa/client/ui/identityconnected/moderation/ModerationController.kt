@@ -5,11 +5,7 @@ import straightway.mosa.client.ui.identityconnected.content.*
 
 import straightway.mosa.client.ui.*
 
-import kotlinx.browser.document
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
-import kotlin.js.unsafeCast
-import org.w3c.dom.events.Event
 import react.useEffect
 import react.useRef
 import react.useState
@@ -21,7 +17,6 @@ import straightway.mosa.content.complaint.OpenPostComplaintsResult
 import straightway.mosa.content.complaint.PostComplaintState
 import straightway.mosa.message.AdminMessage
 import straightway.mosa.message.AdminMessageListResult
-import web.dom.Element
 import web.html.HTMLButtonElement
 import web.html.HTMLDivElement
 
@@ -211,63 +206,40 @@ internal fun useModerationController(
                 ),
         )
 
-    useEffect(dependencies.connectedIdentityGid) {
-        val storedSnapshot = loadInboxStateSnapshot()
-        inboxEntries = storedSnapshot.entries
-        seenInboxMessageIds = storedSnapshot.seenMessageIds
-        hiddenSeenInboxMessageIds = storedSnapshot.seenMessageIds
-        showSeenInboxEntries = false
-        unreadInboxCount = unreadModerationInboxCount(storedSnapshot)
-        inboxError = null
-        val nextConnectedIdentityGid = dependencies.connectedIdentityGid
-        if (nextConnectedIdentityGid == connectedIdentityGidRef.current) return@useEffect
-        connectedIdentityGidRef.current = nextConnectedIdentityGid
-        if (nextConnectedIdentityGid == null) {
-            isInboxLoading = false
-            isInboxOpen = false
-            return@useEffect
-        }
-        refreshInbox(false)
-    }
-
     useEffect(arrayOf(dependencies.showsConnectedAdminBadge, dependencies.connectedIdentityGid)) {
         refreshComplaintCount()
     }
 
-    useEffect(arrayOf(inboxEntries, isInboxAppending)) {
-        val scrollTop = inboxScrollRestoreRef.current ?: return@useEffect
-        inboxPopoverRef.current?.scrollTop = scrollTop
-        if (!isInboxAppending) inboxScrollRestoreRef.current = null
-    }
+    useModerationInboxLifecycle(
+        connectedIdentityGid = dependencies.connectedIdentityGid,
+        currentConnectedIdentityGid = connectedIdentityGidRef.current,
+        setConnectedIdentityGid = { connectedIdentityGidRef.current = it },
+        loadInboxStateSnapshot = ::loadInboxStateSnapshot,
+        refreshInbox = ::refreshInbox,
+        inboxEntries = inboxEntries,
+        isInboxAppending = isInboxAppending,
+        inboxPopoverRef = inboxPopoverRef,
+        inboxScrollRestoreRef = inboxScrollRestoreRef,
+        setInboxEntries = { inboxEntries = it },
+        setSeenInboxMessageIds = { seenInboxMessageIds = it },
+        setHiddenSeenInboxMessageIds = { hiddenSeenInboxMessageIds = it },
+        setShowSeenInboxEntries = { showSeenInboxEntries = it },
+        setUnreadInboxCount = { unreadInboxCount = it },
+        setInboxError = { inboxError = it },
+        setInboxLoading = { isInboxLoading = it },
+        setInboxOpen = { isInboxOpen = it },
+    )
 
-    useEffect(*emptyArray<dynamic>()) {
-        val inboxOutsideClickListener: (Event) -> Unit = listener@{ event ->
-            if (isInboxOpenRef.current != true) return@listener
-            val target = event.target?.unsafeCast<Element?>() ?: return@listener
-            val clickedInboxButton = inboxButtonRef.current?.contains(target) == true
-            val clickedInboxPopover = inboxPopoverRef.current?.contains(target) == true
-            if (!clickedInboxButton && !clickedInboxPopover) {
-                isInboxOpen = false
-            }
-        }
-        document.addEventListener("mousedown", inboxOutsideClickListener)
-        val complaintQueueOutsideClickListener: (Event) -> Unit = listener@{ event ->
-            if (isComplaintQueueOpenRef.current != true) return@listener
-            val target = event.target?.unsafeCast<Element?>() ?: return@listener
-            val clickedComplaintQueueButton = complaintQueueButtonRef.current?.contains(target) == true
-            val clickedComplaintQueuePopover = complaintQueuePopoverRef.current?.contains(target) == true
-            if (!clickedComplaintQueueButton && !clickedComplaintQueuePopover) {
-                isComplaintQueueOpen = false
-            }
-        }
-        document.addEventListener("mousedown", complaintQueueOutsideClickListener)
-        try {
-            awaitCancellation()
-        } finally {
-            document.removeEventListener("mousedown", inboxOutsideClickListener)
-            document.removeEventListener("mousedown", complaintQueueOutsideClickListener)
-        }
-    }
+    useModerationPopoverDismiss(
+        isInboxOpenRef = isInboxOpenRef,
+        isComplaintQueueOpenRef = isComplaintQueueOpenRef,
+        inboxButtonRef = inboxButtonRef,
+        complaintQueueButtonRef = complaintQueueButtonRef,
+        inboxPopoverRef = inboxPopoverRef,
+        complaintQueuePopoverRef = complaintQueuePopoverRef,
+        closeInbox = { isInboxOpen = false },
+        closeComplaintQueue = { isComplaintQueueOpen = false },
+    )
 
     return ModerationController(
         state =
