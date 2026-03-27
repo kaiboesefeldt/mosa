@@ -2,9 +2,7 @@ package straightway.mosa.client.ui.identityconnected.moderation
 
 import straightway.mosa.client.ui.identityconnected.common.*
 import straightway.mosa.client.ui.identityconnected.content.*
-
 import straightway.mosa.client.ui.*
-
 import kotlinx.coroutines.launch
 import react.useEffect
 import react.useRef
@@ -20,9 +18,7 @@ import straightway.mosa.message.AdminMessageListResult
 import web.html.HTMLButtonElement
 import web.html.HTMLDivElement
 
-internal fun useModerationController(
-    dependencies: ModerationControllerDependencies,
-): ModerationController {
+internal fun useModerationController(dependencies: ModerationControllerDependencies): ModerationController {
     var isInboxOpen by useState(false)
     var isInboxLoading by useState(false)
     var isInboxAppending by useState(false)
