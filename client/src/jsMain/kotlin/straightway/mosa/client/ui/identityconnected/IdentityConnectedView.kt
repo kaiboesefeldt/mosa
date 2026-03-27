@@ -83,12 +83,12 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             isPersistedProfile = props.profile.isPersisted,
             persistProfileVisibilitySnapshot = { visible -> persistProfileVisibilitySnapshot(sessionStore, visible) },
         )
-    val feedbackContext = IdentityConnectedViewFeedbackContext(async = asyncContext, showToast = profileController.showToast)
+    val feedbackContext = IdentityConnectedViewFeedbackContext(async = asyncContext, showToast = profileController.actions.showToast)
     val adminPresentation =
         useIdentityAdminPresentation(
             connectedIdentityGid = props.profile.connectedIdentityGid,
             displayedIdentityGid = props.profile.identityGid,
-            isProfileVisible = profileController.isProfileVisible,
+            isProfileVisible = profileController.state.isProfileVisible,
             contentCapabilitiesService = contentCapabilitiesService,
             scope = scope,
         )
@@ -107,7 +107,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     allPostsDeletionService = allPostsDeletionService,
                     replyPublisher = replyPublisher,
                     replySearchService = replySearchService,
-                    isMobile = viewport.isMobile,
+                    isMobile = viewport.state.isMobile,
                     snapshotRefreshVersion = props.profile.snapshotRefreshVersion,
                     refs = contentRefs,
                 ),
@@ -115,10 +115,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 IdentityConnectedViewContentControllerCallbacks(
                     persistSessionSnapshot = { builder -> persistSessionSnapshot(sessionStore, builder) },
                     onTopicPaneRequested = { topic ->
-                        setPaneForSelectedTopic(viewport.isMobile, viewport.setMobilePane, topic)
+                        setPaneForSelectedTopic(viewport.state.isMobile, viewport.actions.setMobilePane, topic)
                     },
                     onPostPaneRequested = { entry ->
-                        setPaneForSelectedPost(viewport.isMobile, viewport.setMobilePane, entry)
+                        setPaneForSelectedPost(viewport.state.isMobile, viewport.actions.setMobilePane, entry)
                     },
                 ),
         )
@@ -148,13 +148,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         useIdentityConnectedViewMobileShell(
             state =
                 IdentityConnectedViewMobileShellState(
-                    isMobile = viewport.isMobile,
-                    isTouchDevice = viewport.isTouchDevice,
-                    mobilePane = viewport.mobilePane,
-                    selectedTopic = content.selectedTopic,
-                    selectedPost = content.selectedPost,
-                    posts = content.posts,
-                    replies = content.replies,
+                    isMobile = viewport.state.isMobile,
+                    isTouchDevice = viewport.state.isTouchDevice,
+                    mobilePane = viewport.state.mobilePane,
+                    selectedTopic = content.state.selectedTopic,
+                    selectedPost = content.state.selectedPost,
+                    posts = content.state.posts,
+                    replies = content.state.replies,
                 ),
             refs =
                 IdentityConnectedViewMobileShellRefs(
@@ -162,13 +162,13 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 ),
             actions =
                 IdentityConnectedViewMobileShellActions(
-                    setMobilePane = viewport.setMobilePane,
-                    findTopicByTitle = content.findTopicByTitle,
-                    findPostById = content.findPostById,
-                    selectTopic = content.selectTopic,
-                    selectPost = content.selectPost,
-                    loadMorePosts = content.loadMorePosts,
-                    loadMoreReplies = content.loadMoreReplies,
+                    setMobilePane = viewport.actions.setMobilePane,
+                    findTopicByTitle = content.lookups.findTopicByTitle,
+                    findPostById = content.lookups.findPostById,
+                    selectTopic = content.actions.selectTopic,
+                    selectPost = content.actions.selectPost,
+                    loadMorePosts = content.actions.loadMorePosts,
+                    loadMoreReplies = content.actions.loadMoreReplies,
                 ),
         )
     val uiState =
@@ -176,10 +176,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             IdentityConnectedViewUiStateInputs(
                 translator = asyncContext.translator,
                 avatarTitleKey = adminPresentation.avatarTitleKey,
-                isMobile = viewport.isMobile,
-                mobilePane = viewport.mobilePane,
-                isProfileVisible = profileController.isProfileVisible,
-                profileExitAnimation = profileController.profileExitAnimation,
+                isMobile = viewport.state.isMobile,
+                mobilePane = viewport.state.mobilePane,
+                isProfileVisible = profileController.state.isProfileVisible,
+                profileExitAnimation = profileController.state.profileExitAnimation,
             ),
         )
     useEffect(*noDependencies) {

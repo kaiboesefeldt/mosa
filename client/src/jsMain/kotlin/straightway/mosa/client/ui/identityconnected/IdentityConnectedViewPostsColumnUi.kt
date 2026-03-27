@@ -30,10 +30,10 @@ internal fun ChildrenBuilder.postsColumn(
     val activeFilterTopic =
         props.selectedTopic
             ?.let { topic ->
-                props.content.topicFilters[topic.title]?.let { topic to it }
+                props.content.state.topicFilters[topic.title]?.let { topic to it }
             }
-            ?: props.content.posts.firstNotNullOfOrNull { topicPosts ->
-                props.content.topicFilters[topicPosts.topic.title]?.let { topicPosts.topic to it }
+            ?: props.content.state.posts.firstNotNullOfOrNull { topicPosts ->
+                props.content.state.topicFilters[topicPosts.topic.title]?.let { topicPosts.topic to it }
             }
     div {
         className = ClassName("topic-board__column-header")
@@ -71,7 +71,7 @@ internal fun ChildrenBuilder.postsColumn(
                         className = ClassName("topic-board__filter-reset")
                         ariaLabel = clearLabel
                         title = clearLabel
-                        onClick = { props.content.clearTopicFilter(filterTopic) }
+                        onClick = { props.content.actions.clearTopicFilter(filterTopic) }
                         i {
                             className = ClassName("fa fa-solid fa-arrows-up-to-line topic-board__filter-reset-icon")
                         }
@@ -86,15 +86,15 @@ internal fun ChildrenBuilder.postsColumn(
     }
     props.selectedTopic?.let { topicHighlightCard(translator, it) }
     when {
-        props.content.isLoadingPosts -> Unit
-        props.content.posts.isEmpty() ->
+        props.content.state.isLoadingPosts -> Unit
+        props.content.state.posts.isEmpty() ->
             div {
                 className = ClassName("topic-board__empty")
                 +translator.translate("connected.posts.empty")
             }
         else ->
-            props.content.posts.forEach { topicPosts ->
-                val filterScore = props.content.topicFilters[topicPosts.topic.title]
+            props.content.state.posts.forEach { topicPosts ->
+                val filterScore = props.content.state.topicFilters[topicPosts.topic.title]
                 val filterResult = filterEntriesByScore(topicPosts.entries, filterScore)
                 filterResult.entries.forEach { entry ->
                     postCard(
@@ -110,18 +110,18 @@ internal fun ChildrenBuilder.postsColumn(
                             entryActions = props.buildEntryActions(entry),
                             topic = topicPosts.topic,
                             isFilterEntry = filterResult.filteredEntryId == entry.id,
-                            onToggleFilter = props.content.toggleTopicFilter,
+                            onToggleFilter = props.content.actions.toggleTopicFilter,
                             isSelected = props.selectedPost?.id == entry.id,
                             onSelect = {
-                                props.content.clearDeleteCandidate()
-                                props.content.selectPost(entry)
+                                props.content.actions.clearDeleteCandidate()
+                                props.content.actions.selectPost(entry)
                             },
                         ),
                     )
                 }
             }
     }
-    if (!props.content.isLoadingPosts && props.content.posts.isNotEmpty()) {
+    if (!props.content.state.isLoadingPosts && props.content.state.posts.isNotEmpty()) {
         div {
             ref = props.loadMoreRef
             className = ClassName("topic-board__load-sentinel")
@@ -132,26 +132,26 @@ internal fun ChildrenBuilder.postsColumn(
 private fun IdentityConnectedViewPostsColumnProps.buildEntryActions(entry: QueryResult.Entry): IdentityConnectedViewEntryActions =
     IdentityConnectedViewEntryActions(
         canDeleteAsAdmin = canDeleteAsAdmin,
-        deleteCandidateId = content.deleteCandidate?.id,
-        isDeleting = content.isDeletingPost,
-        deleteError = content.deleteError,
-        onRequestDelete = { content.requestDelete(entry) },
-        onCancelDelete = content.clearDeleteCandidate,
-        onConfirmDelete = { content.confirmDelete(entry) },
+        deleteCandidateId = content.state.deleteCandidate?.id,
+        isDeleting = content.state.isDeletingPost,
+        deleteError = content.state.deleteError,
+        onRequestDelete = { content.actions.requestDelete(entry) },
+        onCancelDelete = content.actions.clearDeleteCandidate,
+        onConfirmDelete = { content.actions.confirmDelete(entry) },
         canComplain = connectedGid != null && entry.authorGID != connectedGid,
-        isComplaining = moderation.complaintActionPostId == entry.id,
-        complaintComposerPostId = moderation.complaintComposerPostId,
-        complaintComposerText = moderation.complaintComposerText,
-        complaintComposerError = moderation.complaintComposerError,
-        isComplaintSubmitting = moderation.isComplaintSubmitting,
-        onRequestComplaint = { moderation.requestPostComplaint(entry) },
-        onComplaintTextChange = moderation.setComplaintComposerText,
-        onCloseComplaintComposer = moderation.closeComplaintComposer,
-        onSubmitComplaint = moderation.submitPostComplaint,
+        isComplaining = moderation.state.complaintActionPostId == entry.id,
+        complaintComposerPostId = moderation.state.complaintComposerPostId,
+        complaintComposerText = moderation.state.complaintComposerText,
+        complaintComposerError = moderation.state.complaintComposerError,
+        isComplaintSubmitting = moderation.state.isComplaintSubmitting,
+        onRequestComplaint = { moderation.actions.requestPostComplaint(entry) },
+        onComplaintTextChange = moderation.actions.setComplaintComposerText,
+        onCloseComplaintComposer = moderation.actions.closeComplaintComposer,
+        onSubmitComplaint = moderation.actions.submitPostComplaint,
         adminContact =
             IdentityConnectedViewAdminContactActions(
                 canComposeAdminMessage = canDeleteAsAdmin,
-                onToggleAdminUserCard = admin.toggleAdminUserCard,
+                onToggleAdminUserCard = admin.actions.toggleAdminUserCard,
             ),
     )
 

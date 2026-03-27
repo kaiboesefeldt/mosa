@@ -33,39 +33,39 @@ internal fun ChildrenBuilder.connectedShellHeader(
     div {
         className = ClassName("connected-shell__profile")
         button {
-            ref = props.moderation.inboxButtonRef
+            ref = props.moderation.refs.inboxButtonRef
             className = ClassName("connected-shell__inbox-button")
             ariaLabel = translator.translate("connected.messages.inbox.button")
             title = translator.translate("connected.messages.inbox.button")
             onClick = {
-                if (props.moderation.isInboxOpen) props.moderation.closeInbox() else props.moderation.loadInbox()
+                if (props.moderation.state.isInboxOpen) props.moderation.actions.closeInbox() else props.moderation.actions.loadInbox()
             }
             i { className = ClassName("fa fa-solid fa-bullhorn") }
-            if (0 < props.moderation.unreadInboxCount) {
+            if (0 < props.moderation.state.unreadInboxCount) {
                 span {
                     className = ClassName("connected-shell__inbox-badge")
-                    +props.moderation.unreadInboxCount.toString()
+                    +props.moderation.state.unreadInboxCount.toString()
                 }
             }
         }
         if (props.adminPresentation.showsConnectedAdminBadge) {
             button {
-                ref = props.moderation.complaintQueueButtonRef
+                ref = props.moderation.refs.complaintQueueButtonRef
                 className = ClassName("connected-shell__inbox-button")
                 ariaLabel = translator.translate("connected.complaints.admin.button")
                 title = translator.translate("connected.complaints.admin.button")
                 onClick = {
-                    if (props.moderation.isComplaintQueueOpen) {
-                        props.moderation.closeComplaintQueue()
+                    if (props.moderation.state.isComplaintQueueOpen) {
+                        props.moderation.actions.closeComplaintQueue()
                     } else {
-                        props.moderation.loadComplaintQueue()
+                        props.moderation.actions.loadComplaintQueue()
                     }
                 }
                 i { className = ClassName("fa fa-solid fa-shield-halved") }
-                if (0 < props.moderation.openComplaintCount) {
+                if (0 < props.moderation.state.openComplaintCount) {
                     span {
                         className = ClassName("connected-shell__inbox-badge")
-                        +props.moderation.openComplaintCount.toString()
+                        +props.moderation.state.openComplaintCount.toString()
                     }
                 }
             }
@@ -85,7 +85,7 @@ internal fun ChildrenBuilder.connectedShellHeader(
                 )
             ariaLabel = translator.translate("connected.profile.avatar.aria")
             title = props.uiState.avatarDescription
-            onClick = { props.profileController.showProfile() }
+            onClick = { props.profileController.actions.showProfile() }
             val avatar = props.profile.identityAvatar
             if (avatar != null) {
                 img {
@@ -106,54 +106,54 @@ internal fun ChildrenBuilder.connectedShellHeader(
                 }
             }
         }
-        if (props.moderation.isInboxOpen) {
+        if (props.moderation.state.isInboxOpen) {
             adminMessageInboxPopover(
                 AdminMessageInboxPopoverProps(
                     translator = translator,
                     identityVisualsFactory = props.visualsFactory,
-                    entries = props.moderation.visibleInboxEntries,
-                    isLoading = props.moderation.isInboxLoading,
-                    isAppending = props.moderation.isInboxAppending,
-                    errorText = props.moderation.inboxError,
-                    hasMore = props.moderation.inboxHasMore,
-                    showSeenMessages = props.moderation.showSeenInboxEntries,
-                    hasHiddenSeenEntries = props.moderation.hasHiddenSeenInboxEntries,
-                    readMessageIds = props.moderation.seenInboxMessageIds,
-                    hasReadEntries = props.moderation.hasReadInboxEntries,
-                    popoverRef = props.moderation.inboxPopoverRef,
-                    onToggleSeenVisibility = props.moderation.toggleSeenInboxVisibility,
-                    onClose = props.moderation.closeInbox,
-                    onScrollToEnd = props.moderation.loadMoreInbox,
+                    entries = props.moderation.state.visibleInboxEntries,
+                    isLoading = props.moderation.state.isInboxLoading,
+                    isAppending = props.moderation.state.isInboxAppending,
+                    errorText = props.moderation.state.inboxError,
+                    hasMore = props.moderation.state.inboxHasMore,
+                    showSeenMessages = props.moderation.state.showSeenInboxEntries,
+                    hasHiddenSeenEntries = props.moderation.state.hasHiddenSeenInboxEntries,
+                    readMessageIds = props.moderation.state.seenInboxMessageIds,
+                    hasReadEntries = props.moderation.state.hasReadInboxEntries,
+                    popoverRef = props.moderation.refs.inboxPopoverRef,
+                    onToggleSeenVisibility = props.moderation.actions.toggleSeenInboxVisibility,
+                    onClose = props.moderation.actions.closeInbox,
+                    onScrollToEnd = props.moderation.actions.loadMoreInbox,
                 ),
             )
         }
-        if (props.moderation.isComplaintQueueOpen) {
+        if (props.moderation.state.isComplaintQueueOpen) {
             postComplaintQueuePopover(
                 PostComplaintQueuePopoverProps(
                     translator = translator,
                     identityVisualsFactory = props.visualsFactory,
-                    entries = props.moderation.visibleComplaintQueueEntries,
-                    isLoading = props.moderation.isComplaintQueueLoading,
-                    isAppending = props.moderation.isComplaintQueueAppending,
-                    errorText = props.moderation.complaintQueueError,
-                    hasMore = props.moderation.complaintQueueHasMore,
-                    showProcessedEntries = props.moderation.showProcessedComplaintEntries,
-                    hasHiddenProcessedEntries = props.moderation.hasHiddenProcessedComplaintEntries,
-                    popoverRef = props.moderation.complaintQueuePopoverRef,
-                    onToggleProcessedVisibility = props.moderation.toggleProcessedComplaintVisibility,
-                    onClose = props.moderation.closeComplaintQueue,
-                    onLoadMore = props.moderation.loadMoreComplaintQueue,
-                    decisionEntryId = props.moderation.complaintDecisionEntryId,
-                    decisionTargetStatus = props.moderation.complaintDecisionTargetStatus,
-                    decisionText = props.moderation.complaintDecisionText,
-                    decisionErrorText = props.moderation.complaintDecisionError,
-                    isDecisionSubmitting = props.moderation.isComplaintDecisionSubmitting,
-                    onDecisionTextChange = props.moderation.setComplaintDecisionText,
-                    onCloseDecisionComposer = props.moderation.closeComplaintDecisionComposer,
-                    onSubmitDecision = props.moderation.submitComplaintDecision,
-                    onConfirm = { props.moderation.startComplaintDecision(it, PostComplaintState.CONFIRMED) },
-                    onReject = { props.moderation.startComplaintDecision(it, PostComplaintState.REJECTED) },
-                    onDelete = { props.moderation.startComplaintDecision(it, PostComplaintState.DELETED) },
+                    entries = props.moderation.state.visibleComplaintQueueEntries,
+                    isLoading = props.moderation.state.isComplaintQueueLoading,
+                    isAppending = props.moderation.state.isComplaintQueueAppending,
+                    errorText = props.moderation.state.complaintQueueError,
+                    hasMore = props.moderation.state.complaintQueueHasMore,
+                    showProcessedEntries = props.moderation.state.showProcessedComplaintEntries,
+                    hasHiddenProcessedEntries = props.moderation.state.hasHiddenProcessedComplaintEntries,
+                    popoverRef = props.moderation.refs.complaintQueuePopoverRef,
+                    onToggleProcessedVisibility = props.moderation.actions.toggleProcessedComplaintVisibility,
+                    onClose = props.moderation.actions.closeComplaintQueue,
+                    onLoadMore = props.moderation.actions.loadMoreComplaintQueue,
+                    decisionEntryId = props.moderation.state.complaintDecisionEntryId,
+                    decisionTargetStatus = props.moderation.state.complaintDecisionTargetStatus,
+                    decisionText = props.moderation.state.complaintDecisionText,
+                    decisionErrorText = props.moderation.state.complaintDecisionError,
+                    isDecisionSubmitting = props.moderation.state.isComplaintDecisionSubmitting,
+                    onDecisionTextChange = props.moderation.actions.setComplaintDecisionText,
+                    onCloseDecisionComposer = props.moderation.actions.closeComplaintDecisionComposer,
+                    onSubmitDecision = props.moderation.actions.submitComplaintDecision,
+                    onConfirm = { props.moderation.actions.startComplaintDecision(it, PostComplaintState.CONFIRMED) },
+                    onReject = { props.moderation.actions.startComplaintDecision(it, PostComplaintState.REJECTED) },
+                    onDelete = { props.moderation.actions.startComplaintDecision(it, PostComplaintState.DELETED) },
                 ),
             )
         }

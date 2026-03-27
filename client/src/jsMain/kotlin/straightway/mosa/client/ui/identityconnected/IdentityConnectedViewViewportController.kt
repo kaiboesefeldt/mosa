@@ -14,11 +14,19 @@ internal enum class MobilePane {
     Replies,
 }
 
-internal data class IdentityConnectedViewViewportController(
+internal data class IdentityConnectedViewViewportState(
     val isMobile: Boolean,
     val isTouchDevice: Boolean,
     val mobilePane: MobilePane,
+)
+
+internal data class IdentityConnectedViewViewportActions(
     val setMobilePane: (MobilePane) -> Unit,
+)
+
+internal data class IdentityConnectedViewViewportController(
+    val state: IdentityConnectedViewViewportState,
+    val actions: IdentityConnectedViewViewportActions,
 )
 
 internal fun useIdentityConnectedViewViewportController(): IdentityConnectedViewViewportController {
@@ -52,9 +60,12 @@ internal fun useIdentityConnectedViewViewportController(): IdentityConnectedView
     }
 
     return IdentityConnectedViewViewportController(
-        isMobile = isMobile,
-        isTouchDevice = isTouchDevice,
-        mobilePane = mobilePane,
-        setMobilePane = { mobilePane = it },
+        state =
+            IdentityConnectedViewViewportState(
+                isMobile = isMobile,
+                isTouchDevice = isTouchDevice,
+                mobilePane = mobilePane,
+            ),
+        actions = IdentityConnectedViewViewportActions(setMobilePane = { mobilePane = it }),
     )
 }

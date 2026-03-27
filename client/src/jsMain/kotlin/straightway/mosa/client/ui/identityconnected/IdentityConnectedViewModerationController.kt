@@ -266,7 +266,7 @@ internal fun useIdentityConnectedViewModerationController(
         }
     }
 
-    return buildIdentityConnectedViewModerationController(
+    return IdentityConnectedViewModerationController(
         state =
             IdentityConnectedViewModerationControllerState(
                 isInboxOpen = isInboxOpen,
@@ -305,10 +305,24 @@ internal fun useIdentityConnectedViewModerationController(
                 inboxPopoverRef = inboxPopoverRef,
                 complaintQueuePopoverRef = complaintQueuePopoverRef,
             ),
-        callbacks =
-            IdentityConnectedViewModerationControllerCallbacks(
+        actions =
+            IdentityConnectedViewModerationControllerActions(
                 toggleSeenInboxVisibility = { showSeenInboxEntries = !showSeenInboxEntries },
-                actions = actions,
+                loadInbox = actions.loadInbox,
+                closeInbox = actions.closeInbox,
+                loadMoreInbox = actions.loadMoreInbox,
+                loadComplaintQueue = actions.loadComplaintQueue,
+                closeComplaintQueue = actions.closeComplaintQueue,
+                toggleProcessedComplaintVisibility = actions.toggleProcessedComplaintVisibility,
+                loadMoreComplaintQueue = actions.loadMoreComplaintQueue,
+                requestPostComplaint = actions.requestPostComplaint,
+                setComplaintComposerText = actions.setComplaintComposerText,
+                closeComplaintComposer = actions.closeComplaintComposer,
+                submitPostComplaint = actions.submitPostComplaint,
+                startComplaintDecision = actions.startComplaintDecision,
+                setComplaintDecisionText = actions.setComplaintDecisionText,
+                closeComplaintDecisionComposer = actions.closeComplaintDecisionComposer,
+                submitComplaintDecision = actions.submitComplaintDecision,
             ),
     )
 }

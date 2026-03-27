@@ -104,26 +104,32 @@ internal fun useIdentityConnectedViewAdminController(
     }
 
     return IdentityConnectedViewAdminController(
-        adminUserCardAnchorId = adminUserCardAnchorId,
-        adminMessageRecipientName = adminMessageRecipientName,
-        adminMessageRecipientAvatar = adminMessageRecipientAvatar,
-        adminMessageSubject = adminMessageSubject,
-        adminMessageBody = adminMessageBody,
-        isAdminMessageSending = isAdminMessageSending,
-        adminMessageError = adminMessageError,
-        isAdminMessageComposerOpen = isAdminMessageComposerOpen,
-        adminHistoryEntries = adminHistoryEntries,
-        isAdminHistoryLoading = isAdminHistoryLoading,
-        isAdminHistoryAppending = isAdminHistoryAppending,
-        adminHistoryError = adminHistoryError,
-        adminHistoryHasMore = adminHistoryHasMore,
-        adminHistoryListRef = adminHistoryListRef,
-        toggleAdminUserCard = actions.toggleAdminUserCard,
-        openAdminMessageCompose = actions.openAdminMessageCompose,
-        setAdminMessageSubject = actions.setAdminMessageSubject,
-        setAdminMessageBody = actions.setAdminMessageBody,
-        closeAdminUserCard = actions.closeAdminUserCard,
-        sendAdminMessageToCurrentRecipient = actions.sendAdminMessageToCurrentRecipient,
-        loadMoreAdminHistory = actions.loadMoreAdminHistory,
+        state =
+            IdentityConnectedViewAdminControllerState(
+                adminUserCardAnchorId = adminUserCardAnchorId,
+                adminMessageRecipientName = adminMessageRecipientName,
+                adminMessageRecipientAvatar = adminMessageRecipientAvatar,
+                adminMessageSubject = adminMessageSubject,
+                adminMessageBody = adminMessageBody,
+                isAdminMessageSending = isAdminMessageSending,
+                adminMessageError = adminMessageError,
+                isAdminMessageComposerOpen = isAdminMessageComposerOpen,
+                adminHistoryEntries = adminHistoryEntries,
+                isAdminHistoryLoading = isAdminHistoryLoading,
+                isAdminHistoryAppending = isAdminHistoryAppending,
+                adminHistoryError = adminHistoryError,
+                adminHistoryHasMore = adminHistoryHasMore,
+            ),
+        refs = IdentityConnectedViewAdminControllerRefs(adminHistoryListRef = adminHistoryListRef),
+        actions =
+            IdentityConnectedViewAdminControllerActions(
+                toggleAdminUserCard = actions.toggleAdminUserCard,
+                openAdminMessageCompose = actions.openAdminMessageCompose,
+                setAdminMessageSubject = actions.setAdminMessageSubject,
+                setAdminMessageBody = actions.setAdminMessageBody,
+                closeAdminUserCard = actions.closeAdminUserCard,
+                sendAdminMessageToCurrentRecipient = actions.sendAdminMessageToCurrentRecipient,
+                loadMoreAdminHistory = actions.loadMoreAdminHistory,
+            ),
     )
 }

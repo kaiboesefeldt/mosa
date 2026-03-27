@@ -10,15 +10,23 @@ import react.useEffect
 import react.useRef
 import react.useState
 
-internal data class IdentityConnectedViewProfileController(
+internal data class IdentityConnectedViewProfileState(
     val isProfileVisible: Boolean,
     val profileEntryAnimation: ProfileEntryAnimation,
     val profileExitAnimation: ProfileExitAnimation,
     val toastMessage: String?,
+)
+
+internal data class IdentityConnectedViewProfileActions(
     val showProfile: () -> Unit,
     val hideProfile: () -> Unit,
     val hideProfileWithSuction: () -> Unit,
     val showToast: (String) -> Unit,
+)
+
+internal data class IdentityConnectedViewProfileController(
+    val state: IdentityConnectedViewProfileState,
+    val actions: IdentityConnectedViewProfileActions,
 )
 
 internal fun useIdentityConnectedViewProfileController(
@@ -144,13 +152,19 @@ internal fun useIdentityConnectedViewProfileController(
     }
 
     return IdentityConnectedViewProfileController(
-        isProfileVisible = isProfileVisible,
-        profileEntryAnimation = profileEntryAnimation,
-        profileExitAnimation = profileExitAnimation,
-        toastMessage = toastMessage,
-        showProfile = ::showProfile,
-        hideProfile = ::hideProfile,
-        hideProfileWithSuction = ::hideProfileWithSuction,
-        showToast = ::showToast,
+        state =
+            IdentityConnectedViewProfileState(
+                isProfileVisible = isProfileVisible,
+                profileEntryAnimation = profileEntryAnimation,
+                profileExitAnimation = profileExitAnimation,
+                toastMessage = toastMessage,
+            ),
+        actions =
+            IdentityConnectedViewProfileActions(
+                showProfile = ::showProfile,
+                hideProfile = ::hideProfile,
+                hideProfileWithSuction = ::hideProfileWithSuction,
+                showToast = ::showToast,
+            ),
     )
 }

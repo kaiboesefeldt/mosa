@@ -104,12 +104,12 @@ internal fun useIdentityConnectedViewContentController(
     fun selectTopic(topic: Topic?) {
         if (topic == selectedTopic) {
             if (dependencies.isMobile && topic != null) {
-                replyController.clearReplies()
+                replyController.actions.clearReplies()
                 callbacks.onTopicPaneRequested(topic)
             }
             return
         }
-        replyController.clearReplies()
+        replyController.actions.clearReplies()
         callbacks.onTopicPaneRequested(topic)
         selectedTopic = topic
         dependencies.context.async.scope.launch {
@@ -122,7 +122,7 @@ internal fun useIdentityConnectedViewContentController(
 
     fun removePost(postId: String) {
         posts = removePostsFromTopicState(posts, setOf(postId))
-        replyController.dropDeletedPosts(setOf(postId))
+        replyController.actions.dropDeletedPosts(setOf(postId))
         if (deleteCandidate?.id == postId) deleteCandidate = null
     }
 
@@ -130,7 +130,7 @@ internal fun useIdentityConnectedViewContentController(
         if (postIds.isEmpty()) return
         val idSet = postIds.toSet()
         posts = removePostsFromTopicState(posts, idSet)
-        replyController.dropDeletedPosts(idSet)
+        replyController.actions.dropDeletedPosts(idSet)
         if (deleteCandidate?.id in idSet) deleteCandidate = null
     }
 
@@ -138,7 +138,7 @@ internal fun useIdentityConnectedViewContentController(
         if (dependencies.snapshotRefreshVersion == snapshotRefreshVersionRef.current) return@useEffect
         snapshotRefreshVersionRef.current = dependencies.snapshotRefreshVersion
         val topicForRefresh = selectedTopic
-        replyController.clearReplies()
+        replyController.actions.clearReplies()
         dependencies.context.async.scope.launch {
             dependencies.postCache.clearAll()
             dependencies.replyCache.clearAll()
@@ -208,15 +208,15 @@ internal fun useIdentityConnectedViewContentController(
                 ),
         )
 
-    return buildIdentityConnectedViewContentController(
+    return IdentityConnectedViewContentController(
         state =
             IdentityConnectedViewContentControllerState(
                 topics = topics,
                 selectedTopic = selectedTopic,
                 posts = posts,
-                selectedPost = replyController.selectedPost,
-                replies = replyController.replies,
-                isLoadingReplies = replyController.isLoadingReplies,
+                selectedPost = replyController.state.selectedPost,
+                replies = replyController.state.replies,
+                isLoadingReplies = replyController.state.isLoadingReplies,
                 topicFilters = topicFilters,
                 isLoadingPosts = isLoadingPosts,
                 isComposerOpen = isComposerOpen,
@@ -227,15 +227,15 @@ internal fun useIdentityConnectedViewContentController(
                 isDeletingPost = isDeletingPost,
                 isDeletingAllPosts = isDeletingAllPosts,
                 deleteError = deleteError,
-                isReplyComposerOpen = replyController.isReplyComposerOpen,
-                replyComposerText = replyController.replyComposerText,
-                isReplyPublishing = replyController.isReplyPublishing,
-                replyPublishError = replyController.replyPublishError,
+                isReplyComposerOpen = replyController.state.isReplyComposerOpen,
+                replyComposerText = replyController.state.replyComposerText,
+                isReplyPublishing = replyController.state.isReplyPublishing,
+                replyPublishError = replyController.state.replyPublishError,
             ),
         actions =
             IdentityConnectedViewContentControllerActions(
                 setComposerText = { composerText = it },
-                setReplyComposerText = replyController.setReplyComposerText,
+                setReplyComposerText = replyController.actions.setReplyComposerText,
                 addTopic = contentActions.addTopic,
                 removeTopic = contentActions.removeTopic,
                 selectTopic = ::selectTopic,
@@ -246,15 +246,15 @@ internal fun useIdentityConnectedViewContentController(
                 clearDeleteCandidate = contentActions.clearDeleteCandidate,
                 confirmDelete = contentActions.confirmDelete,
                 deleteAllPosts = contentActions.deleteAllPosts,
-                openReplyComposer = replyController.openReplyComposer,
-                closeReplyComposer = replyController.closeReplyComposer,
-                sendReply = replyController.sendReply,
+                openReplyComposer = replyController.actions.openReplyComposer,
+                closeReplyComposer = replyController.actions.closeReplyComposer,
+                sendReply = replyController.actions.sendReply,
                 clearTopicFilter = contentActions.clearTopicFilter,
                 toggleTopicFilter = contentActions.toggleTopicFilter,
                 loadMorePosts = contentActions.loadMorePosts,
-                loadMoreReplies = replyController.loadMoreReplies,
-                selectPost = replyController.selectPost,
-                clearReplies = replyController.clearReplies,
+                loadMoreReplies = replyController.actions.loadMoreReplies,
+                selectPost = replyController.actions.selectPost,
+                clearReplies = replyController.actions.clearReplies,
             ),
         lookups =
             IdentityConnectedViewContentControllerLookups(

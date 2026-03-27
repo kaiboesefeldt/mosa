@@ -29,7 +29,7 @@ internal fun ChildrenBuilder.adminUserActionCardOverlay(
     className = ClassName("admin-user-card-overlay")
     onClick = { event: MouseEvent<*, *> ->
         if (event.target == event.currentTarget) {
-            admin.closeAdminUserCard()
+            admin.actions.closeAdminUserCard()
         }
     }
     adminUserActionCard(
@@ -44,8 +44,8 @@ private fun ChildrenBuilder.adminUserActionCard(
     identityVisualsFactory: IdentityVisualsFactory,
     admin: IdentityConnectedViewAdminController,
 ) = div {
-    val recipientAvatar = admin.adminMessageRecipientAvatar ?: return@div
-    val recipientName = admin.adminMessageRecipientName ?: return@div
+    val recipientAvatar = admin.state.adminMessageRecipientAvatar ?: return@div
+    val recipientName = admin.state.adminMessageRecipientName ?: return@div
     className = ClassName("admin-user-card")
     onClick = { event: MouseEvent<*, *> -> event.stopPropagation() }
     div {
@@ -72,14 +72,14 @@ private fun ChildrenBuilder.adminUserActionCard(
         button {
             className = ClassName("admin-user-card__close")
             ariaLabel = translator.translate("connected.messages.actions.close")
-            onClick = { admin.closeAdminUserCard() }
+            onClick = { admin.actions.closeAdminUserCard() }
             +"×"
         }
     }
-    if (!admin.isAdminMessageComposerOpen) {
+    if (!admin.state.isAdminMessageComposerOpen) {
         button {
             className = ClassName("button button--primary admin-user-card__primary-action")
-            onClick = { admin.openAdminMessageCompose() }
+            onClick = { admin.actions.openAdminMessageCompose() }
             +translator.translate("connected.messages.actions.send")
         }
     }
@@ -87,28 +87,28 @@ private fun ChildrenBuilder.adminUserActionCard(
         AdminMessageHistorySectionProps(
             translator = translator,
             identityVisualsFactory = identityVisualsFactory,
-            historyEntries = admin.adminHistoryEntries,
-            isLoading = admin.isAdminHistoryLoading,
-            isAppending = admin.isAdminHistoryAppending,
-            errorText = admin.adminHistoryError,
-            hasMore = admin.adminHistoryHasMore,
-            listRef = admin.adminHistoryListRef,
-            onScrollToEnd = admin.loadMoreAdminHistory,
+            historyEntries = admin.state.adminHistoryEntries,
+            isLoading = admin.state.isAdminHistoryLoading,
+            isAppending = admin.state.isAdminHistoryAppending,
+            errorText = admin.state.adminHistoryError,
+            hasMore = admin.state.adminHistoryHasMore,
+            listRef = admin.refs.adminHistoryListRef,
+            onScrollToEnd = admin.actions.loadMoreAdminHistory,
         ),
     )
-    if (admin.isAdminMessageComposerOpen) {
+    if (admin.state.isAdminMessageComposerOpen) {
         adminMessageComposePopover(
             AdminMessageComposePopoverProps(
                 translator = translator,
                 recipientName = recipientName,
-                subject = admin.adminMessageSubject,
-                body = admin.adminMessageBody,
-                isSending = admin.isAdminMessageSending,
-                errorText = admin.adminMessageError,
-                onSubjectChange = admin.setAdminMessageSubject,
-                onBodyChange = admin.setAdminMessageBody,
-                onClose = admin.closeAdminUserCard,
-                onSend = admin.sendAdminMessageToCurrentRecipient,
+                subject = admin.state.adminMessageSubject,
+                body = admin.state.adminMessageBody,
+                isSending = admin.state.isAdminMessageSending,
+                errorText = admin.state.adminMessageError,
+                onSubjectChange = admin.actions.setAdminMessageSubject,
+                onBodyChange = admin.actions.setAdminMessageBody,
+                onClose = admin.actions.closeAdminUserCard,
+                onSend = admin.actions.sendAdminMessageToCurrentRecipient,
             ),
         )
     }

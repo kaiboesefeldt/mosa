@@ -11,23 +11,23 @@ internal fun ChildrenBuilder.connectedContentBoard(
     translator: Translator,
     props: IdentityConnectedViewBoardProps,
 ) = div {
-    className = ClassName(props.shell.boardClass)
+    className = ClassName(props.shell.viewState.boardClass)
     div {
         className = ClassName("topic-board__track")
-        if (props.viewport.isMobile) {
-            asDynamic().style = mobileTrackStyle(props.shell.combinedShiftPercent)
-            onTouchStart = props.shell.onTouchStart
-            onTouchMove = props.shell.onTouchMove
-            onTouchEnd = props.shell.onTouchEnd
-            onTouchCancel = props.shell.onTouchEnd
+        if (props.viewport.state.isMobile) {
+            asDynamic().style = mobileTrackStyle(props.shell.viewState.combinedShiftPercent)
+            onTouchStart = props.shell.touchHandlers.onTouchStart
+            onTouchMove = props.shell.touchHandlers.onTouchMove
+            onTouchEnd = props.shell.touchHandlers.onTouchEnd
+            onTouchCancel = props.shell.touchHandlers.onTouchEnd
         }
         topicColumn(
             translator,
-            props.content.topics,
-            props.content.selectedTopic,
-            props.content.addTopic,
-            props.content.selectTopic,
-            props.content.removeTopic,
+            props.content.state.topics,
+            props.content.state.selectedTopic,
+            props.content.actions.addTopic,
+            props.content.actions.selectTopic,
+            props.content.actions.removeTopic,
         )
         postsColumn(
             translator,
@@ -36,12 +36,12 @@ internal fun ChildrenBuilder.connectedContentBoard(
                 content = props.content,
                 moderation = props.moderation,
                 admin = props.admin,
-                selectedTopic = props.content.selectedTopic,
-                selectedPost = props.content.selectedPost,
+                selectedTopic = props.content.state.selectedTopic,
+                selectedPost = props.content.state.selectedPost,
                 connectedGid = props.profile.connectedIdentityGid,
                 canDeleteAsAdmin = props.adminPresentation.canDeleteAsAdmin,
-                showBackToTopics = props.shell.showBackButtons && props.viewport.mobilePane != MobilePane.Topics,
-                onBackToTopics = { props.viewport.setMobilePane(MobilePane.Topics) },
+                showBackToTopics = props.shell.viewState.showBackButtons && props.viewport.state.mobilePane != MobilePane.Topics,
+                onBackToTopics = { props.viewport.actions.setMobilePane(MobilePane.Topics) },
                 containerRef = props.postsContainerRef,
                 loadMoreRef = props.loadMoreRef,
             ),
@@ -53,16 +53,16 @@ internal fun ChildrenBuilder.connectedContentBoard(
                 content = props.content,
                 moderation = props.moderation,
                 admin = props.admin,
-                selectedPost = props.content.selectedPost,
+                selectedPost = props.content.state.selectedPost,
                 connectedGid = props.profile.connectedIdentityGid,
                 canDeleteAsAdmin = props.adminPresentation.canDeleteAsAdmin,
-                isMobile = props.viewport.isMobile,
-                showBackToPosts = props.shell.showBackButtons,
+                isMobile = props.viewport.state.isMobile,
+                showBackToPosts = props.shell.viewState.showBackButtons,
                 onBackToPosts = {
-                    if (props.content.selectedTopic == null) {
-                        props.viewport.setMobilePane(MobilePane.Topics)
+                    if (props.content.state.selectedTopic == null) {
+                        props.viewport.actions.setMobilePane(MobilePane.Topics)
                     } else {
-                        props.viewport.setMobilePane(MobilePane.Posts)
+                        props.viewport.actions.setMobilePane(MobilePane.Posts)
                     }
                 },
                 containerRef = props.repliesContainerRef,
@@ -73,7 +73,7 @@ internal fun ChildrenBuilder.connectedContentBoard(
     if (props.uiState.shouldRenderFloatingComposer) {
         floatingComposerButton(
             label = translator.translate("connected.composer.open"),
-            onActivate = props.content.openComposer,
+            onActivate = props.content.actions.openComposer,
         )
     }
 }

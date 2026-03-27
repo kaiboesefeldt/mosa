@@ -1,5 +1,6 @@
 package straightway.mosa.client.ui.identityconnected
 
+import straightway.mosa.client.ui.filteredForInbox
 import react.RefObject
 import straightway.mosa.client.content.AdminMessageInboxService
 import straightway.mosa.client.content.complaint.AdminPostComplaintService
@@ -51,7 +52,22 @@ internal data class IdentityConnectedViewModerationControllerState(
     val complaintDecisionText: String,
     val complaintDecisionError: String?,
     val isComplaintDecisionSubmitting: Boolean,
-)
+) {
+    val visibleInboxEntries: List<AdminMessage>
+        get() = inboxEntries.filteredForInbox(showSeenInboxEntries, hiddenSeenInboxMessageIds)
+
+    val hasHiddenSeenInboxEntries: Boolean
+        get() = hiddenSeenInboxMessageIds.isNotEmpty()
+
+    val hasReadInboxEntries: Boolean
+        get() = seenInboxMessageIds.isNotEmpty()
+
+    val visibleComplaintQueueEntries: List<ComplaintQueueEntry>
+        get() = complaintQueueEntries.filteredForComplaintQueue(showProcessedComplaintEntries)
+
+    val hasHiddenProcessedComplaintEntries: Boolean
+        get() = complaintQueueEntries.any { !it.isOpen() }
+}
 
 internal data class IdentityConnectedViewModerationControllerRefs(
     val inboxButtonRef: RefObject<HTMLButtonElement>,
@@ -60,7 +76,21 @@ internal data class IdentityConnectedViewModerationControllerRefs(
     val complaintQueuePopoverRef: RefObject<HTMLDivElement>,
 )
 
-internal data class IdentityConnectedViewModerationControllerCallbacks(
+internal data class IdentityConnectedViewModerationControllerActions(
     val toggleSeenInboxVisibility: () -> Unit,
-    val actions: IdentityConnectedViewModerationActions,
+    val loadInbox: () -> Unit,
+    val closeInbox: () -> Unit,
+    val loadMoreInbox: () -> Unit,
+    val loadComplaintQueue: () -> Unit,
+    val closeComplaintQueue: () -> Unit,
+    val toggleProcessedComplaintVisibility: () -> Unit,
+    val loadMoreComplaintQueue: () -> Unit,
+    val requestPostComplaint: (straightway.mosa.content.QueryResult.Entry) -> Unit,
+    val setComplaintComposerText: (String) -> Unit,
+    val closeComplaintComposer: () -> Unit,
+    val submitPostComplaint: () -> Unit,
+    val startComplaintDecision: (ComplaintQueueEntry, PostComplaintState) -> Unit,
+    val setComplaintDecisionText: (String) -> Unit,
+    val closeComplaintDecisionComposer: () -> Unit,
+    val submitComplaintDecision: () -> Unit,
 )

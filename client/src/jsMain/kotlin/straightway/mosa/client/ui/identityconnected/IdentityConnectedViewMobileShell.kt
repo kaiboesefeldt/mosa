@@ -47,10 +47,18 @@ private data class SwipeTargets(
 )
 
 internal data class IdentityConnectedViewMobileShell(
+    val viewState: IdentityConnectedViewMobileShellViewState,
+    val touchHandlers: IdentityConnectedViewMobileShellTouchHandlers,
+)
+
+internal data class IdentityConnectedViewMobileShellViewState(
     val swipeOffsetPercent: Double,
     val showBackButtons: Boolean,
     val boardClass: String,
     val combinedShiftPercent: Double,
+)
+
+internal data class IdentityConnectedViewMobileShellTouchHandlers(
     val onTouchStart: ((TouchEvent<*>) -> Unit)?,
     val onTouchMove: ((TouchEvent<*>) -> Unit)?,
     val onTouchEnd: ((TouchEvent<*>) -> Unit)?,
@@ -257,12 +265,18 @@ internal fun useIdentityConnectedViewMobileShell(
         } + if (state.isMobile) swipeOffsetPercent else 0.0
 
     return IdentityConnectedViewMobileShell(
-        swipeOffsetPercent = swipeOffsetPercent,
-        showBackButtons = state.isMobile && !state.isTouchDevice,
-        boardClass = boardClass,
-        combinedShiftPercent = combinedShiftPercent,
-        onTouchStart = onTouchStart,
-        onTouchMove = onTouchMove,
-        onTouchEnd = onTouchEnd,
+        viewState =
+            IdentityConnectedViewMobileShellViewState(
+                swipeOffsetPercent = swipeOffsetPercent,
+                showBackButtons = state.isMobile && !state.isTouchDevice,
+                boardClass = boardClass,
+                combinedShiftPercent = combinedShiftPercent,
+            ),
+        touchHandlers =
+            IdentityConnectedViewMobileShellTouchHandlers(
+                onTouchStart = onTouchStart,
+                onTouchMove = onTouchMove,
+                onTouchEnd = onTouchEnd,
+            ),
     )
 }

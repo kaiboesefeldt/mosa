@@ -53,15 +53,15 @@ internal fun ChildrenBuilder.repliesColumn(
                 className = ClassName("topic-board__empty")
                 +translator.translate("connected.replies.empty")
             }
-        props.content.isLoadingReplies && props.content.replies == null ->
+        props.content.state.isLoadingReplies && props.content.state.replies == null ->
             div {
                 className = ClassName("topic-board__empty")
                 +translator.translate("connected.replies.loading")
             }
         else -> {
             replyOriginCard(translator, props.visualsFactory, props.selectedPost)
-            val replyEntries = props.content.replies?.entries.orEmpty()
-            if (replyEntries.isEmpty() && !props.content.isLoadingReplies) {
+            val replyEntries = props.content.state.replies?.entries.orEmpty()
+            if (replyEntries.isEmpty() && !props.content.state.isLoadingReplies) {
                 div {
                     className = ClassName("topic-board__empty")
                     +translator.translate("connected.replies.none")
@@ -83,7 +83,10 @@ internal fun ChildrenBuilder.repliesColumn(
             }
         }
     }
-    if (!props.content.isLoadingReplies && props.content.replies != null && props.content.replies.entries.isNotEmpty()) {
+    if (!props.content.state.isLoadingReplies &&
+        props.content.state.replies != null &&
+        props.content.state.replies.entries.isNotEmpty()
+    ) {
         div {
             ref = props.loadMoreRef
             className = ClassName("topic-board__load-sentinel")
@@ -93,23 +96,23 @@ internal fun ChildrenBuilder.repliesColumn(
         className = ClassName("reply-composer-wrapper")
         div {
             className = ClassName("reply-composer-layer")
-            if (props.content.isReplyComposerOpen) {
+            if (props.content.state.isReplyComposerOpen) {
                 replyComposerPopover(
                     translator = translator,
-                    text = props.content.replyComposerText,
-                    isPublishing = props.content.isReplyPublishing,
-                    errorText = props.content.replyPublishError,
-                    onTextChange = props.content.setReplyComposerText,
-                    onSend = props.content.sendReply,
-                    onClose = props.content.closeReplyComposer,
+                    text = props.content.state.replyComposerText,
+                    isPublishing = props.content.state.isReplyPublishing,
+                    errorText = props.content.state.replyPublishError,
+                    onTextChange = props.content.actions.setReplyComposerText,
+                    onSend = props.content.actions.sendReply,
+                    onClose = props.content.actions.closeReplyComposer,
                 )
             }
             div {
                 className = ClassName("reply-composer-fab")
                 replyComposerButton(
                     label = translator.translate("connected.replies.compose.open"),
-                    disabled = props.selectedPost == null || props.content.isReplyPublishing,
-                    onActivate = props.content.openReplyComposer,
+                    disabled = props.selectedPost == null || props.content.state.isReplyPublishing,
+                    onActivate = props.content.actions.openReplyComposer,
                 )
             }
         }
@@ -119,26 +122,26 @@ internal fun ChildrenBuilder.repliesColumn(
 private fun IdentityConnectedViewRepliesColumnProps.buildEntryActions(entry: QueryResult.Entry): IdentityConnectedViewEntryActions =
     IdentityConnectedViewEntryActions(
         canDeleteAsAdmin = canDeleteAsAdmin,
-        deleteCandidateId = content.deleteCandidate?.id,
-        isDeleting = content.isDeletingPost,
-        deleteError = content.deleteError,
-        onRequestDelete = { content.requestDelete(entry) },
-        onCancelDelete = content.clearDeleteCandidate,
-        onConfirmDelete = { content.confirmDelete(entry) },
+        deleteCandidateId = content.state.deleteCandidate?.id,
+        isDeleting = content.state.isDeletingPost,
+        deleteError = content.state.deleteError,
+        onRequestDelete = { content.actions.requestDelete(entry) },
+        onCancelDelete = content.actions.clearDeleteCandidate,
+        onConfirmDelete = { content.actions.confirmDelete(entry) },
         canComplain = connectedGid != null && entry.authorGID != connectedGid,
-        isComplaining = moderation.complaintActionPostId == entry.id,
-        complaintComposerPostId = moderation.complaintComposerPostId,
-        complaintComposerText = moderation.complaintComposerText,
-        complaintComposerError = moderation.complaintComposerError,
-        isComplaintSubmitting = moderation.isComplaintSubmitting,
-        onRequestComplaint = { moderation.requestPostComplaint(entry) },
-        onComplaintTextChange = moderation.setComplaintComposerText,
-        onCloseComplaintComposer = moderation.closeComplaintComposer,
-        onSubmitComplaint = moderation.submitPostComplaint,
+        isComplaining = moderation.state.complaintActionPostId == entry.id,
+        complaintComposerPostId = moderation.state.complaintComposerPostId,
+        complaintComposerText = moderation.state.complaintComposerText,
+        complaintComposerError = moderation.state.complaintComposerError,
+        isComplaintSubmitting = moderation.state.isComplaintSubmitting,
+        onRequestComplaint = { moderation.actions.requestPostComplaint(entry) },
+        onComplaintTextChange = moderation.actions.setComplaintComposerText,
+        onCloseComplaintComposer = moderation.actions.closeComplaintComposer,
+        onSubmitComplaint = moderation.actions.submitPostComplaint,
         adminContact =
             IdentityConnectedViewAdminContactActions(
                 canComposeAdminMessage = canDeleteAsAdmin,
-                onToggleAdminUserCard = admin.toggleAdminUserCard,
+                onToggleAdminUserCard = admin.actions.toggleAdminUserCard,
             ),
     )
 

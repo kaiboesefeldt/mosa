@@ -14,40 +14,40 @@ internal fun ChildrenBuilder.connectedShellOverlays(
         IdentityProfileView {
             applyFrom(props.profile.copy(isAdmin = props.adminPresentation.showsDisplayedAdminBadge))
             val connectProfile = props.profile.onConnect
-            onClose = { props.profileController.hideProfile() }
+            onClose = { props.profileController.actions.hideProfile() }
             onConnect = {
                 connectProfile()
-                props.profileController.hideProfileWithSuction()
+                props.profileController.actions.hideProfileWithSuction()
             }
-            canDeletePosts = props.profile.canDeletePosts && !props.content.isDeletingAllPosts
-            onDeletePosts = props.content.deleteAllPosts
-            exitAnimation = props.profileController.profileExitAnimation
-            entryAnimation = props.profileController.profileEntryAnimation
+            canDeletePosts = props.profile.canDeletePosts && !props.content.state.isDeletingAllPosts
+            onDeletePosts = props.content.actions.deleteAllPosts
+            exitAnimation = props.profileController.state.profileExitAnimation
+            entryAnimation = props.profileController.state.profileEntryAnimation
         }
     }
 
-    if (props.content.isComposerOpen) {
+    if (props.content.state.isComposerOpen) {
         composerDialog(
             translator = translator,
-            text = props.content.composerText,
-            onTextChange = props.content.setComposerText,
-            onClose = props.content.closeComposer,
-            onSend = props.content.sendPost,
-            isPublishing = props.content.isPublishing,
-            errorText = props.content.publishError,
+            text = props.content.state.composerText,
+            onTextChange = props.content.actions.setComposerText,
+            onClose = props.content.actions.closeComposer,
+            onSend = props.content.actions.sendPost,
+            isPublishing = props.content.state.isPublishing,
+            errorText = props.content.state.publishError,
         )
     }
 
-    props.profileController.toastMessage?.let { message ->
+    props.profileController.state.toastMessage?.let { message ->
         div {
             className = ClassName("connected-toast")
             +message
         }
     }
 
-    if (props.admin.adminUserCardAnchorId != null &&
-        props.admin.adminMessageRecipientName != null &&
-        props.admin.adminMessageRecipientAvatar != null
+    if (props.admin.state.adminUserCardAnchorId != null &&
+        props.admin.state.adminMessageRecipientName != null &&
+        props.admin.state.adminMessageRecipientAvatar != null
     ) {
         adminUserActionCardOverlay(
             translator = translator,

@@ -10,7 +10,7 @@ import straightway.mosa.client.content.ReplySearchService
 import straightway.mosa.client.content.ThreadReplies
 import straightway.mosa.content.QueryResult
 
-internal data class IdentityConnectedViewReplyController(
+internal data class IdentityConnectedViewReplyControllerState(
     val selectedPost: QueryResult.Entry?,
     val replies: ThreadReplies?,
     val isLoadingReplies: Boolean,
@@ -18,6 +18,9 @@ internal data class IdentityConnectedViewReplyController(
     val replyComposerText: String,
     val isReplyPublishing: Boolean,
     val replyPublishError: String?,
+)
+
+internal data class IdentityConnectedViewReplyControllerActions(
     val setReplyComposerText: (String) -> Unit,
     val openReplyComposer: () -> Unit,
     val closeReplyComposer: () -> Unit,
@@ -26,6 +29,11 @@ internal data class IdentityConnectedViewReplyController(
     val selectPost: (QueryResult.Entry) -> Unit,
     val clearReplies: () -> Unit,
     val dropDeletedPosts: (Collection<String>) -> Unit,
+)
+
+internal data class IdentityConnectedViewReplyController(
+    val state: IdentityConnectedViewReplyControllerState,
+    val actions: IdentityConnectedViewReplyControllerActions,
 )
 
 internal fun useIdentityConnectedViewReplyController(
@@ -69,98 +77,107 @@ internal fun useIdentityConnectedViewReplyController(
     }
 
     return IdentityConnectedViewReplyController(
-        selectedPost = selectedPost,
-        replies = replies,
-        isLoadingReplies = isLoadingReplies,
-        isReplyComposerOpen = isReplyComposerOpen,
-        replyComposerText = replyComposerText,
-        isReplyPublishing = isReplyPublishing,
-        replyPublishError = replyPublishError,
-        setReplyComposerText = { replyComposerText = it },
-        openReplyComposer = {
-            if (selectedPost == null || isReplyPublishing) return@IdentityConnectedViewReplyController
-            replyPublishError = null
-            isReplyComposerOpen = true
-        },
-        closeReplyComposer = {
-            if (isReplyPublishing) return@IdentityConnectedViewReplyController
-            replyPublishError = null
-            isReplyComposerOpen = false
-        },
-        sendReply = {
-            if (isReplyPublishing) return@IdentityConnectedViewReplyController
-            val targetPost = selectedPost ?: return@IdentityConnectedViewReplyController
-            val text = replyComposerText.trim()
-            if (text.isEmpty()) return@IdentityConnectedViewReplyController
-            val rootId = rootIdFor(targetPost)
-            isReplyPublishing = true
-            replyPublishError = null
-            dependencies.context.scope.launch {
-                val published = dependencies.replyPublisher.publish(text, rootId)
-                if (!published) {
-                    replyPublishError = dependencies.context.translator.translate("connected.replies.compose.error")
-                    isReplyPublishing = false
-                    return@launch
-                }
-                replyComposerText = ""
-                isReplyComposerOpen = false
-                if (selectedPost?.let(::rootIdFor) != rootId) {
-                    isReplyPublishing = false
-                    return@launch
-                }
-                val nextVersion = (repliesRequestVersion.current ?: 0) + 1
-                repliesRequestVersion.current = nextVersion
-                isLoadingReplies = true
-                dependencies.repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
-                val refreshed =
-                    runCatching { dependencies.replySearchService.fetchFor(rootId) }.getOrElse {
-                        if (repliesRequestVersion.current == nextVersion) isLoadingReplies = false
-                        null
+        state =
+            IdentityConnectedViewReplyControllerState(
+                selectedPost = selectedPost,
+                replies = replies,
+                isLoadingReplies = isLoadingReplies,
+                isReplyComposerOpen = isReplyComposerOpen,
+                replyComposerText = replyComposerText,
+                isReplyPublishing = isReplyPublishing,
+                replyPublishError = replyPublishError,
+            ),
+        actions =
+            IdentityConnectedViewReplyControllerActions(
+                setReplyComposerText = { replyComposerText = it },
+                openReplyComposer = {
+                    if (selectedPost != null && !isReplyPublishing) {
+                        replyPublishError = null
+                        isReplyComposerOpen = true
                     }
-                if (repliesRequestVersion.current == nextVersion && refreshed != null) replies = refreshed
-                if (repliesRequestVersion.current == nextVersion) isLoadingReplies = false
-                isReplyPublishing = false
-            }
-        },
-        loadMoreReplies = {
-            val rootId = replies?.rootId ?: return@IdentityConnectedViewReplyController
-            if (isLoadingReplies || isAppendingRepliesRef.current == true) return@IdentityConnectedViewReplyController
-            dependencies.repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
-            isAppendingRepliesRef.current = true
-            dependencies.context.scope.launch {
-                try {
-                    dependencies.replySearchService.fetchMore(rootId)?.let { replies = it }
-                } finally {
-                    isAppendingRepliesRef.current = false
-                }
-            }
-        },
-        selectPost = { entry ->
-            resetReplyComposer()
-            val rootId = rootIdFor(entry)
-            val nextVersion = (repliesRequestVersion.current ?: 0) + 1
-            repliesRequestVersion.current = nextVersion
-            selectedPost = entry
-            dependencies.onPostPaneRequested(entry)
-            replies = null
-            dependencies.repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
-            isAppendingRepliesRef.current = false
-            isLoadingReplies = true
-            dependencies.context.scope.launch {
-                val result =
-                    runCatching { dependencies.replySearchService.fetchFor(rootId) }.getOrElse {
-                        if (repliesRequestVersion.current == nextVersion) {
-                            replies = null
-                            isLoadingReplies = false
+                },
+                closeReplyComposer = {
+                    if (!isReplyPublishing) {
+                        replyPublishError = null
+                        isReplyComposerOpen = false
+                    }
+                },
+                sendReply = {
+                    val targetPost = selectedPost
+                    val text = replyComposerText.trim()
+                    if (!isReplyPublishing && targetPost != null && text.isNotEmpty()) {
+                        val rootId = rootIdFor(targetPost)
+                        isReplyPublishing = true
+                        replyPublishError = null
+                        dependencies.context.scope.launch {
+                            val published = dependencies.replyPublisher.publish(text, rootId)
+                            if (!published) {
+                                replyPublishError = dependencies.context.translator.translate("connected.replies.compose.error")
+                                isReplyPublishing = false
+                                return@launch
+                            }
+                            replyComposerText = ""
+                            isReplyComposerOpen = false
+                            if (selectedPost?.let(::rootIdFor) != rootId) {
+                                isReplyPublishing = false
+                                return@launch
+                            }
+                            val nextVersion = (repliesRequestVersion.current ?: 0) + 1
+                            repliesRequestVersion.current = nextVersion
+                            isLoadingReplies = true
+                            dependencies.repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
+                            val refreshed =
+                                runCatching { dependencies.replySearchService.fetchFor(rootId) }.getOrElse {
+                                    if (repliesRequestVersion.current == nextVersion) isLoadingReplies = false
+                                    null
+                                }
+                            if (repliesRequestVersion.current == nextVersion && refreshed != null) replies = refreshed
+                            if (repliesRequestVersion.current == nextVersion) isLoadingReplies = false
+                            isReplyPublishing = false
                         }
-                        return@launch
                     }
-                if (repliesRequestVersion.current != nextVersion) return@launch
-                replies = result
-                isLoadingReplies = false
-            }
-        },
-        clearReplies = ::clearReplies,
-        dropDeletedPosts = ::dropDeletedPosts,
+                },
+                loadMoreReplies = {
+                    val rootId = replies?.rootId
+                    if (rootId != null && !isLoadingReplies && isAppendingRepliesRef.current != true) {
+                        dependencies.repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
+                        isAppendingRepliesRef.current = true
+                        dependencies.context.scope.launch {
+                            try {
+                                dependencies.replySearchService.fetchMore(rootId)?.let { replies = it }
+                            } finally {
+                                isAppendingRepliesRef.current = false
+                            }
+                        }
+                    }
+                },
+                selectPost = { entry ->
+                    resetReplyComposer()
+                    val rootId = rootIdFor(entry)
+                    val nextVersion = (repliesRequestVersion.current ?: 0) + 1
+                    repliesRequestVersion.current = nextVersion
+                    selectedPost = entry
+                    dependencies.onPostPaneRequested(entry)
+                    replies = null
+                    dependencies.repliesContainerRef.current?.removeAttribute("data-mosa-scroll-ready")
+                    isAppendingRepliesRef.current = false
+                    isLoadingReplies = true
+                    dependencies.context.scope.launch {
+                        val result =
+                            runCatching { dependencies.replySearchService.fetchFor(rootId) }.getOrElse {
+                                if (repliesRequestVersion.current == nextVersion) {
+                                    replies = null
+                                    isLoadingReplies = false
+                                }
+                                return@launch
+                            }
+                        if (repliesRequestVersion.current != nextVersion) return@launch
+                        replies = result
+                        isLoadingReplies = false
+                    }
+                },
+                clearReplies = ::clearReplies,
+                dropDeletedPosts = ::dropDeletedPosts,
+            ),
     )
 }
