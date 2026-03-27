@@ -67,23 +67,23 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val repliesContainerRef = useRef<HTMLDivElement>()
     val repliesLoadMoreRef = useRef<HTMLDivElement>()
     val contentRefs =
-        IdentityConnectedViewContentRefs(
+        ConnectedViewContentRefs(
             postsContainerRef = postsContainerRef,
             loadMoreRef = loadMoreRef,
             repliesContainerRef = repliesContainerRef,
             repliesLoadMoreRef = repliesLoadMoreRef,
         )
-    val asyncContext = IdentityConnectedViewAsyncContext(translator = translator, scope = scope)
-    val viewport = useIdentityConnectedViewViewportController()
+    val asyncContext = ConnectedViewAsyncContext(translator = translator, scope = scope)
+    val viewport = useViewportController()
 
     val profileController =
-        useIdentityConnectedViewProfileController(
+        useProfileController(
             sessionStore = sessionStore,
             scope = scope,
             isPersistedProfile = props.profile.isPersisted,
             persistProfileVisibilitySnapshot = { visible -> persistProfileVisibilitySnapshot(sessionStore, visible) },
         )
-    val feedbackContext = IdentityConnectedViewFeedbackContext(async = asyncContext, showToast = profileController.actions.showToast)
+    val feedbackContext = ConnectedViewFeedbackContext(async = asyncContext, showToast = profileController.actions.showToast)
     val adminPresentation =
         useIdentityAdminPresentation(
             connectedIdentityGid = props.profile.connectedIdentityGid,
@@ -93,9 +93,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             scope = scope,
         )
     val content =
-        useIdentityConnectedViewContentController(
+        useContentController(
             dependencies =
-                IdentityConnectedViewContentControllerDependencies(
+                ContentControllerDependencies(
                     context = feedbackContext,
                     repository = repository,
                     sessionStore = sessionStore,
@@ -112,7 +112,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     refs = contentRefs,
                 ),
             callbacks =
-                IdentityConnectedViewContentControllerCallbacks(
+                ContentControllerCallbacks(
                     persistSessionSnapshot = { builder -> persistSessionSnapshot(sessionStore, builder) },
                     onTopicPaneRequested = { topic ->
                         setPaneForSelectedTopic(viewport.state.isMobile, viewport.actions.setMobilePane, topic)
@@ -123,8 +123,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 ),
         )
     val moderation =
-        useIdentityConnectedViewModerationController(
-            IdentityConnectedViewModerationControllerDependencies(
+        useModerationController(
+            ModerationControllerDependencies(
                 context = feedbackContext,
                 inboxStateStore = inboxStateStore,
                 adminMessageInboxService = adminMessageInboxService,
@@ -136,8 +136,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             ),
         )
     val admin =
-        useIdentityConnectedViewAdminController(
-            IdentityConnectedViewAdminActionDependencies(
+        useAdminController(
+            AdminActionDependencies(
                 context = feedbackContext,
                 adminMessageHistoryService = adminMessageHistoryService,
                 adminMessagePublisher = adminMessagePublisher,
@@ -145,9 +145,9 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             ),
         )
     val shell =
-        useIdentityConnectedViewMobileShell(
+        useMobileShell(
             state =
-                IdentityConnectedViewMobileShellState(
+                MobileShellState(
                     isMobile = viewport.state.isMobile,
                     isTouchDevice = viewport.state.isTouchDevice,
                     mobilePane = viewport.state.mobilePane,
@@ -157,11 +157,11 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                     replies = content.state.replies,
                 ),
             refs =
-                IdentityConnectedViewMobileShellRefs(
+                MobileShellRefs(
                     contentRefs = contentRefs,
                 ),
             actions =
-                IdentityConnectedViewMobileShellActions(
+                MobileShellActions(
                     setMobilePane = viewport.actions.setMobilePane,
                     findTopicByTitle = content.lookups.findTopicByTitle,
                     findPostById = content.lookups.findPostById,
@@ -172,8 +172,8 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 ),
         )
     val uiState =
-        buildIdentityConnectedViewUiState(
-            IdentityConnectedViewUiStateInputs(
+        buildShellUiState(
+            ShellUiStateInputs(
                 translator = asyncContext.translator,
                 avatarTitleKey = adminPresentation.avatarTitleKey,
                 isMobile = viewport.state.isMobile,
@@ -191,7 +191,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     }
 
     val headerProps =
-        IdentityConnectedViewHeaderProps(
+        HeaderProps(
             identityName = props.identityName,
             profile = props.profile,
             visualsFactory = visualsFactory,
@@ -201,7 +201,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             uiState = uiState,
         )
     val boardProps =
-        IdentityConnectedViewBoardProps(
+        BoardProps(
             profile = props.profile,
             visualsFactory = visualsFactory,
             adminPresentation = adminPresentation,
@@ -217,7 +217,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             repliesLoadMoreRef = repliesLoadMoreRef,
         )
     val overlayProps =
-        IdentityConnectedViewOverlayProps(
+        OverlayProps(
             profile = props.profile,
             visualsFactory = visualsFactory,
             adminPresentation = adminPresentation,
