@@ -128,6 +128,7 @@ private fun ChildrenBuilder.legalDialogHeader(
             onClick = {
                 onClose()
             }
+            +"X"
         }
     }
 }
