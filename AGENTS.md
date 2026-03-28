@@ -45,6 +45,7 @@
 - Apply Clean Code principles pragmatically.
 - Apply SOLID principles pragmatically.
 - Keep Kotlin source files at max 300 lines (exceptions are permitted with a written justification).
+- Keep function argument lists at max 3 arguments + optionally one lambda argument (exceptions are permitted with a written justification).
 - Keep function or property bodies at max 20 lines of code (exceptions are permitted with a written justification).
 - Write code that is: 
   - simple
