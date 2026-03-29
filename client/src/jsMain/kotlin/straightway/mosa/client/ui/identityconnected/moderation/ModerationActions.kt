@@ -2,23 +2,19 @@ package straightway.mosa.client.ui.identityconnected.moderation
 
 import straightway.mosa.client.ui.identityconnected.common.*
 import straightway.mosa.client.ui.identityconnected.content.*
-
 import straightway.mosa.client.ui.*
-
 import kotlinx.coroutines.launch
-import straightway.mosa.client.content.AdminMessageInboxService
-import straightway.mosa.client.content.complaint.AdminPostComplaintService
-import straightway.mosa.client.content.complaint.PostComplaintService
 import straightway.mosa.content.QueryResult
-import straightway.mosa.content.complaint.OpenPostComplaintsResult
 import straightway.mosa.content.complaint.PostComplaintAvailability
 import straightway.mosa.content.complaint.PostComplaintState
-import straightway.mosa.message.AdminMessageListResult
 
-internal data class ModerationActions(
+internal data class ModerationInboxActions(
     val loadInbox: () -> Unit,
     val closeInbox: () -> Unit,
     val loadMoreInbox: () -> Unit,
+)
+
+internal data class ModerationComplaintQueueActions(
     val loadComplaintQueue: () -> Unit,
     val closeComplaintQueue: () -> Unit,
     val toggleProcessedComplaintVisibility: () -> Unit,
@@ -33,11 +29,41 @@ internal data class ModerationActions(
     val submitComplaintDecision: () -> Unit,
 )
 
-internal fun buildModerationActions(
-    dependencies: ModerationActionDependencies,
+internal fun buildModerationInboxActions(
+    dependencies: ModerationInboxActionDependencies,
     inbox: ModerationInboxModel,
+): ModerationInboxActions =
+    ModerationInboxActions(
+        loadInbox = { inbox.refreshInbox(true) },
+        closeInbox = { inbox.setInboxOpen(false) },
+        loadMoreInbox = {
+            if (!inbox.isOpen || inbox.isLoading || inbox.isAppending || !inbox.hasMore) {
+                return@ModerationInboxActions
+            }
+            inbox.rememberInboxScrollTop()
+            inbox.setInboxAppending(true)
+            inbox.setInboxError(null)
+            val nextPage = inbox.page + 1
+            dependencies.context.async.scope.launch {
+                val result =
+                    runCatching {
+                        dependencies.adminMessageInboxService.fetch(page = nextPage, fromTime = inbox.refreshFromTime)
+                    }.getOrNull()
+                inbox.setInboxAppending(false)
+                if (result == null) {
+                    inbox.setInboxError(dependencies.context.async.translator.translate("connected.messages.inbox.error"))
+                } else {
+                    inbox.applyInboxPage(result, true, inbox.hiddenSeenMessageIds)
+                }
+            }
+        },
+    )
+
+internal fun buildModerationComplaintQueueActions(
+    dependencies: ModerationComplaintQueueActionDependencies,
+    inboxRefreshInbox: (Boolean) -> Unit,
     complaint: ModerationComplaintQueueModel,
-): ModerationActions {
+): ModerationComplaintQueueActions {
     fun refreshComplaintQueue(
         openAfterLoad: Boolean,
         includeProcessed: Boolean = complaint.showProcessedEntries,
@@ -65,30 +91,7 @@ internal fun buildModerationActions(
         }
     }
 
-    return ModerationActions(
-        loadInbox = { inbox.refreshInbox(true) },
-        closeInbox = { inbox.setInboxOpen(false) },
-        loadMoreInbox = {
-            if (!inbox.isOpen || inbox.isLoading || inbox.isAppending || !inbox.hasMore) {
-                return@ModerationActions
-            }
-            inbox.rememberInboxScrollTop()
-            inbox.setInboxAppending(true)
-            inbox.setInboxError(null)
-            val nextPage = inbox.page + 1
-            dependencies.context.async.scope.launch {
-                val result =
-                    runCatching {
-                        dependencies.adminMessageInboxService.fetch(page = nextPage, fromTime = inbox.refreshFromTime)
-                    }.getOrNull()
-                inbox.setInboxAppending(false)
-                if (result == null) {
-                    inbox.setInboxError(dependencies.context.async.translator.translate("connected.messages.inbox.error"))
-                } else {
-                    inbox.applyInboxPage(result, true, inbox.hiddenSeenMessageIds)
-                }
-            }
-        },
+    return ModerationComplaintQueueActions(
         loadComplaintQueue = { refreshComplaintQueue(true) },
         closeComplaintQueue = { complaint.setComplaintQueueOpen(false) },
         toggleProcessedComplaintVisibility = {
@@ -105,7 +108,7 @@ internal fun buildModerationActions(
                 complaint.isAppending ||
                 !complaint.hasMore
             ) {
-                return@ModerationActions
+                return@ModerationComplaintQueueActions
             }
             complaint.setComplaintQueueAppending(true)
             complaint.setComplaintQueueError(null)
@@ -130,9 +133,9 @@ internal fun buildModerationActions(
                 complaint.composerPostId != null ||
                 dependencies.connectedIdentityGid == null
             ) {
-                return@ModerationActions
+                return@ModerationComplaintQueueActions
             }
-            if (entry.authorGID == dependencies.connectedIdentityGid) return@ModerationActions
+            if (entry.authorGID == dependencies.connectedIdentityGid) return@ModerationComplaintQueueActions
             complaint.setComplaintActionPostId(entry.id)
             dependencies.context.async.scope.launch {
                 try {
@@ -165,25 +168,25 @@ internal fun buildModerationActions(
             complaint.setComplaintComposerError(null)
         },
         closeComplaintComposer = {
-            if (complaint.isSubmitting) return@ModerationActions
+            if (complaint.isSubmitting) return@ModerationComplaintQueueActions
             complaint.setComplaintComposerPostId(null)
             complaint.setComplaintComposerTextState("")
             complaint.setComplaintComposerError(null)
         },
         submitPostComplaint = {
-            val postId = complaint.composerPostId ?: return@ModerationActions
+            val postId = complaint.composerPostId ?: return@ModerationComplaintQueueActions
             val reason = complaint.composerText.trim()
             if (reason.isEmpty()) {
                 complaint.setComplaintComposerError(
                     dependencies.context.async.translator.translate("connected.complaints.post.reasonRequired"),
                 )
-                return@ModerationActions
+                return@ModerationComplaintQueueActions
             }
             if (500 < reason.length) {
                 complaint.setComplaintComposerError(
                     dependencies.context.async.translator.translate("connected.complaints.post.reasonTooLong"),
                 )
-                return@ModerationActions
+                return@ModerationComplaintQueueActions
             }
             complaint.setComplaintSubmitting(true)
             complaint.setComplaintComposerError(null)
@@ -206,7 +209,7 @@ internal fun buildModerationActions(
         },
         startComplaintDecision = { entry, targetStatus ->
             if (!entry.canTransitionTo(targetStatus) || complaint.isDecisionSubmitting) {
-                return@ModerationActions
+                return@ModerationComplaintQueueActions
             }
             complaint.setComplaintDecisionEntryId(entry.complaintId)
             complaint.setComplaintDecisionTargetStatus(targetStatus)
@@ -218,30 +221,30 @@ internal fun buildModerationActions(
             complaint.setComplaintDecisionError(null)
         },
         closeComplaintDecisionComposer = {
-            if (complaint.isDecisionSubmitting) return@ModerationActions
+            if (complaint.isDecisionSubmitting) return@ModerationComplaintQueueActions
             complaint.setComplaintDecisionEntryId(null)
             complaint.setComplaintDecisionTargetStatus(null)
             complaint.setComplaintDecisionTextState("")
             complaint.setComplaintDecisionError(null)
         },
         submitComplaintDecision = {
-            val complaintId = complaint.decisionEntryId ?: return@ModerationActions
-            val targetStatus = complaint.decisionTargetStatus ?: return@ModerationActions
+            val complaintId = complaint.decisionEntryId ?: return@ModerationComplaintQueueActions
+            val targetStatus = complaint.decisionTargetStatus ?: return@ModerationComplaintQueueActions
             val entry =
                 complaint.entries.firstOrNull { it.complaintId == complaintId }
-                    ?: return@ModerationActions
+                    ?: return@ModerationComplaintQueueActions
             val feedback = complaint.decisionText.trim()
             if (feedback.isEmpty()) {
                 complaint.setComplaintDecisionError(
                     dependencies.context.async.translator.translate("connected.complaints.admin.feedbackRequired"),
                 )
-                return@ModerationActions
+                return@ModerationComplaintQueueActions
             }
             if (1000 < feedback.length) {
                 complaint.setComplaintDecisionError(
                     dependencies.context.async.translator.translate("connected.complaints.admin.feedbackTooLong"),
                 )
-                return@ModerationActions
+                return@ModerationComplaintQueueActions
             }
             complaint.setComplaintDecisionSubmitting(true)
             complaint.setComplaintDecisionError(null)
@@ -267,7 +270,7 @@ internal fun buildModerationActions(
                         dependencies.context.async.translator.translate("connected.complaints.admin.decided"),
                     )
                     refreshComplaintQueue(openAfterLoad = complaint.entries.size > 1)
-                    inbox.refreshInbox(false)
+                    inboxRefreshInbox(false)
                 } else {
                     complaint.setComplaintDecisionError(
                         dependencies.context.async.translator.translate("connected.complaints.admin.error"),

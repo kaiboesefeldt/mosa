@@ -10,9 +10,13 @@ import straightway.mosa.content.complaint.OpenPostComplaintsResult
 import straightway.mosa.content.complaint.PostComplaintState
 import straightway.mosa.message.AdminMessageListResult
 
-internal data class ModerationActionDependencies(
+internal data class ModerationInboxActionDependencies(
     val context: ConnectedViewFeedbackContext,
     val adminMessageInboxService: AdminMessageInboxService,
+)
+
+internal data class ModerationComplaintQueueActionDependencies(
+    val context: ConnectedViewFeedbackContext,
     val postComplaintService: PostComplaintService,
     val adminPostComplaintService: AdminPostComplaintService,
     val connectedIdentityGid: String?,
