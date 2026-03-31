@@ -246,6 +246,41 @@ class IdentitySessionStateMachineTest {
     }
 
     @Test
+    fun `deletes unpersisted local identity without pod call`() = runMachineTest {
+        val firstIdentity = identity("gid-a")
+        val secondIdentity = identity("gid-b")
+        val repository = FakeIdentitySelectionRepository(firstIdentity, secondIdentity, persistedGids = emptySet())
+        val store = RecordingIdentitySessionStore()
+        var deleteCalls = 0
+        val machine =
+            createMachine(
+                repository = repository,
+                store = store,
+                deleteIdentityOnPod = {
+                    deleteCalls += 1
+                    true
+                },
+            )
+
+        machine.refresh()
+        advanceUntilIdle()
+
+        val beforeDelete = machine.state.value
+        assertTrue(beforeDelete is IdentitySessionViewState.Profile)
+        assertTrue(beforeDelete.canDelete)
+
+        machine.deleteIdentity()
+        advanceUntilIdle()
+
+        assertEquals(0, deleteCalls)
+        assertEquals(1, repository.deleteCalls)
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Profile)
+        assertEquals(secondIdentity.gid, state.identityGid)
+        assertTrue(state.canDelete)
+    }
+
+    @Test
     fun `imports identity from clipboard`() = runMachineTest {
         val initialIdentity = identity("gid-a")
         val pastedIdentity = identity("gid-b")
@@ -577,6 +612,7 @@ private fun runMachineTest(block: suspend TestScope.() -> Unit) = runTest { bloc
 private class FakeIdentitySelectionRepository(
     first: Identity,
     second: Identity? = null,
+    private val persistedGids: Set<String> = setOf(first.gid, *(second?.let { arrayOf(it.gid) } ?: emptyArray())),
 ) : IdentitySelectionRepository {
     private val identities = mutableListOf(first).apply { second?.let { add(it) } }
     private var index = 0
@@ -628,7 +664,7 @@ private class FakeIdentitySelectionRepository(
             identity = identities[index],
             index = index,
             total = identities.size,
-            isPersisted = true,
+            isPersisted = persistedGids.contains(identities[index].gid),
         )
 }
 

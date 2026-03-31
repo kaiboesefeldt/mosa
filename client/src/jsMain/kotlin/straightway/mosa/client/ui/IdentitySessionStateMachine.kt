@@ -79,18 +79,22 @@ class IdentitySessionStateMachine(
 
     fun deleteIdentity() {
         runExclusive("Identity removal failed") {
-            if (!isCurrentSelectionConnected) return@runExclusive
-            val deleted = deleteIdentityOnPod()
-            if (!deleted) {
-                errorText = textProvider.deleteError
-                finishRestoring()
-                publishState()
-                return@runExclusive
+            val selection = currentSelection ?: return@runExclusive
+            if (isCurrentSelectionConnected) {
+                val deleted = deleteIdentityOnPod()
+                if (!deleted) {
+                    errorText = textProvider.deleteError
+                    finishRestoring()
+                    publishState()
+                    return@runExclusive
+                }
             }
-            connectedIdentityGid = null
-            persistSession(profileVisibleOverride = false, preserveConnectedIdentity = false)
-            val selection = repository.deleteCurrent()
-            applySelection(selection)
+            val deletesConnectedIdentity = selection.identity.gid == connectedIdentityGid
+            if (deletesConnectedIdentity) {
+                connectedIdentityGid = null
+            }
+            persistSession(profileVisibleOverride = false, preserveConnectedIdentity = !deletesConnectedIdentity)
+            applySelection(repository.deleteCurrent())
         }
     }
 
@@ -334,7 +338,7 @@ class IdentitySessionStateMachine(
             errorText = errorText,
             statusText = statusText,
             snapshotRefreshVersion = snapshotRefreshVersion,
-            canDelete = binding.isDisplayedIdentityConnected,
+            canDelete = binding.isDisplayedIdentityConnected || currentSelection?.isPersisted == false,
             canDeletePosts = binding.isDisplayedIdentityConnected,
             canExportPosts = binding.isDisplayedIdentityConnected,
             canFreezePosts = binding.isDisplayedIdentityConnected,
