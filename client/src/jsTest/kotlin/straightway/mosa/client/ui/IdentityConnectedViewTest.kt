@@ -411,6 +411,38 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `keeps profile open when cancelled profile switch does not activate another identity`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1")),
+                capabilitiesByGid =
+                    mapOf(
+                        identityForTests.gid to ContentCapabilitiesResult(isAdmin = true),
+                        "gid-other" to ContentCapabilitiesResult(isAdmin = false),
+                    ),
+            )
+        overrideDependencies(
+            topics = listOf(Topic("Alpha")),
+            podAccess = podAccess,
+        )
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, true))
+        val user = userEvent.setup()
+        val view = renderCancelledProfileSwitchView()
+
+        waitForCondition { view.container.querySelector(".profile-dialog") != null }
+        waitForCondition { view.container.querySelector(".connected-shell__avatar-badge") != null }
+        waitForCondition { view.container.querySelector(".profile-dialog__identity-badge") == null }
+
+        user.click(profileIdentityAvatarButton(view.container)).await()
+        delay(900)
+
+        assertTrue(view.container.querySelector(".profile-dialog") != null)
+        assertEquals(true, sessionStore.current()?.isProfileVisible)
+        assertEquals(null, view.container.querySelector(".profile-dialog__identity-badge"))
+    }
+
+    @Test
     fun `appends posts when reaching list end`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val triggers = stubIntersectionObserver()
@@ -1606,6 +1638,11 @@ private fun inboxScrollTop(container: Element): Double =
             ConnectedAdminSwitchHarness.create(),
         )
 
+    private fun renderCancelledProfileSwitchView(): RenderResult =
+        render(
+            CancelledProfileSwitchHarness.create(),
+        )
+
     private fun topicCard(container: Element, title: String): Element {
         val nodes = container.querySelectorAll(".topic-card")
         repeat(nodes.length) { index ->
@@ -1737,6 +1774,10 @@ private fun inboxScrollTop(container: Element): Double =
     private fun avatarButton(container: Element): Element =
         container.querySelector(".connected-shell__avatar-button")
             ?: error("Avatar button missing")
+
+    private fun profileIdentityAvatarButton(container: Element): Element =
+        container.querySelector(".profile-dialog__identity-avatar-button")
+            ?: error("Profile identity avatar button missing")
 
     private fun composerButton(container: Element): Element =
         container.querySelector(".composer-button") ?: error("Composer button missing")
@@ -1914,6 +1955,19 @@ private val ConnectedAdminSwitchHarness = FC<Props> {
     }
 }
 
+private val CancelledProfileSwitchHarness = FC<Props> {
+    IdentityConnectedView {
+        identityName = "Tester"
+        profile =
+            placeholderProfile(
+                identityGid = "gid-other",
+                connectedIdentityGid = identityForTests.gid,
+                canConnect = true,
+                onConnect = {},
+            )
+    }
+}
+
 private object ConnectedViewTestInjector : KoinComponent
 
 private fun placeholderProfile(
@@ -1921,6 +1975,8 @@ private fun placeholderProfile(
     identityGid: String = identityForTests.gid,
     connectedIdentityGid: String? = identityGid,
     canDeletePosts: Boolean = false,
+    canConnect: Boolean = false,
+    onConnect: () -> Unit = {},
 ): IdentityScreen.Profile =
     IdentityScreen.Profile(
         identityGid = identityGid,
@@ -1943,8 +1999,8 @@ private fun placeholderProfile(
         isShowingLastIdentity = false,
         identityIndex = 0,
         identityTotal = 1,
-        canConnect = false,
-        onConnect = {},
+        canConnect = canConnect,
+        onConnect = onConnect,
         onPrevious = {},
         onNext = {},
         onDelete = {},

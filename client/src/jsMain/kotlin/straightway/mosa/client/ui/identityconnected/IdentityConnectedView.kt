@@ -16,6 +16,7 @@ import react.Props
 import react.useEffect
 import react.useMemo
 import react.useRef
+import react.useState
 import web.html.HTMLDivElement
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
@@ -81,6 +82,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
         )
     val asyncContext = ConnectedViewAsyncContext(translator = translator, scope = scope)
     val viewport = useViewportController()
+    var pendingProfileConnectGid by useState<String?>(null)
 
     val profileController =
         useProfileController(
@@ -188,6 +190,21 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 profileExitAnimation = profileController.state.profileExitAnimation,
             ),
         )
+    useEffect(
+        profileController.state.isProfileVisible,
+        pendingProfileConnectGid,
+        props.profile.identityGid,
+        props.profile.connectedIdentityGid,
+    ) {
+        val pendingGid = pendingProfileConnectGid
+        if (!profileController.state.isProfileVisible || pendingGid == null) return@useEffect
+        val displayedGid = props.profile.identityGid
+        val connectedGid = props.profile.connectedIdentityGid
+        if (pendingGid == displayedGid && pendingGid == connectedGid) {
+            pendingProfileConnectGid = null
+            profileController.actions.hideProfileWithSuction()
+        }
+    }
     useEffect(*noDependencies) {
         try {
             awaitCancellation()
@@ -228,6 +245,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
             visualsFactory = visualsFactory,
             adminPresentation = adminPresentation,
             profileController = profileController,
+            onProfileConnectRequested = { pendingProfileConnectGid = it },
             content = content,
             admin = admin,
             uiState = uiState,

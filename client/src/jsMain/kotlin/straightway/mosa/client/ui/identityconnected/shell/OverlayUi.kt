@@ -21,8 +21,8 @@ internal fun ChildrenBuilder.connectedShellOverlays(
             val connectProfile = props.profile.onConnect
             onClose = { props.profileController.actions.hideProfile() }
             onConnect = {
+                props.onProfileConnectRequested(props.profile.identityGid)
                 connectProfile()
-                props.profileController.actions.hideProfileWithSuction()
             }
             canDeletePosts = props.profile.canDeletePosts && !props.content.state.isDeletingAllPosts
             onDeletePosts = props.content.actions.deleteAllPosts

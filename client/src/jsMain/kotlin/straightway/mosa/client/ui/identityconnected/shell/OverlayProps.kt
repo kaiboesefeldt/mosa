@@ -12,6 +12,7 @@ internal data class OverlayProps(
     val visualsFactory: IdentityVisualsFactory,
     val adminPresentation: IdentityAdminPresentation,
     val profileController: ProfileController,
+    val onProfileConnectRequested: (String?) -> Unit,
     val content: ContentController,
     val admin: AdminController,
     val uiState: ShellUiState,
