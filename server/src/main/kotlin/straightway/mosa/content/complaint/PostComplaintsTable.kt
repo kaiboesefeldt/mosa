@@ -6,6 +6,7 @@ object PostComplaintsTable : Table("post_complaints") {
     val id = varchar("id", length = 128)
     val postId = varchar("post_id", length = 128)
     val complainantGid = varchar("complainant_gid", length = 128)
+    val postAuthorGid = varchar("post_author_gid", length = 128)
     val reason = text("reason")
     val createdAt = long("created_at")
     val complainantSignature = text("complainant_signature")

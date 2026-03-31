@@ -248,6 +248,25 @@ types:
         - 'AxY0b1p3...'
         - 'R0oTId42'
 
+  DeleteIdentityResult:
+    type: object
+    properties:
+      deletedPostIds:
+        type: string[]
+        description: IDs of deleted posts and replies owned by the authenticated identity
+      deletedComplaintCount:
+        type: integer
+        description: Number of deleted complaint records linked to the authenticated identity
+      deletedAdminMessageCount:
+        type: integer
+        description: Number of deleted admin message records linked to the authenticated identity
+    example:
+      deletedPostIds:
+        - 'AxY0b1p3...'
+        - 'R0oTId42'
+      deletedComplaintCount: 2
+      deletedAdminMessageCount: 1
+
   PostComplaintState:
     type: string
     enum: [ OPEN, CONFIRMED, REJECTED, DELETED ]
@@ -1053,6 +1072,29 @@ securitySchemes:
           body:
             application/json:
               type: DeletePostsResult
+        401:
+          description: Missing or invalid bearer token
+        5xx:
+          description: Server error
+
+  /identity:
+    delete:
+      is: [ rateLimited ]
+      securedBy: [ bearerAuth ]
+      displayName: Delete Identity Data
+      description: |
+        Delete all pod-local data linked to the authenticated identity.
+        This removes:
+        - all posts and replies owned by the authenticated identity
+        - all complaints created by the authenticated identity
+        - all complaints about posts or replies owned by the authenticated identity
+        - all admin messages linked to the authenticated identity
+      responses:
+        200:
+          description: Deleted
+          body:
+            application/json:
+              type: DeleteIdentityResult
         401:
           description: Missing or invalid bearer token
         5xx:

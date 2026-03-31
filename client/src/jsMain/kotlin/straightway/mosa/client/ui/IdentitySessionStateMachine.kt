@@ -22,6 +22,7 @@ class IdentitySessionStateMachine(
     private val transfer: IdentityTransferPort,
     private val postsExport: PostsExportPort,
     private val privacySnapshots: PrivacySnapshotPort,
+    private val deleteIdentityOnPod: suspend () -> Boolean,
     private val protector: IdentityProtector,
     private val passwordPrompter: PasswordPrompter,
     private val textProvider: IdentitySessionTextProvider,
@@ -76,7 +77,22 @@ class IdentitySessionStateMachine(
 
     fun navigateToNext() = navigate("Identity navigation failed") { moveNext() }
 
-    fun deleteIdentity() = navigate("Identity removal failed") { deleteCurrent() }
+    fun deleteIdentity() {
+        runExclusive("Identity removal failed") {
+            if (!isCurrentSelectionConnected) return@runExclusive
+            val deleted = deleteIdentityOnPod()
+            if (!deleted) {
+                errorText = textProvider.deleteError
+                finishRestoring()
+                publishState()
+                return@runExclusive
+            }
+            connectedIdentityGid = null
+            persistSession(profileVisibleOverride = false, preserveConnectedIdentity = false)
+            val selection = repository.deleteCurrent()
+            applySelection(selection)
+        }
+    }
 
     fun select(index: Int) = navigate("Identity navigation failed") { select(index) }
 
@@ -318,7 +334,7 @@ class IdentitySessionStateMachine(
             errorText = errorText,
             statusText = statusText,
             snapshotRefreshVersion = snapshotRefreshVersion,
-            canDelete = currentSelection != null,
+            canDelete = binding.isDisplayedIdentityConnected,
             canDeletePosts = binding.isDisplayedIdentityConnected,
             canExportPosts = binding.isDisplayedIdentityConnected,
             canFreezePosts = binding.isDisplayedIdentityConnected,

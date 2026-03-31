@@ -4,6 +4,8 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -19,6 +21,7 @@ class SqlitePostComplaintStore(
                     statement[id] = record.id
                     statement[postId] = record.postId
                     statement[complainantGid] = record.complainantGid
+                    statement[postAuthorGid] = record.postAuthorGid
                     statement[reason] = record.reason
                     statement[createdAt] = record.createdAt
                     statement[complainantSignature] = record.complainantSignature
@@ -49,6 +52,14 @@ class SqlitePostComplaintStore(
                 .limit(1)
                 .map(::toRecord)
                 .singleOrNull()
+        }
+
+    override suspend fun deleteForIdentity(gid: String): Int =
+        database.execute {
+            PostComplaintsTable.deleteWhere {
+                (complainantGid eq gid) or
+                    (postAuthorGid eq gid)
+            }
         }
 
     override suspend fun loadById(id: String): PostComplaintRecord? =
@@ -122,6 +133,7 @@ class SqlitePostComplaintStore(
             id = row[PostComplaintsTable.id],
             postId = row[PostComplaintsTable.postId],
             complainantGid = row[PostComplaintsTable.complainantGid],
+            postAuthorGid = row[PostComplaintsTable.postAuthorGid],
             reason = row[PostComplaintsTable.reason],
             createdAt = row[PostComplaintsTable.createdAt],
             complainantSignature = row[PostComplaintsTable.complainantSignature],

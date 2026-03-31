@@ -4,6 +4,7 @@ package straightway.mosa.client.ui
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
@@ -175,6 +176,73 @@ class IdentitySessionStateMachineTest {
         advanceUntilIdle()
 
         assertEquals(1, repository.persistCalls)
+    }
+
+    @Test
+    fun `deletes connected identity on pod before removing it locally`() = runMachineTest {
+        val firstIdentity = identity("gid-a")
+        val secondIdentity = identity("gid-b")
+        val repository = FakeIdentitySelectionRepository(firstIdentity, secondIdentity)
+        val store = RecordingIdentitySessionStore()
+        var deleteCalls = 0
+        val machine =
+            createMachine(
+                repository = repository,
+                store = store,
+                deleteIdentityOnPod = {
+                    deleteCalls += 1
+                    true
+                },
+            )
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        machine.deleteIdentity()
+        advanceUntilIdle()
+
+        assertEquals(1, deleteCalls)
+        assertEquals(1, repository.deleteCalls)
+        assertEquals(null, store.snapshot?.connectedIdentityGid)
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Profile)
+        assertEquals(secondIdentity.gid, state.identityGid)
+        assertFalse(state.canDelete)
+    }
+
+    @Test
+    fun `keeps identity when pod deletion fails`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore()
+        var deleteCalls = 0
+        val machine =
+            createMachine(
+                repository = repository,
+                store = store,
+                deleteIdentityOnPod = {
+                    deleteCalls += 1
+                    false
+                },
+            )
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        machine.deleteIdentity()
+        advanceUntilIdle()
+
+        assertEquals(1, deleteCalls)
+        assertEquals(0, repository.deleteCalls)
+        assertEquals(identity.gid, store.snapshot?.connectedIdentityGid)
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Connected)
+        assertEquals(TestIdentitySessionTextProvider.deleteError, state.profile.errorText)
+        assertTrue(state.profile.canDelete)
     }
 
     @Test
@@ -455,6 +523,7 @@ private fun TestScope.createMachine(
     transfer: IdentityTransferPort = NoopIdentityTransferPort,
     postsExport: PostsExportPort = NoopPostsExportPort,
     privacySnapshots: PrivacySnapshotPort = NoopPrivacySnapshotPort,
+    deleteIdentityOnPod: suspend () -> Boolean = { true },
     protector: IdentityProtector = StubProtector(identity("imported")),
     passwordPrompter: PasswordPrompter = StaticPasswordPrompter("pw"),
 ): IdentitySessionStateMachine =
@@ -463,6 +532,7 @@ private fun TestScope.createMachine(
         transfer = transfer,
         postsExport = postsExport,
         privacySnapshots = privacySnapshots,
+        deleteIdentityOnPod = deleteIdentityOnPod,
         protector = protector,
         passwordPrompter = passwordPrompter,
         textProvider = TestIdentitySessionTextProvider,
@@ -511,6 +581,7 @@ private class FakeIdentitySelectionRepository(
     private val identities = mutableListOf(first).apply { second?.let { add(it) } }
     private var index = 0
     var persistCalls = 0
+    var deleteCalls = 0
 
     override suspend fun loadOrCreate(): IdentitySelection =
         currentSelection()
@@ -527,6 +598,7 @@ private class FakeIdentitySelectionRepository(
     }
 
     override suspend fun deleteCurrent(): IdentitySelection {
+        deleteCalls += 1
         identities.removeAt(index.coerceIn(identities.indices))
         index = index.coerceAtMost(identities.lastIndex)
         return currentSelection()
@@ -566,6 +638,7 @@ private object TestIdentitySessionTextProvider : IdentitySessionTextProvider {
     override val invalidIdentity: String = "invalid"
     override val exportInProgress: String = "exporting"
     override val exportError: String = "export error"
+    override val deleteError: String = "delete error"
     override val freezeInProgress: String = "freezing"
     override val freezeSuccess: String = "freeze success"
     override val freezeError: String = "freeze error"

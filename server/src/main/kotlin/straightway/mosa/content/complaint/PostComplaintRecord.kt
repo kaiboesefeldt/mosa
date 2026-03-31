@@ -4,6 +4,7 @@ data class PostComplaintRecord(
     val id: String,
     val postId: String,
     val complainantGid: String,
+    val postAuthorGid: String,
     val reason: String,
     val createdAt: Long,
     val complainantSignature: String,

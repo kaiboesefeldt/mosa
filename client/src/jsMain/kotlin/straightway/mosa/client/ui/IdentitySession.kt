@@ -13,6 +13,7 @@ import react.useState
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.content.PostsExportPort
 import straightway.mosa.client.content.PrivacySnapshotPort
+import straightway.mosa.client.content.IdentityDeletionService
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.identity.IdentityTransferPort
@@ -80,6 +81,7 @@ fun useIdentitySession(): IdentityScreen {
     val transfer = ClientInjector.get<IdentityTransferPort>()
     val postsExport = ClientInjector.get<PostsExportPort>()
     val privacySnapshots = ClientInjector.get<PrivacySnapshotPort>()
+    val identityDeletionService = ClientInjector.get<IdentityDeletionService>()
     val protector = ClientInjector.get<IdentityProtector>()
     val passwordPrompter = ClientInjector.get<PasswordPrompter>()
     val avatarGenerator = ClientInjector.get<DiceBearAvatarGenerator>()
@@ -96,13 +98,14 @@ fun useIdentitySession(): IdentityScreen {
     val logger = useMemo(*noDependencies) { ClientInjector.get<Logger>() }
     val sessionStore = useMemo(*noDependencies) { ClientInjector.get<IdentitySessionStore>() }
     val machine =
-        useMemo(repository, transfer, postsExport, privacySnapshots, protector, passwordPrompter, visualsFactory, logger, textProvider, sessionStore) {
+        useMemo(repository, transfer, postsExport, privacySnapshots, protector, passwordPrompter, visualsFactory, logger, textProvider, identityDeletionService, sessionStore) {
             identitySessionStateMachineFactory(
                 IdentitySessionMachineConfig(
                     repository = repository,
                     transfer = transfer,
                     postsExport = postsExport,
                     privacySnapshots = privacySnapshots,
+                    deleteIdentityOnPod = { identityDeletionService.deleteCurrentIdentity() != null },
                     protector = protector,
                     passwordPrompter = passwordPrompter,
                     textProvider = textProvider,
@@ -194,6 +197,7 @@ internal data class IdentitySessionMachineConfig(
     val transfer: IdentityTransferPort,
     val postsExport: PostsExportPort,
     val privacySnapshots: PrivacySnapshotPort,
+    val deleteIdentityOnPod: suspend () -> Boolean,
     val protector: IdentityProtector,
     val passwordPrompter: PasswordPrompter,
     val textProvider: IdentitySessionTextProvider,
@@ -212,6 +216,7 @@ internal var identitySessionStateMachineFactory: IdentitySessionStateMachineFact
             transfer = config.transfer,
             postsExport = config.postsExport,
             privacySnapshots = config.privacySnapshots,
+            deleteIdentityOnPod = config.deleteIdentityOnPod,
             protector = config.protector,
             passwordPrompter = config.passwordPrompter,
             textProvider = config.textProvider,

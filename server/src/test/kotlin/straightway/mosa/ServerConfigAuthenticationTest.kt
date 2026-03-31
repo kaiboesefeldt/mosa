@@ -2,6 +2,7 @@ package straightway.mosa
 
 import com.auth0.jwt.interfaces.Claim
 import com.auth0.jwt.interfaces.DecodedJWT
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
@@ -10,6 +11,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.response.respondText
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
@@ -161,6 +163,52 @@ class ServerConfigAuthenticationTest {
 
             assertEquals(HttpStatusCode.Forbidden, response.status)
             assertEquals("""{"message":"Identity blocked"}""", response.bodyAsText())
+        }
+    }
+
+    @Test
+    fun `allows blocked gid to delete own identity`() {
+        val tokenUtil = mockk<TokenUtil>()
+        val decodedJwt = mockk<DecodedJWT>()
+        val certClaim = mockk<Claim>()
+        val pubClaim = mockk<Claim>()
+        val blockedGid = "blocked-user"
+
+        every { tokenUtil.decode("valid") } returns decodedJwt
+        every { tokenUtil.isValidMisJwt(decodedJwt) } returns true
+        every { decodedJwt.claims } returns mapOf("cert" to certClaim, "pub" to pubClaim)
+        every { certClaim.asMap() } returns mapOf("gid" to blockedGid, "exp" to 1, "sig" to "sig")
+        every { pubClaim.asString() } returns "public-key"
+
+        val identityBlockList =
+            identityBlockListFromYaml(
+                """
+                blockedGids:
+                  - "$blockedGid"
+                """.trimIndent(),
+            )
+
+        testApplication {
+            application {
+                installTestNetworkServerPlugins(tokenUtil = tokenUtil, clientIpResolver = trustedProxyResolver)
+                routing {
+                    install(createMosaAuthenticatedIdentityBlockListPlugin(identityBlockList))
+                    authenticate {
+                        delete("/v1/identity") {
+                            call.respondText("deleted")
+                        }
+                    }
+                }
+            }
+
+            val response =
+                client.delete("/v1/identity") {
+                    header(HttpHeaders.Authorization, "Bearer valid")
+                    header(HttpHeaders.XForwardedProto, "https")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals("deleted", response.bodyAsText())
         }
     }
 

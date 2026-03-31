@@ -23,6 +23,7 @@ class SqlitePostComplaintStoreTest {
                         id = "complaint-1",
                         postId = "post-1",
                         complainantGid = "gid-1",
+                        postAuthorGid = "author-1",
                         reason = "Spam",
                         createdAt = 100,
                         complainantSignature = "sig-1",
@@ -56,6 +57,7 @@ class SqlitePostComplaintStoreTest {
                         id = "complaint-1",
                         postId = "post-1",
                         complainantGid = "gid-1",
+                        postAuthorGid = "author-1",
                         reason = "Spam",
                         createdAt = 100,
                         complainantSignature = "sig-1",
@@ -70,6 +72,7 @@ class SqlitePostComplaintStoreTest {
                             id = "complaint-2",
                             postId = "post-1",
                             complainantGid = "gid-2",
+                            postAuthorGid = "author-1",
                             reason = "Abuse",
                             createdAt = 101,
                             complainantSignature = "sig-2",
@@ -100,6 +103,7 @@ class SqlitePostComplaintStoreTest {
                         id = "complaint-1",
                         postId = "post-1",
                         complainantGid = "gid-1",
+                        postAuthorGid = "author-1",
                         reason = "Spam",
                         createdAt = 100,
                         complainantSignature = "sig-1",
@@ -112,6 +116,7 @@ class SqlitePostComplaintStoreTest {
                         id = "complaint-2",
                         postId = "post-2",
                         complainantGid = "gid-2",
+                        postAuthorGid = "author-2",
                         reason = "Abuse",
                         createdAt = 101,
                         complainantSignature = "sig-2",
@@ -143,6 +148,7 @@ class SqlitePostComplaintStoreTest {
                         id = "complaint-3",
                         postId = "post-1",
                         complainantGid = "gid-3",
+                        postAuthorGid = "author-1",
                         reason = "Still bad",
                         createdAt = 102,
                         complainantSignature = "sig-3",
@@ -179,6 +185,7 @@ class SqlitePostComplaintStoreTest {
                         id = "complaint-1",
                         postId = "post-1",
                         complainantGid = "gid-1",
+                        postAuthorGid = "author-1",
                         reason = "Spam",
                         createdAt = 100,
                         complainantSignature = "sig-1",
@@ -219,6 +226,70 @@ class SqlitePostComplaintStoreTest {
                     sut.loadPage(limit = 10, offset = 0, includeProcessed = true).map(PostComplaintRecord::id),
                 )
                 assertEquals(PostComplaintState.CONFIRMED, sut.loadById("complaint-1")?.state)
+            } finally {
+                Files.deleteIfExists(path)
+                Files.deleteIfExists(directory)
+            }
+        }
+
+    @Test
+    fun `deleteForIdentity removes complaints by complainant or post author gid`() =
+        runTest {
+            val directory = Files.createTempDirectory("sqlite-post-complaint-store")
+            val path = directory.resolve("mosa_db.sqlite")
+
+            try {
+                val database = StructuredStateDatabase(path)
+                database.initialize(PostComplaintsTable)
+                val sut = SqlitePostComplaintStore(database)
+
+                sut.appendOpen(
+                    PostComplaintRecord(
+                        id = "complaint-1",
+                        postId = "post-1",
+                        complainantGid = "target-gid",
+                        postAuthorGid = "author-1",
+                        reason = "Own complaint",
+                        createdAt = 100,
+                        complainantSignature = "sig-1",
+                        complainantSignatureVersion = 1,
+                        state = PostComplaintState.OPEN,
+                    ),
+                )
+                sut.appendOpen(
+                    PostComplaintRecord(
+                        id = "complaint-2",
+                        postId = "post-2",
+                        complainantGid = "other-gid",
+                        postAuthorGid = "target-gid",
+                        reason = "Complaint on target author",
+                        createdAt = 101,
+                        complainantSignature = "sig-2",
+                        complainantSignatureVersion = 1,
+                        state = PostComplaintState.OPEN,
+                    ),
+                )
+                sut.appendOpen(
+                    PostComplaintRecord(
+                        id = "complaint-3",
+                        postId = "post-3",
+                        complainantGid = "other-gid",
+                        postAuthorGid = "author-3",
+                        reason = "Unaffected",
+                        createdAt = 102,
+                        complainantSignature = "sig-3",
+                        complainantSignatureVersion = 1,
+                        state = PostComplaintState.OPEN,
+                    ),
+                )
+
+                val deletedCount = sut.deleteForIdentity("target-gid")
+
+                assertEquals(2, deletedCount)
+                assertEquals(
+                    listOf("complaint-3"),
+                    sut.loadPage(limit = 10, offset = 0, includeProcessed = true).map(PostComplaintRecord::id),
+                )
             } finally {
                 Files.deleteIfExists(path)
                 Files.deleteIfExists(directory)

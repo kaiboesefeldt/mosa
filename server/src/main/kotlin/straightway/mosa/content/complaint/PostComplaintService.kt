@@ -59,6 +59,7 @@ class PostComplaintService(
                 id = idFactory(),
                 postId = post.id,
                 complainantGid = complainantGid,
+                postAuthorGid = post.authorGID,
                 reason = request.reason.trim(),
                 createdAt = clock.instant().epochSecond,
                 complainantSignature = request.signature,

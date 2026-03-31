@@ -3,6 +3,8 @@ package straightway.mosa.content.complaint
 interface PostComplaintStore {
     suspend fun appendOpen(record: PostComplaintRecord)
 
+    suspend fun deleteForIdentity(gid: String): Int
+
     suspend fun loadLatestForPost(postId: String): PostComplaintRecord?
 
     suspend fun loadById(id: String): PostComplaintRecord?

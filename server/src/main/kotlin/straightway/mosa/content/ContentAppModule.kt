@@ -93,6 +93,7 @@ fun Module.configureContentAppModule() {
     }
     single<PostComplaintStore> { SqlitePostComplaintStore(get()) }
     single<AdminMessageStore> { SqliteAdminMessageStore(get()) }
+    single { IdentityDeletionService(get(), get(), get()) }
     single {
         val admins = get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
         AdminMessageService(
@@ -130,6 +131,7 @@ fun Module.configureContentAppModule() {
     single { ContentSignatureVerifier(get(), get(), get()) }
     single { PostComplaintSignatureVerifier(get(), get(), get()) }
     single { ContentController(get(), get(), get()) } bind BaseController::class
+    single { IdentityDeletionController(get()) } bind BaseController::class
     single { PostComplaintController(get(), get()) } bind BaseController::class
     single { PrivacySnapshotController(get(), get(), get()) } bind BaseController::class
     single { AdminMessageController(get()) } bind BaseController::class

@@ -2,6 +2,7 @@ package straightway.mosa.content.complaint
 
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
@@ -17,13 +18,20 @@ import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.content.ContentSignatureVerifier
 import straightway.mosa.content.ControllerHttpTestEnvironment
+import straightway.mosa.content.DeleteIdentityResult
+import straightway.mosa.content.FetchRequest
+import straightway.mosa.content.FetchResult
+import straightway.mosa.content.IdentityDeletionController
+import straightway.mosa.content.IdentityDeletionService
 import straightway.mosa.content.PublishRequest
+import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.StructuredStateDatabase
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.crypto.toBase64
 import straightway.mosa.message.AdminMessageController
 import straightway.mosa.message.AdminMessageListResult
 import straightway.mosa.message.AdminMessageService
+import straightway.mosa.message.AdminMessageStore
 import straightway.mosa.message.AdminMessagesTable
 import straightway.mosa.message.SqliteAdminMessageStore
 import straightway.mosa.testutils.setJsonBody
@@ -519,11 +527,281 @@ class PostComplaintIntegrationTest {
             }
         }
 
+    @Test
+    fun `identity deletion removes linked moderation data and keeps unrelated data reachable`() =
+        runTest {
+            withFixture { fixture ->
+                val admin = fixture.identity()
+                val deletedIdentity = fixture.identity()
+                val otherIdentity = fixture.identity()
+                val unaffectedIdentity = fixture.identity()
+                fixture.adminGids += admin.gid
+                val targetPostId = fixture.publishPost(otherIdentity.gid, "Target post", 1, otherIdentity.keyPair.public.toBase64())
+                val deletedRootId =
+                    fixture.publishPost(
+                        deletedIdentity.gid,
+                        "Deleted root",
+                        2,
+                        deletedIdentity.keyPair.public.toBase64(),
+                    )
+                val deletedReplyId =
+                    fixture.contentService.reply(
+                        deletedIdentity.gid,
+                        ReplyRequest(
+                            rootId = targetPostId,
+                            content = PublishRequest("Deleted reply"),
+                        ),
+                        3,
+                        deletedIdentity.keyPair.public.toBase64(),
+                    )
+                val unaffectedPostId =
+                    fixture.publishPost(
+                        unaffectedIdentity.gid,
+                        "Unaffected post",
+                        4,
+                        unaffectedIdentity.keyPair.public.toBase64(),
+                    )
+                fixture.createComplaint(deletedIdentity, targetPostId, "Own complaint")
+                fixture.clock.advanceSeconds(1)
+                fixture.createComplaint(otherIdentity, deletedRootId, "Complaint on deleted identity")
+                fixture.clock.advanceSeconds(1)
+                fixture.createComplaint(otherIdentity, unaffectedPostId, "Unaffected complaint")
+                fixture.adminMessageService.send(
+                    senderGid = admin.gid,
+                    request = straightway.mosa.message.CreateAdminMessageRequest(deletedIdentity.gid, "Deleted identity", "Body"),
+                )
+                fixture.adminMessageService.send(
+                    senderGid = admin.gid,
+                    request = straightway.mosa.message.CreateAdminMessageRequest(otherIdentity.gid, "Unaffected identity", "Body"),
+                )
+
+                fixture.env {
+                    val deleteResponse =
+                        client.delete("/v1/identity") {
+                            bearerAuth(deletedIdentity.token)
+                        }
+
+                    assertEquals(HttpStatusCode.OK, deleteResponse.status)
+                    val deleteResult = deleteResponse.body<DeleteIdentityResult>()
+                    assertEquals(setOf(deletedRootId, deletedReplyId), deleteResult.deletedPostIds.toSet())
+                    assertEquals(2, deleteResult.deletedComplaintCount)
+                    assertEquals(1, deleteResult.deletedAdminMessageCount)
+
+                    val fetchResponse =
+                        client.post("/v1/fetch") {
+                            bearerAuth(admin.token)
+                            setJsonBody(FetchRequest(listOf(deletedRootId, deletedReplyId, targetPostId, unaffectedPostId)))
+                        }
+                    assertEquals(
+                        FetchResult(
+                            entries =
+                                listOf(
+                                    FetchResult.Entry(
+                                        id = targetPostId,
+                                        content = "Target post",
+                                        authorGID = otherIdentity.gid,
+                                        storedAt = 1,
+                                        rootId = null,
+                                        authorPublicKey = otherIdentity.keyPair.public.toBase64(),
+                                    ),
+                                    FetchResult.Entry(
+                                        id = unaffectedPostId,
+                                        content = "Unaffected post",
+                                        authorGID = unaffectedIdentity.gid,
+                                        storedAt = 4,
+                                        rootId = null,
+                                        authorPublicKey = unaffectedIdentity.keyPair.public.toBase64(),
+                                    ),
+                                ),
+                        ),
+                        fetchResponse.body(),
+                    )
+
+                    val complaintCountResponse =
+                        client.get("/v1/admin/post-complaints/count") {
+                            bearerAuth(admin.token)
+                        }
+                    assertEquals(OpenPostComplaintCountResult(1), complaintCountResponse.body())
+
+                    val complaintListResponse =
+                        client.get("/v1/admin/post-complaints") {
+                            bearerAuth(admin.token)
+                        }
+                    assertEquals(
+                        OpenPostComplaintsResult(
+                            entries =
+                                listOf(
+                                    OpenPostComplaint(
+                                        complaintId = "complaint-3",
+                                        postId = unaffectedPostId,
+                                        postText = "Unaffected post",
+                                        postAuthorGid = unaffectedIdentity.gid,
+                                        postCreatedAt = 4,
+                                        complainantGid = otherIdentity.gid,
+                                        reason = "Unaffected complaint",
+                                        createdAt = fixture.initialEpochSeconds + 2,
+                                    ),
+                                ),
+                            page = 1,
+                            hasMore = false,
+                        ),
+                        complaintListResponse.body(),
+                    )
+
+                    val deletedInboxResponse =
+                        client.get("/v1/messages") {
+                            bearerAuth(deletedIdentity.token)
+                        }
+                    assertEquals(AdminMessageListResult(emptyList(), page = 1, hasMore = false), deletedInboxResponse.body())
+
+                    val unaffectedInboxResponse =
+                        client.get("/v1/messages") {
+                            bearerAuth(otherIdentity.token)
+                        }
+                    assertEquals(1, unaffectedInboxResponse.body<AdminMessageListResult>().entries.size)
+                }
+            }
+        }
+
+    @Test
+    fun `identity deletion restores content when moderation cleanup fails`() =
+        runTest {
+            withFixture(
+                identityDeletionServiceFactory = { contentService, postComplaintStore, adminMessageStore ->
+                    IdentityDeletionService(
+                        contentService = contentService,
+                        postComplaintStore =
+                            object : PostComplaintStore by postComplaintStore {
+                                override suspend fun deleteForIdentity(gid: String): Int =
+                                    throw IllegalStateException("complaint cleanup failed")
+                            },
+                        adminMessageStore = adminMessageStore,
+                    )
+                },
+            ) { fixture ->
+                val deletedIdentity = fixture.identity()
+                val otherIdentity = fixture.identity()
+                val targetPostId = fixture.publishPost(otherIdentity.gid, "Target post", 1, otherIdentity.keyPair.public.toBase64())
+                val deletedRootId =
+                    fixture.publishPost(
+                        deletedIdentity.gid,
+                        "Deleted root",
+                        2,
+                        deletedIdentity.keyPair.public.toBase64(),
+                    )
+                val foreignReplyId =
+                    fixture.contentService.reply(
+                        otherIdentity.gid,
+                        ReplyRequest(
+                            rootId = deletedRootId,
+                            content = PublishRequest("Foreign reply"),
+                        ),
+                        3,
+                        otherIdentity.keyPair.public.toBase64(),
+                    )
+
+                fixture.env {
+                    val deleteResponse =
+                        client.delete("/v1/identity") {
+                            bearerAuth(deletedIdentity.token)
+                        }
+
+                    assertEquals(HttpStatusCode.InternalServerError, deleteResponse.status)
+
+                    val fetchResponse =
+                        client.post("/v1/fetch") {
+                            bearerAuth(otherIdentity.token)
+                            setJsonBody(FetchRequest(listOf(deletedRootId, foreignReplyId, targetPostId)))
+                        }
+
+                    assertEquals(
+                        FetchResult(
+                            entries =
+                                listOf(
+                                    FetchResult.Entry(
+                                        id = deletedRootId,
+                                        content = "Deleted root",
+                                        authorGID = deletedIdentity.gid,
+                                        storedAt = 2,
+                                        rootId = null,
+                                        authorPublicKey = deletedIdentity.keyPair.public.toBase64(),
+                                    ),
+                                    FetchResult.Entry(
+                                        id = foreignReplyId,
+                                        content = "Foreign reply",
+                                        authorGID = otherIdentity.gid,
+                                        storedAt = 3,
+                                        rootId = deletedRootId,
+                                        authorPublicKey = otherIdentity.keyPair.public.toBase64(),
+                                    ),
+                                    FetchResult.Entry(
+                                        id = targetPostId,
+                                        content = "Target post",
+                                        authorGID = otherIdentity.gid,
+                                        storedAt = 1,
+                                        rootId = null,
+                                        authorPublicKey = otherIdentity.keyPair.public.toBase64(),
+                                    ),
+                                ),
+                        ),
+                        fetchResponse.body(),
+                    )
+                }
+            }
+        }
+
+    @Test
+    fun `identity deletion removes admin messages sent by deleted identity`() =
+        runTest {
+            withFixture { fixture ->
+                val deletedIdentity = fixture.identity()
+                val recipient = fixture.identity()
+                val unaffectedAdmin = fixture.identity()
+                val unaffectedRecipient = fixture.identity()
+                fixture.adminGids += deletedIdentity.gid
+                fixture.adminGids += unaffectedAdmin.gid
+                fixture.adminMessageService.send(
+                    senderGid = deletedIdentity.gid,
+                    request = straightway.mosa.message.CreateAdminMessageRequest(recipient.gid, "Deleted sender", "Body"),
+                )
+                fixture.adminMessageService.send(
+                    senderGid = unaffectedAdmin.gid,
+                    request = straightway.mosa.message.CreateAdminMessageRequest(unaffectedRecipient.gid, "Unaffected sender", "Body"),
+                )
+
+                fixture.env {
+                    val deleteResponse =
+                        client.delete("/v1/identity") {
+                            bearerAuth(deletedIdentity.token)
+                        }
+
+                    assertEquals(HttpStatusCode.OK, deleteResponse.status)
+                    assertEquals(1, deleteResponse.body<DeleteIdentityResult>().deletedAdminMessageCount)
+
+                    val affectedInboxResponse =
+                        client.get("/v1/messages") {
+                            bearerAuth(recipient.token)
+                        }
+                    assertEquals(AdminMessageListResult(emptyList(), page = 1, hasMore = false), affectedInboxResponse.body())
+
+                    val unaffectedInboxResponse =
+                        client.get("/v1/messages") {
+                            bearerAuth(unaffectedRecipient.token)
+                        }
+                    assertEquals(1, unaffectedInboxResponse.body<AdminMessageListResult>().entries.size)
+                }
+            }
+        }
+
     private suspend fun withFixture(
         openPageSize: Int = 10,
+        identityDeletionServiceFactory: (ContentService, PostComplaintStore, AdminMessageStore) -> IdentityDeletionService =
+            { contentService, postComplaintStore, adminMessageStore ->
+                IdentityDeletionService(contentService, postComplaintStore, adminMessageStore)
+            },
         block: suspend (ComplaintIntegrationFixture) -> Unit,
     ) {
-        val fixture = ComplaintIntegrationFixture(openPageSize)
+        val fixture = ComplaintIntegrationFixture(openPageSize, identityDeletionServiceFactory)
         try {
             block(fixture)
         } finally {
@@ -533,6 +811,7 @@ class PostComplaintIntegrationTest {
 
     private class ComplaintIntegrationFixture(
         openPageSize: Int,
+        identityDeletionServiceFactory: (ContentService, PostComplaintStore, AdminMessageStore) -> IdentityDeletionService,
     ) {
         val initialEpochSeconds = 1_773_742_530L
         val clock = MutableClock(Instant.ofEpochSecond(initialEpochSeconds))
@@ -560,7 +839,7 @@ class PostComplaintIntegrationTest {
                 maxFetchItems = 100,
                 isAdmin = { gid -> adminGids.contains(gid) },
             )
-        private val adminMessageService =
+        val adminMessageService =
             AdminMessageService(
                 store = SqliteAdminMessageStore(database),
                 clock = clock,
@@ -573,15 +852,23 @@ class PostComplaintIntegrationTest {
             )
         private var nextAdminMessageId = 1
         private val complaintIds = ArrayDeque(listOf("complaint-1", "complaint-2", "complaint-3", "complaint-4"))
+        private val postComplaintStore = SqlitePostComplaintStore(database)
+        private val adminMessageStore = SqliteAdminMessageStore(database)
         private val postComplaintService =
             PostComplaintService(
-                store = SqlitePostComplaintStore(database),
+                store = postComplaintStore,
                 contentService = contentService,
                 adminMessageService = adminMessageService,
                 clock = clock,
                 isAdmin = { gid -> adminGids.contains(gid) },
                 idFactory = { complaintIds.removeFirst() },
                 openPageSize = openPageSize,
+            )
+        private val identityDeletionService =
+            identityDeletionServiceFactory(
+                contentService,
+                postComplaintStore,
+                adminMessageStore,
             )
         val env =
             ControllerHttpTestEnvironment(
@@ -605,6 +892,7 @@ class PostComplaintIntegrationTest {
                                 signatureVerifierProvider = signatureVerifierProvider,
                             ),
                     ),
+                    IdentityDeletionController(identityDeletionService),
                     AdminMessageController(adminMessageService),
                 ),
             )

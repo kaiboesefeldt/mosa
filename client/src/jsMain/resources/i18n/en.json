@@ -35,6 +35,7 @@
   "identity.posts.delete.cancel": "Cancel",
   "identity.posts.delete.error": "Could not delete the posts. Please try again.",
   "identity.posts.delete.success": "All posts and replies were deleted.",
+  "identity.delete.error": "Could not delete the identity on the pod. Please try again.",
   "identity.snapshot.freeze.title": "Freeze posts now?",
   "identity.snapshot.freeze.body": "A snapshot file will be generated for download. After that, the exported posts and replies are deleted from this pod. Store the file yourself: it can only be restored on the same pod and only until it expires. If you lose the file, the data is lost.",
   "identity.snapshot.freeze.confirm": "Create snapshot and delete",

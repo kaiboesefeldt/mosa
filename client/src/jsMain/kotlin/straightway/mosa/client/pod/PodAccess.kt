@@ -17,6 +17,7 @@ import straightway.mosa.auth.PodCertificateResponse
 import straightway.mosa.content.ContentCapabilitiesResult
 import straightway.mosa.content.complaint.CreatePostComplaintRequest
 import straightway.mosa.content.complaint.DecidePostComplaintRequest
+import straightway.mosa.content.DeleteIdentityResult
 import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
@@ -41,6 +42,8 @@ interface PodAccess {
     suspend fun refreshGid(jwt: String): PodCertificateResponse
     suspend fun publish(request: PublishRequest, jwt: String)
     suspend fun reply(request: ReplyRequest, jwt: String)
+    suspend fun deleteIdentity(jwt: String): DeleteIdentityResult =
+        error("Identity deletion endpoint is not implemented for this PodAccess")
     suspend fun deletePosts(jwt: String): DeletePostsResult
     suspend fun deletePost(postId: String, jwt: String): DeletePostsResult
     suspend fun sendAdminMessage(
@@ -159,6 +162,11 @@ class PodAccessImpl(
         val path = "/v1/reply"
         post(path, request, jwt).ensureSuccess(path, request)
     }
+
+    override suspend fun deleteIdentity(jwt: String): DeleteIdentityResult =
+        delete("/v1/identity", jwt)
+            .ensureSuccess("/v1/identity", Unit)
+            .body()
 
     override suspend fun deletePosts(jwt: String): DeletePostsResult {
         val path = "/v1/posts"

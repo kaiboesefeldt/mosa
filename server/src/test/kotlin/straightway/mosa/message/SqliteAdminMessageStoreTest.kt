@@ -213,6 +213,54 @@ class SqliteAdminMessageStoreTest {
         }
 
     @Test
+    fun `deleteForIdentity removes messages by recipient or sender gid`() =
+        runTest {
+            val directory = Files.createTempDirectory("sqlite-admin-message-store")
+            val path = directory.resolve("mosa_db.sqlite")
+
+            try {
+                val database = StructuredStateDatabase(path)
+                database.initialize(AdminMessagesTable)
+                val sut = SqliteAdminMessageStore(database)
+
+                sut.append(AdminMessageRecord("recipient-match", "target-gid", "admin-a", 1, "S1", "B1", 100))
+                sut.append(AdminMessageRecord("sender-match", "recipient-a", "target-gid", 2, "S2", "B2", 100))
+                sut.append(AdminMessageRecord("unaffected", "recipient-b", "admin-b", 3, "S3", "B3", 100))
+
+                val deleted = sut.deleteForIdentity("target-gid")
+
+                assertEquals(2, deleted)
+                assertEquals(
+                    listOf(AdminMessageRecord("unaffected", "recipient-b", "admin-b", 3, "S3", "B3", 90)),
+                    sut.loadVisibleAndShortenExpiry(
+                        recipientGid = "recipient-b",
+                        nowEpochSeconds = 10,
+                        retrievedExpiryUpperBoundEpochSeconds = 90,
+                    ),
+                )
+                assertEquals(
+                    emptyList(),
+                    sut.loadVisibleAndShortenExpiry(
+                        recipientGid = "target-gid",
+                        nowEpochSeconds = 10,
+                        retrievedExpiryUpperBoundEpochSeconds = 90,
+                    ),
+                )
+                assertEquals(
+                    emptyList(),
+                    sut.loadVisibleAndShortenExpiry(
+                        recipientGid = "recipient-a",
+                        nowEpochSeconds = 10,
+                        retrievedExpiryUpperBoundEpochSeconds = 90,
+                    ),
+                )
+            } finally {
+                Files.deleteIfExists(path)
+                Files.deleteIfExists(directory)
+            }
+        }
+
+    @Test
     fun `legacy json file is ignored`() =
         runTest {
             val directory = Files.createTempDirectory("sqlite-admin-message-store")
