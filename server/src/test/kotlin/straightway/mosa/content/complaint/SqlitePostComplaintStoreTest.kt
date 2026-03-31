@@ -295,4 +295,43 @@ class SqlitePostComplaintStoreTest {
                 Files.deleteIfExists(directory)
             }
         }
+
+    @Test
+    fun `appendOpen rolls back with outer database transaction`() =
+        runTest {
+            val directory = Files.createTempDirectory("sqlite-post-complaint-store")
+            val path = directory.resolve("mosa_db.sqlite")
+
+            try {
+                val database = StructuredStateDatabase(path)
+                database.initialize(PostComplaintsTable)
+
+                assertFailsWith<IllegalStateException> {
+                    database.inTransaction { context ->
+                        val sut = SqlitePostComplaintStore(context)
+                        sut.appendOpen(
+                            PostComplaintRecord(
+                                id = "complaint-1",
+                                postId = "post-1",
+                                complainantGid = "gid-1",
+                                postAuthorGid = "author-1",
+                                reason = "Spam",
+                                createdAt = 100,
+                                complainantSignature = "sig-1",
+                                complainantSignatureVersion = 1,
+                                state = PostComplaintState.OPEN,
+                            ),
+                        )
+                        throw IllegalStateException("boom")
+                    }
+                }
+
+                val persisted = SqlitePostComplaintStore(database).loadPage(limit = 10, offset = 0, includeProcessed = true)
+
+                assertEquals(emptyList(), persisted)
+            } finally {
+                Files.deleteIfExists(path)
+                Files.deleteIfExists(directory)
+            }
+        }
 }

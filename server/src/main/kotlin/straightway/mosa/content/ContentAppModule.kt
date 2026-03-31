@@ -14,6 +14,7 @@ import straightway.mosa.content.complaint.PostComplaintController
 import straightway.mosa.content.complaint.PostComplaintService
 import straightway.mosa.content.complaint.PostComplaintSignatureVerifier
 import straightway.mosa.content.complaint.PostComplaintStore
+import straightway.mosa.content.complaint.PostComplaintStoreFactory
 import straightway.mosa.content.complaint.PostComplaintsTable
 import straightway.mosa.content.complaint.SqlitePostComplaintStore
 import straightway.mosa.content.snapshot.FileBackedFreezeSnapshotArchiveKeyStore
@@ -34,6 +35,7 @@ import straightway.mosa.message.AdminMessageCleanupJob
 import straightway.mosa.message.AdminMessageController
 import straightway.mosa.message.AdminMessageService
 import straightway.mosa.message.AdminMessageStore
+import straightway.mosa.message.AdminMessageStoreFactory
 import straightway.mosa.message.AdminMessagesTable
 import straightway.mosa.message.SqliteAdminMessageStore
 import java.nio.file.Path
@@ -90,10 +92,12 @@ fun Module.configureContentAppModule() {
         StructuredStateDatabase(defaultStructuredStateDatabasePath()).also {
             it.initialize(AdminMessagesTable, PostComplaintsTable)
         }
-    }
-    single<PostComplaintStore> { SqlitePostComplaintStore(get()) }
-    single<AdminMessageStore> { SqliteAdminMessageStore(get()) }
-    single { IdentityDeletionService(get(), get(), get()) }
+    } bind StructuredStateContext::class
+    single<PostComplaintStoreFactory> { PostComplaintStoreFactory { context -> SqlitePostComplaintStore(context) } }
+    single<AdminMessageStoreFactory> { AdminMessageStoreFactory { context -> SqliteAdminMessageStore(context) } }
+    single<PostComplaintStore> { get<PostComplaintStoreFactory>().create(get<StructuredStateDatabase>()) }
+    single<AdminMessageStore> { get<AdminMessageStoreFactory>().create(get<StructuredStateDatabase>()) }
+    single { IdentityDeletionService(get(), get(), get(), get()) }
     single {
         val admins = get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
         AdminMessageService(

@@ -11,13 +11,13 @@ import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
-import straightway.mosa.content.StructuredStateDatabase
+import straightway.mosa.content.StructuredStateContext
 
 class SqliteAdminMessageStore(
-    private val database: StructuredStateDatabase,
+    private val context: StructuredStateContext,
 ) : AdminMessageStore {
-    override suspend fun append(record: AdminMessageRecord) {
-        database.execute {
+    override fun append(record: AdminMessageRecord) {
+        context.execute {
             AdminMessagesTable.insert { statement ->
                 statement[id] = record.id
                 statement[recipientGid] = record.recipientGid
@@ -30,26 +30,26 @@ class SqliteAdminMessageStore(
         }
     }
 
-    override suspend fun deleteExpired(nowEpochSeconds: Long): Int =
-        database.execute {
+    override fun deleteExpired(nowEpochSeconds: Long): Int =
+        context.execute {
             AdminMessagesTable.deleteWhere {
                 expiresAt lessEq nowEpochSeconds
             }
         }
 
-    override suspend fun deleteForIdentity(gid: String): Int =
-        database.execute {
+    override fun deleteForIdentity(gid: String): Int =
+        context.execute {
             AdminMessagesTable.deleteWhere {
                 (recipientGid eq gid) or
                     (senderGid eq gid)
             }
         }
 
-    override suspend fun loadVisibleForRecipient(
+    override fun loadVisibleForRecipient(
         recipientGid: String,
         nowEpochSeconds: Long,
     ): List<AdminMessageRecord> =
-        database.execute {
+        context.execute {
             AdminMessagesTable.deleteWhere {
                 expiresAt lessEq nowEpochSeconds
             }
@@ -61,13 +61,13 @@ class SqliteAdminMessageStore(
                 }.map(::toRecord)
         }
 
-    override suspend fun loadVisibleAndShortenExpiry(
+    override fun loadVisibleAndShortenExpiry(
         recipientGid: String,
         nowEpochSeconds: Long,
         retrievedExpiryUpperBoundEpochSeconds: Long,
         fromTime: Long,
     ): List<AdminMessageRecord> =
-        database.execute {
+        context.execute {
             AdminMessagesTable.deleteWhere {
                 expiresAt lessEq nowEpochSeconds
             }

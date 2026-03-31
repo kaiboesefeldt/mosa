@@ -1,23 +1,23 @@
 package straightway.mosa.content.complaint
 
 interface PostComplaintStore {
-    suspend fun appendOpen(record: PostComplaintRecord)
+    fun appendOpen(record: PostComplaintRecord)
 
-    suspend fun deleteForIdentity(gid: String): Int
+    fun deleteForIdentity(gid: String): Int
 
-    suspend fun loadLatestForPost(postId: String): PostComplaintRecord?
+    fun loadLatestForPost(postId: String): PostComplaintRecord?
 
-    suspend fun loadById(id: String): PostComplaintRecord?
+    fun loadById(id: String): PostComplaintRecord?
 
-    suspend fun countOpen(): Int
+    fun countOpen(): Int
 
-    suspend fun loadPage(
+    fun loadPage(
         limit: Int,
         offset: Int,
         includeProcessed: Boolean,
     ): List<PostComplaintRecord>
 
-    suspend fun decide(
+    fun decide(
         complaintId: String,
         expectedState: PostComplaintState,
         state: PostComplaintState,

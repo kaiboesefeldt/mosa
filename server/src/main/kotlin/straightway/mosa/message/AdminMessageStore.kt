@@ -1,18 +1,18 @@
 package straightway.mosa.message
 
 interface AdminMessageStore {
-    suspend fun append(record: AdminMessageRecord)
+    fun append(record: AdminMessageRecord)
 
-    suspend fun deleteForIdentity(gid: String): Int
+    fun deleteForIdentity(gid: String): Int
 
-    suspend fun deleteExpired(nowEpochSeconds: Long): Int
+    fun deleteExpired(nowEpochSeconds: Long): Int
 
-    suspend fun loadVisibleForRecipient(
+    fun loadVisibleForRecipient(
         recipientGid: String,
         nowEpochSeconds: Long,
     ): List<AdminMessageRecord>
 
-    suspend fun loadVisibleAndShortenExpiry(
+    fun loadVisibleAndShortenExpiry(
         recipientGid: String,
         nowEpochSeconds: Long,
         retrievedExpiryUpperBoundEpochSeconds: Long,

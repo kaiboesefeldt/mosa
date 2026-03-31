@@ -104,6 +104,8 @@
   - `POST /v1/admin/messages` requires auth and admin rights.
   - `GET /v1/messages` requires auth and only returns the caller's inbox.
   - Storage file defaults to `mosa_db.sqlite` in the server working directory.
+- Structured-state SQLite access is split into a reusable `StructuredStateContext` plus `StructuredStateDatabase.inTransaction { ... }`.
+  Coordinated multi-store SQLite operations should create transaction-bound store instances via Koin factories instead of passing raw Exposed transactions through service APIs.
 - Embeddings/vector storage: ONNX local embeddings + Lucene local vector store.
 - Snapshot workflow: freeze export and restore application services live in `server/src/main/kotlin/straightway/mosa/content/snapshot`.
 - Client assets are copied into server static resources for packaging.

@@ -9,14 +9,14 @@ import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
-import straightway.mosa.content.StructuredStateDatabase
+import straightway.mosa.content.StructuredStateContext
 
 class SqlitePostComplaintStore(
-    private val database: StructuredStateDatabase,
+    private val context: StructuredStateContext,
 ) : PostComplaintStore {
-    override suspend fun appendOpen(record: PostComplaintRecord) {
+    override fun appendOpen(record: PostComplaintRecord) {
         try {
-            database.execute {
+            context.execute {
                 PostComplaintsTable.insert { statement ->
                     statement[id] = record.id
                     statement[postId] = record.postId
@@ -43,8 +43,8 @@ class SqlitePostComplaintStore(
         }
     }
 
-    override suspend fun loadLatestForPost(postId: String): PostComplaintRecord? =
-        database.execute {
+    override fun loadLatestForPost(postId: String): PostComplaintRecord? =
+        context.execute {
             PostComplaintsTable
                 .selectAll()
                 .where { PostComplaintsTable.postId eq postId }
@@ -54,16 +54,16 @@ class SqlitePostComplaintStore(
                 .singleOrNull()
         }
 
-    override suspend fun deleteForIdentity(gid: String): Int =
-        database.execute {
+    override fun deleteForIdentity(gid: String): Int =
+        context.execute {
             PostComplaintsTable.deleteWhere {
                 (complainantGid eq gid) or
                     (postAuthorGid eq gid)
             }
         }
 
-    override suspend fun loadById(id: String): PostComplaintRecord? =
-        database.execute {
+    override fun loadById(id: String): PostComplaintRecord? =
+        context.execute {
             PostComplaintsTable
                 .selectAll()
                 .where { PostComplaintsTable.id eq id }
@@ -72,8 +72,8 @@ class SqlitePostComplaintStore(
                 .singleOrNull()
         }
 
-    override suspend fun countOpen(): Int =
-        database.execute {
+    override fun countOpen(): Int =
+        context.execute {
             PostComplaintsTable
                 .selectAll()
                 .where { PostComplaintsTable.openMarker eq OPEN_MARKER }
@@ -81,12 +81,12 @@ class SqlitePostComplaintStore(
                 .toInt()
         }
 
-    override suspend fun loadPage(
+    override fun loadPage(
         limit: Int,
         offset: Int,
         includeProcessed: Boolean,
     ): List<PostComplaintRecord> =
-        database.execute {
+        context.execute {
             val query = PostComplaintsTable.selectAll()
             val filteredQuery =
                 if (includeProcessed) {
@@ -101,7 +101,7 @@ class SqlitePostComplaintStore(
                 .map(::toRecord)
         }
 
-    override suspend fun decide(
+    override fun decide(
         complaintId: String,
         expectedState: PostComplaintState,
         state: PostComplaintState,
@@ -111,7 +111,7 @@ class SqlitePostComplaintStore(
         adminSignature: String,
         adminSignatureVersion: Int,
     ): Boolean =
-        database.execute {
+        context.execute {
             PostComplaintsTable.update(
                 where = {
                     (PostComplaintsTable.id eq complaintId) and

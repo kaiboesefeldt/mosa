@@ -1,31 +1,26 @@
 package straightway.mosa.content
 
-import straightway.mosa.content.complaint.PostComplaintStore
-import straightway.mosa.message.AdminMessageStore
+import kotlinx.coroutines.runBlocking
+import straightway.mosa.content.complaint.PostComplaintStoreFactory
+import straightway.mosa.message.AdminMessageStoreFactory
 
 class IdentityDeletionService(
     private val contentService: ContentService,
-    private val postComplaintStore: PostComplaintStore,
-    private val adminMessageStore: AdminMessageStore,
+    private val database: StructuredStateDatabase,
+    private val postComplaintStoreFactory: PostComplaintStoreFactory,
+    private val adminMessageStoreFactory: AdminMessageStoreFactory,
 ) {
-    suspend fun deleteIdentity(gid: String): DeleteIdentityResult {
-        val deletedPosts = contentService.loadAllForUser(gid)
-        val deletedPostIds = contentService.deleteAllForUser(gid)
-        return try {
+    fun deleteIdentity(gid: String): DeleteIdentityResult =
+        database.inTransaction { context ->
+            val postComplaintStore = postComplaintStoreFactory.create(context)
+            val adminMessageStore = adminMessageStoreFactory.create(context)
             val deletedComplaintCount = postComplaintStore.deleteForIdentity(gid)
             val deletedAdminMessageCount = adminMessageStore.deleteForIdentity(gid)
+            val deletedPostIds = runBlocking { contentService.deleteAllForUser(gid) }
             DeleteIdentityResult(
                 deletedPostIds = deletedPostIds,
                 deletedComplaintCount = deletedComplaintCount,
                 deletedAdminMessageCount = deletedAdminMessageCount,
             )
-        } catch (error: Throwable) {
-            runCatching {
-                contentService.restore(deletedPosts)
-            }.getOrElse { restoreError ->
-                error.addSuppressed(restoreError)
-            }
-            throw error
         }
-    }
 }

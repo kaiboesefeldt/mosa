@@ -24,7 +24,6 @@ class ContentService(
 ) {
     private val readService = ContentReadService(embeddingService, vectorStore, maxFetchItems)
     private val deleteService = ContentDeleteService(vectorStore, isAdmin)
-    private val restoreService = ContentRestoreService(embeddingService, vectorStore)
     private val csvExportService = ContentCsvExportService(vectorStore)
 
     suspend fun publish(
@@ -77,12 +76,6 @@ class ContentService(
     ): List<String> = deleteService.delete(userGID, id)
 
     suspend fun deleteAllForUser(userGID: String): List<String> = deleteService.deleteAllForUser(userGID)
-
-    suspend fun loadAllForUser(userGID: String): List<VectorStore.PostDump> = deleteService.loadAllForUser(userGID)
-
-    suspend fun restore(posts: List<VectorStore.PostDump>) {
-        restoreService.restore(posts)
-    }
 
     suspend fun contentCapabilities(
         userGID: String,

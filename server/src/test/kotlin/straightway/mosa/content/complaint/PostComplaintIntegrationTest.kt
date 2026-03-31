@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.runTest
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.junit.jupiter.api.Test
 import straightway.mosa.EmbeddingService
+import straightway.mosa.VectorStore
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.content.ContentSignatureVerifier
@@ -31,7 +32,7 @@ import straightway.mosa.crypto.toBase64
 import straightway.mosa.message.AdminMessageController
 import straightway.mosa.message.AdminMessageListResult
 import straightway.mosa.message.AdminMessageService
-import straightway.mosa.message.AdminMessageStore
+import straightway.mosa.message.AdminMessageStoreFactory
 import straightway.mosa.message.AdminMessagesTable
 import straightway.mosa.message.SqliteAdminMessageStore
 import straightway.mosa.testutils.setJsonBody
@@ -664,18 +665,19 @@ class PostComplaintIntegrationTest {
         }
 
     @Test
-    fun `identity deletion restores content when moderation cleanup fails`() =
+    fun `identity deletion rolls sqlite changes back when lucene deletion fails`() =
         runTest {
             withFixture(
-                identityDeletionServiceFactory = { contentService, postComplaintStore, adminMessageStore ->
-                    IdentityDeletionService(
-                        contentService = contentService,
-                        postComplaintStore =
-                            object : PostComplaintStore by postComplaintStore {
-                                override suspend fun deleteForIdentity(gid: String): Int =
-                                    throw IllegalStateException("complaint cleanup failed")
-                            },
-                        adminMessageStore = adminMessageStore,
+                vectorStoreFactory = { clock ->
+                    FailingDeleteVectorStore(
+                        delegate =
+                            LuceneLocalVectorStore.create(
+                                indexAccess = LuceneIndexAccess { ByteBuffersDirectory() },
+                                paginationRegistry = QueryOnRegistry(pageSize = 10, maxNotFinishedQueries = 10000),
+                                queryPlanner = LuceneQueryPlanner(maxResults = 1000),
+                                clock = clock,
+                                vectorSize = 3,
+                            ),
                     )
                 },
             ) { fixture ->
@@ -699,6 +701,12 @@ class PostComplaintIntegrationTest {
                         3,
                         otherIdentity.keyPair.public.toBase64(),
                     )
+                fixture.createComplaint(otherIdentity, deletedRootId, "Targeted complaint")
+                fixture.adminGids += deletedIdentity.gid
+                fixture.adminMessageService.send(
+                    senderGid = deletedIdentity.gid,
+                    request = straightway.mosa.message.CreateAdminMessageRequest(otherIdentity.gid, "Delete me", "Body"),
+                )
 
                 fixture.env {
                     val deleteResponse =
@@ -746,6 +754,13 @@ class PostComplaintIntegrationTest {
                         ),
                         fetchResponse.body(),
                     )
+
+                    assertEquals(1, fixture.postComplaintStore.countOpen())
+                    val inboxResponse =
+                        client.get("/v1/messages") {
+                            bearerAuth(otherIdentity.token)
+                        }
+                    assertEquals(1, inboxResponse.body<AdminMessageListResult>().entries.size)
                 }
             }
         }
@@ -795,13 +810,19 @@ class PostComplaintIntegrationTest {
 
     private suspend fun withFixture(
         openPageSize: Int = 10,
-        identityDeletionServiceFactory: (ContentService, PostComplaintStore, AdminMessageStore) -> IdentityDeletionService =
-            { contentService, postComplaintStore, adminMessageStore ->
-                IdentityDeletionService(contentService, postComplaintStore, adminMessageStore)
+        vectorStoreFactory: (Clock) -> VectorStore =
+            { clock ->
+                LuceneLocalVectorStore.create(
+                    indexAccess = LuceneIndexAccess { ByteBuffersDirectory() },
+                    paginationRegistry = QueryOnRegistry(pageSize = 10, maxNotFinishedQueries = 10000),
+                    queryPlanner = LuceneQueryPlanner(maxResults = 1000),
+                    clock = clock,
+                    vectorSize = 3,
+                )
             },
         block: suspend (ComplaintIntegrationFixture) -> Unit,
     ) {
-        val fixture = ComplaintIntegrationFixture(openPageSize, identityDeletionServiceFactory)
+        val fixture = ComplaintIntegrationFixture(openPageSize, vectorStoreFactory)
         try {
             block(fixture)
         } finally {
@@ -811,7 +832,7 @@ class PostComplaintIntegrationTest {
 
     private class ComplaintIntegrationFixture(
         openPageSize: Int,
-        identityDeletionServiceFactory: (ContentService, PostComplaintStore, AdminMessageStore) -> IdentityDeletionService,
+        vectorStoreFactory: (Clock) -> VectorStore,
     ) {
         val initialEpochSeconds = 1_773_742_530L
         val clock = MutableClock(Instant.ofEpochSecond(initialEpochSeconds))
@@ -823,14 +844,7 @@ class PostComplaintIntegrationTest {
         private val dbPath = directory.resolve("mosa_db.sqlite")
         private val database = StructuredStateDatabase(dbPath)
         private val embeddingService = mockk<EmbeddingService>()
-        private val vectorStore =
-            LuceneLocalVectorStore.create(
-                indexAccess = LuceneIndexAccess { ByteBuffersDirectory() },
-                paginationRegistry = QueryOnRegistry(pageSize = 10, maxNotFinishedQueries = 10000),
-                queryPlanner = LuceneQueryPlanner(maxResults = 1000),
-                clock = clock,
-                vectorSize = 3,
-            )
+        private val vectorStore = vectorStoreFactory(clock)
         val contentService =
             ContentService(
                 embeddingService = embeddingService,
@@ -852,7 +866,7 @@ class PostComplaintIntegrationTest {
             )
         private var nextAdminMessageId = 1
         private val complaintIds = ArrayDeque(listOf("complaint-1", "complaint-2", "complaint-3", "complaint-4"))
-        private val postComplaintStore = SqlitePostComplaintStore(database)
+        val postComplaintStore = SqlitePostComplaintStore(database)
         private val adminMessageStore = SqliteAdminMessageStore(database)
         private val postComplaintService =
             PostComplaintService(
@@ -865,10 +879,11 @@ class PostComplaintIntegrationTest {
                 openPageSize = openPageSize,
             )
         private val identityDeletionService =
-            identityDeletionServiceFactory(
-                contentService,
-                postComplaintStore,
-                adminMessageStore,
+            IdentityDeletionService(
+                contentService = contentService,
+                database = database,
+                postComplaintStoreFactory = PostComplaintStoreFactory { context -> SqlitePostComplaintStore(context) },
+                adminMessageStoreFactory = AdminMessageStoreFactory { context -> SqliteAdminMessageStore(context) },
             )
         val env =
             ControllerHttpTestEnvironment(
@@ -976,6 +991,27 @@ class PostComplaintIntegrationTest {
                     sign()
                 },
             )
+    }
+
+    private class FailingDeleteVectorStore(
+        private val delegate: VectorStore,
+    ) : VectorStore by delegate {
+        override suspend fun writeAccess(transactionBlock: suspend VectorStore.Transaction.() -> Unit) {
+            delegate.writeAccess {
+                transactionBlock(
+                    object : VectorStore.Transaction {
+                        override suspend fun add(
+                            id: String,
+                            text: String,
+                            fields: Map<String, String>,
+                            vector: FloatArray,
+                        ) = this@writeAccess.add(id, text, fields, vector)
+
+                        override suspend fun remove(id: String): Unit = throw IllegalStateException("lucene delete failed")
+                    },
+                )
+            }
+        }
     }
 
     private data class TestIdentity(

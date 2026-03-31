@@ -1,9 +1,9 @@
 package straightway.mosa.message
 
 import io.ktor.server.plugins.BadRequestException
-import io.mockk.coEvery
-import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import java.security.MessageDigest
@@ -47,7 +47,7 @@ class AdminMessageServiceTest {
                     ),
             )
 
-            coVerify(exactly = 1) {
+            verify(exactly = 1) {
                 store.append(
                     AdminMessageRecord(
                         id = "message-1",
@@ -72,7 +72,7 @@ class AdminMessageServiceTest {
                 )
             }
 
-            coVerify(exactly = 0) { store.append(any()) }
+            verify(exactly = 0) { store.append(any()) }
         }
 
     @Test
@@ -103,13 +103,13 @@ class AdminMessageServiceTest {
                 }
 
             assertEquals("recipientGid has invalid format", exception.message)
-            coVerify(exactly = 0) { store.append(any()) }
+            verify(exactly = 0) { store.append(any()) }
         }
 
     @Test
     fun `listInboxForRecipient returns first page sorted newest first with metadata`() =
         runTest {
-            coEvery {
+            every {
                 store.loadVisibleAndShortenExpiry(recipientGid, 1_773_742_530, 1_776_161_730, 0)
             } returns
                 listOf(
@@ -135,7 +135,7 @@ class AdminMessageServiceTest {
     @Test
     fun `listInboxForRecipient returns requested page and hasMore flag`() =
         runTest {
-            coEvery {
+            every {
                 store.loadVisibleAndShortenExpiry(recipientGid, 1_773_742_530, 1_776_161_730, 0)
             } returns
                 (1..11).map { index ->
@@ -160,7 +160,7 @@ class AdminMessageServiceTest {
     @Test
     fun `listInboxForRecipient filters by inclusive fromTime before sorting`() =
         runTest {
-            coEvery {
+            every {
                 store.loadVisibleAndShortenExpiry(recipientGid, 1_773_742_530, 1_776_161_730, 20)
             } returns
                 listOf(
@@ -177,7 +177,7 @@ class AdminMessageServiceTest {
     @Test
     fun `listInboxForRecipient paginates within fromTime filtered inbox`() =
         runTest {
-            coEvery {
+            every {
                 store.loadVisibleAndShortenExpiry(recipientGid, 1_773_742_530, 1_776_161_730, 2)
             } returns
                 (2..12).map { index ->
@@ -214,7 +214,7 @@ class AdminMessageServiceTest {
     @Test
     fun `listAdminMessagesForRecipient keeps ttl unchanged and returns all admins for page`() =
         runTest {
-            coEvery {
+            every {
                 store.loadVisibleForRecipient(recipientGid, 1_773_742_530)
             } returns
                 (1..11).map { index ->
@@ -240,8 +240,8 @@ class AdminMessageServiceTest {
             assertEquals(true, result.hasMore)
             assertEquals((11 downTo 2).map { "message-$it" }, result.entries.map(AdminMessage::id))
             assertEquals(11, result.entries.first().remainingLifetimeDays)
-            coVerify(exactly = 1) { store.loadVisibleForRecipient(recipientGid, 1_773_742_530) }
-            coVerify(exactly = 0) { store.loadVisibleAndShortenExpiry(any(), any(), any(), any()) }
+            verify(exactly = 1) { store.loadVisibleForRecipient(recipientGid, 1_773_742_530) }
+            verify(exactly = 0) { store.loadVisibleAndShortenExpiry(any(), any(), any(), any()) }
         }
 
     @Test
@@ -262,13 +262,13 @@ class AdminMessageServiceTest {
                 }
 
             assertEquals("recipientGid has invalid format", exception.message)
-            coVerify(exactly = 0) { store.loadVisibleForRecipient(any(), any()) }
+            verify(exactly = 0) { store.loadVisibleForRecipient(any(), any()) }
         }
 
     @Test
     fun `deleteExpired delegates to store with current time`() =
         runTest {
-            coEvery { store.deleteExpired(1_773_742_530) } returns 3
+            every { store.deleteExpired(1_773_742_530) } returns 3
 
             val deleted = sut.deleteExpired()
 

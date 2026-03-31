@@ -301,4 +301,45 @@ class SqliteAdminMessageStoreTest {
                 Files.deleteIfExists(directory)
             }
         }
+
+    @Test
+    fun `append rolls back with outer database transaction`() =
+        runTest {
+            val directory = Files.createTempDirectory("sqlite-admin-message-store")
+            val path = directory.resolve("mosa_db.sqlite")
+
+            try {
+                val database = StructuredStateDatabase(path)
+                database.initialize(AdminMessagesTable)
+
+                kotlin.test.assertFailsWith<IllegalStateException> {
+                    database.inTransaction { context ->
+                        val sut = SqliteAdminMessageStore(context)
+                        sut.append(
+                            AdminMessageRecord(
+                                id = "message-1",
+                                recipientGid = "recipient-a",
+                                senderGid = "admin-a",
+                                createdAt = 100,
+                                subject = "Subject",
+                                body = "Body",
+                                expiresAt = 200,
+                            ),
+                        )
+                        throw IllegalStateException("boom")
+                    }
+                }
+
+                val visible =
+                    SqliteAdminMessageStore(database).loadVisibleForRecipient(
+                        recipientGid = "recipient-a",
+                        nowEpochSeconds = 150,
+                    )
+
+                assertEquals(emptyList(), visible)
+            } finally {
+                Files.deleteIfExists(path)
+                Files.deleteIfExists(directory)
+            }
+        }
 }

@@ -9,18 +9,6 @@ internal class ContentDeleteService(
     private val vectorStore: VectorStore,
     private val isAdmin: suspend (String) -> Boolean,
 ) {
-    suspend fun loadAllForUser(userGID: String): List<VectorStore.PostDump> {
-        val ownPosts = vectorStore.fetchByFieldValues(AUTHOR_GID_KEY, setOf(userGID))
-        val rootIds = ownPosts.filter { it.fields[ROOT_ID_KEY] == null }.mapTo(linkedSetOf(), VectorStore.PostDump::id)
-        val linkedReplies =
-            if (rootIds.isEmpty()) {
-                emptyList()
-            } else {
-                vectorStore.fetchByFieldValues(ROOT_ID_KEY, rootIds)
-            }
-        return (ownPosts + linkedReplies).distinctBy(VectorStore.PostDump::id)
-    }
-
     suspend fun delete(
         userGID: String,
         id: String,

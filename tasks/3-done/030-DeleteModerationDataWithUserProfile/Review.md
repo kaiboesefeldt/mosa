@@ -8,12 +8,13 @@ Nachtrag 2026-03-30:
 
 Die unten dokumentierten Findings wurden nachbearbeitet.
 
-- Finding 1 ist behoben: `IdentityDeletionService` erstellt vor der Kaskade einen Snapshot der betroffenen Inhalte und stellt diese bei Fehlern in der Moderationsbereinigung wieder her. Der Fehlerpfad ist ueber einen echten Endpoint-Test abgesichert.
+- Finding 1 ist durch einen Architekturumbau behoben: `IdentityDeletionService` koordiniert die SQLite-Loeschungen jetzt ueber eine aeussere `StructuredStateDatabase.inTransaction`-Transaktion und fuehrt die Lucene-Loeschung noch innerhalb dieses Blocks aus. Schlaegt die Lucene-Loeschung fehl, werden die SQLite-Aenderungen nicht committed. Der Fehlerpfad ist ueber einen echten Endpoint-Test abgesichert.
 - Finding 2 ist behoben: Die Admin-Message-Loeschung ist jetzt sowohl fuer `recipientGid` als auch fuer `senderGid` explizit getestet, auf Store- und Integrationsniveau.
+- Zusaetzlich ist der Structured-State-Zugriff auf einen gemeinsamen `StructuredStateContext` umgestellt. `SqlitePostComplaintStore` und `SqliteAdminMessageStore` koennen damit sowohl im Standardfall als auch in einer aeusseren DB-Transaktion verwendet werden; dafuer gibt es dedizierte Rollback-Tests.
 
 Verifikation der Nacharbeit:
 
-- `./gradlew :server:test --tests straightway.mosa.content.complaint.PostComplaintIntegrationTest --tests straightway.mosa.message.SqliteAdminMessageStoreTest`
+- `./gradlew :server:test --tests straightway.mosa.content.StructuredStateDatabaseTest --tests straightway.mosa.content.complaint.SqlitePostComplaintStoreTest --tests straightway.mosa.message.SqliteAdminMessageStoreTest --tests straightway.mosa.content.complaint.PostComplaintIntegrationTest`
 - `./gradlew check`
 
 Die urspruenglichen Findings bleiben zu Dokumentationszwecken unten stehen, sind aber als erledigt zu verstehen.
@@ -48,7 +49,7 @@ Die Kaskade braucht ein klares Konsistenzmodell. Entweder alle betroffenen Daten
 
 Status:
 
-Erledigt durch Snapshot- und Restore-Logik fuer die geloeschten Inhalte sowie einen Integrationstest, der den Fehlerpfad reproduziert und die Wiederherstellung verifiziert.
+Erledigt durch eine aeussere SQLite-Transaktion in `IdentityDeletionService`, kontextgebundene Store-Instanzen fuer koordinierte Multi-Store-Operationen und einen Integrationstest, der einen Lucene-Fehler reproduziert und das Ausbleiben des DB-Commits verifiziert.
 
 ## Finding 2: Die neue Admin-Message-Loeschsemantik ist nicht vollstaendig getestet
 
