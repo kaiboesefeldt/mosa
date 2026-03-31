@@ -33,6 +33,7 @@ external interface IdentityProfileViewProps : Props {
     var statusText: String?
     var isPersisted: Boolean
     var canDelete: Boolean
+    var deletesIdentityOnPod: Boolean
     var canDeletePosts: Boolean
     var canExportPosts: Boolean
     var canFreezePosts: Boolean
@@ -85,6 +86,7 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
     val (areToolsVisible, setToolsVisible) = useState(false)
     val (isCopyFeedbackVisible, setCopyFeedbackVisible) = useState(false)
     val (copyFeedbackText, setCopyFeedbackText) = useState<String?>(null)
+    val (isDeleteIdentityVisible, setDeleteIdentityVisible) = useState(false)
     val (isDeletePostsVisible, setDeletePostsVisible) = useState(false)
     val (isFreezePostsVisible, setFreezePostsVisible) = useState(false)
     val toolActions = IdentityToolsPresenter.present(props.toIdentityToolsCapabilities())
@@ -94,6 +96,15 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                 action.copy(onTrigger = {
                     action.onTrigger()
                     setCopyFeedbackVisible(true)
+                })
+            } else if (action.ariaKey == "button.identity.delete.aria") {
+                action.copy(onTrigger = {
+                    setToolsVisible(false)
+                    if (props.deletesIdentityOnPod) {
+                        setDeleteIdentityVisible(true)
+                    } else {
+                        action.onTrigger()
+                    }
                 })
             } else if (action.ariaKey == "button.identity.delete-posts.aria") {
                 action.copy(onTrigger = {
@@ -274,6 +285,22 @@ val IdentityProfileView = FC<IdentityProfileViewProps> { props ->
                     },
                 )
             }
+            if (isDeleteIdentityVisible) {
+                val isDeleteDisabled = props.isBusy || !props.canDelete || !props.deletesIdentityOnPod
+                confirmationSheet(
+                    title = translator.translate("identity.delete.title"),
+                    body = translator.translate("identity.delete.body"),
+                    cancelLabel = translator.translate("identity.delete.cancel"),
+                    confirmLabel = translator.translate("identity.delete.confirm"),
+                    isConfirmDisabled = isDeleteDisabled,
+                    confirmButtonClass = "button button--danger",
+                    onCancel = { setDeleteIdentityVisible(false) },
+                    onConfirm = {
+                        setDeleteIdentityVisible(false)
+                        props.onDelete()
+                    },
+                )
+            }
             if (isFreezePostsVisible) {
                 val isFreezeDisabled = props.isBusy || !props.canFreezePosts
                 confirmationSheet(
@@ -328,6 +355,7 @@ internal fun IdentityProfileViewProps.applyFrom(screen: IdentityScreen.Profile) 
     statusText = screen.statusText
     isPersisted = screen.isPersisted
     canDelete = screen.canDelete
+    deletesIdentityOnPod = screen.deletesIdentityOnPod
     canDeletePosts = screen.canDeletePosts
     canExportPosts = screen.canExportPosts
     canFreezePosts = screen.canFreezePosts

@@ -115,6 +115,49 @@ class IdentityProfileViewTest {
     }
 
     @Test
+    fun `shows delete confirmation before removing activated identity`() = runTest {
+        var handled = false
+        renderIdentityProfileView {
+            canDelete = true
+            deletesIdentityOnPod = true
+            onDelete = { handled = true }
+        }
+
+        val user = userEvent.setup()
+        val toolsButton = screen.getByRole("button", json("name" to text("button.identity.tools.aria")))
+        user.click(toolsButton).await()
+        val deleteButton = screen.getByRole("button", json("name" to text("button.identity.delete.aria")))
+        user.click(deleteButton).await()
+
+        val sheetText =
+            screen.getByRole("button", json("name" to text("identity.delete.confirm"))).parentElement?.parentElement?.textContent.orEmpty()
+
+        assertTrue(sheetText.contains(text("identity.delete.title")))
+        assertTrue(sheetText.contains(text("identity.delete.body")))
+        assertFalse(handled)
+    }
+
+    @Test
+    fun `invokes delete handler after confirmation for activated identity`() = runTest {
+        var handled = false
+        renderIdentityProfileView {
+            canDelete = true
+            deletesIdentityOnPod = true
+            onDelete = { handled = true }
+        }
+
+        val user = userEvent.setup()
+        val toolsButton = screen.getByRole("button", json("name" to text("button.identity.tools.aria")))
+        user.click(toolsButton).await()
+        val deleteButton = screen.getByRole("button", json("name" to text("button.identity.delete.aria")))
+        user.click(deleteButton).await()
+        val confirmButton = screen.getByRole("button", json("name" to text("identity.delete.confirm")))
+        user.click(confirmButton).await()
+
+        assertTrue(handled)
+    }
+
+    @Test
     fun `invokes upload handler when user requests identity upload`() = runTest {
         var handled = false
         renderIdentityProfileView {

@@ -1933,6 +1933,7 @@ private fun placeholderProfile(
         statusText = null,
         snapshotRefreshVersion = snapshotRefreshVersion,
         canDelete = false,
+        deletesIdentityOnPod = false,
         canDeletePosts = canDeletePosts,
         canExportPosts = false,
         canFreezePosts = false,

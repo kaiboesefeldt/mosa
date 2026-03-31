@@ -25,6 +25,7 @@ internal fun renderIdentityProfileView(
             errorText = null
             statusText = null
             canDelete = true
+            deletesIdentityOnPod = false
             canConnect = true
             isPersisted = false
             canNavigatePrevious = false

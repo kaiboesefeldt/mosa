@@ -15,6 +15,7 @@ sealed interface IdentitySessionViewState {
         val statusText: String?,
         val snapshotRefreshVersion: Int,
         val canDelete: Boolean,
+        val deletesIdentityOnPod: Boolean,
         val canDeletePosts: Boolean,
         val canExportPosts: Boolean,
         val canFreezePosts: Boolean,

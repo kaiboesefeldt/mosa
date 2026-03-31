@@ -339,6 +339,7 @@ class IdentitySessionStateMachine(
             statusText = statusText,
             snapshotRefreshVersion = snapshotRefreshVersion,
             canDelete = binding.isDisplayedIdentityConnected || currentSelection?.isPersisted == false,
+            deletesIdentityOnPod = binding.isDisplayedIdentityConnected,
             canDeletePosts = binding.isDisplayedIdentityConnected,
             canExportPosts = binding.isDisplayedIdentityConnected,
             canFreezePosts = binding.isDisplayedIdentityConnected,

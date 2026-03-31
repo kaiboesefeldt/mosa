@@ -210,6 +210,7 @@ class IdentitySessionStateMachineTest {
         assertTrue(state is IdentitySessionViewState.Profile)
         assertEquals(secondIdentity.gid, state.identityGid)
         assertFalse(state.canDelete)
+        assertFalse(state.deletesIdentityOnPod)
     }
 
     @Test
@@ -243,6 +244,7 @@ class IdentitySessionStateMachineTest {
         assertTrue(state is IdentitySessionViewState.Connected)
         assertEquals(TestIdentitySessionTextProvider.deleteError, state.profile.errorText)
         assertTrue(state.profile.canDelete)
+        assertTrue(state.profile.deletesIdentityOnPod)
     }
 
     @Test
@@ -278,6 +280,7 @@ class IdentitySessionStateMachineTest {
         assertTrue(state is IdentitySessionViewState.Profile)
         assertEquals(secondIdentity.gid, state.identityGid)
         assertTrue(state.canDelete)
+        assertFalse(state.deletesIdentityOnPod)
     }
 
     @Test
