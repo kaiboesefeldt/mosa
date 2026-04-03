@@ -52,6 +52,7 @@
   - thoroughly designed
   - easily maintainable
   - intuitively understandable
+- As the software is currently not installed in the field, we ignore data migration issues when data schemas change. Instead, the test instances currently running mosa will be required to delete and re-build their data. This is currently OK.
 
 ## 4. UI vs Business Logic
 - Keep UI-specific code as small as possible and clearly separated from non-UI logic.
