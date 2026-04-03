@@ -56,11 +56,17 @@ Regeln fuer Subtasks:
 - `NNN` ist eine dreistellige laufende Nummer innerhalb der Aufgabe.
 - `ShortDescription` bleibt kurz, stabil und ASCII-kompatibel.
 - Jede Subtask-Beschreibung soll so geschnitten sein, dass sie von einer Coding-KI oder einer Person eigenstaendig bearbeitet werden kann.
-- Die letzte Subtask einer zerlegten Aufgabe ist verpflichtend ein Abschlusstest der Gesamtintegration aller von der Aenderung betroffenen Komponenten.
-- Diese Abschluss-Subtask beschreibt detailliert, wie der Abschlusstest durchzufuehren ist, welche betroffenen Komponenten zusammen betrachtet werden muessen, welche Vorbedingungen gelten, welche konkreten Schritte auszufuehren sind und woran Erfolg oder Fehlschlag erkannt wird.
-- Der Abschlusstest muss nicht jedes Detail einzeln abpruefen, aber er muss die wichtigsten funktionalen Pfade der geaenderten Gesamtloesung abdecken.
-- Der Abschlusstest darf vollautomatisiert sein, von einer KI haendisch im Repo oder zur Laufzeit durchgefuehrt werden oder explizit einen Menschen benoetigen. Die Subtask-Beschreibung muss klar benennen, welche dieser Formen gemeint ist.
-- Wenn ein Mensch den Abschlusstest durchfuehren muss, muss die Subtask so konkret sein, dass die Ausfuehrung ohne Rueckfragen moeglich ist.
+- Die letzte Subtask einer zerlegten Aufgabe enthält verpflichtend:
+  1. Einen Abschlusstest der Gesamtintegration aller von der Aenderung betroffenen Komponenten. Es wird detailliert beschrieben:
+    - wie der Abschlusstest durchzufuehren ist, welche betroffenen Komponenten zusammen betrachtet werden muessen, welche Vorbedingungen gelten, welche konkreten Schritte auszufuehren sind und woran Erfolg oder Fehlschlag erkannt wird.
+    - Der Abschlusstest muss nicht jedes Detail einzeln abpruefen, aber er muss die wichtigsten funktionalen Pfade der geaenderten Gesamtloesung abdecken.
+      - Der Abschlusstest darf vollautomatisiert sein, von einer KI haendisch im Repo oder zur Laufzeit durchgefuehrt werden oder explizit einen Menschen benoetigen. Die Subtask-Beschreibung muss klar benennen, welche dieser Formen gemeint ist.
+      - Wenn ein Mensch den Abschlusstest durchfuehren muss, muss die Subtask so konkret sein, dass die Ausfuehrung ohne Rueckfragen moeglich ist.
+      2. Eine überprüfung und ggf. Anpassung der Dokumentation in folgenden Ordnern (inklusive Unterordnern)
+         - `spec`
+         - `server/src/main/resources/clearterms`
+         - `server/src/main/resources/doc/serve`
+      3. Eine Prüfung der Lizenzen neu eingefügter 3rd Party Kompomenten auf Kompatibilität mit der Lizenz, welche in `License` definiert ist. 
 - Eine abgeschlossene Subtask wird nicht verschoben, sondern durch Umbenennen der Datei markiert: Aus `subNNN-ShortDescription.md` wird `done-subNNN-ShortDescription.md`.
 - Die Hauptaufgabe bleibt die fachliche Klammer; Subtasks ersetzen nicht die `Description.md`, sondern praezisieren die Bearbeitung.
 

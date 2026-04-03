@@ -98,12 +98,7 @@
 
 ## 8. Runtime Snapshot (Compact)
 - Server: Ktor + Koin, auth via MIS-JWT bearer tokens.
-- Routes: `/v1/approvegid` is open; `/v1/publish`, `/v1/reply`, `/v1/query`, `/v1/queryon` require auth.
-- `DELETE /v1/identity` requires auth and removes the caller's pod-local identity data, including posts, complaints, and admin messages.
-- Private admin messages use a dedicated SQLite-backed channel outside the content/vector store:
-  - `POST /v1/admin/messages` requires auth and admin rights.
-  - `GET /v1/messages` requires auth and only returns the caller's inbox.
-  - Storage file defaults to `mosa_db.sqlite` in the server working directory.
+- DB storage file is fixed to `mosa_db.sqlite` in the server working directory.
 - Structured-state SQLite access is split into a reusable `StructuredStateContext` plus `StructuredStateDatabase.inTransaction { ... }`.
   Coordinated multi-store SQLite operations should create transaction-bound store instances via Koin factories instead of passing raw Exposed transactions through service APIs.
 - Embeddings/vector storage: ONNX local embeddings + Lucene local vector store.
