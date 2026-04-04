@@ -9,7 +9,7 @@
 - Do not add unreachable defensive branches that cannot be tested through public interfaces.
 - If you add a new dependency, use the latest stable version and verify it via web search.
 - Keep this file updated when architecture or code structure changes significantly.
-- If something important for future work should not be forgotten, add it to this `AGENTS.md`.
+- If something generally important for future work should not be forgotten, add it to this `AGENTS.md`, but keep this file clean, short and simple and don't overload it with details.
 
 ## 2. Delivery Workflow
 ### 2.1 Mandatory sequence for business logic (TDD)
