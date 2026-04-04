@@ -3,6 +3,8 @@ package straightway.mosa.client.ui
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -31,6 +33,10 @@ class IdentitySessionStateMachine(
     private val logger: Logger,
     private val sessionStore: IdentitySessionStore,
 ) {
+    companion object {
+        private const val SNAPSHOT_SUCCESS_DURATION_MS = 3200L
+    }
+
     private data class IdentityBinding(
         val displayedIdentityGid: String?,
         val connectedIdentityGid: String?,
@@ -47,6 +53,7 @@ class IdentitySessionStateMachine(
     private var connectedIdentityGid: String? = null
     private var isRestoring = true
     private var snapshotRefreshVersion = 0
+    private var snapshotStatusClearJob: Job? = null
 
     private val _state = MutableStateFlow<IdentitySessionViewState>(IdentitySessionViewState.Loading)
     val state: StateFlow<IdentitySessionViewState> = _state
@@ -159,17 +166,20 @@ class IdentitySessionStateMachine(
         runExclusive(
             failureMessage = "Posts export failed",
             beforeRun = {
+                clearSnapshotStatusClear()
                 errorText = null
                 statusText = textProvider.exportInProgress
                 publishState()
             },
             onFailure = {
+                clearSnapshotStatusClear()
                 statusText = null
                 errorText = textProvider.exportError
                 finishRestoring()
                 publishState()
             },
         ) {
+            clearSnapshotStatusClear()
             postsExport.export(fileBaseName)
             statusText = null
             errorText = null
@@ -287,11 +297,13 @@ class IdentitySessionStateMachine(
         runExclusive(
             failureMessage = "Privacy snapshot action failed",
             beforeRun = {
+                clearSnapshotStatusClear()
                 this.errorText = null
                 this.statusText = statusText
                 publishState()
             },
             onFailure = {
+                clearSnapshotStatusClear()
                 this.statusText = null
                 this.errorText = errorText
                 finishRestoring()
@@ -309,7 +321,23 @@ class IdentitySessionStateMachine(
             this.statusText = successText ?: successTextProvider?.invoke(checkNotNull(restoredCount))
             this.errorText = null
             publishState()
+            scheduleSnapshotStatusClear()
         }
+    }
+
+    private fun scheduleSnapshotStatusClear() {
+        clearSnapshotStatusClear()
+        snapshotStatusClearJob =
+            scope.launch {
+                delay(SNAPSHOT_SUCCESS_DURATION_MS)
+                statusText = null
+                publishState()
+            }
+    }
+
+    private fun clearSnapshotStatusClear() {
+        snapshotStatusClearJob?.cancel()
+        snapshotStatusClearJob = null
     }
 
     private fun setBusy(value: Boolean) {

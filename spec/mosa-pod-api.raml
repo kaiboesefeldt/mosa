@@ -267,6 +267,22 @@ types:
       deletedComplaintCount: 2
       deletedAdminMessageCount: 1
 
+  FreezeSnapshotRestoreResult:
+    type: object
+    properties:
+      restoredIds:
+        type: string[]
+        description: IDs of restored content, complaint, and admin-message records
+      restoredCount:
+        type: integer
+        description: Total number of restored records
+    example:
+      restoredIds:
+        - 'AxY0b1p3...'
+        - '6a7b5e3c-1234-5678-9abc-def012345678'
+        - 'message-1'
+      restoredCount: 3
+
   PostComplaintState:
     type: string
     enum: [ OPEN, CONFIRMED, REJECTED, DELETED ]
@@ -810,7 +826,8 @@ securitySchemes:
           securedBy: [ bearerAuth ]
           displayName: Count Open Post Complaints
           description: |
-            Return the number of currently open post complaints.
+            Return the number of complaints currently visible in the admin moderation queue.
+            This includes open complaints and complaints that became unread again after a privacy-snapshot restore.
             The authenticated caller must be listed as an admin.
           responses:
             200:
@@ -828,7 +845,8 @@ securitySchemes:
         securedBy: [ bearerAuth ]
         displayName: List Open Post Complaints
         description: |
-          Return a paged list of currently open post complaints in ascending creation order.
+          Return a paged list of complaints currently visible in the admin moderation queue in ascending creation order.
+          This includes open complaints and complaints that became unread again after a privacy-snapshot restore.
           The authenticated caller must be listed as an admin.
         queryParameters:
           page?:
@@ -969,6 +987,50 @@ securitySchemes:
           description: Missing or invalid bearer token
         5xx:
           description: Server error
+
+  /privacy:
+    /freeze:
+      post:
+        is: [ rateLimited ]
+        securedBy: [ bearerAuth ]
+        displayName: Freeze Privacy Snapshot
+        description: |
+          Freeze all pod-local data linked to the authenticated identity into an encrypted snapshot file.
+          This includes owned content, complaints linked to the identity in both directions, and admin messages linked to the identity in both directions.
+          After a successful freeze, the exported records are deleted from this pod.
+        responses:
+          200:
+            body:
+              application/octet-stream:
+                example: |
+                  (binary)
+          401:
+            description: Missing or invalid bearer token
+          5xx:
+            description: Server error
+
+    /restore:
+      post:
+        is: [ rateLimited ]
+        securedBy: [ bearerAuth ]
+        displayName: Restore Privacy Snapshot
+        description: |
+          Restore a previously frozen snapshot for the authenticated identity on the same pod that created it.
+          Restored admin messages become unread again in the recipient inbox.
+          Restored complaints become unread again in the admin moderation queue.
+        body:
+          application/octet-stream:
+            example: |
+              (binary)
+        responses:
+          200:
+            body:
+              application/json:
+                type: FreezeSnapshotRestoreResult
+          401:
+            description: Missing or invalid bearer token
+          5xx:
+            description: Server error
 
   /publish:
     post:

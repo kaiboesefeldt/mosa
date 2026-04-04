@@ -8,4 +8,5 @@ data class AdminMessageRecord(
     val subject: String,
     val body: String,
     val expiresAt: Long,
+    val deliveryKey: String = "",
 )

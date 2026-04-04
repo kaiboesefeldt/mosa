@@ -17,6 +17,6 @@ overrides:
         user-data-control-slot-service: |
           You can delete your own content and use the available functions to download a copy of your content.
 
-          You can freeze your own content into a protected file and remove it from this {{string:SERVICE_DISPLAY_NAME}} server. You must keep this file safe yourself. You can only restore it on the same {{string:SERVICE_DISPLAY_NAME}} server.
+          You can freeze your own content together with pod-local moderation data linked to your identity into a protected file and remove it from this {{string:SERVICE_DISPLAY_NAME}} server. You must keep this file safe yourself. You can only restore it on the same {{string:SERVICE_DISPLAY_NAME}} server.
         changes-follow-up-slot-service: |
           You can still download or secure your own data using the functions provided for that purpose.

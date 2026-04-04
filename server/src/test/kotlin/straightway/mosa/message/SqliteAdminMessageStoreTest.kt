@@ -96,6 +96,50 @@ class SqliteAdminMessageStoreTest {
         }
 
     @Test
+    fun `loadForIdentity returns messages from both message directions`() =
+        runTest {
+            val directory = Files.createTempDirectory("sqlite-admin-message-store")
+            val path = directory.resolve("mosa_db.sqlite")
+
+            try {
+                val database = StructuredStateDatabase(path)
+                database.initialize(AdminMessagesTable)
+                val sut = SqliteAdminMessageStore(database)
+
+                sut.append(AdminMessageRecord("message-to-owner", "owner", "admin", 10, "Subject 1", "Body 1", 100))
+                sut.append(AdminMessageRecord("message-from-owner", "user", "owner", 20, "Subject 2", "Body 2", 100))
+                sut.append(AdminMessageRecord("message-foreign", "other", "admin", 30, "Subject 3", "Body 3", 100))
+
+                assertEquals(listOf("message-to-owner", "message-from-owner"), sut.loadForIdentity("owner").map(AdminMessageRecord::id))
+            } finally {
+                Files.deleteIfExists(path)
+                Files.deleteIfExists(directory)
+            }
+        }
+
+    @Test
+    fun `deleteByIds removes exactly matching messages`() =
+        runTest {
+            val directory = Files.createTempDirectory("sqlite-admin-message-store")
+            val path = directory.resolve("mosa_db.sqlite")
+
+            try {
+                val database = StructuredStateDatabase(path)
+                database.initialize(AdminMessagesTable)
+                val sut = SqliteAdminMessageStore(database)
+
+                sut.append(AdminMessageRecord("message-1", "owner", "admin", 10, "Subject 1", "Body 1", 100))
+                sut.append(AdminMessageRecord("message-2", "owner", "admin", 20, "Subject 2", "Body 2", 100))
+
+                assertEquals(1, sut.deleteByIds(listOf("message-1")))
+                assertEquals(listOf("message-2"), sut.loadForIdentity("owner").map(AdminMessageRecord::id))
+            } finally {
+                Files.deleteIfExists(path)
+                Files.deleteIfExists(directory)
+            }
+        }
+
+    @Test
     fun `loadVisibleAndShortenExpiry filters by fromTime and shortens only returned messages`() =
         runTest {
             val directory = Files.createTempDirectory("sqlite-admin-message-store")

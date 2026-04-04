@@ -6,6 +6,14 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import straightway.mosa.VectorStore
 import straightway.mosa.content.MissingVectorMetadataException
+import straightway.mosa.content.StructuredStateContext
+import straightway.mosa.content.complaint.PostComplaintRecord
+import straightway.mosa.content.complaint.PostComplaintState
+import straightway.mosa.content.complaint.PostComplaintStore
+import straightway.mosa.content.complaint.PostComplaintStoreFactory
+import straightway.mosa.message.AdminMessageRecord
+import straightway.mosa.message.AdminMessageStore
+import straightway.mosa.message.AdminMessageStoreFactory
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
@@ -17,7 +25,16 @@ import kotlin.test.assertFailsWith
 
 class FreezeSnapshotSelectionServiceTest {
     private val vectorStore = mockk<VectorStore>()
-    private val sut = FreezeSnapshotSelectionService(vectorStore)
+    private val context = mockk<StructuredStateContext>()
+    private val postComplaintStore = mockk<PostComplaintStore>()
+    private val adminMessageStore = mockk<AdminMessageStore>()
+    private val sut =
+        FreezeSnapshotSelectionService(
+            vectorStore = vectorStore,
+            structuredStateContext = context,
+            postComplaintStoreFactory = PostComplaintStoreFactory { postComplaintStore },
+            adminMessageStoreFactory = AdminMessageStoreFactory { adminMessageStore },
+        )
 
     @Test
     fun `selecting one own root post includes that post`() =
@@ -26,6 +43,7 @@ class FreezeSnapshotSelectionServiceTest {
                 postDump(id = "root-1", authorGid = "owner", storedAt = 20),
             )
             givenRepliesOnOwnedRoots()
+            givenModerationData()
 
             val selected = sut.resolveFor("owner")
 
@@ -39,6 +57,7 @@ class FreezeSnapshotSelectionServiceTest {
                 postDump(id = "reply-1", authorGid = "owner", storedAt = 20, rootId = "foreign-root"),
             )
             givenRepliesOnOwnedRoots()
+            givenModerationData()
 
             val selected = sut.resolveFor("owner")
 
@@ -55,6 +74,7 @@ class FreezeSnapshotSelectionServiceTest {
                 rootId = "root-1",
                 postDump(id = "reply-1", authorGid = "other", storedAt = 20, rootId = "root-1"),
             )
+            givenModerationData()
 
             val selected = sut.resolveFor("owner")
 
@@ -66,6 +86,7 @@ class FreezeSnapshotSelectionServiceTest {
         runTest {
             givenOwnContent()
             givenRepliesOnOwnedRoots()
+            givenModerationData()
 
             val selected = sut.resolveFor("owner")
 
@@ -77,6 +98,7 @@ class FreezeSnapshotSelectionServiceTest {
         runTest {
             givenOwnContent()
             givenRepliesOnOwnedRoots()
+            givenModerationData()
 
             val selected = sut.resolveFor("owner")
 
@@ -95,16 +117,27 @@ class FreezeSnapshotSelectionServiceTest {
                 postDump(id = "reply-on-own-root", authorGid = "other", storedAt = 30, rootId = "own-root"),
                 postDump(id = "own-reply-on-own-root", authorGid = "owner", storedAt = 40, rootId = "own-root"),
             )
+            givenModerationData(
+                complaints =
+                    listOf(
+                        complaintRecord(id = "complaint-1", createdAt = 25),
+                    ),
+                adminMessages =
+                    listOf(
+                        adminMessageRecord(id = "message-1", createdAt = 35),
+                    ),
+            )
 
             val selected = sut.resolveFor("owner")
 
             assertEquals(
-                listOf("own-root", "own-reply-on-foreign-root", "reply-on-own-root", "own-reply-on-own-root"),
+                listOf("own-root", "own-reply-on-foreign-root", "complaint-1", "reply-on-own-root", "message-1", "own-reply-on-own-root"),
                 selected.map { it.id },
             )
-            assertEquals("public-own-root", selected.first().authorPublicKey)
-            assertEquals("signature-own-root", selected.first().authorSignature)
-            assertEquals(10, selected.first().signatureVersion)
+            val contentRecord = selected.first() as FreezeSnapshotContentRecord
+            assertEquals("public-own-root", contentRecord.authorPublicKey)
+            assertEquals("signature-own-root", contentRecord.authorSignature)
+            assertEquals(10, contentRecord.signatureVersion)
         }
 
     @Test
@@ -118,6 +151,7 @@ class FreezeSnapshotSelectionServiceTest {
                 ),
             )
             givenRepliesOnOwnedRoots()
+            givenModerationData()
 
             assertFailsWith<MissingVectorMetadataException> {
                 sut.resolveFor("owner")
@@ -135,6 +169,7 @@ class FreezeSnapshotSelectionServiceTest {
                 ),
             )
             givenRepliesOnOwnedRoots()
+            givenModerationData()
 
             assertFailsWith<MissingVectorMetadataException> {
                 sut.resolveFor("owner")
@@ -148,10 +183,55 @@ class FreezeSnapshotSelectionServiceTest {
                 postDump(id = "root-1", authorGid = "owner", storedAt = 10, extraFields = emptyMap()),
             )
             givenRepliesOnOwnedRoots()
+            givenModerationData()
 
             assertFailsWith<MissingVectorMetadataException> {
                 sut.resolveFor("owner")
             }
+        }
+
+    @Test
+    fun `selection includes complaints from both relevant identity directions and excludes foreign ones`() =
+        runTest {
+            givenOwnContent()
+            givenRepliesOnOwnedRoots()
+            givenModerationData(
+                complaints =
+                    listOf(
+                        complaintRecord(id = "complaint-own", complainantGid = "owner", postAuthorGid = "other", createdAt = 10),
+                        complaintRecord(id = "complaint-about-owner", complainantGid = "other", postAuthorGid = "owner", createdAt = 20),
+                    ),
+            )
+
+            val selected = sut.resolveFor("owner")
+
+            assertEquals(listOf("complaint-own", "complaint-about-owner"), selected.map { it.id })
+            assertEquals(
+                listOf("complaint-own", "complaint-about-owner"),
+                selected.filterIsInstance<FreezeSnapshotComplaintRecord>().map { it.id },
+            )
+        }
+
+    @Test
+    fun `selection includes admin messages from both relevant identity directions and excludes foreign ones`() =
+        runTest {
+            givenOwnContent()
+            givenRepliesOnOwnedRoots()
+            givenModerationData(
+                adminMessages =
+                    listOf(
+                        adminMessageRecord(id = "message-to-owner", recipientGid = "owner", senderGid = "admin", createdAt = 10),
+                        adminMessageRecord(id = "message-from-owner", recipientGid = "user", senderGid = "owner", createdAt = 20),
+                    ),
+            )
+
+            val selected = sut.resolveFor("owner")
+
+            assertEquals(listOf("message-to-owner", "message-from-owner"), selected.map { it.id })
+            assertEquals(
+                listOf("message-to-owner", "message-from-owner"),
+                selected.filterIsInstance<FreezeSnapshotAdminMessageRecord>().map { it.id },
+            )
         }
 
     private fun givenOwnContent(vararg posts: VectorStore.PostDump) {
@@ -167,6 +247,14 @@ class FreezeSnapshotSelectionServiceTest {
             coEvery { vectorStore.fetchByFieldValues(ROOT_ID_KEY, setOf(it)) } returns posts.toList()
         }
         coEvery { vectorStore.fetchByFieldValues(ROOT_ID_KEY, emptySet()) } returns emptyList()
+    }
+
+    private fun givenModerationData(
+        complaints: List<PostComplaintRecord> = emptyList(),
+        adminMessages: List<AdminMessageRecord> = emptyList(),
+    ) {
+        io.mockk.every { postComplaintStore.loadForIdentity("owner") } returns complaints
+        io.mockk.every { adminMessageStore.loadForIdentity("owner") } returns adminMessages
     }
 
     private fun postDump(
@@ -188,5 +276,37 @@ class FreezeSnapshotSelectionServiceTest {
                 AUTHOR_GID_KEY to authorGid,
                 RECEIVED_AT_KEY to storedAt.toString(),
             ) + extraFields + listOfNotNull(rootId?.let { ROOT_ID_KEY to it }),
+    )
+
+    private fun complaintRecord(
+        id: String,
+        complainantGid: String = "owner",
+        postAuthorGid: String = "other",
+        createdAt: Long,
+    ) = PostComplaintRecord(
+        id = id,
+        postId = "post-$id",
+        complainantGid = complainantGid,
+        postAuthorGid = postAuthorGid,
+        reason = "reason-$id",
+        createdAt = createdAt,
+        complainantSignature = "signature-$id",
+        complainantSignatureVersion = 1,
+        state = PostComplaintState.OPEN,
+    )
+
+    private fun adminMessageRecord(
+        id: String,
+        recipientGid: String = "owner",
+        senderGid: String = "admin",
+        createdAt: Long,
+    ) = AdminMessageRecord(
+        id = id,
+        recipientGid = recipientGid,
+        senderGid = senderGid,
+        createdAt = createdAt,
+        subject = "subject-$id",
+        body = "body-$id",
+        expiresAt = createdAt + 100,
     )
 }

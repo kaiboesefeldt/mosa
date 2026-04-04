@@ -54,6 +54,7 @@ class StructuredStateDatabaseTest {
                             statement[subject] = "Subject"
                             statement[body] = "Body"
                             statement[expiresAt] = 2
+                            statement[deliveryKey] = "delivery-1"
                         }
                     }
                 }
@@ -91,6 +92,7 @@ class StructuredStateDatabaseTest {
                                 statement[subject] = "Subject"
                                 statement[body] = "Body"
                                 statement[expiresAt] = 2
+                                statement[deliveryKey] = "delivery-1"
                             }
                         }
                         throw IllegalStateException("boom")

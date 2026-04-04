@@ -5,6 +5,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.greaterEq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -17,15 +18,35 @@ class SqliteAdminMessageStore(
     private val context: StructuredStateContext,
 ) : AdminMessageStore {
     override fun append(record: AdminMessageRecord) {
+        insert(record)
+    }
+
+    override fun restore(record: AdminMessageRecord) {
         context.execute {
-            AdminMessagesTable.insert { statement ->
-                statement[id] = record.id
-                statement[recipientGid] = record.recipientGid
-                statement[senderGid] = record.senderGid
-                statement[createdAt] = record.createdAt
-                statement[subject] = record.subject
-                statement[body] = record.body
-                statement[expiresAt] = record.expiresAt
+            AdminMessagesTable.deleteWhere {
+                AdminMessagesTable.id eq record.id
+            }
+        }
+        insert(record)
+    }
+
+    override fun loadForIdentity(gid: String): List<AdminMessageRecord> =
+        context.execute {
+            AdminMessagesTable
+                .selectAll()
+                .where {
+                    (AdminMessagesTable.recipientGid eq gid) or
+                        (AdminMessagesTable.senderGid eq gid)
+                }.map(::toRecord)
+        }
+
+    override fun deleteByIds(ids: List<String>): Int {
+        if (ids.isEmpty()) {
+            return 0
+        }
+        return context.execute {
+            AdminMessagesTable.deleteWhere {
+                AdminMessagesTable.id inList ids
             }
         }
     }
@@ -100,5 +121,21 @@ class SqliteAdminMessageStore(
             subject = row[AdminMessagesTable.subject],
             body = row[AdminMessagesTable.body],
             expiresAt = row[AdminMessagesTable.expiresAt],
+            deliveryKey = row[AdminMessagesTable.deliveryKey].takeUnless { it == row[AdminMessagesTable.id] } ?: "",
         )
+
+    private fun insert(record: AdminMessageRecord) {
+        context.execute {
+            AdminMessagesTable.insert { statement ->
+                statement[id] = record.id
+                statement[recipientGid] = record.recipientGid
+                statement[senderGid] = record.senderGid
+                statement[createdAt] = record.createdAt
+                statement[subject] = record.subject
+                statement[body] = record.body
+                statement[expiresAt] = record.expiresAt
+                statement[deliveryKey] = record.deliveryKey.ifBlank { record.id }
+            }
+        }
+    }
 }

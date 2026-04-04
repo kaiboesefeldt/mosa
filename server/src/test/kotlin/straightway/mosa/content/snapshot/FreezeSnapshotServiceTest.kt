@@ -7,6 +7,12 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import straightway.mosa.VectorStore
+import straightway.mosa.content.StructuredStateContext
+import straightway.mosa.content.StructuredStateDatabase
+import straightway.mosa.content.complaint.PostComplaintStore
+import straightway.mosa.content.complaint.PostComplaintStoreFactory
+import straightway.mosa.message.AdminMessageStore
+import straightway.mosa.message.AdminMessageStoreFactory
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -16,6 +22,10 @@ import kotlin.test.assertFailsWith
 
 class FreezeSnapshotServiceTest {
     private val selectionService = mockk<FreezeSnapshotSelectionService>()
+    private val database = mockk<StructuredStateDatabase>()
+    private val transactionContext = mockk<StructuredStateContext>()
+    private val postComplaintStore = mockk<PostComplaintStore>()
+    private val adminMessageStore = mockk<AdminMessageStore>()
     private val activeArchiveKeyProvider = mockk<FreezeSnapshotActiveArchiveKeyProvider>()
     private val vectorStore = mockk<VectorStore>()
     private val format = FreezeSnapshotFormat()
@@ -28,7 +38,7 @@ class FreezeSnapshotServiceTest {
     @Test
     fun `successful freeze returns snapshot bytes`() =
         runTest {
-            val records = listOf(rootRecord(), replyRecord())
+            val records = listOf(rootRecord(), complaintRecord())
             val sut = createSut(SequenceNonceGenerator(byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)))
             givenSelection(records)
             givenActiveArchiveKey()
@@ -43,15 +53,16 @@ class FreezeSnapshotServiceTest {
             assertEquals("AQIDBAUGBwgJCgsM", header.nonce)
             assertEquals(FreezeSnapshotManifest("gid-owner", 2, 1), manifest)
             assertContentEquals(records.toTypedArray(), payloadRecords.toTypedArray())
-            assertEquals("public-key-root", payloadRecords.first().authorPublicKey)
-            assertEquals("signature-root", payloadRecords.first().authorSignature)
-            assertEquals(7, payloadRecords.first().signatureVersion)
+            val contentRecord = payloadRecords.first() as FreezeSnapshotContentRecord
+            assertEquals("public-key-root", contentRecord.authorPublicKey)
+            assertEquals("signature-root", contentRecord.authorSignature)
+            assertEquals(7, contentRecord.signatureVersion)
         }
 
     @Test
-    fun `successful freeze deletes exactly the exported records`() =
+    fun `successful freeze deletes exported content records and matching moderation records`() =
         runTest {
-            val records = listOf(rootRecord(), replyRecord(), otherReplyRecord())
+            val records = listOf(rootRecord(), complaintRecord(), adminMessageRecord(), replyRecord(), otherReplyRecord())
             val sut = createSut(SequenceNonceGenerator(ByteArray(12) { it.toByte() }))
             givenSelection(records)
             givenActiveArchiveKey()
@@ -60,6 +71,8 @@ class FreezeSnapshotServiceTest {
             sut.freeze("gid-owner")
 
             assertEquals(listOf("root-1", "reply-1", "reply-2"), removedIds)
+            io.mockk.verify(exactly = 1) { postComplaintStore.deleteByIds(listOf("complaint-1")) }
+            io.mockk.verify(exactly = 1) { adminMessageStore.deleteByIds(listOf("message-1")) }
         }
 
     @Test
@@ -171,6 +184,9 @@ class FreezeSnapshotServiceTest {
         cryptoService: FreezeSnapshotCryptoService = this.cryptoService,
     ) = FreezeSnapshotService(
         selectionService = selectionService,
+        database = database,
+        postComplaintStoreFactory = PostComplaintStoreFactory { postComplaintStore },
+        adminMessageStoreFactory = AdminMessageStoreFactory { adminMessageStore },
         activeArchiveKeyProvider = activeArchiveKeyProvider,
         nonceGenerator = nonceGenerator,
         format = format,
@@ -190,6 +206,11 @@ class FreezeSnapshotServiceTest {
 
     private fun givenDeletion() {
         removedIds.clear()
+        every { database.inTransaction<Any>(any()) } answers {
+            firstArg<(StructuredStateContext) -> Any>().invoke(transactionContext)
+        }
+        every { postComplaintStore.deleteByIds(any()) } returns 0
+        every { adminMessageStore.deleteByIds(any()) } returns 0
         coEvery { vectorStore.writeAccess(any()) } coAnswers {
             firstArg<suspend VectorStore.Transaction.() -> Unit>()(
                 object : VectorStore.Transaction {
@@ -216,7 +237,7 @@ class FreezeSnapshotServiceTest {
     }
 
     private fun rootRecord() =
-        FreezeSnapshotRecord(
+        FreezeSnapshotContentRecord(
             id = "root-1",
             text = "Root",
             authorGid = "gid-owner",
@@ -228,7 +249,7 @@ class FreezeSnapshotServiceTest {
         )
 
     private fun replyRecord() =
-        FreezeSnapshotRecord(
+        FreezeSnapshotContentRecord(
             id = "reply-1",
             text = "Reply",
             authorGid = "gid-owner",
@@ -240,7 +261,7 @@ class FreezeSnapshotServiceTest {
         )
 
     private fun otherReplyRecord() =
-        FreezeSnapshotRecord(
+        FreezeSnapshotContentRecord(
             id = "reply-2",
             text = "Other",
             authorGid = "gid-other",
@@ -249,6 +270,32 @@ class FreezeSnapshotServiceTest {
             signatureVersion = 13,
             storedAt = 102,
             rootId = "root-1",
+        )
+
+    private fun complaintRecord() =
+        FreezeSnapshotComplaintRecord(
+            id = "complaint-1",
+            ownerGid = "gid-owner",
+            postId = "root-1",
+            complainantGid = "gid-owner",
+            postAuthorGid = "gid-other",
+            reason = "Spam",
+            createdAt = 90,
+            complainantSignature = "complaint-signature",
+            complainantSignatureVersion = 1,
+            state = straightway.mosa.content.complaint.PostComplaintState.OPEN,
+        )
+
+    private fun adminMessageRecord() =
+        FreezeSnapshotAdminMessageRecord(
+            id = "message-1",
+            ownerGid = "gid-owner",
+            recipientGid = "gid-owner",
+            senderGid = "gid-admin",
+            createdAt = 95,
+            subject = "Subject",
+            body = "Body",
+            expiresAt = 200,
         )
 
     private class SequenceNonceGenerator(

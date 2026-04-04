@@ -1,15 +1,14 @@
 package straightway.mosa.content.snapshot
 
-import com.fasterxml.jackson.annotation.JsonPropertyOrder
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 
-@JsonPropertyOrder("id", "text", "authorGid", "authorPublicKey", "authorSignature", "signatureVersion", "storedAt", "rootId")
-data class FreezeSnapshotRecord(
-    val id: String,
-    val text: String,
-    val authorGid: String,
-    val authorPublicKey: String,
-    val authorSignature: String,
-    val signatureVersion: Int,
-    val storedAt: Long,
-    val rootId: String?,
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+@JsonSubTypes(
+    JsonSubTypes.Type(value = FreezeSnapshotContentRecord::class, name = "content"),
+    JsonSubTypes.Type(value = FreezeSnapshotComplaintRecord::class, name = "complaint"),
+    JsonSubTypes.Type(value = FreezeSnapshotAdminMessageRecord::class, name = "adminMessage"),
 )
+sealed interface FreezeSnapshotRecord {
+    val id: String
+}

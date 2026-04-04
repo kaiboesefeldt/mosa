@@ -72,7 +72,7 @@ class FreezeSnapshotRestoreValidator(
     }
 
     private fun requireDistinctIds(records: List<FreezeSnapshotRecord>) {
-        if (records.map { it.id }.toSet().size != records.size) {
+        if (records.map { it.snapshotKey() }.toSet().size != records.size) {
             throw InvalidFreezeSnapshotException("Snapshot contains duplicate record ids")
         }
     }
@@ -81,6 +81,30 @@ class FreezeSnapshotRestoreValidator(
         if (record.id.isBlank()) {
             throw InvalidFreezeSnapshotException("Snapshot record id must not be blank")
         }
+        when (record) {
+            is FreezeSnapshotContentRecord -> requireContentRecord(record)
+            is FreezeSnapshotComplaintRecord -> requireComplaintRecord(record)
+            is FreezeSnapshotAdminMessageRecord -> requireAdminMessageRecord(record)
+        }
+    }
+
+    private fun requireReplyRoots(
+        records: List<FreezeSnapshotRecord>,
+        existingRootIds: Set<String>,
+    ) {
+        val contentRecords = records.filterIsInstance<FreezeSnapshotContentRecord>()
+        val rootIds = contentRecords.filter { it.rootId == null }.map { it.id }.toSet() + existingRootIds
+        records
+            .filterIsInstance<FreezeSnapshotContentRecord>()
+            .filter { it.rootId != null }
+            .forEach { record ->
+                if (record.rootId !in rootIds) {
+                    throw InvalidFreezeSnapshotException("Snapshot reply references a missing root")
+                }
+            }
+    }
+
+    private fun requireContentRecord(record: FreezeSnapshotContentRecord) {
         if (record.authorGid.isBlank()) {
             throw InvalidFreezeSnapshotException("Snapshot record authorGid must not be blank")
         }
@@ -101,17 +125,52 @@ class FreezeSnapshotRestoreValidator(
         }
     }
 
-    private fun requireReplyRoots(
-        records: List<FreezeSnapshotRecord>,
-        existingRootIds: Set<String>,
-    ) {
-        val rootIds = records.filter { it.rootId == null }.map { it.id }.toSet() + existingRootIds
-        records
-            .filter { it.rootId != null }
-            .forEach { record ->
-                if (record.rootId !in rootIds) {
-                    throw InvalidFreezeSnapshotException("Snapshot reply references a missing root")
-                }
-            }
+    private fun requireComplaintRecord(record: FreezeSnapshotComplaintRecord) {
+        if (record.ownerGid.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot complaint ownerGid must not be blank")
+        }
+        if (record.postId.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot complaint postId must not be blank")
+        }
+        if (record.complainantGid.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot complaint complainantGid must not be blank")
+        }
+        if (record.postAuthorGid.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot complaint postAuthorGid must not be blank")
+        }
+        if (record.reason.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot complaint reason must not be blank")
+        }
+        if (record.complainantSignature.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot complaint complainantSignature must not be blank")
+        }
+        if (record.complainantSignatureVersion <= 0) {
+            throw InvalidFreezeSnapshotException("Snapshot complaint complainantSignatureVersion must be positive")
+        }
     }
+
+    private fun requireAdminMessageRecord(record: FreezeSnapshotAdminMessageRecord) {
+        if (record.ownerGid.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot admin message ownerGid must not be blank")
+        }
+        if (record.recipientGid.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot admin message recipientGid must not be blank")
+        }
+        if (record.senderGid.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot admin message senderGid must not be blank")
+        }
+        if (record.subject.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot admin message subject must not be blank")
+        }
+        if (record.body.isBlank()) {
+            throw InvalidFreezeSnapshotException("Snapshot admin message body must not be blank")
+        }
+    }
+
+    private fun FreezeSnapshotRecord.snapshotKey(): String =
+        when (this) {
+            is FreezeSnapshotContentRecord -> "content:$id"
+            is FreezeSnapshotComplaintRecord -> "complaint:$id"
+            is FreezeSnapshotAdminMessageRecord -> "adminMessage:$id"
+        }
 }

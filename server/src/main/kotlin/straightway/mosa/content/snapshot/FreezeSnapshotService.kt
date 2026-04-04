@@ -1,11 +1,18 @@
 package straightway.mosa.content.snapshot
 
+import kotlinx.coroutines.runBlocking
 import straightway.mosa.VectorStore
+import straightway.mosa.content.StructuredStateDatabase
+import straightway.mosa.content.complaint.PostComplaintStoreFactory
+import straightway.mosa.message.AdminMessageStoreFactory
 import java.time.Clock
 import kotlin.io.encoding.Base64
 
 class FreezeSnapshotService(
     private val selectionService: FreezeSnapshotSelectionService,
+    private val database: StructuredStateDatabase,
+    private val postComplaintStoreFactory: PostComplaintStoreFactory,
+    private val adminMessageStoreFactory: AdminMessageStoreFactory,
     private val activeArchiveKeyProvider: FreezeSnapshotActiveArchiveKeyProvider,
     private val nonceGenerator: FreezeSnapshotNonceGenerator,
     private val format: FreezeSnapshotFormat,
@@ -34,9 +41,23 @@ class FreezeSnapshotService(
             nonce = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(nonceGenerator.generate()),
         )
 
-    private suspend fun deleteRecords(records: List<FreezeSnapshotRecord>) {
-        vectorStore.writeAccess {
-            records.forEach { remove(it.id) }
+    private fun deleteRecords(records: List<FreezeSnapshotRecord>) {
+        val contentIds = records.filterIsInstance<FreezeSnapshotContentRecord>().map(FreezeSnapshotContentRecord::id)
+        val complaintIds = records.filterIsInstance<FreezeSnapshotComplaintRecord>().map(FreezeSnapshotComplaintRecord::id)
+        val adminMessageIds =
+            records
+                .filterIsInstance<FreezeSnapshotAdminMessageRecord>()
+                .map(FreezeSnapshotAdminMessageRecord::id)
+        database.inTransaction { context ->
+            val postComplaintStore = postComplaintStoreFactory.create(context)
+            val adminMessageStore = adminMessageStoreFactory.create(context)
+            postComplaintStore.deleteByIds(complaintIds)
+            adminMessageStore.deleteByIds(adminMessageIds)
+            runBlocking {
+                vectorStore.writeAccess {
+                    contentIds.forEach { remove(it) }
+                }
+            }
         }
     }
 }

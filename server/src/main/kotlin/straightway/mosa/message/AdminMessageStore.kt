@@ -3,6 +3,12 @@ package straightway.mosa.message
 interface AdminMessageStore {
     fun append(record: AdminMessageRecord)
 
+    fun restore(record: AdminMessageRecord)
+
+    fun loadForIdentity(gid: String): List<AdminMessageRecord>
+
+    fun deleteByIds(ids: List<String>): Int
+
     fun deleteForIdentity(gid: String): Int
 
     fun deleteExpired(nowEpochSeconds: Long): Int

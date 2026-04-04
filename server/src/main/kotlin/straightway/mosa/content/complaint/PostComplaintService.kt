@@ -85,6 +85,7 @@ class PostComplaintService(
         val records = store.loadPage(limit = openPageSize + 1, offset = offset, includeProcessed = includeProcessed)
         val visible = records.take(openPageSize)
         val posts = contentService.fetch(FetchRequest(visible.map(PostComplaintRecord::postId))).entries.associateBy(FetchResult.Entry::id)
+        store.markAsRead(visible.map(PostComplaintRecord::id))
         return OpenPostComplaintsResult(
             entries =
                 visible.map { record ->

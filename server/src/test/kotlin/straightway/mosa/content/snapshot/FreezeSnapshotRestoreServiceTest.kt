@@ -1,6 +1,7 @@
 package straightway.mosa.content.snapshot
 
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -8,6 +9,18 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
+import straightway.mosa.content.StructuredStateContext
+import straightway.mosa.content.StructuredStateDatabase
+import straightway.mosa.content.complaint.PostComplaintRecord
+import straightway.mosa.content.complaint.PostComplaintStore
+import straightway.mosa.content.complaint.PostComplaintStoreFactory
+import straightway.mosa.content.complaint.PostComplaintsTable
+import straightway.mosa.content.complaint.SqlitePostComplaintStore
+import straightway.mosa.message.AdminMessageRecord
+import straightway.mosa.message.AdminMessageStore
+import straightway.mosa.message.AdminMessageStoreFactory
+import straightway.mosa.message.AdminMessagesTable
+import straightway.mosa.message.SqliteAdminMessageStore
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
@@ -23,6 +36,7 @@ import java.util.UUID
 import kotlin.io.encoding.Base64
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.time.Duration.Companion.days
 
 class FreezeSnapshotRestoreServiceTest {
     private val format = FreezeSnapshotFormat()
@@ -50,6 +64,74 @@ class FreezeSnapshotRestoreServiceTest {
                 vectorStore.entries(),
             )
             assertEquals(listOf("Root", "Reply", "Other reply"), embeddingService.embeddedTexts)
+        }
+
+    @Test
+    fun `restore replays moderation records and exposes them as unread`() =
+        runTest {
+            val directory = Files.createTempDirectory("freeze-snapshot-restore")
+            val path = directory.resolve("mosa_db.sqlite")
+
+            try {
+                val database = StructuredStateDatabase(path)
+                database.initialize(AdminMessagesTable, PostComplaintsTable)
+                val complaintStore = SqlitePostComplaintStore(database)
+                val adminMessageStore = SqliteAdminMessageStore(database)
+                val snapshot =
+                    snapshot(
+                        manifest = FreezeSnapshotManifest("gid-owner", 2, 1),
+                        records =
+                            listOf(
+                                complaintRecord(
+                                    id = "complaint-1",
+                                    state = straightway.mosa.content.complaint.PostComplaintState.CONFIRMED,
+                                    decidedByAdminGid = "admin-1",
+                                    decidedAt = 140,
+                                    feedback = "Checked",
+                                    adminSignature = "admin-signature",
+                                    adminSignatureVersion = 3,
+                                ),
+                                adminMessageRecord(id = "message-1", expiresAt = 141),
+                            ),
+                    )
+
+                val result =
+                    createSut(
+                        database = database,
+                        postComplaintStoreFactory = PostComplaintStoreFactory { complaintStore },
+                        adminMessageStoreFactory = AdminMessageStoreFactory { adminMessageStore },
+                    ).restore("gid-owner", snapshot)
+
+                assertEquals(2, result.restoredCount)
+                assertEquals(listOf("complaint-1", "message-1"), result.restoredIds)
+                assertEquals(1, complaintStore.countOpen())
+                assertEquals(
+                    listOf("complaint-1"),
+                    complaintStore.loadPage(limit = 10, offset = 0, includeProcessed = false).map(PostComplaintRecord::id),
+                )
+                assertEquals(
+                    listOf(
+                        AdminMessageRecord(
+                            id = "message-1",
+                            recipientGid = "gid-owner",
+                            senderGid = "admin-1",
+                            createdAt = 130,
+                            subject = "Subject",
+                            body = "Body",
+                            expiresAt = clock.instant().epochSecond + 28.days.inWholeSeconds,
+                            deliveryKey = "message-1:${clock.instant()}:restored",
+                        ),
+                    ),
+                    adminMessageStore.loadVisibleAndShortenExpiry(
+                        recipientGid = "gid-owner",
+                        nowEpochSeconds = clock.instant().epochSecond,
+                        retrievedExpiryUpperBoundEpochSeconds = clock.instant().epochSecond + 28.days.inWholeSeconds,
+                    ),
+                )
+            } finally {
+                Files.deleteIfExists(path)
+                Files.deleteIfExists(directory)
+            }
         }
 
     @Test
@@ -169,7 +251,7 @@ class FreezeSnapshotRestoreServiceTest {
                 snapshot(
                     records =
                         listOf(
-                            FreezeSnapshotRecord(
+                            FreezeSnapshotContentRecord(
                                 id = "root-1",
                                 text = "Root",
                                 authorGid = "",
@@ -270,6 +352,9 @@ class FreezeSnapshotRestoreServiceTest {
                             mockk<FreezeSnapshotSelectionService>().also {
                                 coEvery { it.resolveFor("gid-owner") } returns listOf(rootRecord(), replyRecord())
                             },
+                        database = noOpStructuredStateDatabase(),
+                        postComplaintStoreFactory = PostComplaintStoreFactory { noOpPostComplaintStore() },
+                        adminMessageStoreFactory = AdminMessageStoreFactory { noOpAdminMessageStore() },
                         activeArchiveKeyProvider = freezeKeyStore,
                         nonceGenerator = StaticNonceGenerator("AQIDBAUGBwgJCgsM"),
                         format = format,
@@ -299,7 +384,12 @@ class FreezeSnapshotRestoreServiceTest {
                         cryptoService = FreezeSnapshotCryptoService(rotatedKeyStore, format),
                         validator = FreezeSnapshotRestoreValidator(FreezeSnapshotSizePolicy()),
                         embeddingService = restoreEmbeddingService,
+                        database = noOpStructuredStateDatabase(),
+                        postComplaintStoreFactory = PostComplaintStoreFactory { noOpPostComplaintStore() },
+                        adminMessageStoreFactory = AdminMessageStoreFactory { noOpAdminMessageStore() },
                         vectorStore = restoreVectorStore,
+                        clock = restoreClock,
+                        adminMessageUnretrievedTtl = 180.days,
                         policy = policy,
                     )
 
@@ -360,15 +450,24 @@ class FreezeSnapshotRestoreServiceTest {
             assertEquals(listOf(existing), vectorStore.entries())
         }
 
-    private fun createSut(sizePolicy: FreezeSnapshotSizePolicy = FreezeSnapshotSizePolicy()) =
-        FreezeSnapshotRestoreService(
-            format = format,
-            cryptoService = cryptoService,
-            validator = FreezeSnapshotRestoreValidator(sizePolicy),
-            embeddingService = embeddingService,
-            vectorStore = vectorStore,
-            policy = policy,
-        )
+    private fun createSut(
+        sizePolicy: FreezeSnapshotSizePolicy = FreezeSnapshotSizePolicy(),
+        database: StructuredStateDatabase = noOpStructuredStateDatabase(),
+        postComplaintStoreFactory: PostComplaintStoreFactory = PostComplaintStoreFactory { noOpPostComplaintStore() },
+        adminMessageStoreFactory: AdminMessageStoreFactory = AdminMessageStoreFactory { noOpAdminMessageStore() },
+    ) = FreezeSnapshotRestoreService(
+        format = format,
+        cryptoService = cryptoService,
+        validator = FreezeSnapshotRestoreValidator(sizePolicy),
+        embeddingService = embeddingService,
+        database = database,
+        postComplaintStoreFactory = postComplaintStoreFactory,
+        adminMessageStoreFactory = adminMessageStoreFactory,
+        vectorStore = vectorStore,
+        clock = clock,
+        adminMessageUnretrievedTtl = 180.days,
+        policy = policy,
+    )
 
     private suspend fun assertRejected(
         snapshot: ByteArray,
@@ -448,7 +547,7 @@ class FreezeSnapshotRestoreServiceTest {
     private fun rootRecord(
         id: String = "root-1",
         text: String = "Root",
-    ) = FreezeSnapshotRecord(
+    ) = FreezeSnapshotContentRecord(
         id = id,
         text = text,
         authorGid = "gid-owner",
@@ -462,7 +561,7 @@ class FreezeSnapshotRestoreServiceTest {
     private fun replyRecord(
         id: String = "reply-1",
         rootId: String = "root-1",
-    ) = FreezeSnapshotRecord(
+    ) = FreezeSnapshotContentRecord(
         id = id,
         text = "Reply",
         authorGid = "gid-owner",
@@ -474,7 +573,7 @@ class FreezeSnapshotRestoreServiceTest {
     )
 
     private fun otherReplyRecord() =
-        FreezeSnapshotRecord(
+        FreezeSnapshotContentRecord(
             id = "reply-2",
             text = "Other reply",
             authorGid = "gid-other",
@@ -484,6 +583,67 @@ class FreezeSnapshotRestoreServiceTest {
             storedAt = 102,
             rootId = "root-1",
         )
+
+    private fun complaintRecord(
+        id: String = "complaint-1",
+        state: straightway.mosa.content.complaint.PostComplaintState = straightway.mosa.content.complaint.PostComplaintState.OPEN,
+        decidedByAdminGid: String? = null,
+        decidedAt: Long? = null,
+        feedback: String? = null,
+        adminSignature: String? = null,
+        adminSignatureVersion: Int? = null,
+    ) = FreezeSnapshotComplaintRecord(
+        id = id,
+        ownerGid = "gid-owner",
+        postId = "post-1",
+        complainantGid = "gid-owner",
+        postAuthorGid = "gid-other",
+        reason = "Spam",
+        createdAt = 120,
+        complainantSignature = "complainant-signature",
+        complainantSignatureVersion = 2,
+        state = state,
+        decidedByAdminGid = decidedByAdminGid,
+        decidedAt = decidedAt,
+        feedback = feedback,
+        adminSignature = adminSignature,
+        adminSignatureVersion = adminSignatureVersion,
+    )
+
+    private fun adminMessageRecord(
+        id: String = "message-1",
+        expiresAt: Long = 200,
+    ) = FreezeSnapshotAdminMessageRecord(
+        id = id,
+        ownerGid = "gid-owner",
+        recipientGid = "gid-owner",
+        senderGid = "admin-1",
+        createdAt = 130,
+        subject = "Subject",
+        body = "Body",
+        expiresAt = expiresAt,
+    )
+
+    private fun noOpStructuredStateDatabase(): StructuredStateDatabase =
+        mockk<StructuredStateDatabase>().also { database ->
+            val context = mockk<StructuredStateContext>()
+            every { database.inTransaction<Any>(any()) } answers {
+                firstArg<(StructuredStateContext) -> Any>().invoke(context)
+            }
+        }
+
+    private fun noOpPostComplaintStore(): PostComplaintStore =
+        mockk<PostComplaintStore>().also { store ->
+            every { store.deleteByIds(any()) } returns 0
+            every { store.restore(any()) } returns Unit
+            every { store.markAsRead(any()) } returns 0
+        }
+
+    private fun noOpAdminMessageStore(): AdminMessageStore =
+        mockk<AdminMessageStore>().also { store ->
+            every { store.deleteByIds(any()) } returns 0
+            every { store.restore(any()) } returns Unit
+        }
 
     private class FixedArchiveKeyStore(
         vararg keys: FreezeSnapshotArchiveKey,

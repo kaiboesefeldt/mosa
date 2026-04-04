@@ -3,19 +3,31 @@ package straightway.mosa.content.snapshot
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import straightway.mosa.content.FreezeSnapshotRestoreResult
+import straightway.mosa.content.StructuredStateDatabase
+import straightway.mosa.content.complaint.PostComplaintRecord
+import straightway.mosa.content.complaint.PostComplaintStoreFactory
+import straightway.mosa.message.AdminMessageRecord
+import straightway.mosa.message.AdminMessageStoreFactory
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.RECEIVED_AT_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.SIGNATURE_VERSION_KEY
+import java.time.Clock
+import kotlin.time.Duration
 
 class FreezeSnapshotRestoreService(
     private val format: FreezeSnapshotFormat,
     private val cryptoService: FreezeSnapshotCryptoService,
     private val validator: FreezeSnapshotRestoreValidator,
     private val embeddingService: EmbeddingService,
+    private val database: StructuredStateDatabase,
+    private val postComplaintStoreFactory: PostComplaintStoreFactory,
+    private val adminMessageStoreFactory: AdminMessageStoreFactory,
     private val vectorStore: VectorStore,
+    private val clock: Clock,
+    private val adminMessageUnretrievedTtl: Duration,
     private val policy: FreezeSnapshotPolicy,
 ) {
     suspend fun restore(
@@ -28,15 +40,21 @@ class FreezeSnapshotRestoreService(
         validator.validatePayloadSize(payload.size)
         val (manifest, records) = format.parsePayload(payload)
         validator.validateRecords(ownerGid, manifest, records, resolveExistingRootIds(records))
-        val preparedRecords = prepareRecords(records)
-        restoreRecords(preparedRecords)
-        return FreezeSnapshotRestoreResult(records.map { it.id }, records.size)
+        val preparedContentRecords = prepareContentRecords(records.filterIsInstance<FreezeSnapshotContentRecord>())
+        restoreRecords(
+            contentRecords = preparedContentRecords,
+            complaintRecords = records.filterIsInstance<FreezeSnapshotComplaintRecord>(),
+            adminMessageRecords = records.filterIsInstance<FreezeSnapshotAdminMessageRecord>(),
+        )
+        val restoredIds = records.map(FreezeSnapshotRecord::id)
+        return FreezeSnapshotRestoreResult(restoredIds, restoredIds.size)
     }
 
     private suspend fun resolveExistingRootIds(records: List<FreezeSnapshotRecord>): Set<String> {
-        val snapshotRootIds = records.filter { it.rootId == null }.mapTo(linkedSetOf()) { it.id }
+        val contentRecords = records.filterIsInstance<FreezeSnapshotContentRecord>()
+        val snapshotRootIds = contentRecords.filter { it.rootId == null }.mapTo(linkedSetOf()) { it.id }
         val missingRootIds =
-            records
+            contentRecords
                 .mapNotNullTo(linkedSetOf()) { it.rootId }
                 .filterNotTo(linkedSetOf()) { it in snapshotRootIds }
         if (missingRootIds.isEmpty()) {
@@ -49,7 +67,7 @@ class FreezeSnapshotRestoreService(
             .mapTo(linkedSetOf()) { it.id }
     }
 
-    private suspend fun prepareRecords(records: List<FreezeSnapshotRecord>): List<PreparedRestoreRecord> =
+    private suspend fun prepareContentRecords(records: List<FreezeSnapshotContentRecord>): List<PreparedRestoreRecord> =
         records.map { record ->
             PreparedRestoreRecord(
                 id = record.id,
@@ -67,18 +85,65 @@ class FreezeSnapshotRestoreService(
             )
         }
 
-    private suspend fun restoreRecords(records: List<PreparedRestoreRecord>) {
-        vectorStore.writeAccess {
-            records.forEach { record ->
-                add(
-                    id = record.id,
-                    text = record.text,
-                    fields = record.fields,
-                    vector = record.vector,
+    private fun restoreRecords(
+        contentRecords: List<PreparedRestoreRecord>,
+        complaintRecords: List<FreezeSnapshotComplaintRecord>,
+        adminMessageRecords: List<FreezeSnapshotAdminMessageRecord>,
+    ) {
+        database.inTransaction { context ->
+            val postComplaintStore = postComplaintStoreFactory.create(context)
+            val adminMessageStore = adminMessageStoreFactory.create(context)
+            complaintRecords.forEach { record ->
+                postComplaintStore.restore(
+                    PostComplaintRecord(
+                        id = record.id,
+                        postId = record.postId,
+                        complainantGid = record.complainantGid,
+                        postAuthorGid = record.postAuthorGid,
+                        reason = record.reason,
+                        createdAt = record.createdAt,
+                        complainantSignature = record.complainantSignature,
+                        complainantSignatureVersion = record.complainantSignatureVersion,
+                        state = record.state,
+                        decidedByAdminGid = record.decidedByAdminGid,
+                        decidedAt = record.decidedAt,
+                        feedback = record.feedback,
+                        adminSignature = record.adminSignature,
+                        adminSignatureVersion = record.adminSignatureVersion,
+                    ),
                 )
+            }
+            adminMessageRecords.forEach { record ->
+                adminMessageStore.restore(
+                    AdminMessageRecord(
+                        id = record.id,
+                        recipientGid = record.recipientGid,
+                        senderGid = record.senderGid,
+                        createdAt = record.createdAt,
+                        subject = record.subject,
+                        body = record.body,
+                        expiresAt = clock.instant().epochSecond + adminMessageUnretrievedTtl.inWholeSeconds,
+                        deliveryKey = restoredDeliveryKey(record.id),
+                    ),
+                )
+            }
+            kotlinx.coroutines.runBlocking {
+                vectorStore.writeAccess {
+                    contentRecords.forEach { remove(it.id) }
+                    contentRecords.forEach { record ->
+                        add(
+                            id = record.id,
+                            text = record.text,
+                            fields = record.fields,
+                            vector = record.vector,
+                        )
+                    }
+                }
             }
         }
     }
+
+    private fun restoredDeliveryKey(id: String): String = "$id:${clock.instant()}:restored"
 }
 
 internal data class PreparedRestoreRecord(

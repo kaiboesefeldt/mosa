@@ -30,7 +30,7 @@ class FreezeSnapshotFormatTest {
 
     @Test
     fun `content records serialize and parse losslessly`() {
-        val records = sampleRecords()
+        val records = sampleContentRecords()
 
         val serialized = sut.serializeRecords(records)
 
@@ -41,12 +41,12 @@ class FreezeSnapshotFormatTest {
     fun `content records parser ignores empty lines`() {
         val serialized =
             """
-            {"id":"root-1","text":"Root post","authorGid":"gid-owner","authorPublicKey":"public-key-root","authorSignature":"signature-root","signatureVersion":7,"storedAt":1700000001,"rootId":null}
+            {"type":"content","id":"root-1","text":"Root post","authorGid":"gid-owner","authorPublicKey":"public-key-root","authorSignature":"signature-root","signatureVersion":7,"storedAt":1700000001,"rootId":null}
 
-            {"id":"reply-1","text":"Reply","authorGid":"gid-other","authorPublicKey":"public-key-reply","authorSignature":"signature-reply","signatureVersion":11,"storedAt":1700000002,"rootId":"root-1"}
+            {"type":"content","id":"reply-1","text":"Reply","authorGid":"gid-other","authorPublicKey":"public-key-reply","authorSignature":"signature-reply","signatureVersion":11,"storedAt":1700000002,"rootId":"root-1"}
             """.trimIndent().encodeToByteArray()
 
-        assertEquals(sampleRecords(), sut.parseRecords(serialized))
+        assertEquals(sampleContentRecords(), sut.parseRecords(serialized))
     }
 
     @Test
@@ -55,7 +55,7 @@ class FreezeSnapshotFormatTest {
             FreezeSnapshot(
                 header = sampleHeader(),
                 manifest = sampleManifest(recordCount = 2),
-                records = sampleRecords(),
+                records = sampleContentRecords(),
             )
 
         val serialized = sut.serialize(snapshot)
@@ -125,6 +125,15 @@ class FreezeSnapshotFormatTest {
             """.trimIndent().encodeToByteArray()
 
         assertFailsWith<InvalidFreezeSnapshotException> { sut.parsePayload(payload) }
+    }
+
+    @Test
+    fun `mixed snapshot records serialize and parse losslessly`() {
+        val records = sampleMixedRecords()
+
+        val serialized = sut.serializeRecords(records)
+
+        assertEquals(records, sut.parseRecords(serialized))
     }
 
     @Test
@@ -198,9 +207,9 @@ class FreezeSnapshotFormatTest {
             archivePolicyVersion = 1,
         )
 
-    private fun sampleRecords() =
+    private fun sampleContentRecords() =
         listOf(
-            FreezeSnapshotRecord(
+            FreezeSnapshotContentRecord(
                 id = "root-1",
                 text = "Root post",
                 authorGid = "gid-owner",
@@ -210,7 +219,7 @@ class FreezeSnapshotFormatTest {
                 storedAt = 1_700_000_001,
                 rootId = null,
             ),
-            FreezeSnapshotRecord(
+            FreezeSnapshotContentRecord(
                 id = "reply-1",
                 text = "Reply",
                 authorGid = "gid-other",
@@ -221,6 +230,31 @@ class FreezeSnapshotFormatTest {
                 rootId = "root-1",
             ),
         )
+
+    private fun sampleMixedRecords(): List<FreezeSnapshotRecord> =
+        sampleContentRecords() +
+            FreezeSnapshotComplaintRecord(
+                id = "complaint-1",
+                ownerGid = "gid-owner",
+                postId = "root-1",
+                complainantGid = "gid-owner",
+                postAuthorGid = "gid-other",
+                reason = "Spam",
+                createdAt = 1_700_000_003,
+                complainantSignature = "complaint-signature",
+                complainantSignatureVersion = 1,
+                state = straightway.mosa.content.complaint.PostComplaintState.OPEN,
+            ) +
+            FreezeSnapshotAdminMessageRecord(
+                id = "message-1",
+                ownerGid = "gid-owner",
+                recipientGid = "gid-owner",
+                senderGid = "gid-admin",
+                createdAt = 1_700_000_004,
+                subject = "Subject",
+                body = "Body",
+                expiresAt = 1_700_086_404,
+            )
 
     private fun frame(
         headerBytes: ByteArray,

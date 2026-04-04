@@ -61,4 +61,24 @@ class AdminMessageInboxStateTest {
 
         assertEquals(listOf("message-3"), visible.map(AdminMessage::id))
     }
+
+    @Test
+    fun `merge treats restored delivery of known message as unread again`() {
+        val snapshot =
+            AdminMessageInboxStateSnapshot(
+                entries = listOf(AdminMessage("message-1", "sender", 10, "Original", "Body", deliveryKey = "delivery-1")),
+                seenMessageIds = listOf("delivery-1"),
+            )
+
+        val merged =
+            snapshot.mergeFetchedEntries(
+                fetchedEntries = listOf(AdminMessage("message-1", "sender", 10, "Restored", "Body", deliveryKey = "delivery-2")),
+                markFetchedEntriesAsSeen = false,
+            )
+
+        assertEquals(listOf("message-1"), merged.entries.map(AdminMessage::id))
+        assertEquals("Restored", merged.entries.single().subject)
+        assertEquals(listOf("delivery-2"), merged.knownMessageIds)
+        assertEquals(emptyList(), merged.seenMessageIds)
+    }
 }

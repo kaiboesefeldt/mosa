@@ -38,6 +38,7 @@ class AdminMessageService(
                 subject = request.subject,
                 body = request.body,
                 expiresAt = createdAt + unretrievedTtl.inWholeSeconds,
+                deliveryKey = "",
             ),
         )
     }
@@ -101,6 +102,7 @@ class AdminMessageService(
                         subject = record.subject,
                         body = record.body,
                         remainingLifetimeDays = remainingLifetimeDays(record.expiresAt, now),
+                        deliveryKey = record.deliveryKey,
                     )
                 },
             page = page,

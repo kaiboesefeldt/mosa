@@ -123,7 +123,9 @@ Freeze-snapshot archives use persisted symmetric archive keys.
 
 This file contains secret key material and must be protected accordingly. It
 stores the active archive key separately from historical keys so older
-snapshots remain restorable after future key rotation.
+snapshots remain restorable after future key rotation. Freeze snapshots cover
+both content records from the Lucene vector store and pod-local moderation data
+from SQLite.
 
 ### Vector store index
 The Lucene vector store persists its local index in a directory under the

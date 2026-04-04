@@ -10,4 +10,5 @@ data class AdminMessage(
     val subject: String,
     val body: String,
     val remainingLifetimeDays: Int = 0,
+    val deliveryKey: String = "",
 )

@@ -17,6 +17,6 @@ overrides:
         user-data-control-slot-service: |
           Sie können eigene Inhalte löschen und mit den vorhandenen Funktionen eine Kopie Ihrer Inhalte herunterladen.
 
-          Sie können eigene Inhalte in eine gesicherte Datei auslagern und von diesem {{string:SERVICE_DISPLAY_NAME}}-Server entfernen. Diese Datei müssen Sie selbst gut aufbewahren. Zurückholen können Sie sie nur auf demselben {{string:SERVICE_DISPLAY_NAME}}-Server.
+          Sie können eigene Inhalte zusammen mit diesem Pod lokal zugeordneten Moderationsdaten zu Ihrer Identität in eine gesicherte Datei auslagern und von diesem {{string:SERVICE_DISPLAY_NAME}}-Server entfernen. Diese Datei müssen Sie selbst gut aufbewahren. Zurückholen können Sie sie nur auf demselben {{string:SERVICE_DISPLAY_NAME}}-Server.
         changes-follow-up-slot-service: |
           Ihre eigenen Daten können Sie mit den dafür vorgesehenen Funktionen weiter herunterladen oder sichern.

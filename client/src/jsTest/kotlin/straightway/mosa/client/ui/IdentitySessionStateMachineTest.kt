@@ -8,8 +8,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.js.js
 import straightway.mosa.client.browser.CryptoKey
@@ -453,13 +455,36 @@ class IdentitySessionStateMachineTest {
         advanceUntilIdle()
 
         machine.freezePosts()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(listOf("mosa-snapshot"), snapshots.freezeFileBaseNames)
         val state = machine.state.value
         assertTrue(state is IdentitySessionViewState.Connected)
         assertEquals(TestIdentitySessionTextProvider.freezeSuccess, state.profile.statusText)
         assertEquals(1, state.profile.snapshotRefreshVersion)
+    }
+
+    @Test
+    fun `clears freeze success message after a short delay`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore()
+        val snapshots = RecordingPrivacySnapshotPort()
+        val machine = createMachine(repository, store, privacySnapshots = snapshots)
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        machine.freezePosts()
+        runCurrent()
+        advanceTimeBy(3200)
+        advanceUntilIdle()
+
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Connected)
+        assertEquals(null, state.profile.statusText)
     }
 
     @Test
@@ -505,13 +530,36 @@ class IdentitySessionStateMachineTest {
         advanceUntilIdle()
 
         machine.restorePosts()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(1, snapshots.restoreCalls)
         val state = machine.state.value
         assertTrue(state is IdentitySessionViewState.Connected)
         assertEquals("restored 2", state.profile.statusText)
         assertEquals(1, state.profile.snapshotRefreshVersion)
+    }
+
+    @Test
+    fun `clears restore success message after a short delay`() = runMachineTest {
+        val identity = identity("gid-a")
+        val repository = FakeIdentitySelectionRepository(identity)
+        val store = RecordingIdentitySessionStore()
+        val snapshots = RecordingPrivacySnapshotPort(restoreResult = straightway.mosa.content.FreezeSnapshotRestoreResult(listOf("a"), 1))
+        val machine = createMachine(repository, store, privacySnapshots = snapshots)
+
+        machine.refresh()
+        advanceUntilIdle()
+        machine.connectToPod()
+        advanceUntilIdle()
+
+        machine.restorePosts()
+        runCurrent()
+        advanceTimeBy(3200)
+        advanceUntilIdle()
+
+        val state = machine.state.value
+        assertTrue(state is IdentitySessionViewState.Connected)
+        assertEquals(null, state.profile.statusText)
     }
 
     @Test

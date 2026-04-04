@@ -10,6 +10,7 @@ object AdminMessagesTable : Table("admin_messages") {
     val subject = text("subject")
     val body = text("body")
     val expiresAt = long("expires_at")
+    val deliveryKey = varchar("delivery_key", length = 256)
 
     override val primaryKey = PrimaryKey(id)
 }

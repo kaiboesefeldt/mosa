@@ -47,7 +47,7 @@ fun Module.configureContentAppModule() {
     single { FileBackedFreezeSnapshotArchiveKeyStore(defaultFreezeSnapshotArchiveKeyPath(), get()) }
     single<FreezeSnapshotArchiveKeyStore> { get<FileBackedFreezeSnapshotArchiveKeyStore>() }
     single<FreezeSnapshotActiveArchiveKeyProvider> { get<FileBackedFreezeSnapshotArchiveKeyStore>() }
-    single { FreezeSnapshotSelectionService(get()) }
+    single { FreezeSnapshotSelectionService(get(), get<StructuredStateContext>(), get(), get()) }
     single { FreezeSnapshotFormat() }
     single { FreezeSnapshotCryptoService(get(), get()) }
     single<FreezeSnapshotNonceGenerator> { SecureRandomFreezeSnapshotNonceGenerator() }
@@ -61,6 +61,9 @@ fun Module.configureContentAppModule() {
     single {
         FreezeSnapshotService(
             selectionService = get(),
+            database = get(),
+            postComplaintStoreFactory = get(),
+            adminMessageStoreFactory = get(),
             activeArchiveKeyProvider = get<FreezeSnapshotActiveArchiveKeyProvider>(),
             nonceGenerator = get(),
             format = get(),
@@ -76,7 +79,12 @@ fun Module.configureContentAppModule() {
             cryptoService = get(),
             validator = get(),
             embeddingService = get(),
+            database = get(),
+            postComplaintStoreFactory = get(),
+            adminMessageStoreFactory = get(),
             vectorStore = get(),
+            clock = get(),
+            adminMessageUnretrievedTtl = 180.days,
             policy = get(),
         )
     }

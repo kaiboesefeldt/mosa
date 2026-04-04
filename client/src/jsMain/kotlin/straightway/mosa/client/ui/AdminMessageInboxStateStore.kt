@@ -66,7 +66,7 @@ class BrowserAdminMessageInboxStateStore(
 
 private fun AdminMessageInboxStateSnapshot.normalized(): AdminMessageInboxStateSnapshot {
     val entries = entries.distinctBy(AdminMessage::id).sortedByDescending(AdminMessage::createdAt)
-    val known = (entries.map(AdminMessage::id) + knownMessageIds).map(String::trim).filter(String::isNotEmpty).distinct()
+    val known = (entries.map(AdminMessage::seenStateKey) + knownMessageIds).map(String::trim).filter(String::isNotEmpty).distinct()
     val seen = seenMessageIds.map(String::trim).filter(String::isNotEmpty).distinct().filter(known::contains)
     return AdminMessageInboxStateSnapshot(knownMessageIds = known, seenMessageIds = seen, entries = entries)
 }
@@ -79,12 +79,12 @@ internal fun AdminMessageInboxStateSnapshot.mergeFetchedEntries(
 ): AdminMessageInboxStateSnapshot {
     val normalized = normalized()
     val mergedEntries = (fetchedEntries + normalized.entries).distinctBy(AdminMessage::id).sortedByDescending(AdminMessage::createdAt)
-    val knownMessageIds = mergedEntries.map(AdminMessage::id)
+    val knownMessageIds = mergedEntries.map(AdminMessage::seenStateKey)
     val seenMessageIds =
         (
             normalized.seenMessageIds +
                 if (markFetchedEntriesAsSeen) {
-                    fetchedEntries.map(AdminMessage::id)
+                    fetchedEntries.map(AdminMessage::seenStateKey)
                 } else {
                     emptyList()
                 }
@@ -104,5 +104,7 @@ internal fun List<AdminMessage>.filteredForInbox(
         return this
     }
     val hiddenSeen = hiddenSeenMessageIds.toSet()
-    return filterNot { it.id in hiddenSeen }
+    return filterNot { it.seenStateKey() in hiddenSeen }
 }
+
+private fun AdminMessage.seenStateKey(): String = deliveryKey.ifBlank { id }

@@ -18,6 +18,7 @@ object PostComplaintsTable : Table("post_complaints") {
     val adminSignature = text("admin_signature").nullable()
     val adminSignatureVersion = integer("admin_signature_version").nullable()
     val openMarker = varchar("open_marker", length = 16).nullable()
+    val unreadMarker = varchar("unread_marker", length = 128).nullable()
 
     override val primaryKey = PrimaryKey(id)
 
