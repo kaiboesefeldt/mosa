@@ -97,24 +97,11 @@
 - `models/`: Optional model assets (avoid committing large artifacts unintentionally).
 - `mosa_lucene_index/`: Local Lucene index data (delete to reset local state).
 
-## 8. Runtime Snapshot (Compact)
-- Server: Ktor + Koin, auth via MIS-JWT bearer tokens.
-- DB storage file is fixed to `mosa_db.sqlite` in the server working directory.
-- Structured-state SQLite access is split into a reusable `StructuredStateContext` plus `StructuredStateDatabase.inTransaction { ... }`.
-  Coordinated multi-store SQLite operations should create transaction-bound store instances via Koin factories instead of passing raw Exposed transactions through service APIs.
-- Embeddings/vector storage: ONNX local embeddings + Lucene local vector store.
-- Snapshot workflow: freeze export and restore application services live in `server/src/main/kotlin/straightway/mosa/content/snapshot`.
-- Client assets are copied into server static resources for packaging.
-- Legal document loading is split across dedicated helpers in `server/src/main/kotlin/straightway/mosa/legal`:
-  `LegalProfileSource` handles YAML/resource loading, `LegalChainValidator` validates full chains,
-  `LegalOperatorProfileTemplateWriter` creates operator templates, and `LegalDocumentFactory` builds canonical/fallback documents.
-- Those legal helpers are wired as separate Koin beans.
-- Shared ClearTerms code keeps its public API in `shared/src/commonMain/kotlin/straightway/mosa/legal/clearterms`
-  and groups implementation details into subpackages: `canonical`, `locale`, `parse`, `placeholder`, `render`, `validation`.
-- Classpath/resource access in the legal module goes through `ResourceTextReader`, `ResourceDirectoryEntriesProvider`, and `ResourceUrlsProvider`.
-- ClearTerms YAML loading supports optional language fragment files:
-  - Baseline: `<name>.<lang>.yaml` fragments contribute to root `texts`.
-  - Profile: `<name>.<lang>.yaml` fragments contribute to `overrides.texts`.
+## 8. Architecture Reference
+- The top-level software architecture is documented in `spec/Architecture.md`.
+- Keep `AGENTS.md` focused on stable working rules and coding constraints.
+- Put broad structural explanations and architectural evolution into `spec/Architecture.md` instead of duplicating them here.
+- If architecture changes significantly, update both files only where each one adds unique value.
 
 ## 9. Security Constraints
 - Ed25519 signing uses transient keys unless explicitly persisted.
