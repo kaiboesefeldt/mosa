@@ -1,30 +1,30 @@
 # MOSA Architecture
 
-## Purpose and Context
+## Purpose
 
-MOSA is a federated, topic-oriented social network application. The system architecture is split into three primary parts:
+MOSA is federated, topic-oriented social network with three modules:
 
-- `server`: a Ktor-based pod server with HTTP API, authentication, persistence, semantic search, and legal document handling
-- `client`: a Kotlin/JS web client with a React-based UI, browser persistence, and pod communication
-- `shared`: shared DTOs, signature/protocol types, and cross-platform domain models
+- `server`: Ktor pod server with HTTP API, auth, persistence, semantic search, legal docs
+- `client`: Kotlin/JS web client with React UI, browser persistence, pod access
+- `shared`: shared DTOs, protocol/signature types, cross-platform models
 
-The architecture is intentionally modular: client, server, and shared contract objects are developed as one coherent software system.
+Client, server, and shared contracts evolve as one system.
 
 ## Top-Level Structure
 
-### Module Structure
-
-- Gradle multi-project build with the modules `:server`, `:client`, and `:shared`
-- `:shared` is the shared contract module between frontend and backend
-- The server packages the built web client into its static resources and serves it
-
-### Overview Diagram
+- Gradle multi-project build: `:server`, `:client`, `:shared`
+- `:shared` is contract boundary between frontend and backend
+- server serves built client bundle as static resource
+- one pod runs as single Ktor/Netty process
+- browser client talks to pod over HTTP
+- semantic search runs on server
+- identity and auth use cryptographic keys and [`MIS-JWT`](./MIS1.0.md)
 
 ```mermaid
 flowchart LR
     User[Browser User]
     Client[client<br>Kotlin/JS + React]
-    Shared[shared<br>shared DTOs and domain types]
+    Shared[shared<br>DTOs and domain types]
     Server[server<br>Ktor Pod]
     Lucene[Lucene Vector Store]
     Sqlite[SQLite Structured State]
@@ -39,36 +39,33 @@ flowchart LR
     Server --> Files
 ```
 
-### Runtime Topology
+## Core Principles
 
-- A MOSA pod runs as a single Ktor/Netty process
-- The browser client communicates over HTTP with a pod base URL context and encapsulates that access behind dedicated pod access abstractions
-- Semantic search and thread queries are executed on the server side
-- Identity and authorization are based on cryptographic keys and [`MIS-JWT`](./MIS1.0.md) bearer tokens
+- clear split between UI, domain logic, infrastructure, and shared contracts
+- shared request/response types prevent contract drift
+- Koin composes system
+- thin HTTP controllers delegate to services
+- local infrastructure over external platform services:
+  Lucene for semantic search, SQLite for structured state, ONNX/DJL for embeddings, IndexedDB for client state
+- federation and security stay at pod level
 
-## Architecture Principles
+## Server
 
-The most important structural characteristics of the project are:
+Server owns pod runtime, domain logic, security, persistence, semantic search.
 
-- separation of responsibilities between UI, domain logic, infrastructure, and shared API contracts
-- shared request/response types in `shared` to avoid contract drift between client and server
-- composition through Koin instead of hard-wired construction
-- thin HTTP controllers delegating domain logic to services
-- local infrastructure instead of external platform services:
-  Lucene for vector search, SQLite for structured state, ONNX/DJL for embeddings, browser IndexedDB for client state
-- federation and security logic at pod level instead of centralized user management
+### Composition
 
-## Server Architecture
+Entry point: `straightway.mosa.MainKt`
 
-### Entry Point and Composition
+Commands:
 
-The server starts through `straightway.mosa.MainKt` and provides command-line subcommands for operation and data exchange:
+- `serve`
+- `export`
+- `import`
 
-- `serve`: starts the pod
-- `export`: exports content
-- `import`: imports content
+Main wiring: `server/src/main/kotlin/straightway/mosa/AppModule.kt`
 
-The overall domain composition is assembled in `server/src/main/kotlin/straightway/mosa/AppModule.kt`. That module combines the submodules:
+Submodules:
 
 - Auth
 - Content
@@ -79,27 +76,7 @@ The overall domain composition is assembled in `server/src/main/kotlin/straightw
 - Vector Store
 - Web Client Delivery
 
-`ServeCommand` installs Koin into Ktor, loads all `BaseController` instances from the DI container, and registers their routes centrally. This keeps routing defined close to each controller while still composing it in one place.
-
-### Server Configuration Model
-
-Server configuration deliberately uses two mechanisms only:
-
-- dedicated files in the server current working directory
-- command-line parameters for everything else
-
-There is no general-purpose server config file. If a setting is not represented by a dedicated file, it is configured through command-line options exposed by the server commands.
-
-The files in the server current working directory are a deliberate part of the operating model. In particular, this includes the legal YAML files such as `mosa_privacy.yaml`, `mosa_terms.yaml`, and `mosa_imprint.yaml`, as well as the pod keypair file `mosa_pod_keypair.pem`.
-
-This is an intentional architecture decision:
-
-- persistent server-local configuration files are easy to discover because they live in one predictable place
-- operators are expected to run the server with its own dedicated working directory
-- the location of operational files stays obvious without an additional path indirection layer
-- file-based configuration remains separate from generic runtime tuning through command-line arguments
-
-### Server Composition Diagram
+`ServeCommand` installs Koin, loads `BaseController` instances from DI, registers routes centrally.
 
 ```mermaid
 flowchart TD
@@ -137,20 +114,28 @@ flowchart TD
     Koin --> Webclient
 ```
 
-### Layering Model on the Server
+### Configuration
 
-The server does not follow a strict hexagonal framework, but it clearly exhibits an effective layered structure:
+Server configuration uses only:
 
-1. HTTP layer
-   `BaseController` and concrete controllers in domain packages register endpoints, read requests, and serialize responses.
-2. Domain logic
-   Services such as `ContentService`, `AdminMessageService`, `PostComplaintService`, and `LegalService` encapsulate application logic.
-3. Persistence and integration layer
-   Lucene, SQLite, ONNX, file, and resource access are encapsulated in dedicated infrastructure classes.
-4. Cross-cutting layer
-   Authentication, signature verification, rate limits, TLS configuration, and Ktor plugins cut across modules.
+- dedicated files in current working directory
+- command-line parameters for everything else
 
-This structure keeps the web layer relatively thin and concentrates behavior in reusable services.
+Important working-directory files:
+
+- `mosa_privacy.yaml`
+- `mosa_terms.yaml`
+- `mosa_imprint.yaml`
+- `mosa_pod_keypair.pem`
+
+This keeps pod-local state and config discoverable without global config indirection.
+
+### Layers
+
+1. HTTP: controllers parse requests, register endpoints, serialize responses
+2. Domain: services such as `ContentService`, `AdminMessageService`, `PostComplaintService`, `LegalService`
+3. Persistence/integration: Lucene, SQLite, ONNX, file, resource access
+4. Cross-cutting: auth, signature verification, rate limits, TLS, Ktor plugins
 
 ```mermaid
 flowchart TD
@@ -172,112 +157,86 @@ flowchart TD
 
 #### Content
 
-`straightway.mosa.content` is the largest domain area. It contains:
+`straightway.mosa.content` covers:
 
-- publishing posts and replies
-- semantic queries and thread queries
-- fetch and export functionality
-- deleting owned content
-- deleting entire identities
-- privacy snapshots for export and restore
-- complaint and administrative messaging through adjacent subpackages
+- posts and replies
+- semantic and thread queries
+- fetch and export
+- deletion of owned content and identities
+- privacy snapshots
+- adjacent complaint and admin messaging flows
 
-`ContentService` combines embedding generation and vector store access. Writing content means:
+`ContentService` combines embedding generation and vector store access.
 
-1. validate the text
-2. generate an embedding
-3. write the document plus metadata into the vector index
+Write flow:
 
-Reading content means:
+1. validate text
+2. generate embedding
+3. store document and metadata in vector index
 
-1. interpret query criteria
-2. optionally generate a topic embedding
-3. search against the vector store
-4. project results into API DTOs
+Read flow:
+
+1. interpret query
+2. optionally generate topic embedding
+3. search vector store
+4. project results to API DTOs
 
 #### Auth
 
-`straightway.mosa.auth` encapsulates:
+`straightway.mosa.auth` covers:
 
-- Ed25519 key generation and persistence for the pod
-- certificate issuance for client identities
+- Ed25519 pod keys
+- certificates for client identities
 - JWT generation and verification
-- Ktor authentication integration
+- Ktor auth integration
 
-In this context, a `GID` is the stable cryptographic identifier of a client identity. It is the identity value that the pod certifies, that the client uses in authentication flows, and that other deterministic identity representations such as fictional names and avatars are derived from.
-
-The server identity is therefore a fixed infrastructure element of a pod. Clients do not authenticate through classic accounts, but through cryptographic identities with pod certificates.
+`GID` is stable cryptographic client identity. Pod certifies it. Client uses it for auth. Deterministic visual identity derives from it.
 
 #### Legal
 
-`straightway.mosa.legal` forms a dedicated subsystem for legal documents:
+`straightway.mosa.legal` handles:
 
-- loading YAML-based profiles
-- validating document chains
-- rendering and canonicalizing [`ClearTerms`](./ClearTerms1.0.md)
-- exposing imprint, privacy, and terms documents over HTTP
-
-Architecturally, this is intentionally separated from content and UI and has its own resources, parsers, and validators.
+- YAML legal profiles
+- document-chain validation
+- [`ClearTerms`](./ClearTerms1.0.md) rendering and canonicalization
+- HTTP delivery of imprint, privacy, and terms
 
 #### Defense
 
-`straightway.mosa.defense` groups protection mechanisms such as rate limits, block lists, and admin allow lists. This logic is a cross-cutting module and is used both in the HTTP pipeline and inside domain services.
+`straightway.mosa.defense` groups rate limits, block lists, and admin allow lists. It is cross-cutting.
 
 #### Message and Complaint
 
-Administrative messages and post complaints are separate domain areas with their own:
+Administrative messages and post complaints have separate controller, service, store abstraction, and SQLite implementation.
 
-- controller
-- service
-- store abstraction
-- SQLite implementation
+## Persistence
 
-They are related to the content context, but they are organized as their own submodules.
+Server uses polyglot local storage:
 
-## Persistence and Data Architecture
+- Lucene: semantic content and metadata
+- SQLite: structured state such as admin messages and complaints
+- filesystem: pod keys, snapshot keys, legal YAML, persistent pod-local config
+- classpath resources: bundled baseline documents and server documentation
 
-### Polyglot Local Storage
+`StructuredStateContext` and `StructuredStateDatabase` wrap SQLite access so service APIs do not expose raw Exposed transactions.
 
-The server intentionally uses multiple local storage technologies instead of a single database:
+Semantic search is abstracted behind `VectorStore`. Current implementation is local and Lucene-based.
 
-- Lucene:
-  storage and semantic search for posts and replies including metadata
-- SQLite:
-  structured application state such as admin messages and complaints
-- filesystem:
-  pod keys, snapshot keys, legal YAML files, and other configuration
-- classpath resources:
-  bundled baseline documents and server documentation
+## Client
 
-This split is one of the key architecture characteristics of the project. Semantic content and strongly structured administrative state are deliberately stored differently.
+Client is thin compared to server, but not stateless. It owns browser-local identity, caches, and pod access orchestration.
 
-The filesystem aspect is also used as a simple persistent server configuration boundary. Files that define persistent pod-specific configuration are deliberately expected in the server current working directory. This keeps the operational model explicit: the operator gives the server its own directory, and the relevant files are located there rather than being spread across unrelated paths or hidden behind a separate global config file.
+### Composition
 
-### Structured State
+Entry point: `client/src/jsMain/kotlin/straightway/mosa/client/Main.kt`
 
-SQLite access is encapsulated through `StructuredStateContext` and `StructuredStateDatabase`. The important property is:
+Startup:
 
-- coordinated operations can run inside a transaction-bound context without passing raw Exposed transactions through service APIs
+1. load styles
+2. start Koin
+3. render React root
 
-This reduces coupling to Exposed and keeps service interfaces more domain-oriented.
-
-### Vector Store
-
-The vector store is abstracted behind the `VectorStore` interface. The current implementation is local and Lucene-based. This keeps semantic search as a clearly bounded infrastructure building block.
-
-## Client Architecture
-
-### Entry Point and Composition
-
-The web client starts in `client/src/jsMain/kotlin/straightway/mosa/client/Main.kt`:
-
-- load styles
-- start Koin
-- render the React root
-
-The central browser composition is located in `AppModule.kt`. That module wires together the HTTP client, browser APIs, persistence adapters, domain services, renderers, and utility components.
-
-### Client Structure Diagram
+Main browser wiring lives in `AppModule.kt`. It composes HTTP client, browser APIs, persistence adapters, domain services, renderers, and utility components.
 
 ```mermaid
 flowchart TD
@@ -305,78 +264,56 @@ flowchart TD
     Pod -. shared types .-> Shared
 ```
 
-### Main Structural Areas in the Client
+### Main Areas
 
-- `ui`:
-  React components, view state, and UI orchestration
-- `identity`:
-  browser-side identities, key management, transfer, and selection
-- `content`:
-  topic management, search, posting, replying, caches, deletion, and snapshots
-- `pod`:
-  HTTP access to pod endpoints via `PodAccess`
-- `legal`:
-  display and preparation of legal documents
-- `i18n` and `localization`:
-  translation and localization
-- `browser`:
-  thin adapters around web platform APIs
+- `ui`: React components, view state, orchestration
+- `identity`: browser identities, key management, transfer, selection
+- `content`: topics, search, posting, replies, caches, deletion, snapshots
+- `pod`: HTTP access through `PodAccess`
+- `legal`: legal document display
+- `i18n` and `localization`: translation and localization
+- `browser`: thin web API wrappers
 
-### Identity Visual Mapping
+### Identity and State
 
-Identities are directly mapped to a stable fictional display name and a stable avatar.
+Identity maps deterministically to:
 
-A `FictionalName` is a generated human-readable pseudonym composed from generated given-name and surname parts. It is not free-form profile text. Instead, it is deterministically derived from the identity bytes.
+- stable `FictionalName`
+- stable avatar
 
-The client derives both visual identity elements directly from the GID:
+Neither is user-editable.
 
-- the same identity always maps to the same `FictionalName`
-- the same identity always maps to the same avatar
-- neither the `FictionalName` nor the avatar is user-editable
-
-This is a deliberate design decision. MOSA does not rely on mutable profile names or uploaded profile images for recognition. Instead, it uses deterministic identity visuals so that an identity remains reliably recognizable across the UI without introducing editable public profile attributes.
-
-### State and Persistence Model in the Browser
-
-The client is not a purely stateless frontend. It has its own local persistence:
+Client keeps local browser state:
 
 - IndexedDB for identities
 - IndexedDB for topics
 - IndexedDB for post and reply caches
 - browser-based certificate and session components
 
-This makes the browser client a state holder in its own right instead of only being a remote view over server data.
+`PodAccess` is network boundary. Rest of client talks to domain-level port, not raw HTTP. Shared request/response types come from `shared`. Authenticated calls use [`MIS-JWT`](./MIS1.0.md).
 
-### Network Boundary
+## Shared
 
-`PodAccess` encapsulates HTTP communication with the pod. Architecturally important points are:
+`shared` contains cross-platform contract core:
 
-- the rest of the client works against a domain-level access port instead of directly issuing Ktor calls
-- request and response types come from `shared`
-- authenticated calls use [`MIS-JWT`](./MIS1.0.md) as bearer token
-
-## Shared Module as Contract Core
-
-`shared` contains the cross-platform API and model core:
-
-- authentication DTOs
+- auth DTOs
 - content requests and responses
 - snapshot and deletion results
 - legal and message types
 - selected utility and identity classes
 
-This module is a central stabilization boundary in the architecture. Changes to externally visible contracts should generally start here and then be implemented in both client and server.
+Externally visible contract changes should usually start here.
 
 ## Important Runtime Flows
 
-### Publish a Post
+### Publish Post
 
-1. The client creates or loads a local identity.
-2. The client obtains a pod certificate and creates a [`MIS-JWT`](./MIS1.0.md).
-3. The client signs the content and calls the publish endpoint.
-4. The server authenticates the request and verifies the signature.
-5. The server generates an embedding.
-6. The server writes text and metadata to the Lucene-based vector store.
+1. client creates or loads local identity
+2. client obtains pod certificate and creates [`MIS-JWT`](./MIS1.0.md)
+3. client signs content and calls publish endpoint
+4. server authenticates request and verifies signature
+5. server generates embedding
+6. server stores text and metadata in Lucene
 
 ```mermaid
 sequenceDiagram
@@ -402,49 +339,47 @@ sequenceDiagram
 
 ### Semantic Search
 
-1. The client sends a topic description.
-2. The server generates an embedding from it.
-3. The vector store searches for similar documents.
-4. The server returns matching entries including metadata to the client.
+1. client sends topic description
+2. server generates embedding
+3. vector store searches similar documents
+4. server returns matches with metadata
 
 ### Privacy Snapshot
 
-1. The client requests a binary snapshot.
-2. The server collects relevant data from the involved stores.
-3. The snapshot is cryptographically processed and returned as a download.
-4. For restore, the client uploads the binary file again and the server validates and writes the restored state.
+1. client requests binary snapshot
+2. server collects data from relevant stores
+3. server cryptographically processes snapshot and returns it
+4. restore uploads snapshot again, server validates and writes restored state
 
-## Coupling and Integration Boundaries
+## Dependency Boundaries
 
-The most important dependency directions are:
+These boundaries are main guardrails for change. They keep feature work local instead of letting HTTP, UI, or storage details leak through whole system.
 
-- `client` and `server` both depend on `shared`
-- `server` does not depend on client source code, only on the built bundle as a resource
-- domain services depend on interfaces or factories for storage access, not on HTTP
-- controllers depend on services, not the other way around
-- the client hides pod access behind `PodAccess` and browser storage behind store interfaces
+- `client` and `server` depend on `shared`
+- `server` does not depend on client source, only built bundle
+- controllers depend on services
+- services depend on storage interfaces or factories, not HTTP
+- client hides pod access behind `PodAccess`
+- client hides browser persistence behind store interfaces
 
-These directions prevent UI, HTTP, or concrete storage technology from dominating the whole codebase.
+These boundaries keep UI, HTTP, and concrete storage tech from dominating whole codebase.
 
-## Deliberate Architecture Decisions
+## Deliberate Decisions
 
-The most important architecture-relevant decisions in the current state are:
-
-- monolithic pod process instead of a distributed backend
+- monolithic pod process, not distributed backend
 - shared contract module for client and server
 - semantic content in Lucene, administrative state in SQLite
-- browser client with local identity and data state
-- composition through Koin instead of framework magic or reflection-based discovery
-- legal documents as a dedicated subsystem with YAML sources and [`ClearTerms`](./ClearTerms1.0.md) processing
-- frontend bundle served by the backend instead of a separately deployed frontend artifact
+- browser client keeps local identity and data state
+- Koin composition instead of framework magic or reflection-based discovery
+- legal documents as dedicated subsystem with YAML sources and [`ClearTerms`](./ClearTerms1.0.md)
+- backend serves frontend bundle
 
-## Non-Goals of This Document
+## Out of Scope
 
-This document describes the top-level architecture. It does not replace:
+This document does not replace:
 
-- the API details in [`spec/mosa-pod-api.raml`](./mosa-pod-api.raml)
-- the [`MIS`](./MIS1.0.md) specification
-- the [`ClearTerms`](./ClearTerms1.0.md) specification
-- detailed UI planning or task history
-
-For detailed questions, the relevant code area and the corresponding focused specification should always be considered in addition to this document.
+- [`spec/mosa-pod-api.raml`](./mosa-pod-api.raml)
+- [`MIS`](./MIS1.0.md)
+- [`ClearTerms`](./ClearTerms1.0.md)
+- detailed UI planning
+- task history
