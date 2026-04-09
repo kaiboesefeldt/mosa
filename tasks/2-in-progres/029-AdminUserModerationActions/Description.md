@@ -2,32 +2,39 @@ Admins sollen andere Nutzer ueber die bestehende Admin-Aktionsflaeche sperren, e
 
 Aktuell gibt es bereits userbezogene Admin-Aktionen fuer Admin-Nachrichten, aber keine direkte Moderationsfunktion fuer den Zielnutzer selbst. Dadurch fehlt ein klarer, zusammenhaengender Pfad fuer typische Betreiberentscheidungen wie das Blockieren problematischer Identitaeten, das spaetere Aufheben einer Sperre oder das gezielte Entfernen eines Nutzerkontos aus dem Pod-Kontext.
 
-Ziel ist ein kleiner, klarer Moderationssatz direkt an der bestehenden Admin-Aktionsflaeche fuer einen Nutzer. Im ersten Wurf geht es um genau drei Admin-Aktionen: Nutzer blockieren, Nutzer deblockieren und Nutzer loeschen. Die Aufgabe soll dabei ausdruecklich mitpruefen, ob die bestehende dateibasierte Identity-Blocklist dafuer noch passend ist oder ob diese Sperrzustaende besser in der bereits eingefuehrten SQLite-basierten strukturierten Persistenz liegen sollten.
+Ziel ist ein kleiner, klarer Moderationssatz direkt an der bestehenden Admin-Aktionsflaeche fuer einen Nutzer. Im ersten Wurf geht es um genau drei Admin-Aktionen: Nutzer blockieren, Nutzer deblockieren und Nutzer loeschen. `Nutzer loeschen` verwendet dabei dieselbe fachliche pod-seitige Loeschlogik wie die bereits vorhandene Selbstloeschung einer Identitaet. Der Admin-Pfad adressiert die Zielidentitaet jedoch explizit ueber deren `gid`, statt sie aus der authentifizierten Identitaet abzuleiten. Es wird kein zweiter fachlich abweichender Loeschpfad eingefuehrt. Die Aufgabe soll ausserdem ausdruecklich entscheiden, ob die bestehende dateibasierte Identity-Blocklist dafuer noch passend ist oder ob diese Sperrzustaende besser in der bereits eingefuehrten SQLite-basierten strukturierten Persistenz liegen sollten.
 
 Die Aufgabe umfasst mindestens diese Punkte:
 
 - Ein Admin kann fuer einen dargestellten fremden Nutzer eine Blockieraktion ausloesen.
 - Ein Admin kann fuer einen bereits blockierten Nutzer eine Deblockieraktion ausloesen.
 - Ein Admin kann fuer einen dargestellten fremden Nutzer eine Loeschaktion ausloesen.
+- Die Moderationsaktionen beziehen sich fachlich auf genau eine pod-lokale Identitaet, eindeutig adressiert ueber deren `gid`.
 - Die Aktionen sind klar an der bestehenden userbezogenen Admin-Aktionsflaeche verortet und fuehren keinen zweiten fachlich abweichenden Moderationspfad ein.
 - Blockier- und Deblockierzustand wirken serverseitig ueber denselben fachlichen Identitaets-Sperrmechanismus, statt parallele Sonderregeln einzufuehren.
+- Die Aktion `Nutzer loeschen` verwendet dieselbe serverseitige Loeschwirkung wie die vorhandene Selbstloeschung derselben Identitaet auf dem Pod, einschliesslich aller dabei betroffenen pod-lokalen Daten, adressiert die Zielidentitaet jedoch explizit ueber deren `gid`.
+- Es wird festgelegt, welche Zielidentitaeten fuer diese Moderationsaktionen geschuetzt sind, insbesondere ob Admins sich selbst oder andere Admin-Konten blockieren oder loeschen duerfen.
 - Im Rahmen der Aufgabe wird explizit entschieden, ob die Identity-Blocklist dateibasiert bleibt oder in `mosa_db.sqlite` ueberfuehrt wird.
 - Falls die Identity-Blocklist in SQLite ueberfuehrt wird, wird die Onlinehilfe fuer Laufzeit-Artefakte entsprechend angepasst.
+- Die Aufgabe legt klar fest, ueber welche oeffentlichen API-Aktionen Blockieren, Deblockieren und Loeschen ausgelost werden und welche fachlichen Fehlerfaelle dabei sichtbar sind.
 
 Akzeptanzkriterien:
 
 - Ein Admin sieht fuer fremde Nutzer in der Admin-Aktionsflaeche die Moderationsaktionen `Blockieren`, `Deblockieren` und `Loeschen`, soweit sie fuer den aktuellen Zustand sinnvoll sind.
 - Eine blockierte Identitaet ist nach der Aktion serverseitig als blockiert wirksam.
 - Eine deblockierte Identitaet ist nach der Aktion serverseitig nicht mehr blockiert.
+- Eine ueber die Admin-Aktion geloeschte Identitaet ist danach fachlich mit denselben sichtbaren Folgen entfernt wie nach der bestehenden Selbstloeschung derselben Identitaet auf dem Pod.
 - Nicht-Admins koennen diese Moderationsaktionen weder im UI regulaer ausloesen noch serverseitig erfolgreich verwenden.
+- Geschuetzte Zielidentitaeten koennen serverseitig nicht erfolgreich blockiert oder geloescht werden.
 - Die Nutzerloeschung entfernt genau den vorgesehenen Nutzerbezug und fuehrt nicht dazu, dass andere Nutzer unbeabsichtigt betroffen sind.
 - Die Loesung verwendet genau einen klaren technischen Wahrheitsort fuer Identity-Sperrzustaende.
+- Die UI zeigt fuer einen Nutzer jederzeit verstaendlich an, ob er aktuell blockiert ist, und bietet nur die fuer diesen Zustand passende Blockier- oder Deblockieraktion an.
 
 Bei der Umsetzung ist insbesondere zu klaeren:
 
-- Was `Nutzer loeschen` im Mosa-Kontext fachlich exakt bedeutet, insbesondere in Bezug auf Identitaet, Inhalte, Admin-Nachrichten und moegliche verbleibende Referenzen.
-- Ob eine Nutzerloeschung die Inhalte der Identitaet mit entfernt, nur die lokale Nutzbarkeit kappt oder beides in einer definierten Reihenfolge ausfuehrt.
 - Ob die Identity-Blocklist fuer diese Admin-Aktionen noch sinnvoll dateibasiert aktualisiert werden kann oder ob sie als strukturierter Moderationszustand in SQLite besser aufgehoben ist.
-- Wie verhindert wird, dass Admins sich selbst oder andere besonders geschuetzte Betreiberkonten versehentlich blockieren oder loeschen.
+- Welche Schutzregeln fuer Selbstmoderation, Moderation anderer Admin-Konten oder weiterer besonders geschuetzter Betreiberidentitaeten gelten.
+- Ob Blockieren, Deblockieren und Loeschen jeweils eigene Endpunkte erhalten oder ueber einen gemeinsamen Moderationsendpunkt mit klarer Aktionssemantik laufen.
 - Welche Bestaetigungsdialoge oder Sicherheitsabfragen fuer Blockieren, Deblockieren und Loeschen noetig sind.
 - Wie die UI den aktuellen Zustand eines Nutzers sichtbar macht, damit `Blockieren` und `Deblockieren` nicht verwechselt werden.
+- Welche serverseitig sichtbaren Fehlerfaelle fuer bereits blockierte, bereits geloeschte, unbekannte oder geschuetzte Zielidentitaeten geliefert werden.
