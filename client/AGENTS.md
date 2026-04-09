@@ -1,19 +1,20 @@
 # Client Agent Guide
 
 ## Scope
-- This file applies to everything under `client/`.
-- Follow the repository root [`AGENTS.md`](/home/kai/Projects/straightway/mosa/AGENTS.md) in addition to this file.
+- Applies to everything under `client/`.
+- Follow root [`AGENTS.md`](/home/kai/Projects/straightway/mosa/AGENTS.md) as well.
 
-## JS Test Startup
-- Use `./gradlew :client:jsBrowserTest` for the real browser-based client test run.
-- Use `./gradlew :client:jsTest` when you explicitly want the aggregate JS test task.
-- Prefer running commands from the repository root.
+## Test Commands
+- Preferred browser test run: `./gradlew :client:jsBrowserTest`
+- Aggregate JS test task: `./gradlew :client:jsTest`
+- Prefer running Gradle from repo root.
 
 ## Important Pitfall
-- `./gradlew :client:jsTest --tests ...` does not work in this project. Gradle fails during task configuration with `Unknown command-line option '--tests'`.
-- If you need to confirm the available client test tasks, run `./gradlew :client:tasks --all`.
-- If you need a narrower run, verify first which concrete client task supports filtering before assuming standard JVM `--tests` behavior.
+- `./gradlew :client:jsTest --tests ...` does not work in this project.
+- Gradle fails during task configuration with `Unknown command-line option '--tests'`.
+- If you need narrower execution, first inspect available tasks with `./gradlew :client:tasks --all` and verify which task actually supports filtering.
 
 ## Environment Notes
-- Client browser tests run through Karma with Firefox Headless.
-- `prepareFirefoxEnvironment` is wired into `KotlinJsTest` tasks automatically by Gradle configuration, so use the Gradle tasks above instead of trying to start Karma manually.
+- Browser tests run through Karma with Firefox Headless.
+- `prepareFirefoxEnvironment` is wired into `KotlinJsTest` tasks automatically.
+- Use Gradle tasks above instead of starting Karma manually.
