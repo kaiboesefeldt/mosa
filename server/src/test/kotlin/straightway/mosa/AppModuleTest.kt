@@ -26,6 +26,7 @@ import straightway.mosa.base.BaseController
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.content.IdentityDeletionController
+import straightway.mosa.content.IdentityModerationController
 import straightway.mosa.content.PrivacySnapshotController
 import straightway.mosa.content.complaint.PostComplaintController
 import straightway.mosa.crypto.CryptoEd25519
@@ -205,6 +206,7 @@ class AppModuleTest {
             setOf(
                 ContentController::class,
                 IdentityDeletionController::class,
+                IdentityModerationController::class,
                 PostComplaintController::class,
                 PrivacySnapshotController::class,
                 AdminMessageController::class,

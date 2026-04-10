@@ -28,11 +28,11 @@ class AutoRefreshingFileBackedContent<T>(
         fun transform(content: ByteArray): T
     }
 
-    suspend fun get(): T? =
+    suspend fun get(forceRefresh: Boolean = false): T? =
         mutex.withLock {
             val oldState = state
 
-            if (oldState.needsRefresh()) {
+            if (forceRefresh || oldState.needsRefresh()) {
                 runCatching {
                     readFileContent().transform(oldState.value, onError)
                 }.getOrNull()?.let {

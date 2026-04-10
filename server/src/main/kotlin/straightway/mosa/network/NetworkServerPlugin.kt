@@ -24,6 +24,8 @@ import straightway.mosa.auth.InvalidPodCertificateRequest
 import straightway.mosa.base.findPayloadTooLarge
 import straightway.mosa.content.ContentService.ContentForbiddenException
 import straightway.mosa.content.ContentService.ContentNotFoundException
+import straightway.mosa.content.IdentityModerationService.IdentityModerationConflictException
+import straightway.mosa.content.IdentityModerationService.IdentityModerationForbiddenException
 import straightway.mosa.content.UnprocessableContentException
 import straightway.mosa.content.complaint.PostComplaintConflictException
 import straightway.mosa.content.complaint.PostComplaintForbiddenException
@@ -53,6 +55,12 @@ fun Application.installNetworkServerPlugins() {
         }
         exception<AdminMessageForbiddenException> { call, cause ->
             call.respond(HttpStatusCode.Forbidden, mapOf("message" to cause.message))
+        }
+        exception<IdentityModerationForbiddenException> { call, cause ->
+            call.respond(HttpStatusCode.Forbidden, mapOf("message" to cause.message))
+        }
+        exception<IdentityModerationConflictException> { call, cause ->
+            call.respond(HttpStatusCode.Conflict, mapOf("message" to cause.message))
         }
         exception<PostComplaintForbiddenException> { call, cause ->
             call.respond(HttpStatusCode.Forbidden, mapOf("message" to cause.message))

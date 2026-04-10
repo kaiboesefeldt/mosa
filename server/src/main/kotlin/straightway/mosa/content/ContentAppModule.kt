@@ -31,6 +31,7 @@ import straightway.mosa.content.snapshot.FreezeSnapshotService
 import straightway.mosa.content.snapshot.FreezeSnapshotSizePolicy
 import straightway.mosa.content.snapshot.SecureRandomFreezeSnapshotNonceGenerator
 import straightway.mosa.defense.adminAllowList
+import straightway.mosa.defense.identityBlockList
 import straightway.mosa.message.AdminMessageCleanupJob
 import straightway.mosa.message.AdminMessageController
 import straightway.mosa.message.AdminMessageService
@@ -105,7 +106,15 @@ fun Module.configureContentAppModule() {
     single<AdminMessageStoreFactory> { AdminMessageStoreFactory { context -> SqliteAdminMessageStore(context) } }
     single<PostComplaintStore> { get<PostComplaintStoreFactory>().create(get<StructuredStateDatabase>()) }
     single<AdminMessageStore> { get<AdminMessageStoreFactory>().create(get<StructuredStateDatabase>()) }
-    single { IdentityDeletionService(get(), get(), get(), get()) }
+    single { IdentityDeletionService(get(), get(), get(), get()) } bind IdentityDeleter::class
+    single {
+        IdentityModerationService(
+            adminAllowList = get(adminAllowList),
+            identityBlockList = get(identityBlockList),
+            identityDeleter = get(),
+            expectedGidByteLength = get<HasherFactory>()().digest(byteArrayOf()).size,
+        )
+    }
     single {
         val admins = get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
         AdminMessageService(
@@ -144,6 +153,7 @@ fun Module.configureContentAppModule() {
     single { PostComplaintSignatureVerifier(get(), get(), get()) }
     single { ContentController(get(), get(), get()) } bind BaseController::class
     single { IdentityDeletionController(get()) } bind BaseController::class
+    single { IdentityModerationController(get()) } bind BaseController::class
     single { PostComplaintController(get(), get()) } bind BaseController::class
     single { PrivacySnapshotController(get(), get(), get()) } bind BaseController::class
     single { AdminMessageController(get()) } bind BaseController::class

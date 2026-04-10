@@ -9,8 +9,8 @@ class IdentityDeletionService(
     private val database: StructuredStateDatabase,
     private val postComplaintStoreFactory: PostComplaintStoreFactory,
     private val adminMessageStoreFactory: AdminMessageStoreFactory,
-) {
-    fun deleteIdentity(gid: String): DeleteIdentityResult =
+) : IdentityDeleter {
+    override fun deleteIdentity(gid: String): DeleteIdentityResult =
         database.inTransaction { context ->
             val postComplaintStore = postComplaintStoreFactory.create(context)
             val adminMessageStore = adminMessageStoreFactory.create(context)

@@ -110,6 +110,33 @@ class AutoRefreshingFileBackedContentTest {
         }
 
     @Test
+    fun `force refresh reloads changed file before interval`() =
+        runTest {
+            val path = createTempDirectory("mosa-test-").resolve("content.bin")
+            writeContent(path, "first".encodeToByteArray(), 1_000)
+            val clock = TestClock(Instant.ofEpochMilli(0))
+            val calls = AtomicInteger(0)
+
+            val sut =
+                AutoRefreshingFileBackedContent(
+                    config = AutoRefreshingFileBackedContent.Config(path, 10.seconds),
+                    clock = clock,
+                    transformer = {
+                        calls.incrementAndGet()
+                        it.decodeToString()
+                    },
+                )
+
+            assertEquals("first", sut.get())
+
+            writeContent(path, "second".encodeToByteArray(), 2_000)
+            clock.advance(5.seconds)
+
+            assertEquals("second", sut.get(forceRefresh = true))
+            assertEquals(2, calls.get())
+        }
+
+    @Test
     fun `calls refresh callback after successful reload`() =
         runTest {
             val path = createTempDirectory("mosa-test-").resolve("content.bin")
