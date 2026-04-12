@@ -22,6 +22,7 @@ import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
+import straightway.mosa.content.IdentityModerationRequest
 import straightway.mosa.content.complaint.OpenPostComplaintCountResult
 import straightway.mosa.content.complaint.OpenPostComplaintsResult
 import straightway.mosa.content.complaint.PostComplaintAvailabilityResult
@@ -61,6 +62,19 @@ interface PodAccess {
         page: Int = 1,
     ): AdminMessageListResult =
         error("Admin messages endpoint is not implemented for this PodAccess")
+    suspend fun blockIdentity(
+        request: IdentityModerationRequest,
+        jwt: String,
+    ): Unit = error("Identity block endpoint is not implemented for this PodAccess")
+    suspend fun unblockIdentity(
+        request: IdentityModerationRequest,
+        jwt: String,
+    ): Unit = error("Identity unblock endpoint is not implemented for this PodAccess")
+    suspend fun deleteIdentityAsAdmin(
+        gid: String,
+        jwt: String,
+    ): DeleteIdentityResult =
+        error("Admin identity deletion endpoint is not implemented for this PodAccess")
     suspend fun contentCapabilities(
         jwt: String,
         gid: String? = null,
@@ -206,6 +220,30 @@ class PodAccessImpl(
         get("/v1/admin/messages", jwt = jwt, gid = recipientGid, page = page)
             .ensureSuccess("/v1/admin/messages", Unit)
             .body()
+
+    override suspend fun blockIdentity(
+        request: IdentityModerationRequest,
+        jwt: String,
+    ) {
+        val path = "/v1/admin/identities/block"
+        post(path, request, jwt).ensureSuccess(path, request)
+    }
+
+    override suspend fun unblockIdentity(
+        request: IdentityModerationRequest,
+        jwt: String,
+    ) {
+        val path = "/v1/admin/identities/unblock"
+        post(path, request, jwt).ensureSuccess(path, request)
+    }
+
+    override suspend fun deleteIdentityAsAdmin(
+        gid: String,
+        jwt: String,
+    ): DeleteIdentityResult {
+        val path = "/v1/admin/identities/$gid"
+        return delete(path, jwt).ensureSuccess(path, gid).body()
+    }
 
     override suspend fun contentCapabilities(
         jwt: String,

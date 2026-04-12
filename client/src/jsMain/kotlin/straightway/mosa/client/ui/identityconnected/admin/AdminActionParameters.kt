@@ -5,12 +5,17 @@ import straightway.mosa.client.ui.identityconnected.common.*
 import straightway.mosa.message.AdminMessage
 import straightway.mosa.client.content.AdminMessageHistoryService
 import straightway.mosa.client.content.AdminMessagePublisher
+import straightway.mosa.client.content.ContentCapabilitiesService
+import straightway.mosa.client.content.IdentityModerationService
 
 internal data class AdminActionDependencies(
     val context: ConnectedViewFeedbackContext,
     val adminMessageHistoryService: AdminMessageHistoryService,
     val adminMessagePublisher: AdminMessagePublisher,
+    val contentCapabilitiesService: ContentCapabilitiesService,
+    val identityModerationService: IdentityModerationService,
     val canDeleteAsAdmin: Boolean,
+    val connectedIdentityGid: String?,
 )
 
 internal data class AdminRecipientModel(
@@ -20,6 +25,16 @@ internal data class AdminRecipientModel(
     val setRecipientGid: (String?) -> Unit,
     val setRecipientName: (String?) -> Unit,
     val setRecipientAvatar: (String?) -> Unit,
+    val isBlocked: Boolean,
+    val isAdmin: Boolean,
+    val isLoadingCapabilities: Boolean,
+    val isModerationRunning: Boolean,
+    val moderationError: String?,
+    val setBlocked: (Boolean) -> Unit,
+    val setAdmin: (Boolean) -> Unit,
+    val setLoadingCapabilities: (Boolean) -> Unit,
+    val setModerationRunning: (Boolean) -> Unit,
+    val setModerationError: (String?) -> Unit,
 )
 
 internal data class AdminComposerModel(

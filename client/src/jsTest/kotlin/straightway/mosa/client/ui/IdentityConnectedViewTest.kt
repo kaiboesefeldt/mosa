@@ -56,6 +56,7 @@ import straightway.mosa.client.content.CachedPostResolution
 import straightway.mosa.client.content.PostCache
 import straightway.mosa.client.content.PostCacheSnapshot
 import straightway.mosa.client.content.ContentCapabilitiesService
+import straightway.mosa.client.content.IdentityModerationService
 import straightway.mosa.client.content.TopicScopedPost
 import straightway.mosa.client.content.Topic
 import straightway.mosa.client.content.TopicRepository
@@ -82,9 +83,11 @@ import straightway.mosa.content.QueryResult
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.SearchResult
 import straightway.mosa.content.ContentCapabilitiesResult
+import straightway.mosa.content.DeleteIdentityResult
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
+import straightway.mosa.content.IdentityModerationRequest
 import straightway.mosa.content.complaint.CreatePostComplaintRequest
 import straightway.mosa.content.complaint.DecidePostComplaintRequest
 import straightway.mosa.content.complaint.OpenPostComplaint
@@ -100,6 +103,7 @@ import straightway.mosa.message.CreateAdminMessageRequest
 
 class IdentityConnectedViewTest {
     private var originalPrompt: dynamic = null
+    private var originalConfirm: dynamic = null
     private var originalObserver: dynamic = null
     private var originalMatchMedia: dynamic = null
     private var originalInnerWidth: Int = 0
@@ -110,6 +114,7 @@ class IdentityConnectedViewTest {
     fun setUp() {
         startKoinForTest(emptyList(), RecordingPodAccess(emptyMap()))
         originalPrompt = window.asDynamic().prompt
+        originalConfirm = window.asDynamic().confirm
         originalObserver = window.asDynamic().IntersectionObserver
         originalMatchMedia = window.asDynamic().matchMedia
         originalInnerWidth = window.innerWidth
@@ -119,6 +124,7 @@ class IdentityConnectedViewTest {
     fun tearDown() {
         cleanup()
         window.asDynamic().prompt = originalPrompt
+        window.asDynamic().confirm = originalConfirm
         window.asDynamic().IntersectionObserver = originalObserver
         window.asDynamic().matchMedia = originalMatchMedia
         setWindowInnerWidth(originalInnerWidth)
@@ -1356,6 +1362,126 @@ class IdentityConnectedViewTest {
     }
 
     @Test
+    fun `shows block action and active status for unblocked foreign user`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val recipientGid = fetchedAuthorGid("p1")
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+                capabilitiesByGid = mapOf(recipientGid to ContentCapabilitiesResult(isAdmin = false, isBlocked = false)),
+            )
+        overrideDependencies(listOf(Topic("Alpha")), podAccess)
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { adminUserTrigger(view.container) != null }
+        user.click(adminUserTrigger(view.container)!!).await()
+
+        waitForCondition { adminModerationStatus(view.container)?.textContent?.contains(text("connected.messages.actions.moderation.statusActive")) == true }
+        assertEquals(text("connected.messages.actions.moderation.block"), adminModerationPrimaryButton(view.container)?.textContent?.trim())
+        assertEquals(text("connected.messages.actions.moderation.delete"), adminModerationDeleteButton(view.container)?.textContent?.trim())
+    }
+
+    @Test
+    fun `shows unblock action and blocked status for blocked foreign user`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val recipientGid = fetchedAuthorGid("p1")
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+                capabilitiesByGid = mapOf(recipientGid to ContentCapabilitiesResult(isAdmin = false, isBlocked = true)),
+            )
+        overrideDependencies(listOf(Topic("Alpha")), podAccess)
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { adminUserTrigger(view.container) != null }
+        user.click(adminUserTrigger(view.container)!!).await()
+
+        waitForCondition { adminModerationStatus(view.container)?.textContent?.contains(text("connected.messages.actions.moderation.statusBlocked")) == true }
+        assertEquals(text("connected.messages.actions.moderation.unblock"), adminModerationPrimaryButton(view.container)?.textContent?.trim())
+    }
+
+    @Test
+    fun `updates admin moderation state after blocking user`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val recipientGid = fetchedAuthorGid("p1")
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+                capabilitiesByGid = mapOf(recipientGid to ContentCapabilitiesResult(isAdmin = false, isBlocked = false)),
+            )
+        overrideDependencies(listOf(Topic("Alpha")), podAccess)
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { adminUserTrigger(view.container) != null }
+        user.click(adminUserTrigger(view.container)!!).await()
+        waitForCondition { adminModerationPrimaryButton(view.container) != null }
+        user.click(adminModerationPrimaryButton(view.container)!!).await()
+
+        waitForCondition { podAccess.blockIdentityRequests.size == 1 }
+        assertEquals(IdentityModerationRequest(recipientGid), podAccess.blockIdentityRequests.single())
+        waitForCondition { adminModerationStatus(view.container)?.textContent?.contains(text("connected.messages.actions.moderation.statusBlocked")) == true }
+        assertEquals(text("connected.messages.actions.moderation.unblock"), adminModerationPrimaryButton(view.container)?.textContent?.trim())
+    }
+
+    @Test
+    fun `hides moderation buttons for protected admin target`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        val recipientGid = fetchedAuthorGid("p1")
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+                capabilitiesByGid = mapOf(recipientGid to ContentCapabilitiesResult(isAdmin = true, isBlocked = false)),
+            )
+        overrideDependencies(listOf(Topic("Alpha")), podAccess)
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { adminUserTrigger(view.container) != null }
+        user.click(adminUserTrigger(view.container)!!).await()
+
+        waitForCondition { adminModerationStatus(view.container)?.textContent?.contains(text("connected.messages.actions.moderation.statusProtectedAdmin")) == true }
+        assertEquals(null, adminModerationPrimaryButton(view.container))
+        assertEquals(null, adminModerationDeleteButton(view.container))
+    }
+
+    @Test
+    fun `deletes selected user after confirmation`() = runTest {
+        window.asDynamic().MOSA_POD_BASE = "https://pod.example"
+        window.asDynamic().confirm = { _: String -> true }
+        val recipientGid = fetchedAuthorGid("p1")
+        val podAccess =
+            RecordingPodAccess(
+                responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
+                capabilities = ContentCapabilitiesResult(isAdmin = true),
+                capabilitiesByGid = mapOf(recipientGid to ContentCapabilitiesResult(isAdmin = false, isBlocked = false)),
+            )
+        overrideDependencies(listOf(Topic("Alpha")), podAccess)
+        sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
+        val user = userEvent.setup()
+        val view = renderConnectedView()
+
+        waitForCondition { adminUserTrigger(view.container) != null }
+        user.click(adminUserTrigger(view.container)!!).await()
+        waitForCondition { adminModerationDeleteButton(view.container) != null }
+        user.click(adminModerationDeleteButton(view.container)!!).await()
+
+        waitForCondition { podAccess.adminDeleteIdentityRequests.size == 1 }
+        assertEquals(recipientGid, podAccess.adminDeleteIdentityRequests.single())
+        waitForCondition { adminUserCard(view.container) == null }
+    }
+
+    @Test
     fun `shows admin message history for selected profile`() = runTest {
         window.asDynamic().MOSA_POD_BASE = "https://pod.example"
         val senderVisuals = IdentityVisualsFactory(FictionalNameGenerator(), DiceBearAvatarGenerator()).createFromGid("admin-a")
@@ -1757,6 +1883,7 @@ private fun inboxScrollTop(container: Element): Double =
                 single { AdminMessageHistoryService(get()) }
                 single { AdminMessagePublisher(get()) }
                 single { ContentCapabilitiesService(get()) }
+                single { IdentityModerationService(get()) }
                 single { PostDeletionService(get(), get(), get()) }
                 single { AllPostsDeletionService(get(), get(), get()) }
                 single { ReplyPublisher(get(), get()) }
@@ -1842,6 +1969,15 @@ private fun inboxScrollTop(container: Element): Double =
     private fun adminUserCardSendButton(container: Element): Element =
         container.querySelector(".admin-user-card__primary-action")
             ?: error("Admin user card send button missing")
+
+    private fun adminModerationStatus(container: Element): Element? =
+        container.querySelector(".admin-user-card__moderation-status")
+
+    private fun adminModerationPrimaryButton(container: Element): Element? =
+        container.querySelector(".admin-user-card__moderation-button")
+
+    private fun adminModerationDeleteButton(container: Element): Element? =
+        container.querySelector(".admin-user-card__moderation-delete")
 
     private fun adminMessageSubjectInput(container: Element): Element =
         container.querySelector(".message-compose__subject")
@@ -2091,6 +2227,9 @@ private class RecordingPodAccess(
     val publishRequests = mutableListOf<straightway.mosa.content.PublishRequest>()
     val replyRequests = mutableListOf<straightway.mosa.content.ReplyRequest>()
     val adminMessageRequests = mutableListOf<CreateAdminMessageRequest>()
+    val blockIdentityRequests = mutableListOf<IdentityModerationRequest>()
+    val unblockIdentityRequests = mutableListOf<IdentityModerationRequest>()
+    val adminDeleteIdentityRequests = mutableListOf<String>()
     val messagesRequests = mutableListOf<MessageRequest>()
     val adminMessagesRequests = mutableListOf<AdminHistoryRequest>()
     val complaintRequests = mutableListOf<Int>()
@@ -2168,6 +2307,28 @@ private class RecordingPodAccess(
     ): AdminMessageListResult {
         adminMessagesRequests += AdminHistoryRequest(recipientGid = recipientGid, jwt = jwt, page = page)
         return adminHistoryResponseQueue.removeFirstOrNull() ?: AdminMessageListResult(emptyList())
+    }
+
+    override suspend fun blockIdentity(
+        request: IdentityModerationRequest,
+        jwt: String,
+    ) {
+        blockIdentityRequests += request
+    }
+
+    override suspend fun unblockIdentity(
+        request: IdentityModerationRequest,
+        jwt: String,
+    ) {
+        unblockIdentityRequests += request
+    }
+
+    override suspend fun deleteIdentityAsAdmin(
+        gid: String,
+        jwt: String,
+    ): DeleteIdentityResult {
+        adminDeleteIdentityRequests += gid
+        return DeleteIdentityResult(emptyList(), 0, 0)
     }
 
     override suspend fun exportPostsCsv(jwt: String): ByteArray {

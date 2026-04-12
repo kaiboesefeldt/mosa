@@ -2156,6 +2156,26 @@ button:disabled {
     gap: 0.5rem;
 }
 
+.admin-user-card__moderation {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.admin-user-card__moderation-status {
+    font-size: 0.92rem;
+    color: var(--color-text);
+}
+
+.admin-user-card__moderation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.admin-user-card__moderation-button {
+    min-height: 40px;
+}
+
 .admin-user-card__history-header {
     display: flex;
     align-items: center;
@@ -2253,6 +2273,10 @@ button:disabled {
     .admin-user-card__primary-action {
         width: 100%;
         justify-self: stretch;
+    }
+
+    .admin-user-card__moderation-actions {
+        display: grid;
     }
 }
 

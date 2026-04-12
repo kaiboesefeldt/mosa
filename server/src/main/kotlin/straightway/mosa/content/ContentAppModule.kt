@@ -92,9 +92,15 @@ fun Module.configureContentAppModule() {
         val cliArguments: CommandLineArgumentStore = get()
         val maxFetchItems = cliArguments.getInt(MAX_FETCH_ITEMS) ?: 100
         val admins = get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
-        ContentService(get(), get(), get(), maxFetchItems) { gid ->
-            (admins.get() ?: AdminAllowList(emptyList())).adminGids.contains(gid)
-        }
+        val blockedIdentityStore = get<BlockedIdentityStore>()
+        ContentService(
+            embeddingService = get(),
+            vectorStore = get(),
+            hasherFactory = get(),
+            maxFetchItems = maxFetchItems,
+            isAdmin = { gid -> (admins.get() ?: AdminAllowList(emptyList())).adminGids.contains(gid) },
+            isBlocked = blockedIdentityStore::isBlocked,
+        )
     }
     single(createdAtStart = true) {
         StructuredStateDatabase(defaultStructuredStateDatabasePath()).also {

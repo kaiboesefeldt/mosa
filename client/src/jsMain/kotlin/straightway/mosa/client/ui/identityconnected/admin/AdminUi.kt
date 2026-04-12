@@ -85,6 +85,10 @@ private fun ChildrenBuilder.adminUserActionCard(
             +translator.translate("connected.messages.actions.send")
         }
     }
+    adminModerationSection(
+        translator = translator,
+        admin = admin,
+    )
     adminMessageHistorySection(
         AdminMessageHistorySectionProps(
             translator = translator,
@@ -113,6 +117,65 @@ private fun ChildrenBuilder.adminUserActionCard(
                 onSend = admin.actions.sendAdminMessageToCurrentRecipient,
             ),
         )
+    }
+}
+
+private fun ChildrenBuilder.adminModerationSection(
+    translator: Translator,
+    admin: AdminController,
+) = div {
+    className = ClassName("admin-user-card__moderation")
+    div {
+        className = ClassName("admin-user-card__history-header")
+        span {
+            className = ClassName("admin-user-card__history-title")
+            +translator.translate("connected.messages.actions.moderation.title")
+        }
+    }
+    div {
+        className = ClassName("admin-user-card__moderation-status")
+        +when {
+            admin.state.isRecipientCapabilitiesLoading ->
+                translator.translate("connected.messages.actions.moderation.statusLoading")
+            admin.state.isRecipientAdmin ->
+                translator.translate("connected.messages.actions.moderation.statusProtectedAdmin")
+            admin.state.isRecipientBlocked ->
+                translator.translate("connected.messages.actions.moderation.statusBlocked")
+            else ->
+                translator.translate("connected.messages.actions.moderation.statusActive")
+        }
+    }
+    if (admin.state.moderationError != null) {
+        div {
+            className = ClassName("admin-user-card__history-error")
+            +admin.state.moderationError
+        }
+    }
+    div {
+        className = ClassName("admin-user-card__moderation-actions")
+        if (!admin.state.isRecipientCapabilitiesLoading && !admin.state.isRecipientAdmin) {
+            if (admin.state.isRecipientBlocked) {
+                button {
+                    className = ClassName("button button--secondary admin-user-card__moderation-button")
+                    disabled = admin.state.isModerationRunning
+                    onClick = { admin.actions.unblockCurrentRecipient() }
+                    +translator.translate("connected.messages.actions.moderation.unblock")
+                }
+            } else {
+                button {
+                    className = ClassName("button button--secondary admin-user-card__moderation-button")
+                    disabled = admin.state.isModerationRunning
+                    onClick = { admin.actions.blockCurrentRecipient() }
+                    +translator.translate("connected.messages.actions.moderation.block")
+                }
+            }
+            button {
+                className = ClassName("button button--secondary admin-user-card__moderation-button admin-user-card__moderation-delete")
+                disabled = admin.state.isModerationRunning
+                onClick = { admin.actions.deleteCurrentRecipient() }
+                +translator.translate("connected.messages.actions.moderation.delete")
+            }
+        }
     }
 }
 

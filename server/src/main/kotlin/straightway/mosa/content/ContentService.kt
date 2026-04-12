@@ -21,6 +21,7 @@ class ContentService(
     private val maxFetchItems: Int,
     private val replyIdFactory: () -> String = { UUID.randomUUID().toString() },
     private val isAdmin: suspend (String) -> Boolean = { false },
+    private val isBlocked: suspend (String) -> Boolean = { false },
 ) {
     private val readService = ContentReadService(embeddingService, vectorStore, maxFetchItems)
     private val deleteService = ContentDeleteService(vectorStore, isAdmin)
@@ -80,7 +81,11 @@ class ContentService(
     suspend fun contentCapabilities(
         userGID: String,
         targetGID: String = userGID,
-    ): ContentCapabilitiesResult = ContentCapabilitiesResult(isAdmin = isAdmin(targetGID))
+    ): ContentCapabilitiesResult =
+        ContentCapabilitiesResult(
+            isAdmin = isAdmin(targetGID),
+            isBlocked = isBlocked(targetGID),
+        )
 
     suspend fun query(request: QueryRequest): QueryResult = readService.query(request)
 

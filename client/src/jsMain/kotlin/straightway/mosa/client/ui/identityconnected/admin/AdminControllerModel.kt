@@ -10,6 +10,11 @@ internal data class AdminControllerState(
     val adminUserCardAnchorId: String?,
     val adminMessageRecipientName: String?,
     val adminMessageRecipientAvatar: String?,
+    val isRecipientBlocked: Boolean,
+    val isRecipientAdmin: Boolean,
+    val isRecipientCapabilitiesLoading: Boolean,
+    val isModerationRunning: Boolean,
+    val moderationError: String?,
     val adminMessageSubject: String,
     val adminMessageBody: String,
     val isAdminMessageSending: Boolean,
@@ -34,6 +39,9 @@ internal data class AdminControllerActions(
     val closeAdminUserCard: () -> Unit,
     val sendAdminMessageToCurrentRecipient: () -> Unit,
     val loadMoreAdminHistory: () -> Unit,
+    val blockCurrentRecipient: () -> Unit,
+    val unblockCurrentRecipient: () -> Unit,
+    val deleteCurrentRecipient: () -> Unit,
 )
 
 internal data class AdminController(

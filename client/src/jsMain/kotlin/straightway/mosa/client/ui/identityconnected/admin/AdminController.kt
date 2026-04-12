@@ -5,6 +5,7 @@ import straightway.mosa.client.ui.identityconnected.common.*
 import straightway.mosa.client.ui.*
 
 import kotlinx.browser.document
+import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.awaitCancellation
 import kotlin.js.unsafeCast
@@ -26,6 +27,11 @@ internal fun useAdminController(
     var adminMessageRecipientGid by useState<String?>(null)
     var adminMessageRecipientName by useState<String?>(null)
     var adminMessageRecipientAvatar by useState<String?>(null)
+    var isRecipientBlocked by useState(false)
+    var isRecipientAdmin by useState(false)
+    var isRecipientCapabilitiesLoading by useState(false)
+    var isModerationRunning by useState(false)
+    var moderationError by useState<String?>(null)
     var adminMessageSubject by useState("")
     var adminMessageBody by useState("")
     var isAdminMessageSending by useState(false)
@@ -53,6 +59,16 @@ internal fun useAdminController(
                     setRecipientGid = { adminMessageRecipientGid = it },
                     setRecipientName = { adminMessageRecipientName = it },
                     setRecipientAvatar = { adminMessageRecipientAvatar = it },
+                    isBlocked = isRecipientBlocked,
+                    isAdmin = isRecipientAdmin,
+                    isLoadingCapabilities = isRecipientCapabilitiesLoading,
+                    isModerationRunning = isModerationRunning,
+                    moderationError = moderationError,
+                    setBlocked = { isRecipientBlocked = it },
+                    setAdmin = { isRecipientAdmin = it },
+                    setLoadingCapabilities = { isRecipientCapabilitiesLoading = it },
+                    setModerationRunning = { isModerationRunning = it },
+                    setModerationError = { moderationError = it },
                 ),
             composer =
                 AdminComposerModel(
@@ -114,6 +130,11 @@ internal fun useAdminController(
                 adminUserCardAnchorId = adminUserCardAnchorId,
                 adminMessageRecipientName = adminMessageRecipientName,
                 adminMessageRecipientAvatar = adminMessageRecipientAvatar,
+                isRecipientBlocked = isRecipientBlocked,
+                isRecipientAdmin = isRecipientAdmin,
+                isRecipientCapabilitiesLoading = isRecipientCapabilitiesLoading,
+                isModerationRunning = isModerationRunning,
+                moderationError = moderationError,
                 adminMessageSubject = adminMessageSubject,
                 adminMessageBody = adminMessageBody,
                 isAdminMessageSending = isAdminMessageSending,
@@ -135,6 +156,9 @@ internal fun useAdminController(
                 closeAdminUserCard = actions.closeAdminUserCard,
                 sendAdminMessageToCurrentRecipient = actions.sendAdminMessageToCurrentRecipient,
                 loadMoreAdminHistory = actions.loadMoreAdminHistory,
+                blockCurrentRecipient = actions.blockCurrentRecipient,
+                unblockCurrentRecipient = actions.unblockCurrentRecipient,
+                deleteCurrentRecipient = actions.deleteCurrentRecipient,
             ),
     )
 }

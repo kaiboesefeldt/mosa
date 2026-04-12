@@ -26,6 +26,7 @@ import straightway.mosa.client.content.AdminMessageInboxService
 import straightway.mosa.client.content.AdminMessagePublisher
 import straightway.mosa.client.content.AllPostsDeletionService
 import straightway.mosa.client.content.ContentCapabilitiesService
+import straightway.mosa.client.content.IdentityModerationService
 import straightway.mosa.client.content.PostCache
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.PostPublisher
@@ -64,6 +65,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val adminMessageHistoryService = ConnectedViewInjector.get<AdminMessageHistoryService>()
     val adminMessageInboxService = ConnectedViewInjector.get<AdminMessageInboxService>()
     val adminMessagePublisher = ConnectedViewInjector.get<AdminMessagePublisher>()
+    val identityModerationService = ConnectedViewInjector.get<IdentityModerationService>()
     val postComplaintService = ConnectedViewInjector.get<PostComplaintService>()
     val adminPostComplaintService = ConnectedViewInjector.get<AdminPostComplaintService>()
     val podBaseProvider = ConnectedViewInjector.get<PodBaseProvider>()
@@ -149,7 +151,10 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 context = feedbackContext,
                 adminMessageHistoryService = adminMessageHistoryService,
                 adminMessagePublisher = adminMessagePublisher,
+                contentCapabilitiesService = contentCapabilitiesService,
+                identityModerationService = identityModerationService,
                 canDeleteAsAdmin = adminPresentation.canDeleteAsAdmin,
+                connectedIdentityGid = props.profile.connectedIdentityGid,
             ),
         )
     val shell =

@@ -50,6 +50,19 @@ class ContentServiceTest {
     private val testPublicKey = "test-public-key"
     private val testSignature = "test-signature"
 
+    private fun contentService(
+        isAdmin: suspend (String) -> Boolean = { false },
+        isBlocked: suspend (String) -> Boolean = { false },
+    ) = ContentService(
+        embeddingService = embeddingService,
+        vectorStore = vectorStore,
+        hasherFactory = hasherFactory,
+        maxFetchItems = maxFetchItems,
+        replyIdFactory = { "reply-id" },
+        isAdmin = isAdmin,
+        isBlocked = isBlocked,
+    )
+
     private fun setupEmbedding(text: String) {
         coEvery { embeddingService.embed(text) } returns testEmbedding
     }
@@ -326,6 +339,27 @@ class ContentServiceTest {
                 assertFailsWith<MissingVectorMetadataException> {
                     sut.exportCsvForUser(testUserGID)
                 }
+            }
+    }
+
+    @Nested
+    inner class ContentCapabilities {
+        @Test
+        fun `returns admin and blocked status for requested gid`() =
+            runTest {
+                val result =
+                    contentService(
+                        isAdmin = { gid -> gid == "gid-target" },
+                        isBlocked = { gid -> gid == "gid-target" },
+                    ).contentCapabilities(
+                        userGID = testUserGID,
+                        targetGID = "gid-target",
+                    )
+
+                assertEquals(
+                    ContentCapabilitiesResult(isAdmin = true, isBlocked = true),
+                    result,
+                )
             }
     }
 

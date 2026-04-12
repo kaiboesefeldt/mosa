@@ -20,11 +20,13 @@ import kotlinx.serialization.json.jsonObject
 import straightway.mosa.auth.AuthenticationApprovalRequest
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.auth.PodCertificateResponse
+import straightway.mosa.content.ContentCapabilitiesResult
+import straightway.mosa.content.DeleteIdentityResult
+import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
-import straightway.mosa.content.ContentCapabilitiesResult
-import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FreezeSnapshotRestoreResult
+import straightway.mosa.content.IdentityModerationRequest
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.QueryOnRequest
@@ -283,7 +285,7 @@ class PodAccessTest {
 
     @Test
     fun `contentCapabilities sends get with auth and returns result`() = runTest {
-        val expectedResult = ContentCapabilitiesResult(isAdmin = true)
+        val expectedResult = ContentCapabilitiesResult(isAdmin = true, isBlocked = true)
         val capturedRequests = mutableListOf<HttpRequestData>()
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
 
@@ -306,7 +308,7 @@ class PodAccessTest {
 
     @Test
     fun `contentCapabilities sends gid query parameter when requested`() = runTest {
-        val expectedResult = ContentCapabilitiesResult(isAdmin = true)
+        val expectedResult = ContentCapabilitiesResult(isAdmin = true, isBlocked = true)
         val capturedRequests = mutableListOf<HttpRequestData>()
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
 
@@ -318,6 +320,57 @@ class PodAccessTest {
             route = "v1/posts/capabilities?gid=gid-target",
             bearerToken = "jwt-token",
         )
+    }
+
+    @Test
+    fun `blockIdentity sends post with auth and request body`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.NoContent, capturedRequests)
+
+        podAccess.blockIdentity(IdentityModerationRequest("gid-target"), "jwt-token")
+
+        assertAuthenticatedPostRequest(
+            request = capturedRequests.single(),
+            route = "v1/admin/identities/block",
+            bearerToken = "jwt-token",
+        )
+        assertJsonRequestBody(
+            request = capturedRequests.single(),
+            expectedBody = """{"gid":"gid-target"}""",
+        )
+    }
+
+    @Test
+    fun `unblockIdentity sends post with auth and request body`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.NoContent, capturedRequests)
+
+        podAccess.unblockIdentity(IdentityModerationRequest("gid-target"), "jwt-token")
+
+        assertAuthenticatedPostRequest(
+            request = capturedRequests.single(),
+            route = "v1/admin/identities/unblock",
+            bearerToken = "jwt-token",
+        )
+        assertJsonRequestBody(
+            request = capturedRequests.single(),
+            expectedBody = """{"gid":"gid-target"}""",
+        )
+    }
+
+    @Test
+    fun `deleteIdentityAsAdmin sends delete with auth and returns result`() = runTest {
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val expectedResult = DeleteIdentityResult(emptyList(), 2, 3)
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
+
+        val result = podAccess.deleteIdentityAsAdmin("gid-target", "jwt-token")
+
+        assertEquals(expectedResult, result)
+        val request = capturedRequests.single()
+        assertEquals(HttpMethod.Delete, request.method)
+        assertEquals("https://pod.example/v1/admin/identities/gid-target", request.url.toString())
+        assertEquals("Bearer jwt-token", request.headers[HttpHeaders.Authorization])
     }
 
     @Test
@@ -784,6 +837,15 @@ class PodAccessTest {
         assertEquals(HttpMethod.Post, request.method)
         assertEquals("https://pod.example/$route", request.url.toString())
         assertEquals("Bearer $bearerToken", request.headers[HttpHeaders.Authorization])
+    }
+
+    private fun assertJsonRequestBody(
+        request: HttpRequestData,
+        expectedBody: String,
+    ) {
+        val body = request.body as? TextContent
+        assertEquals(ContentType.Application.Json, body?.contentType?.withoutParameters())
+        assertEquals(expectedBody, body?.text)
     }
 
     private suspend fun assertRestError(path: String, status: HttpStatusCode, call: suspend () -> Unit) {
