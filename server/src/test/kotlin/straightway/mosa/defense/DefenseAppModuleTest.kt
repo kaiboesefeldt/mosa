@@ -12,7 +12,6 @@ import straightway.mosa.NanoClock
 import straightway.mosa.config.AdminAllowList
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
-import straightway.mosa.config.IdentityBlockList
 import straightway.mosa.defense.core.LoadSheddingConfig
 import straightway.mosa.defense.core.RequestMetricsPlugin
 import straightway.mosa.defense.core.SheddingRequest
@@ -60,7 +59,6 @@ class DefenseAppModuleTest {
                 assertNotNull(koin.get<RateLimiter>(authenticatedRateLimit))
                 assertNotNull(koin.get<RateLimiter>(ipRateLimit))
                 val ipBlockListContent = koin.get<AutoRefreshingFileBackedContent<ClientBlockList>>(ipBlockList)
-                val identityBlockListContent = koin.get<AutoRefreshingFileBackedContent<IdentityBlockList>>(identityBlockList)
                 val adminAllowListContent = koin.get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
                 meterRegistry.timer(RequestMetricsPlugin.REQUEST_DURATION_METRIC_NAME, "method", "GET", "route", "/health")
                 koin
@@ -69,8 +67,6 @@ class DefenseAppModuleTest {
                 clock.advanceSeconds(10)
                 Files.writeString(Path.of("mosa_ip_blocklist.yaml"), "blockedClients: [\"invalid-ip\"]\n")
                 runBlocking { ipBlockListContent.get() }
-                Files.writeString(Path.of("mosa_identity_blocklist.yaml"), "blockedGids: [\n")
-                runBlocking { identityBlockListContent.get() }
                 Files.writeString(Path.of("mosa_admin_gids.yaml"), "adminGids: [\n")
                 runBlocking { adminAllowListContent.get() }
             } finally {
@@ -123,13 +119,10 @@ class DefenseAppModuleTest {
                 assertRateLimitConfigDefaults(koin, authenticatedRateLimit, 8, 9, 11L, 3L)
                 assertRateLimitConfigDefaults(koin, ipRateLimit, 12, 13, 14L, 3L)
                 val ipBlockListContent = koin.get<AutoRefreshingFileBackedContent<ClientBlockList>>(ipBlockList)
-                val identityBlockListContent = koin.get<AutoRefreshingFileBackedContent<IdentityBlockList>>(identityBlockList)
                 val adminAllowListContent = koin.get<AutoRefreshingFileBackedContent<AdminAllowList>>(adminAllowList)
                 clock.advanceSeconds(10)
                 Files.writeString(Path.of("mosa_ip_blocklist.yaml"), "blockedClients: [\"invalid-ip\"]\n")
                 runBlocking { ipBlockListContent.get() }
-                Files.writeString(Path.of("mosa_identity_blocklist.yaml"), "blockedGids: [\n")
-                runBlocking { identityBlockListContent.get() }
                 Files.writeString(Path.of("mosa_admin_gids.yaml"), "adminGids: [\n")
                 runBlocking { adminAllowListContent.get() }
             } finally {
@@ -210,20 +203,12 @@ class DefenseAppModuleTest {
         block: () -> Unit,
     ) {
         val ipPath = Path.of("mosa_ip_blocklist.yaml")
-        val identityPath = Path.of("mosa_identity_blocklist.yaml")
         val adminPath = Path.of("mosa_admin_gids.yaml")
         Files.writeString(
             ipPath,
             """
             blockedClients:
               - "127.0.0.1"
-            """.trimIndent() + "\n",
-        )
-        Files.writeString(
-            identityPath,
-            """
-            blockedGids:
-              - "test-gid"
             """.trimIndent() + "\n",
         )
         if (includeAdminFile) {
@@ -239,7 +224,6 @@ class DefenseAppModuleTest {
             block()
         } finally {
             Files.deleteIfExists(ipPath)
-            Files.deleteIfExists(identityPath)
             Files.deleteIfExists(adminPath)
         }
     }

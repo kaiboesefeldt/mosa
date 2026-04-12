@@ -15,6 +15,7 @@ import org.apache.lucene.store.ByteBuffersDirectory
 import org.junit.jupiter.api.Test
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
+import straightway.mosa.content.BlockedIdentityStore
 import straightway.mosa.content.ContentController
 import straightway.mosa.content.ContentService
 import straightway.mosa.content.ContentSignatureVerifier
@@ -884,6 +885,16 @@ class PostComplaintIntegrationTest {
                 database = database,
                 postComplaintStoreFactory = PostComplaintStoreFactory { context -> SqlitePostComplaintStore(context) },
                 adminMessageStoreFactory = AdminMessageStoreFactory { context -> SqliteAdminMessageStore(context) },
+                blockedIdentityStore =
+                    object : BlockedIdentityStore {
+                        override fun isBlocked(gid: String): Boolean = false
+
+                        override fun block(gid: String): Boolean = true
+
+                        override fun unblock(gid: String): Boolean = false
+
+                        override fun delete(gid: String): Boolean = false
+                    },
             )
         val env =
             ControllerHttpTestEnvironment(

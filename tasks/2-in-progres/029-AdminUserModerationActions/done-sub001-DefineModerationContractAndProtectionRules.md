@@ -6,10 +6,10 @@ Entscheidungen
 
 - Moderationsziel ist immer genau eine pod-lokale Identitaet, adressiert ueber ihre `gid`.
 - `Nutzer loeschen` verwendet dieselbe serverseitige Loeschlogik wie die bestehende Selbstloeschung. Unterschied nur beim Aufruf: Selbstloeschung leitet Ziel-`gid` aus JWT ab, Admin-Loeschung uebergibt Ziel-`gid` explizit.
-- Identity-Sperrzustaende bleiben in der bestehenden dateibasierten `mosa_identity_blocklist.yaml`.
-- Fuer Task 029 wird kein SQLite-Migrationspfad eingefuehrt. Grund: bestehender Sperrmechanismus existiert bereits, ist serverweit wirksam und vermeidet fuer diesen Inkrement zusaetzliche Persistenz-, Migrations- und Freeze-Folgearbeit.
+- Identity-Sperrzustaende liegen in SQLite als strukturierter pod-lokaler Moderationszustand.
+- Fuer Task 029 wird kein Migrationspfad benoetigt. Bestehende Test- und lokale Laufzeitdaten duerfen fuer diesen Inkrement neu aufgebaut werden.
 - Admin-Moderation bekommt eigene Admin-Endpunkte. Bestehender Selbstloesch-Endpunkt `DELETE /v1/identity` bleibt unveraendert.
-- Blockieren und Deblockieren laufen nicht ueber Spezialregeln im Client, sondern ueber denselben serverseitigen Identity-Sperrmechanismus, der bereits authentifizierte Requests blockiert.
+- Blockieren und Deblockieren laufen nicht ueber Spezialregeln im Client, sondern ueber denselben serverseitigen Identity-Sperrmechanismus, der `/v1/approvegid` und authentifizierte Requests blockiert.
 
 Schutzregeln
 

@@ -26,24 +26,6 @@ blockedClients:
 - CIDR prefix is optional; if omitted, full length is assumed (IPv4 `/32`,
   IPv6 `/128`).
 
-### Identity blocklist
-It is possible to block specific identities using a file-based gid block list.
-Blocked gids are rejected on `/v1/approvegid` and all authenticated requests.
-
-**File name:** `mosa_identity_blocklist.yaml`  
-**Managed by:** Operator-maintained configuration  
-**Reload:** Automatically reloaded when changed, checked every 5 seconds.
-
-#### Format (YAML)
-```yaml
-blockedGids:
-  - 9yCzAH4qTNXzm19b8rGRXmtluzmB3DOYCtSrmN4DqVc
-  - TUAZ14ejUY04XseWKMuxTK_mAC72Psyn1t6AdM8UDpo
-```
-
-#### Rules
-- Entries accept base64url-encoded gid strings.
-
 ### Admin gid allowlist
 Admin-only endpoints use a dedicated gid allowlist.
 
@@ -62,8 +44,8 @@ adminGids:
 - Entries accept base64url-encoded gid strings.
 - Changes take effect without a restart.
 
-### Admin message store
-Private admin messages are persisted in a SQLite database outside the vector store.
+### Structured state database
+Structured pod-local state is persisted in a SQLite database outside the vector store.
 
 **File name:** `mosa_db.sqlite`  
 **Managed by:** Automatically created and updated by the server at runtime  
@@ -71,7 +53,8 @@ Private admin messages are persisted in a SQLite database outside the vector sto
 
 The database file is created on startup if it does not exist yet. The server
 stores pending admin messages there, removes expired entries during cleanup,
-and may add further structured runtime state in future tables.
+persists blocked identities for moderation and authentication checks, stores
+complaints, and may add further structured runtime state in future tables.
 
 ### Privacy profile
 The privacy endpoint is generated from an operator-maintained ClearTerms

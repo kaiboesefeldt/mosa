@@ -31,7 +31,6 @@ import straightway.mosa.content.snapshot.FreezeSnapshotService
 import straightway.mosa.content.snapshot.FreezeSnapshotSizePolicy
 import straightway.mosa.content.snapshot.SecureRandomFreezeSnapshotNonceGenerator
 import straightway.mosa.defense.adminAllowList
-import straightway.mosa.defense.identityBlockList
 import straightway.mosa.message.AdminMessageCleanupJob
 import straightway.mosa.message.AdminMessageController
 import straightway.mosa.message.AdminMessageService
@@ -99,18 +98,19 @@ fun Module.configureContentAppModule() {
     }
     single(createdAtStart = true) {
         StructuredStateDatabase(defaultStructuredStateDatabasePath()).also {
-            it.initialize(AdminMessagesTable, PostComplaintsTable)
+            it.initialize(AdminMessagesTable, PostComplaintsTable, BlockedIdentitiesTable)
         }
     } bind StructuredStateContext::class
+    single<BlockedIdentityStore> { SqliteBlockedIdentityStore(get<StructuredStateDatabase>()) }
     single<PostComplaintStoreFactory> { PostComplaintStoreFactory { context -> SqlitePostComplaintStore(context) } }
     single<AdminMessageStoreFactory> { AdminMessageStoreFactory { context -> SqliteAdminMessageStore(context) } }
     single<PostComplaintStore> { get<PostComplaintStoreFactory>().create(get<StructuredStateDatabase>()) }
     single<AdminMessageStore> { get<AdminMessageStoreFactory>().create(get<StructuredStateDatabase>()) }
-    single { IdentityDeletionService(get(), get(), get(), get()) } bind IdentityDeleter::class
+    single { IdentityDeletionService(get(), get(), get(), get(), get()) } bind IdentityDeleter::class
     single {
         IdentityModerationService(
             adminAllowList = get(adminAllowList),
-            identityBlockList = get(identityBlockList),
+            blockedIdentityStore = get(),
             identityDeleter = get(),
             expectedGidByteLength = get<HasherFactory>()().digest(byteArrayOf()).size,
         )

@@ -13,7 +13,6 @@ import straightway.mosa.NanoClock
 import straightway.mosa.config.AdminAllowList
 import straightway.mosa.config.AutoRefreshingFileBackedContent
 import straightway.mosa.config.ClientBlockList
-import straightway.mosa.config.IdentityBlockList
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.requestduration.RequestDurationForRouteState
@@ -30,7 +29,6 @@ val approvegidRateLimit: Qualifier = named("approvegidRateLimit")
 val authenticatedRateLimit: Qualifier = named("authenticatedRateLimit")
 val ipRateLimit: Qualifier = named("ipRateLimit")
 val ipBlockList: Qualifier = named("ipBlockList")
-val identityBlockList: Qualifier = named("identityBlockList")
 val adminAllowList: Qualifier = named("adminAllowList")
 
 fun Module.configureDefenseAppModule() {
@@ -165,23 +163,6 @@ fun Module.configureDefenseAppModule() {
             ClientBlockList.transformer.transform(it).also { blockList ->
                 klogger.info {
                     "blocked client IP addresses: ${blockList.blockedClients.joinToString(", ")}"
-                }
-            }
-        }
-    }
-    single(identityBlockList) {
-        AutoRefreshingFileBackedContent(
-            AutoRefreshingFileBackedContent.Config(
-                path = Path.of("mosa_identity_blocklist.yaml"),
-                refreshInterval = 5.seconds,
-            ),
-            get(),
-            onError = { error -> klogger.error(error) { "mosa_identity_blocklist has invalid format" } },
-        ) {
-            IdentityBlockList.transformer.transform(it).also { blockList ->
-                val entries = blockList.blockedGids.map { gid -> IdentityLogEntryFormatter.format(gid) }
-                klogger.info {
-                    "blocked gids: ${entries.joinToString(", ")}"
                 }
             }
         }

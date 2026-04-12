@@ -9,11 +9,13 @@ class IdentityDeletionService(
     private val database: StructuredStateDatabase,
     private val postComplaintStoreFactory: PostComplaintStoreFactory,
     private val adminMessageStoreFactory: AdminMessageStoreFactory,
+    private val blockedIdentityStore: BlockedIdentityStore,
 ) : IdentityDeleter {
     override fun deleteIdentity(gid: String): DeleteIdentityResult =
         database.inTransaction { context ->
             val postComplaintStore = postComplaintStoreFactory.create(context)
             val adminMessageStore = adminMessageStoreFactory.create(context)
+            blockedIdentityStore.delete(gid)
             val deletedComplaintCount = postComplaintStore.deleteForIdentity(gid)
             val deletedAdminMessageCount = adminMessageStore.deleteForIdentity(gid)
             val deletedPostIds = runBlocking { contentService.deleteAllForUser(gid) }

@@ -8,9 +8,7 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import straightway.mosa.base.BaseController
-import straightway.mosa.config.AutoRefreshingFileBackedContent
-import straightway.mosa.config.IdentityBlockList
-import straightway.mosa.config.contains
+import straightway.mosa.content.BlockedIdentityStore
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.network.ClientIpResolver
 import java.time.Clock
@@ -23,7 +21,7 @@ class AuthenticationController(
     private val certificateLifeTime: Duration = 7.days,
     private val approveGidRateLimiter: RateLimiter,
     private val clientIpResolver: ClientIpResolver,
-    private val identityBlockList: AutoRefreshingFileBackedContent<IdentityBlockList>,
+    private val blockedIdentityStore: BlockedIdentityStore,
 ) : BaseController() {
     private val refreshThresholdSeconds = certificateLifeTime.inWholeSeconds / 10
 
@@ -39,8 +37,7 @@ class AuthenticationController(
                 return@postRoute
             }
             val request = call.receive<AuthenticationApprovalRequest>()
-            val blockList = identityBlockList.get()
-            if (blockList != null && request.gid in blockList) {
+            if (blockedIdentityStore.isBlocked(request.gid)) {
                 call.respond(HttpStatusCode.Forbidden, mapOf("message" to IDENTITY_BLOCKED_MESSAGE))
                 return@postRoute
             }

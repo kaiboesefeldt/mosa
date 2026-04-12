@@ -4,7 +4,6 @@ import io.ktor.server.plugins.BadRequestException
 import kotlinx.coroutines.test.runTest
 import straightway.mosa.config.AdminAllowList
 import straightway.mosa.config.AutoRefreshingFileBackedContent
-import straightway.mosa.config.IdentityBlockList
 import straightway.mosa.content.IdentityModerationService.IdentityModerationConflictException
 import straightway.mosa.content.IdentityModerationService.IdentityModerationForbiddenException
 import java.nio.file.Files
@@ -155,25 +154,19 @@ class IdentityModerationServiceTest {
     private class Fixture {
         private val directory = Files.createTempDirectory("identity-moderation-service")
         private val adminPath = directory.resolve("mosa_admin_gids.yaml")
-        private val blockPath = directory.resolve("mosa_identity_blocklist.yaml")
         private val clock = Clock.fixed(Instant.parse("2026-04-09T12:00:00Z"), ZoneId.of("UTC"))
         private val deletionUseCase = FakeIdentityDeleter()
+        private val blockedIdentityStore = InMemoryBlockedIdentityStore()
         private val adminAllowList =
             AutoRefreshingFileBackedContent(
                 AutoRefreshingFileBackedContent.Config(adminPath, 5.seconds),
                 clock,
                 transformer = AdminAllowList.transformer,
             )
-        private val identityBlockList =
-            AutoRefreshingFileBackedContent(
-                AutoRefreshingFileBackedContent.Config(blockPath, 5.seconds),
-                clock,
-                transformer = IdentityBlockList.transformer,
-            )
         val sut =
             IdentityModerationService(
                 adminAllowList = adminAllowList,
-                identityBlockList = identityBlockList,
+                blockedIdentityStore = blockedIdentityStore,
                 identityDeleter = deletionUseCase,
                 expectedGidByteLength = MessageDigest.getInstance("SHA-256").digest(byteArrayOf()).size,
             )
@@ -184,11 +177,10 @@ class IdentityModerationServiceTest {
         }
 
         suspend fun writeBlockedGids(vararg gids: String) {
-            Files.writeString(blockPath, gids.toList().toIdentityBlockListYaml())
-            identityBlockList.get(forceRefresh = true)
+            gids.forEach { blockedIdentityStore.block(it) }
         }
 
-        suspend fun blockedGids(): List<String> = (identityBlockList.get(forceRefresh = true) ?: IdentityBlockList(emptyList())).blockedGids
+        suspend fun blockedGids(): List<String> = blockedIdentityStore.blockedGids()
 
         fun gid(seed: String): String =
             Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(
@@ -197,13 +189,26 @@ class IdentityModerationServiceTest {
 
         fun close() {
             Files.deleteIfExists(adminPath)
-            Files.deleteIfExists(blockPath)
             Files.deleteIfExists(directory)
         }
     }
 
     private class FakeIdentityDeleter : IdentityDeleter {
         override fun deleteIdentity(gid: String): DeleteIdentityResult = DeleteIdentityResult(emptyList(), 0, 0)
+    }
+
+    private class InMemoryBlockedIdentityStore : BlockedIdentityStore {
+        private val blockedGids = linkedSetOf<String>()
+
+        override fun isBlocked(gid: String): Boolean = gid in blockedGids
+
+        override fun block(gid: String): Boolean = blockedGids.add(gid)
+
+        override fun unblock(gid: String): Boolean = blockedGids.remove(gid)
+
+        override fun delete(gid: String): Boolean = blockedGids.remove(gid)
+
+        fun blockedGids(): List<String> = blockedGids.toList()
     }
 }
 
@@ -214,20 +219,6 @@ private fun List<String>.toAdminAllowListYaml(): String =
         buildString {
             append("adminGids:\n")
             this@toAdminAllowListYaml.forEach { gid ->
-                append("  - \"")
-                append(gid)
-                append("\"\n")
-            }
-        }
-    }
-
-private fun List<String>.toIdentityBlockListYaml(): String =
-    if (isEmpty()) {
-        "blockedGids: []\n"
-    } else {
-        buildString {
-            append("blockedGids:\n")
-            this@toIdentityBlockListYaml.forEach { gid ->
                 append("  - \"")
                 append(gid)
                 append("\"\n")

@@ -9,9 +9,9 @@ import straightway.mosa.SignatureFactory
 import straightway.mosa.SignatureVerifierProvider
 import straightway.mosa.TokenUtil
 import straightway.mosa.base.BaseController
+import straightway.mosa.content.BlockedIdentityStore
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.defense.approvegidRateLimit
-import straightway.mosa.defense.identityBlockList
 import straightway.mosa.network.NetworkCommandLineOptions
 import java.nio.file.Paths
 import java.security.MessageDigest
@@ -36,7 +36,7 @@ fun Module.configureAuthAppModule() {
             certificateLifetimeSeconds.toLong().seconds,
             get(approvegidRateLimit),
             get(),
-            get(identityBlockList),
+            get<BlockedIdentityStore>(),
         )
     } bind BaseController::class
 }

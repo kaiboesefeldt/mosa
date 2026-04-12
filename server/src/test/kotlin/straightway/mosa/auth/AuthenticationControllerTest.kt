@@ -15,8 +15,7 @@ import io.mockk.every
 import io.mockk.mockk
 import straightway.mosa.NanoClock
 import straightway.mosa.base.register
-import straightway.mosa.config.AutoRefreshingFileBackedContent
-import straightway.mosa.config.IdentityBlockList
+import straightway.mosa.content.BlockedIdentityStore
 import straightway.mosa.content.ControllerHttpTestEnvironment
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
@@ -26,8 +25,6 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import kotlin.io.encoding.Base64
-import kotlin.io.path.createTempFile
-import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -49,6 +46,7 @@ class AuthenticationControllerTest {
     private val clientIpResolver = ClientIpResolver(emptySet())
     private val signatureFactory = TransientEd25519Factory()
     private val podCertificateService = PodCertificateService(signatureFactory, clock)
+    private val blockedIdentityStore = InMemoryBlockedIdentityStore()
     private val environment =
         ControllerHttpTestEnvironment(
             AuthenticationController(
@@ -57,7 +55,7 @@ class AuthenticationControllerTest {
                 certificateLifeTime,
                 rateLimiter,
                 clientIpResolver,
-                identityBlockListFromYaml(" "),
+                blockedIdentityStore,
             ),
         ) {
             single { podCertificateService }
@@ -90,7 +88,7 @@ class AuthenticationControllerTest {
                     certificateLifeTime,
                     rateLimiter,
                     clientIpResolver,
-                    identityBlockListFromYaml(" "),
+                    InMemoryBlockedIdentityStore(),
                 ),
                 requireTlsForPod = false,
             ) {
@@ -176,7 +174,7 @@ class AuthenticationControllerTest {
                     certificateLifeTime,
                     strictRateLimiter,
                     clientIpResolver,
-                    identityBlockListFromYaml(" "),
+                    InMemoryBlockedIdentityStore(),
                 ),
             ) {
                 single { podCertificateService }
@@ -239,7 +237,7 @@ class AuthenticationControllerTest {
                             certificateLifeTime,
                             rateLimiter,
                             clientIpResolver,
-                            identityBlockListFromYaml(" "),
+                            InMemoryBlockedIdentityStore(),
                         ),
                     )
                 }
@@ -284,7 +282,7 @@ class AuthenticationControllerTest {
                             certificateLifeTime,
                             rateLimiter,
                             clientIpResolver,
-                            identityBlockListFromYaml(" "),
+                            InMemoryBlockedIdentityStore(),
                         ),
                     )
                 }
@@ -358,6 +356,7 @@ class AuthenticationControllerTest {
     @Test
     fun `approvegid rejects blocked gid`() {
         val blockedGid = "blocked".toBase64Url()
+        val blockedIdentityStore = InMemoryBlockedIdentityStore().apply { block(blockedGid) }
         val blockedEnvironment =
             ControllerHttpTestEnvironment(
                 AuthenticationController(
@@ -366,12 +365,7 @@ class AuthenticationControllerTest {
                     certificateLifeTime,
                     rateLimiter,
                     clientIpResolver,
-                    identityBlockListFromYaml(
-                        """
-                        blockedGids:
-                          - "$blockedGid"
-                        """.trimIndent(),
-                    ),
+                    blockedIdentityStore,
                 ),
             ) {
                 single { podCertificateService }
@@ -395,23 +389,21 @@ class AuthenticationControllerTest {
 
     private fun String.toBase64Url(): String = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(encodeToByteArray())
 
-    private fun identityBlockListFromYaml(yaml: String): AutoRefreshingFileBackedContent<IdentityBlockList> {
-        val path = createTempFile("mosa_identity_blocklist_test", ".yaml")
-        path.writeText(yaml)
-        return AutoRefreshingFileBackedContent(
-            AutoRefreshingFileBackedContent.Config(
-                path = path,
-                refreshInterval = 5.seconds,
-            ),
-            Clock.systemUTC(),
-        ) { content ->
-            IdentityBlockList.transformer.transform(content)
-        }
-    }
-
     private companion object {
         private val certificateLifeTime: Duration = 7.days
         private val refreshThresholdSeconds = certificateLifeTime.inWholeSeconds / 10
         private val expectedRefreshRecommendation = 170000000L + certificateLifeTime.inWholeSeconds - (refreshThresholdSeconds / 2)
     }
+}
+
+private class InMemoryBlockedIdentityStore : BlockedIdentityStore {
+    private val blockedGids = linkedSetOf<String>()
+
+    override fun isBlocked(gid: String): Boolean = gid in blockedGids
+
+    override fun block(gid: String): Boolean = blockedGids.add(gid)
+
+    override fun unblock(gid: String): Boolean = blockedGids.remove(gid)
+
+    override fun delete(gid: String): Boolean = blockedGids.remove(gid)
 }

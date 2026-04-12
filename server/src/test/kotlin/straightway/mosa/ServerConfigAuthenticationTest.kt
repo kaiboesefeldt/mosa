@@ -18,17 +18,13 @@ import io.ktor.server.testing.testApplication
 import io.mockk.every
 import io.mockk.mockk
 import straightway.mosa.auth.PodPrincipal
-import straightway.mosa.config.AutoRefreshingFileBackedContent
-import straightway.mosa.config.IdentityBlockList
+import straightway.mosa.content.BlockedIdentityStore
 import straightway.mosa.defense.blocklist.createMosaAuthenticatedIdentityBlockListPlugin
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.ratelimit.createMosaAuthenticatedRateLimitPlugin
 import straightway.mosa.network.ClientIpResolver
 import straightway.mosa.testutils.installTestNetworkServerPlugins
-import java.time.Clock
-import kotlin.io.path.createTempFile
-import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -134,19 +130,13 @@ class ServerConfigAuthenticationTest {
         every { certClaim.asMap() } returns mapOf("gid" to blockedGid, "exp" to 1, "sig" to "sig")
         every { pubClaim.asString() } returns "public-key"
 
-        val identityBlockList =
-            identityBlockListFromYaml(
-                """
-                blockedGids:
-                  - "$blockedGid"
-                """.trimIndent(),
-            )
+        val blockedIdentityStore = InMemoryBlockedIdentityStore().apply { block(blockedGid) }
 
         testApplication {
             application {
                 installTestNetworkServerPlugins(tokenUtil = tokenUtil, clientIpResolver = trustedProxyResolver)
                 routing {
-                    install(createMosaAuthenticatedIdentityBlockListPlugin(identityBlockList))
+                    install(createMosaAuthenticatedIdentityBlockListPlugin(blockedIdentityStore))
                     authenticate {
                         get("/secure") {
                             call.respondText("ok")
@@ -180,19 +170,13 @@ class ServerConfigAuthenticationTest {
         every { certClaim.asMap() } returns mapOf("gid" to blockedGid, "exp" to 1, "sig" to "sig")
         every { pubClaim.asString() } returns "public-key"
 
-        val identityBlockList =
-            identityBlockListFromYaml(
-                """
-                blockedGids:
-                  - "$blockedGid"
-                """.trimIndent(),
-            )
+        val blockedIdentityStore = InMemoryBlockedIdentityStore().apply { block(blockedGid) }
 
         testApplication {
             application {
                 installTestNetworkServerPlugins(tokenUtil = tokenUtil, clientIpResolver = trustedProxyResolver)
                 routing {
-                    install(createMosaAuthenticatedIdentityBlockListPlugin(identityBlockList))
+                    install(createMosaAuthenticatedIdentityBlockListPlugin(blockedIdentityStore))
                     authenticate {
                         delete("/v1/identity") {
                             call.respondText("deleted")
@@ -336,18 +320,16 @@ class ServerConfigAuthenticationTest {
             assertEquals(HttpStatusCode.Unauthorized, response.status)
         }
     }
+}
 
-    private fun identityBlockListFromYaml(yaml: String): AutoRefreshingFileBackedContent<IdentityBlockList> {
-        val path = createTempFile("mosa_identity_blocklist_test", ".yaml")
-        path.writeText(yaml)
-        return AutoRefreshingFileBackedContent(
-            AutoRefreshingFileBackedContent.Config(
-                path = path,
-                refreshInterval = 5.seconds,
-            ),
-            Clock.systemUTC(),
-        ) { content ->
-            IdentityBlockList.transformer.transform(content)
-        }
-    }
+private class InMemoryBlockedIdentityStore : BlockedIdentityStore {
+    private val blockedGids = linkedSetOf<String>()
+
+    override fun isBlocked(gid: String): Boolean = gid in blockedGids
+
+    override fun block(gid: String): Boolean = blockedGids.add(gid)
+
+    override fun unblock(gid: String): Boolean = blockedGids.remove(gid)
+
+    override fun delete(gid: String): Boolean = blockedGids.remove(gid)
 }

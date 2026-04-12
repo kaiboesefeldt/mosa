@@ -9,19 +9,16 @@ import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import straightway.mosa.auth.PodPrincipal
-import straightway.mosa.config.AutoRefreshingFileBackedContent
-import straightway.mosa.config.IdentityBlockList
-import straightway.mosa.config.contains
+import straightway.mosa.content.BlockedIdentityStore
 
-fun createMosaAuthenticatedIdentityBlockListPlugin(identityBlockList: AutoRefreshingFileBackedContent<IdentityBlockList>) =
+fun createMosaAuthenticatedIdentityBlockListPlugin(blockedIdentityStore: BlockedIdentityStore) =
     createRouteScopedPlugin("MosaIdentityBlockList") {
         on(AuthenticationChecked) { call ->
             if (call.request.httpMethod == HttpMethod.Delete && call.request.path() == IDENTITY_DELETE_PATH) {
                 return@on
             }
             val principal = call.principal<PodPrincipal>() ?: return@on
-            val blockList = identityBlockList.get() ?: return@on
-            if (principal.gid !in blockList) return@on
+            if (!blockedIdentityStore.isBlocked(principal.gid)) return@on
             call.respond(HttpStatusCode.Forbidden, mapOf("message" to IDENTITY_BLOCKED_MESSAGE))
         }
     }

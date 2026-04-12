@@ -3,14 +3,12 @@ package straightway.mosa.content
 import io.ktor.server.plugins.BadRequestException
 import straightway.mosa.config.AdminAllowList
 import straightway.mosa.config.AutoRefreshingFileBackedContent
-import straightway.mosa.config.IdentityBlockList
 import straightway.mosa.config.contains
-import java.nio.file.Files
 import java.util.Base64
 
 class IdentityModerationService(
     private val adminAllowList: AutoRefreshingFileBackedContent<AdminAllowList>,
-    private val identityBlockList: AutoRefreshingFileBackedContent<IdentityBlockList>,
+    private val blockedIdentityStore: BlockedIdentityStore,
     private val identityDeleter: IdentityDeleter,
     private val expectedGidByteLength: Int,
 ) {
@@ -29,11 +27,9 @@ class IdentityModerationService(
         ensureAdmin(requesterGid)
         val normalizedTargetGid = normalizeGid(targetGid)
         ensureUnprotectedTarget(requesterGid, normalizedTargetGid)
-        val blockList = currentBlockList()
-        if (normalizedTargetGid in blockList) {
+        if (!blockedIdentityStore.block(normalizedTargetGid)) {
             throw IdentityModerationConflictException("identity already blocked")
         }
-        writeBlockList(blockList.blockedGids + normalizedTargetGid)
     }
 
     suspend fun unblock(
@@ -43,11 +39,9 @@ class IdentityModerationService(
         ensureAdmin(requesterGid)
         val normalizedTargetGid = normalizeGid(targetGid)
         ensureUnprotectedTarget(requesterGid, normalizedTargetGid)
-        val blockList = currentBlockList()
-        if (normalizedTargetGid !in blockList) {
+        if (!blockedIdentityStore.unblock(normalizedTargetGid)) {
             throw IdentityModerationConflictException("identity is not blocked")
         }
-        writeBlockList(blockList.blockedGids.filter { it != normalizedTargetGid })
     }
 
     suspend fun delete(
@@ -91,26 +85,4 @@ class IdentityModerationService(
         }
         return trimmed
     }
-
-    private suspend fun currentBlockList(): IdentityBlockList = identityBlockList.get() ?: IdentityBlockList(emptyList())
-
-    private suspend fun writeBlockList(blockedGids: List<String>) {
-        val content = blockedGids.distinct().sorted().toIdentityBlockListYaml()
-        Files.writeString(identityBlockList.config.path, content)
-        identityBlockList.get(forceRefresh = true)
-    }
 }
-
-private fun List<String>.toIdentityBlockListYaml(): String =
-    if (isEmpty()) {
-        "blockedGids: []\n"
-    } else {
-        buildString {
-            append("blockedGids:\n")
-            this@toIdentityBlockListYaml.forEach { gid ->
-                append("  - \"")
-                append(gid)
-                append("\"\n")
-            }
-        }
-    }

@@ -203,7 +203,7 @@ Read flow:
 
 #### Defense
 
-`straightway.mosa.defense` groups rate limits, block lists, and admin allow lists. It is cross-cutting.
+`straightway.mosa.defense` groups rate limits, request shedding, IP blocking, and admin allow lists. It is cross-cutting.
 
 #### Message and Complaint
 
@@ -214,7 +214,7 @@ Administrative messages and post complaints have separate controller, service, s
 Server uses polyglot local storage:
 
 - Lucene: semantic content and metadata
-- SQLite: structured state such as admin messages and complaints
+- SQLite: structured state such as admin messages, complaints, and blocked identities
 - filesystem: pod keys, snapshot keys, legal YAML, persistent pod-local config
 - classpath resources: bundled baseline documents and server documentation
 
