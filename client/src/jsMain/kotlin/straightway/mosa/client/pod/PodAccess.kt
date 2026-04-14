@@ -14,6 +14,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import straightway.mosa.auth.AuthenticationApprovalRequest
 import straightway.mosa.auth.PodCertificateResponse
+import straightway.mosa.content.AdminIdentityModerationStatus
 import straightway.mosa.content.ContentCapabilitiesResult
 import straightway.mosa.content.complaint.CreatePostComplaintRequest
 import straightway.mosa.content.complaint.DecidePostComplaintRequest
@@ -62,6 +63,11 @@ interface PodAccess {
         page: Int = 1,
     ): AdminMessageListResult =
         error("Admin messages endpoint is not implemented for this PodAccess")
+    suspend fun adminIdentityModerationStatus(
+        gid: String,
+        jwt: String,
+    ): AdminIdentityModerationStatus =
+        error("Admin identity moderation status endpoint is not implemented for this PodAccess")
     suspend fun blockIdentity(
         request: IdentityModerationRequest,
         jwt: String,
@@ -219,6 +225,14 @@ class PodAccessImpl(
     ): AdminMessageListResult =
         get("/v1/admin/messages", jwt = jwt, gid = recipientGid, page = page)
             .ensureSuccess("/v1/admin/messages", Unit)
+            .body()
+
+    override suspend fun adminIdentityModerationStatus(
+        gid: String,
+        jwt: String,
+    ): AdminIdentityModerationStatus =
+        get("/v1/admin/identities/capabilities", jwt = jwt, gid = gid)
+            .ensureSuccess("/v1/admin/identities/capabilities", Unit)
             .body()
 
     override suspend fun blockIdentity(

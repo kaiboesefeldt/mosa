@@ -3,6 +3,7 @@ package straightway.mosa.content
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.delete
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.test.runTest
@@ -21,6 +22,20 @@ import kotlin.time.Duration.Companion.seconds
 
 class IdentityModerationControllerTest {
     @Test
+    fun `status endpoint rejects unauthenticated requests`() =
+        runTest {
+            withFixture { fixture ->
+                val targetGid = fixture.gid("target")
+
+                fixture.environment {
+                    val response = client.get("/v1/admin/identities/capabilities?gid=$targetGid")
+
+                    assertEquals(HttpStatusCode.Unauthorized, response.status)
+                }
+            }
+        }
+
+    @Test
     fun `block endpoint returns no content and persists gid`() =
         runTest {
             withFixture { fixture ->
@@ -36,6 +51,62 @@ class IdentityModerationControllerTest {
 
                     assertEquals(HttpStatusCode.NoContent, response.status)
                     assertEquals(listOf(targetGid), fixture.blockedGids())
+                }
+            }
+        }
+
+    @Test
+    fun `block endpoint returns forbidden for non admin requester`() =
+        runTest {
+            withFixture { fixture ->
+                val targetGid = fixture.gid("target")
+
+                fixture.environment {
+                    val response =
+                        client.post("/v1/admin/identities/block") {
+                            bearerAuth(fixture.environment.bearerToken)
+                            setJsonBody(IdentityModerationRequest(targetGid))
+                        }
+
+                    assertEquals(HttpStatusCode.Forbidden, response.status)
+                }
+            }
+        }
+
+    @Test
+    fun `block endpoint returns bad request for blank gid`() =
+        runTest {
+            withFixture { fixture ->
+                fixture.writeAdminGids(fixture.environment.gid)
+
+                fixture.environment {
+                    val response =
+                        client.post("/v1/admin/identities/block") {
+                            bearerAuth(fixture.environment.bearerToken)
+                            setJsonBody(IdentityModerationRequest("   "))
+                        }
+
+                    assertEquals(HttpStatusCode.BadRequest, response.status)
+                }
+            }
+        }
+
+    @Test
+    fun `block endpoint returns conflict for already blocked gid`() =
+        runTest {
+            withFixture { fixture ->
+                fixture.writeAdminGids(fixture.environment.gid)
+                val targetGid = fixture.gid("target")
+                fixture.writeBlockedGids(targetGid)
+
+                fixture.environment {
+                    val response =
+                        client.post("/v1/admin/identities/block") {
+                            bearerAuth(fixture.environment.bearerToken)
+                            setJsonBody(IdentityModerationRequest(targetGid))
+                        }
+
+                    assertEquals(HttpStatusCode.Conflict, response.status)
                 }
             }
         }
@@ -62,6 +133,25 @@ class IdentityModerationControllerTest {
         }
 
     @Test
+    fun `unblock endpoint returns conflict for missing blocked gid`() =
+        runTest {
+            withFixture { fixture ->
+                fixture.writeAdminGids(fixture.environment.gid)
+                val targetGid = fixture.gid("target")
+
+                fixture.environment {
+                    val response =
+                        client.post("/v1/admin/identities/unblock") {
+                            bearerAuth(fixture.environment.bearerToken)
+                            setJsonBody(IdentityModerationRequest(targetGid))
+                        }
+
+                    assertEquals(HttpStatusCode.Conflict, response.status)
+                }
+            }
+        }
+
+    @Test
     fun `delete endpoint returns deletion result for target gid`() =
         runTest {
             withFixture { fixture ->
@@ -79,6 +169,63 @@ class IdentityModerationControllerTest {
                     assertEquals(HttpStatusCode.OK, response.status)
                     assertEquals(expected, response.body())
                     assertEquals(targetGid, fixture.deletionUseCase.deletedGids.single())
+                }
+            }
+        }
+
+    @Test
+    fun `delete endpoint returns forbidden for non admin requester`() =
+        runTest {
+            withFixture { fixture ->
+                val targetGid = fixture.gid("target")
+
+                fixture.environment {
+                    val response =
+                        client.delete("/v1/admin/identities/$targetGid") {
+                            bearerAuth(fixture.environment.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.Forbidden, response.status)
+                }
+            }
+        }
+
+    @Test
+    fun `status endpoint returns admin and blocked status for target gid`() =
+        runTest {
+            withFixture { fixture ->
+                fixture.writeAdminGids(fixture.environment.gid, fixture.gid("target"))
+                val targetGid = fixture.gid("target")
+                fixture.writeBlockedGids(targetGid)
+
+                fixture.environment {
+                    val response =
+                        client.get("/v1/admin/identities/capabilities?gid=$targetGid") {
+                            bearerAuth(fixture.environment.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.OK, response.status)
+                    assertEquals(
+                        AdminIdentityModerationStatus(isAdmin = true, isBlocked = true),
+                        response.body(),
+                    )
+                }
+            }
+        }
+
+    @Test
+    fun `status endpoint returns forbidden for non admin requester`() =
+        runTest {
+            withFixture { fixture ->
+                val targetGid = fixture.gid("target")
+
+                fixture.environment {
+                    val response =
+                        client.get("/v1/admin/identities/capabilities?gid=$targetGid") {
+                            bearerAuth(fixture.environment.bearerToken)
+                        }
+
+                    assertEquals(HttpStatusCode.Forbidden, response.status)
                 }
             }
         }

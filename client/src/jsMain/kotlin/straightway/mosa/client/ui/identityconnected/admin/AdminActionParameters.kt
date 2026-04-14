@@ -3,16 +3,16 @@ package straightway.mosa.client.ui.identityconnected.admin
 import straightway.mosa.client.ui.identityconnected.common.*
 
 import straightway.mosa.message.AdminMessage
+import straightway.mosa.client.content.AdminIdentityModerationStatusService
 import straightway.mosa.client.content.AdminMessageHistoryService
 import straightway.mosa.client.content.AdminMessagePublisher
-import straightway.mosa.client.content.ContentCapabilitiesService
 import straightway.mosa.client.content.IdentityModerationService
 
 internal data class AdminActionDependencies(
     val context: ConnectedViewFeedbackContext,
     val adminMessageHistoryService: AdminMessageHistoryService,
     val adminMessagePublisher: AdminMessagePublisher,
-    val contentCapabilitiesService: ContentCapabilitiesService,
+    val adminIdentityModerationStatusService: AdminIdentityModerationStatusService,
     val identityModerationService: IdentityModerationService,
     val canDeleteAsAdmin: Boolean,
     val connectedIdentityGid: String?,

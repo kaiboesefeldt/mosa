@@ -24,6 +24,7 @@ import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.content.AdminMessageHistoryService
 import straightway.mosa.client.content.AdminMessageInboxService
 import straightway.mosa.client.content.AdminMessagePublisher
+import straightway.mosa.client.content.AdminIdentityModerationStatusService
 import straightway.mosa.client.content.AllPostsDeletionService
 import straightway.mosa.client.content.ContentCapabilitiesService
 import straightway.mosa.client.content.IdentityModerationService
@@ -65,6 +66,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
     val adminMessageHistoryService = ConnectedViewInjector.get<AdminMessageHistoryService>()
     val adminMessageInboxService = ConnectedViewInjector.get<AdminMessageInboxService>()
     val adminMessagePublisher = ConnectedViewInjector.get<AdminMessagePublisher>()
+    val adminIdentityModerationStatusService = ConnectedViewInjector.get<AdminIdentityModerationStatusService>()
     val identityModerationService = ConnectedViewInjector.get<IdentityModerationService>()
     val postComplaintService = ConnectedViewInjector.get<PostComplaintService>()
     val adminPostComplaintService = ConnectedViewInjector.get<AdminPostComplaintService>()
@@ -151,7 +153,7 @@ val IdentityConnectedView = FC<IdentityConnectedViewProps> { props ->
                 context = feedbackContext,
                 adminMessageHistoryService = adminMessageHistoryService,
                 adminMessagePublisher = adminMessagePublisher,
-                contentCapabilitiesService = contentCapabilitiesService,
+                adminIdentityModerationStatusService = adminIdentityModerationStatusService,
                 identityModerationService = identityModerationService,
                 canDeleteAsAdmin = adminPresentation.canDeleteAsAdmin,
                 connectedIdentityGid = props.profile.connectedIdentityGid,

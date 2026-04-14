@@ -20,6 +20,7 @@ import kotlinx.serialization.json.jsonObject
 import straightway.mosa.auth.AuthenticationApprovalRequest
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.auth.PodCertificateResponse
+import straightway.mosa.content.AdminIdentityModerationStatus
 import straightway.mosa.content.ContentCapabilitiesResult
 import straightway.mosa.content.DeleteIdentityResult
 import straightway.mosa.content.DeletePostsResult
@@ -285,7 +286,7 @@ class PodAccessTest {
 
     @Test
     fun `contentCapabilities sends get with auth and returns result`() = runTest {
-        val expectedResult = ContentCapabilitiesResult(isAdmin = true, isBlocked = true)
+        val expectedResult = ContentCapabilitiesResult(isAdmin = true)
         val capturedRequests = mutableListOf<HttpRequestData>()
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
 
@@ -308,7 +309,7 @@ class PodAccessTest {
 
     @Test
     fun `contentCapabilities sends gid query parameter when requested`() = runTest {
-        val expectedResult = ContentCapabilitiesResult(isAdmin = true, isBlocked = true)
+        val expectedResult = ContentCapabilitiesResult(isAdmin = true)
         val capturedRequests = mutableListOf<HttpRequestData>()
         val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
 
@@ -371,6 +372,22 @@ class PodAccessTest {
         assertEquals(HttpMethod.Delete, request.method)
         assertEquals("https://pod.example/v1/admin/identities/gid-target", request.url.toString())
         assertEquals("Bearer jwt-token", request.headers[HttpHeaders.Authorization])
+    }
+
+    @Test
+    fun `adminIdentityModerationStatus sends get with auth and returns result`() = runTest {
+        val expectedResult = AdminIdentityModerationStatus(isAdmin = false, isBlocked = true)
+        val capturedRequests = mutableListOf<HttpRequestData>()
+        val podAccess = podAccessResponding(HttpStatusCode.OK, capturedRequests, expectedResult)
+
+        val result = podAccess.adminIdentityModerationStatus("gid-target", "jwt-token")
+
+        assertEquals(expectedResult, result)
+        assertAuthenticatedGetRequest(
+            request = capturedRequests.single(),
+            route = "v1/admin/identities/capabilities?gid=gid-target",
+            bearerToken = "jwt-token",
+        )
     }
 
     @Test

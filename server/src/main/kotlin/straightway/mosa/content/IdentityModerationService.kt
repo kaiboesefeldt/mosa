@@ -54,6 +54,18 @@ class IdentityModerationService(
         return identityDeleter.deleteIdentity(normalizedTargetGid)
     }
 
+    suspend fun status(
+        requesterGid: String,
+        targetGid: String,
+    ): AdminIdentityModerationStatus {
+        ensureAdmin(requesterGid)
+        val normalizedTargetGid = normalizeGid(targetGid)
+        return AdminIdentityModerationStatus(
+            isAdmin = isAdmin(normalizedTargetGid),
+            isBlocked = blockedIdentityStore.isBlocked(normalizedTargetGid),
+        )
+    }
+
     private suspend fun ensureAdmin(requesterGid: String) {
         val allowList = adminAllowList.get() ?: AdminAllowList(emptyList())
         if (requesterGid !in allowList) {
@@ -72,6 +84,11 @@ class IdentityModerationService(
         if (targetGid in allowList) {
             throw IdentityModerationForbiddenException("not allowed to moderate this identity")
         }
+    }
+
+    private suspend fun isAdmin(gid: String): Boolean {
+        val allowList = adminAllowList.get() ?: AdminAllowList(emptyList())
+        return gid in allowList
     }
 
     private fun normalizeGid(gid: String): String {

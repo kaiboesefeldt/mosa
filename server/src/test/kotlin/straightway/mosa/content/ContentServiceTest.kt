@@ -50,18 +50,15 @@ class ContentServiceTest {
     private val testPublicKey = "test-public-key"
     private val testSignature = "test-signature"
 
-    private fun contentService(
-        isAdmin: suspend (String) -> Boolean = { false },
-        isBlocked: suspend (String) -> Boolean = { false },
-    ) = ContentService(
-        embeddingService = embeddingService,
-        vectorStore = vectorStore,
-        hasherFactory = hasherFactory,
-        maxFetchItems = maxFetchItems,
-        replyIdFactory = { "reply-id" },
-        isAdmin = isAdmin,
-        isBlocked = isBlocked,
-    )
+    private fun contentService(isAdmin: suspend (String) -> Boolean = { false }) =
+        ContentService(
+            embeddingService = embeddingService,
+            vectorStore = vectorStore,
+            hasherFactory = hasherFactory,
+            maxFetchItems = maxFetchItems,
+            replyIdFactory = { "reply-id" },
+            isAdmin = isAdmin,
+        )
 
     private fun setupEmbedding(text: String) {
         coEvery { embeddingService.embed(text) } returns testEmbedding
@@ -350,14 +347,13 @@ class ContentServiceTest {
                 val result =
                     contentService(
                         isAdmin = { gid -> gid == "gid-target" },
-                        isBlocked = { gid -> gid == "gid-target" },
                     ).contentCapabilities(
                         userGID = testUserGID,
                         targetGID = "gid-target",
                     )
 
                 assertEquals(
-                    ContentCapabilitiesResult(isAdmin = true, isBlocked = true),
+                    ContentCapabilitiesResult(isAdmin = true),
                     result,
                 )
             }

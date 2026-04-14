@@ -99,7 +99,6 @@ fun Module.configureContentAppModule() {
             hasherFactory = get(),
             maxFetchItems = maxFetchItems,
             isAdmin = { gid -> (admins.get() ?: AdminAllowList(emptyList())).adminGids.contains(gid) },
-            isBlocked = blockedIdentityStore::isBlocked,
         )
     }
     single(createdAtStart = true) {

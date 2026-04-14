@@ -28,6 +28,7 @@ import react.dom.html.ReactHTML.button
 import react.useState
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.auth.PodCertificateResponse
+import straightway.mosa.content.AdminIdentityModerationStatus
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.browser.SubtleCrypto
@@ -1369,7 +1370,7 @@ class IdentityConnectedViewTest {
             RecordingPodAccess(
                 responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
                 capabilities = ContentCapabilitiesResult(isAdmin = true),
-                capabilitiesByGid = mapOf(recipientGid to ContentCapabilitiesResult(isAdmin = false, isBlocked = false)),
+                adminModerationStatusByGid = mapOf(recipientGid to AdminIdentityModerationStatus(isAdmin = false, isBlocked = false)),
             )
         overrideDependencies(listOf(Topic("Alpha")), podAccess)
         sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
@@ -1392,7 +1393,7 @@ class IdentityConnectedViewTest {
             RecordingPodAccess(
                 responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
                 capabilities = ContentCapabilitiesResult(isAdmin = true),
-                capabilitiesByGid = mapOf(recipientGid to ContentCapabilitiesResult(isAdmin = false, isBlocked = true)),
+                adminModerationStatusByGid = mapOf(recipientGid to AdminIdentityModerationStatus(isAdmin = false, isBlocked = true)),
             )
         overrideDependencies(listOf(Topic("Alpha")), podAccess)
         sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
@@ -1414,7 +1415,7 @@ class IdentityConnectedViewTest {
             RecordingPodAccess(
                 responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
                 capabilities = ContentCapabilitiesResult(isAdmin = true),
-                capabilitiesByGid = mapOf(recipientGid to ContentCapabilitiesResult(isAdmin = false, isBlocked = false)),
+                adminModerationStatusByGid = mapOf(recipientGid to AdminIdentityModerationStatus(isAdmin = false, isBlocked = false)),
             )
         overrideDependencies(listOf(Topic("Alpha")), podAccess)
         sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
@@ -1440,7 +1441,7 @@ class IdentityConnectedViewTest {
             RecordingPodAccess(
                 responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
                 capabilities = ContentCapabilitiesResult(isAdmin = true),
-                capabilitiesByGid = mapOf(recipientGid to ContentCapabilitiesResult(isAdmin = true, isBlocked = false)),
+                adminModerationStatusByGid = mapOf(recipientGid to AdminIdentityModerationStatus(isAdmin = true, isBlocked = false)),
             )
         overrideDependencies(listOf(Topic("Alpha")), podAccess)
         sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
@@ -1464,7 +1465,7 @@ class IdentityConnectedViewTest {
             RecordingPodAccess(
                 responses = mapOf("Alpha" to queryResult("p1", authorGid = "other-author")),
                 capabilities = ContentCapabilitiesResult(isAdmin = true),
-                capabilitiesByGid = mapOf(recipientGid to ContentCapabilitiesResult(isAdmin = false, isBlocked = false)),
+                adminModerationStatusByGid = mapOf(recipientGid to AdminIdentityModerationStatus(isAdmin = false, isBlocked = false)),
             )
         overrideDependencies(listOf(Topic("Alpha")), podAccess)
         sessionStore.prime(IdentitySessionSnapshot(identityForTests.gid, false))
@@ -1882,6 +1883,7 @@ private fun inboxScrollTop(container: Element): Double =
                 single { AdminMessageInboxService(get()) }
                 single { AdminMessageHistoryService(get()) }
                 single { AdminMessagePublisher(get()) }
+                single { straightway.mosa.client.content.AdminIdentityModerationStatusService(get()) }
                 single { ContentCapabilitiesService(get()) }
                 single { IdentityModerationService(get()) }
                 single { PostDeletionService(get(), get(), get()) }
@@ -2219,6 +2221,7 @@ private class RecordingPodAccess(
     private val complaintCountResult: OpenPostComplaintCountResult = OpenPostComplaintCountResult(0),
     private val capabilities: ContentCapabilitiesResult = ContentCapabilitiesResult(isAdmin = false),
     private val capabilitiesByGid: Map<String, ContentCapabilitiesResult> = emptyMap(),
+    private val adminModerationStatusByGid: Map<String, AdminIdentityModerationStatus> = emptyMap(),
     private val deferredCapabilitiesByGid: Map<String, MutableList<CompletableDeferred<ContentCapabilitiesResult>>> = emptyMap(),
 ) : PodAccess {
     val approveInvocations = mutableListOf<String>()
@@ -2230,6 +2233,7 @@ private class RecordingPodAccess(
     val blockIdentityRequests = mutableListOf<IdentityModerationRequest>()
     val unblockIdentityRequests = mutableListOf<IdentityModerationRequest>()
     val adminDeleteIdentityRequests = mutableListOf<String>()
+    val adminModerationStatusRequests = mutableListOf<String>()
     val messagesRequests = mutableListOf<MessageRequest>()
     val adminMessagesRequests = mutableListOf<AdminHistoryRequest>()
     val complaintRequests = mutableListOf<Int>()
@@ -2307,6 +2311,14 @@ private class RecordingPodAccess(
     ): AdminMessageListResult {
         adminMessagesRequests += AdminHistoryRequest(recipientGid = recipientGid, jwt = jwt, page = page)
         return adminHistoryResponseQueue.removeFirstOrNull() ?: AdminMessageListResult(emptyList())
+    }
+
+    override suspend fun adminIdentityModerationStatus(
+        gid: String,
+        jwt: String,
+    ): AdminIdentityModerationStatus {
+        adminModerationStatusRequests += gid
+        return adminModerationStatusByGid[gid] ?: error("no admin moderation status for $gid")
     }
 
     override suspend fun blockIdentity(

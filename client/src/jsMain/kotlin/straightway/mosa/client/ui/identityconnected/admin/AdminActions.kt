@@ -69,7 +69,7 @@ internal fun buildAdminActions(
         recipient.setLoadingCapabilities(true)
         recipient.setModerationError(null)
         dependencies.context.async.scope.launch {
-            val result = runCatching { dependencies.contentCapabilitiesService.fetch(recipientGid) }.getOrNull()
+            val result = runCatching { dependencies.adminIdentityModerationStatusService.fetch(recipientGid) }.getOrNull()
             recipient.setLoadingCapabilities(false)
             if (result == null) {
                 recipient.setBlocked(false)
@@ -78,8 +78,8 @@ internal fun buildAdminActions(
                     dependencies.context.async.translator.translate("connected.messages.actions.moderation.statusError"),
                 )
             } else {
-                recipient.setBlocked(result.isBlocked)
                 recipient.setAdmin(result.isAdmin)
+                recipient.setBlocked(result.isBlocked)
             }
         }
     }

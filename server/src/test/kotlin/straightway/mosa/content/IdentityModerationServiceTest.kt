@@ -19,6 +19,20 @@ import kotlin.time.Duration.Companion.seconds
 
 class IdentityModerationServiceTest {
     @Test
+    fun `admin can block unprotected identity`() =
+        runTest {
+            withFixture { fixture ->
+                val admin = fixture.gid("admin")
+                val target = fixture.gid("target")
+                fixture.writeAdminGids(admin)
+
+                fixture.sut.block(admin, target)
+
+                assertEquals(listOf(target), fixture.blockedGids())
+            }
+        }
+
+    @Test
     fun `non admin cannot block identity`() =
         runTest {
             withFixture { fixture ->
@@ -103,6 +117,19 @@ class IdentityModerationServiceTest {
         }
 
     @Test
+    fun `non admin cannot query moderation status`() =
+        runTest {
+            withFixture { fixture ->
+                val requester = fixture.gid("requester")
+                val target = fixture.gid("target")
+
+                assertFailsWith<IdentityModerationForbiddenException> {
+                    fixture.sut.status(requester, target)
+                }
+            }
+        }
+
+    @Test
     fun `admin cannot delete own identity`() =
         runTest {
             withFixture { fixture ->
@@ -130,6 +157,22 @@ class IdentityModerationServiceTest {
         }
 
     @Test
+    fun `admin can delete unprotected identity`() =
+        runTest {
+            withFixture { fixture ->
+                val admin = fixture.gid("admin")
+                val target = fixture.gid("target")
+                fixture.writeAdminGids(admin)
+                fixture.deletionUseCase.result = DeleteIdentityResult(listOf("post-1"), 2, 3)
+
+                val result = fixture.sut.delete(admin, target)
+
+                assertEquals(DeleteIdentityResult(listOf("post-1"), 2, 3), result)
+                assertEquals(listOf(target), fixture.deletionUseCase.deletedGids)
+            }
+        }
+
+    @Test
     fun `invalid gid is rejected with bad request`() =
         runTest {
             withFixture { fixture ->
@@ -139,6 +182,68 @@ class IdentityModerationServiceTest {
                 assertFailsWith<BadRequestException> {
                     fixture.sut.block(admin, "not-base64")
                 }
+            }
+        }
+
+    @Test
+    fun `blank gid is rejected with bad request`() =
+        runTest {
+            withFixture { fixture ->
+                val admin = fixture.gid("admin")
+                fixture.writeAdminGids(admin)
+
+                assertFailsWith<BadRequestException> {
+                    fixture.sut.block(admin, "   ")
+                }
+            }
+        }
+
+    @Test
+    fun `wrong sized gid is rejected with bad request`() =
+        runTest {
+            withFixture { fixture ->
+                val admin = fixture.gid("admin")
+                fixture.writeAdminGids(admin)
+                val wrongSized = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(byteArrayOf(1, 2, 3))
+
+                assertFailsWith<BadRequestException> {
+                    fixture.sut.block(admin, wrongSized)
+                }
+            }
+        }
+
+    @Test
+    fun `admin can query moderation status for target identity`() =
+        runTest {
+            withFixture { fixture ->
+                val admin = fixture.gid("admin")
+                val target = fixture.gid("target")
+                fixture.writeAdminGids(admin, target)
+                fixture.writeBlockedGids(target)
+
+                val result = fixture.sut.status(admin, target)
+
+                assertEquals(
+                    AdminIdentityModerationStatus(isAdmin = true, isBlocked = true),
+                    result,
+                )
+            }
+        }
+
+    @Test
+    fun `status reports non admin and unblocked target`() =
+        runTest {
+            withFixture { fixture ->
+                val admin = fixture.gid("admin")
+                val target = fixture.gid("target")
+                fixture.writeAdminGids(admin)
+
+                val result = fixture.sut.status(admin, target)
+
+                assertEquals(
+                    AdminIdentityModerationStatus(isAdmin = false, isBlocked = false),
+                    result,
+                )
             }
         }
 
@@ -155,7 +260,7 @@ class IdentityModerationServiceTest {
         private val directory = Files.createTempDirectory("identity-moderation-service")
         private val adminPath = directory.resolve("mosa_admin_gids.yaml")
         private val clock = Clock.fixed(Instant.parse("2026-04-09T12:00:00Z"), ZoneId.of("UTC"))
-        private val deletionUseCase = FakeIdentityDeleter()
+        val deletionUseCase = FakeIdentityDeleter()
         private val blockedIdentityStore = InMemoryBlockedIdentityStore()
         private val adminAllowList =
             AutoRefreshingFileBackedContent(
@@ -194,7 +299,13 @@ class IdentityModerationServiceTest {
     }
 
     private class FakeIdentityDeleter : IdentityDeleter {
-        override fun deleteIdentity(gid: String): DeleteIdentityResult = DeleteIdentityResult(emptyList(), 0, 0)
+        val deletedGids = mutableListOf<String>()
+        var result = DeleteIdentityResult(emptyList(), 0, 0)
+
+        override fun deleteIdentity(gid: String): DeleteIdentityResult {
+            deletedGids += gid
+            return result
+        }
     }
 
     private class InMemoryBlockedIdentityStore : BlockedIdentityStore {

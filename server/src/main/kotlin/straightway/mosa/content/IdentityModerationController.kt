@@ -13,6 +13,12 @@ class IdentityModerationController(
 ) : BaseController() {
     override fun Route.register() {
         authenticate {
+            getRoute("/admin/identities/capabilities") {
+                val requesterGid = userGidOrRespondUnauthorized() ?: return@getRoute
+                val targetGid = call.request.queryParameters["gid"] ?: error("Missing gid query parameter")
+                val result = identityModerationService.status(requesterGid, targetGid)
+                call.respond(HttpStatusCode.OK, result, typeInfo<AdminIdentityModerationStatus>())
+            }
             postRoute("/admin/identities/block") {
                 val requesterGid = userGidOrRespondUnauthorized() ?: return@postRoute
                 identityModerationService.block(requesterGid, call.receive<IdentityModerationRequest>().gid)

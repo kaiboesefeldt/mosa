@@ -46,6 +46,7 @@ import straightway.mosa.client.content.IndexedDbTopicStore
 import straightway.mosa.client.content.JwtBuilder
 import straightway.mosa.client.content.PodAccessFactory
 import straightway.mosa.client.content.PostCache
+import straightway.mosa.client.content.AdminIdentityModerationStatusService
 import straightway.mosa.client.content.ContentCapabilitiesService
 import straightway.mosa.client.content.IdentityModerationService
 import straightway.mosa.client.content.IdentityDeletionService
@@ -192,6 +193,7 @@ object AppModule : KoinComponent {
                         single { AdminMessageInboxService(get()) }
                         single { AdminMessageHistoryService(get()) }
                         single { AdminMessagePublisher(get()) }
+                        single { AdminIdentityModerationStatusService(get()) }
                         single { ContentCapabilitiesService(get()) }
                         single { IdentityModerationService(get()) }
                         single { IdentityDeletionService(get()) }
