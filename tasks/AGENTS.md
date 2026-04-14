@@ -1,18 +1,20 @@
-# Poor-Man's-Aufgabenverwaltung
+# Poor Man's Task Board
 
-Dieses Verzeichnis ist ein bewusst einfaches Taskboard im Dateisystem. Eine Aufgabe ist ein Ordner. Sein Status ergibt sich nur aus dem übergeordneten Statusordner.
+For code or documentation work, also follow the root [`AGENTS.md`](/home/kai/Projects/straightway/mosa/AGENTS.md) and the local skills referenced there. This file governs the filesystem-based task board. Skill coordination inside a task directory is defined in [`tasks/Coordination.md`](/home/kai/Projects/straightway/mosa/tasks/Coordination.md).
 
-## Statusordner
+This directory is an intentionally simple task board in the filesystem. A task is a folder. Its status is defined only by its parent status folder.
 
-- `1-open`: bekannt, noch nicht in Bearbeitung
-- `2-in-progres`: aktiv in Bearbeitung
-- `3-done`: fachlich erledigt
-- `4-discarded`: bewusst verworfen
-- `5-follow-up`: vorerst abgeschlossen oder pausiert, später erneut prüfen
+## Status Folders
 
-Pro Aufgabe gibt es immer genau einen Status. Statuswechsel erfolgen durch Verschieben des ganzen Aufgabenordners.
+- `1-open`: known, not started yet
+- `2-in-progres`: actively in progress
+- `3-done`: functionally completed
+- `4-discarded`: intentionally rejected
+- `5-follow-up`: finished for now or paused, revisit later
 
-## Aufgabenformat
+Each task always has exactly one status. Status changes happen by moving the whole task folder.
+
+## Task Format
 
 Schema:
 
@@ -20,26 +22,29 @@ Schema:
 tasks/<status>/<NNN>-<ShortName>/
 ```
 
-Beispiel:
+Example:
 
 ```text
 tasks/1-open/002-LegalDocumentChangeConfirmationFlow/
 ```
 
-Pflichtdatei:
+Required file:
 
-- `Description.md`: Problem, Ziel, wichtige Randbedingungen
+- `Description.md`: problem, goal, important constraints
 
-Erlaubt:
+Allowed:
 
-- weitere Markdown-Dateien für Kontext
-- weitere Dateien oder einfache Unterstrukturen, wenn sie Bearbeitung erleichtern
+- additional Markdown files for context
+- additional files or simple substructures when they help execution
+- coordination files as defined in [`tasks/Coordination.md`](/home/kai/Projects/straightway/mosa/tasks/Coordination.md)
 
-Markdown ist Standard. Inhalt darf knapp bleiben, muss aber für Mensch oder Coding-KI klar ausführbar sein.
+Markdown is the default. Content may stay concise, but it must be executable without ambiguity for a human or coding agent.
 
 ## Subtasks
 
-Wenn eine Aufgabe zerlegt wird, liegen Subtasks als Markdown-Dateien im selben Aufgabenordner.
+If a task is split up, subtasks live as Markdown files in the same task folder.
+Before substantial implementation starts, the task should be checked for implementation readiness.
+If the scope or structure requires decomposition, the architect should split the task into subtasks before implementation proceeds.
 
 Schema:
 
@@ -47,77 +52,85 @@ Schema:
 subNNN-ShortDescription.md
 ```
 
-Beispiel:
+Example:
 
 ```text
 sub001-CreateMissingOperatorProfileFiles.md
 ```
 
-Regeln:
+Rules:
 
-- `NNN` ist dreistellige laufende Nummer innerhalb der Aufgabe.
-- `ShortDescription` bleibt kurz, stabil, ASCII-kompatibel.
-- Jede Subtask soll eigenständig bearbeitbar sein.
-- Abgeschlossene Subtasks werden nicht verschoben, sondern umbenannt:
+- `NNN` is a three-digit running number within the task.
+- `ShortDescription` stays short, stable, and ASCII-compatible.
+- Each subtask should be independently executable.
+- The current subtask is the open subtask with the highest `NNN`.
+- Implementation, testing, and quality work focus on the current subtask only.
+- Completed subtasks are not moved, but renamed:
 
 ```text
 done-subNNN-ShortDescription.md
 ```
 
-Beispiel:
+Example:
 
 ```text
 done-sub001-CreateMissingOperatorProfileFiles.md
 ```
 
-- Die Hauptaufgabe bleibt fachliche Klammer. Subtasks ergänzen `Description.md`, ersetzen sie nicht.
+- The main task remains the functional umbrella. Subtasks extend `Description.md`; they do not replace it.
+- Only quality work closes a subtask by renaming it from `subNNN-...md` to `done-subNNN-...md`.
 
-### Pflichtinhalt der letzten Subtask
+### Required Content Of The Last Subtask
 
-Wenn eine Aufgabe in Subtasks zerlegt ist, muss die letzte Subtask enthalten:
+If a task is split into subtasks, the last subtask must contain:
 
-1. Abschlusstest der integrierten Gesamtänderung
-2. Prüfung und ggf. Anpassung der Doku in:
+1. Final test of the integrated overall change
+2. Review and, if needed, update of documentation in:
    - `spec`
    - `server/src/main/resources/clearterms`
    - `server/src/main/resources/doc/serve`
-3. Prüfung neuer 3rd-Party-Lizenzen auf Kompatibilität mit `License`
+3. Review of new third-party licenses for compatibility with `LICENSE`
 
-Der Abschlusstest muss klar sagen:
+The final test must clearly state:
 
-- welche Komponenten gemeinsam geprüft werden
-- welche Vorbedingungen gelten
-- welche Schritte auszuführen sind
-- woran Erfolg oder Fehlschlag erkannt wird
-- ob Test vollautomatisch, repo-intern manuell durch KI, zur Laufzeit manuell oder nur durch Menschen ausführbar ist
+- which components are tested together
+- which preconditions apply
+- which steps must be executed
+- how success or failure is recognized
+- whether the test is fully automated, manually executable inside the repo by an agent, manually executable at runtime, or only executable by a human
 
-Wenn ein Mensch testen muss, muss Beschreibung ohne Rückfragen ausführbar sein.
+If a human must run the test, the description must be executable without follow-up questions.
 
-## Nummerierung
+## Numbering
 
-- Neue Aufgaben bekommen nächste freie dreistellige Nummer.
-- Nummer bleibt über gesamten Lebenszyklus gleich.
-- `ShortName` bleibt knapp, lesbar, stabil.
+- New tasks get the next free three-digit number.
+- The number stays unchanged for the full lifecycle.
+- `ShortName` stays concise, readable, and stable.
 
-## Arbeitsweise
+## Workflow
 
-1. Neue Aufgabe: Ordner in `1-open` anlegen, `Description.md` schreiben.
-2. Arbeit starten: Ordner nach `2-in-progres` verschieben.
-3. Arbeit abschließen: erst nach menschlicher Freigabe nach `3-done` oder `5-follow-up` verschieben.
-4. Aufgabe verwerfen: nur nach menschlicher Freigabe nach `4-discarded` verschieben.
-5. Wiedervorlage: nach `5-follow-up` verschieben.
+1. New task: create a folder in `1-open`, then write `Description.md`.
+2. Start work: move the folder to `2-in-progres`.
+3. Before substantial implementation, confirm whether the task needs subtask decomposition.
+4. If decomposition is needed, the architect creates or updates the subtasks before implementation continues.
+5. Developer, tester, and quality work on the current subtask until quality is satisfied.
+6. Quality closes the current subtask by renaming it to `done-subNNN-...md`.
+7. If that was the last open subtask, quality performs a final whole-task review before the task is proposed for completion.
+8. Finish work: move only after human approval to `3-done` or `5-follow-up`.
+9. Discard task: move only after human approval to `4-discarded`.
+10. Revisit later: move to `5-follow-up`.
 
-Wenn Zuschnitt einer Aufgabe wesentlich wechselt:
+If the task scope changes substantially:
 
-- `Description.md` aktualisieren
-- bei echter Aufspaltung neue Aufgabe mit neuer Nummer anlegen
+- update `Description.md`
+- if it becomes a real split, create a new task with a new number
 
-## Konventionen
+## Conventions
 
-- Beschreibungen standardmäßig auf Deutsch
-- Ordnernamen ASCII, ohne Leerzeichen
-- Keine Prioritätslogik im Namen
-- Erledigte Aufgaben werden nicht umnummeriert
-- `4-discarded` ist Endstatus, kein Parkplatz
-- `5-follow-up` ist für bewusste spätere Wiederaufnahme
-- Schreibweise `2-in-progres` bleibt absichtlich unverändert
+- Descriptions should default to English.
+- Folder names are ASCII and contain no spaces.
+- No priority logic in the name.
+- Completed tasks are not renumbered.
+- `4-discarded` is a terminal status, not a parking lot.
+- `5-follow-up` is for deliberate later resumption.
+- The spelling `2-in-progres` remains intentionally unchanged.
