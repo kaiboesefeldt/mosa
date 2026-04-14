@@ -2,12 +2,48 @@
 
 ## Fachlicher Zuschnitt
 
-Der heutige Bereich `Moderation` besteht im Kern aus zwei getrennten, aber lose gekoppelten Funktionen:
+Der heutige Bereich `Moderation` besteht aus drei umgesetzten, fachlich verbundenen Bausteinen:
 
 - Beschwerden ueber einzelne Beitraege
 - private Admin-Nachrichten an einzelne Nutzer
+- einfache Nutzer-Moderation durch Admins auf Profil-Ebene
 
-Eine echte Nutzer-Moderation mit Aktionen wie `Blockieren`, `Deblockieren` oder `Nutzer loeschen` existiert noch nicht als umgesetzter Flow. Dafuer gibt es bislang nur die offene Folgeaufgabe [029-AdminUserModerationActions](/home/kai/Projects/straightway/mosa/tasks/1-open/029-AdminUserModerationActions/Description.md).
+Die Bereiche sind weiterhin nicht als ein einziges geschlossenes Moderationsmodell umgesetzt, aber sie greifen inzwischen sichtbar ineinander.
+
+## Server: Nutzer-Moderation
+
+Aktuell gibt es vier relevante Endpunkte:
+
+- `GET /v1/admin/identities/capabilities?gid=...`: Admin liest den aktuellen Moderationsstatus eines Zielprofils.
+- `POST /v1/admin/identities/block`: Admin blockiert ein Zielprofil.
+- `POST /v1/admin/identities/unblock`: Admin hebt die Blockierung eines Zielprofils auf.
+- `DELETE /v1/admin/identities/{gid}`: Admin loescht ein Zielprofil mitsamt verknuepften Moderationsdaten.
+
+Berechtigungen und Schutzregeln:
+
+- Alle Endpunkte sind nur fuer Admins zugaenglich.
+- Admin-Rechte haengen an der pod-lokalen Admin-Allowlist.
+- Admins duerfen sich nicht selbst moderieren.
+- Admins duerfen keine anderen Admin-Profile blockieren, deblockieren oder loeschen.
+- Ziel-GIDs werden serverseitig validiert und normalisiert.
+
+Aktuelle Fachlogik:
+
+- Der Status-Endpunkt liefert heute mindestens `isAdmin` und `isBlocked`.
+- Blockierte Identitaeten werden bei authentifizierten Requests serverseitig gesperrt.
+- Das eigene Profil darf trotz Blockstatus weiterhin ueber `DELETE /v1/identity` geloescht werden.
+- Das Admin-Loeschen eines Profils ist kein reines Content-Delete, sondern ein aufgeraeumter Gesamtloeschvorgang fuer zugeordnete Moderationsdaten.
+
+Persistenz und Lifecycle:
+
+- Der Blockstatus liegt als eigener strukturierter Zustand ausserhalb des Vector-Stores vor.
+- Beim Admin-Loeschen eines Profils werden Blockstatus, Beschwerden, Admin-Nachrichten und Inhalte des Zielprofils gemeinsam entfernt.
+
+Was aktuell nicht vorhanden ist:
+
+- feinere Moderationsstufen jenseits von `blocked` oder `deleted`
+- Moderationsgruende, Fristen oder Wiedervorlagen fuer Nutzer-Massnahmen
+- Audit- oder Verlaufsprotokolle fuer Block/Unblock/Delete auf Profil-Ebene
 
 ## Server: Admin-Nachrichten
 
@@ -64,12 +100,14 @@ Persistenz:
 - Beschwerden liegen ebenfalls im strukturierten SQLite-Zustand.
 - Der offene Zustand wird technisch ueber einen `openMarker` abgesichert.
 - Die Queue kann offen oder inklusive bereits bearbeiteter Eintraege abgefragt werden.
+- Beim Profil-Loeschen werden verknuepfte Beschwerden des Zielprofils mit entfernt.
+- Beschwerden sind in Freeze/Snapshot bereits beruecksichtigt.
 
 Was aktuell nicht vorhanden ist:
 
 - direkte Moderationsobjekte fuer Nutzer statt fuer Beitraege
-- ein gemeinsames Moderationsmodell fuer Beschwerden und Admin-Nachrichten
-- explizite Semantik fuer Beschwerden beim Profil-Loeschen oder Freeze
+- ein gemeinsames Moderationsmodell fuer Beschwerden, Nutzer-Massnahmen und Admin-Nachrichten
+- eine fachlich reichere Fallhistorie ueber mehrere Moderationsereignisse hinweg
 
 ## Client: Nutzer-Inbox und Beschwerdefluss
 
@@ -89,7 +127,7 @@ Beschwerdefluss im Client:
 
 - Eine Beschwerde wird aus dem Beitragskontext gestartet.
 - Vor dem Oeffnen des Eingabedialogs wird die Verfuegbarkeit serverseitig geprueft.
-- Fuer den Nutzer gibt es nur den minimalen Flow `Grund eingeben und absenden`.
+- Fuer den Nutzer gibt es weiterhin den minimalen Flow `Grund eingeben und absenden`.
 
 ## Client: Admin-Flows
 
@@ -111,37 +149,41 @@ Admin-Aktionsflaeche fuer Nutzer:
 - Der Einstieg liegt am Avatar eines fremden Nutzers.
 - Die Flaeche zeigt den bisherigen Admin-Nachrichtenverlauf zu genau diesem Nutzerprofil.
 - Admins koennen dort eine neue Nachricht mit `subject` und `body` verfassen und absenden.
+- Die Flaeche zeigt zusaetzlich den aktuellen Moderationsstatus des Zielprofils.
+- Admins koennen dort heute `Blockieren`, `Deblockieren` und `Nutzer loeschen` ausfuehren.
 
 Wichtige Beobachtung:
 
-- Die heutige Admin-Aktionsflaeche ist noch keine allgemeine Nutzer-Moderationskarte.
-- Sie ist fachlich vor allem ein kontextgebundener Nachrichten-Composer mit Verlaufsansicht.
-- Die Freischaltung im Client haengt aktuell am vorhandenen Admin-Kontext des dargestellten Eintrags.
+- Die heutige Admin-Aktionsflaeche ist nicht mehr nur ein kontextgebundener Nachrichten-Composer.
+- Sie ist inzwischen eine kleine profilbezogene Moderationskarte mit Nachrichtenverlauf und Basisaktionen.
+- Sie bleibt aber weiterhin kontextgebunden und ist noch keine eigenstaendige allgemeine Admin-Konsole fuer Moderationsfaelle.
 
 ## Aktuelle Kopplungen und Brueche
 
 Vorhandene Kopplungen:
 
 - Beschwerden und Admin-Nachrichten treffen sich heute an genau einem Punkt: Eine Admin-Beschwerdeentscheidung erzeugt eine Admin-Nachricht an den Beschwerdefuehrer.
-- Admin-Rechte werden sowohl fuer Beschwerdeentscheidungen als auch fuer Admin-Nachrichten ueber dieselbe pod-lokale Allowlist geprueft.
-- Beide Datenarten liegen bereits in derselben strukturierten SQLite-Grundlage.
+- Nutzer-Moderation und Admin-Nachrichten treffen sich heute in derselben Admin-Aktionsflaeche fuer ein Zielprofil.
+- Admin-Rechte werden fuer Beschwerdeentscheidungen, Admin-Nachrichten und Nutzer-Moderation ueber dieselbe pod-lokale Allowlist geprueft.
+- Beschwerden und Admin-Nachrichten liegen bereits in derselben strukturierten SQLite-Grundlage.
+- Profil-Loeschung raeumt heute bereits verknuepfte Beschwerden, Admin-Nachrichten und Blockstatus mit auf.
+- Freeze/Snapshot beruecksichtigt bereits moderation-nahe Daten fuer Beschwerden und Admin-Nachrichten.
 
 Aktuelle Brueche:
 
-- Beschwerden sind beitragszentriert, Admin-Nachrichten profilzentriert.
-- Die Admin-Aktionsflaeche arbeitet profilbezogen, die Beschwerde-Queue arbeitet fallbezogen.
-- Es gibt noch keinen gemeinsamen Wahrheitsort fuer einen kompletten Moderationszustand eines Nutzerprofils.
-- Folgefragen wie Profil-Loeschung, Freeze oder Aufraeumen verknuepfter Moderationsdaten sind noch offen und bereits als eigene Aufgaben erfasst.
+- Beschwerden sind weiterhin beitragszentriert, Admin-Nachrichten und Nutzer-Massnahmen profilzentriert.
+- Die Beschwerde-Queue arbeitet fallbezogen, die Admin-Aktionsflaeche arbeitet profilbezogen.
+- Es gibt noch keinen gemeinsamen Wahrheitsort fuer die komplette Moderationshistorie eines Nutzerprofils.
+- Blockstatus, Beschwerdefall und Admin-Kommunikation sind technisch verbunden, aber noch kein konsolidiertes Fachobjekt.
 
 ## Wichtigste aktuelle Luecken
 
-- Keine umgesetzten Nutzer-Moderationsaktionen wie `Blockieren`, `Deblockieren` oder `Nutzer loeschen`
 - Keine Loeschfunktion fuer bestehende Admin-Nachrichten
-- Keine definierte Behandlung von Beschwerden und Admin-Nachrichten bei Profil-Loeschung
-- Keine definierte Behandlung dieser Daten im Freeze/Snapshot
 - Kein zusammenhaengendes Moderationsmodell ueber Nutzer, Beschwerden und Admin-Kommunikation
 - Keine serverseitigen Lesezustaende fuer die Inbox
-- Keine Admin-Ansicht, die Moderationshistorie und Nutzeraktionen in einer gemeinsamen Oberflaeche zusammenfuehrt
+- Keine Audit-Trails fuer Nutzer-Massnahmen oder Admin-Nachrichten
+- Keine Admin-Ansicht, die Moderationshistorie, Beschwerden und Nutzeraktionen in einer gemeinsamen Oberflaeche zusammenfuehrt
+- Keine feineren Moderationsmassnahmen wie temporaere Sperren, Begruendungen oder gestufte Sanktionen
 
 ## Anschluss an bestehende offene Aufgaben
 
@@ -152,4 +194,10 @@ Die aktuelle Bestandsaufnahme schliesst direkt an diese offenen Aufgaben an:
 - [030-DeleteModerationDataWithUserProfile](/home/kai/Projects/straightway/mosa/tasks/1-open/030-DeleteModerationDataWithUserProfile/Description.md)
 - [031-FreezeModerationDataWithUserProfile](/home/kai/Projects/straightway/mosa/tasks/1-open/031-FreezeModerationDataWithUserProfile/Description.md)
 
-Zusammengefasst ist der Bereich funktional bereits benutzbar, aber noch kein geschlossenes Moderationssystem. Aktuell existieren mehrere kleine, fachlich sinnvolle Bausteine, die noch nicht zu einem konsistenten Gesamtmodell fuer Betreiberentscheidungen zusammengezogen sind.
+Von diesen Folgeaufgaben sind Teile inzwischen bereits fachlich vorweggenommen:
+
+- Die in [029-AdminUserModerationActions](/home/kai/Projects/straightway/mosa/tasks/1-open/029-AdminUserModerationActions/Description.md) beschriebenen Basisaktionen `Blockieren`, `Deblockieren` und `Nutzer loeschen` existieren bereits.
+- Die in [030-DeleteModerationDataWithUserProfile](/home/kai/Projects/straightway/mosa/tasks/1-open/030-DeleteModerationDataWithUserProfile/Description.md) adressierte Kopplung zur Profil-Loeschung ist fuer Beschwerden und Admin-Nachrichten bereits umgesetzt.
+- Die in [031-FreezeModerationDataWithUserProfile](/home/kai/Projects/straightway/mosa/tasks/1-open/031-FreezeModerationDataWithUserProfile/Description.md) adressierte Beruecksichtigung im Freeze/Snapshot ist fuer Beschwerden und Admin-Nachrichten bereits umgesetzt.
+
+Zusammengefasst ist der Bereich funktional deutlich weiter als eine reine Bestandsaufnahme aus den frueheren Aufgaben vermuten laesst. Aktuell existieren bereits Beitraagsbeschwerden, Admin-Kommunikation und einfache Profil-Moderation, aber noch kein einheitliches Moderationsmodell mit gemeinsamer Historie, vollstaendiger Admin-Konsole und konsistentem Audit-Trail.
