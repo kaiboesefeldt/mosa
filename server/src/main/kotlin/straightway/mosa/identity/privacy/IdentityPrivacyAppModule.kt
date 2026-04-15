@@ -5,7 +5,6 @@ import org.koin.dsl.bind
 import straightway.mosa.HasherFactory
 import straightway.mosa.SignatureFactory
 import straightway.mosa.base.BaseController
-import straightway.mosa.identity.privacy.snapshot.FileBackedFreezeSnapshotArchiveKeyStore
 import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotActiveArchiveKeyProvider
 import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotArchiveKeyStore
 import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotCryptoService
@@ -18,15 +17,16 @@ import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotSelectionService
 import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotService
 import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotSizePolicy
 import straightway.mosa.identity.privacy.snapshot.SecureRandomFreezeSnapshotNonceGenerator
+import straightway.mosa.identity.privacy.snapshot.SqliteFreezeSnapshotArchiveKeyStore
 import straightway.mosa.structuredstate.StructuredStateContext
-import java.nio.file.Path
+import straightway.mosa.structuredstate.StructuredStateDatabase
 import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.days
 
 fun Module.configureIdentityPrivacyModule() {
-    single { FileBackedFreezeSnapshotArchiveKeyStore(defaultFreezeSnapshotArchiveKeyPath(), get()) }
-    single<FreezeSnapshotArchiveKeyStore> { get<FileBackedFreezeSnapshotArchiveKeyStore>() }
-    single<FreezeSnapshotActiveArchiveKeyProvider> { get<FileBackedFreezeSnapshotArchiveKeyStore>() }
+    single { SqliteFreezeSnapshotArchiveKeyStore(get<StructuredStateDatabase>(), get()) }
+    single<FreezeSnapshotArchiveKeyStore> { get<SqliteFreezeSnapshotArchiveKeyStore>() }
+    single<FreezeSnapshotActiveArchiveKeyProvider> { get<SqliteFreezeSnapshotArchiveKeyStore>() }
     single { FreezeSnapshotSelectionService(get(), get<StructuredStateContext>(), get(), get()) }
     single { FreezeSnapshotFormat() }
     single { FreezeSnapshotCryptoService(get(), get()) }
@@ -80,5 +80,3 @@ private fun defaultFreezeSnapshotPodId(
     Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(
         hasherFactory().digest(signatureFactory.publicKey.encoded),
     )
-
-private fun defaultFreezeSnapshotArchiveKeyPath(): Path = Path.of(System.getProperty("user.dir"), "mosa_snapshot_archive_keys.json")

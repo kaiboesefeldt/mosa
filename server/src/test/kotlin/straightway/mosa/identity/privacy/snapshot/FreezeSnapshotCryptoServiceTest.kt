@@ -1,6 +1,9 @@
 package straightway.mosa.identity.privacy.snapshot
 
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.junit.jupiter.api.Test
+import straightway.mosa.structuredstate.StructuredStateDatabase
+import java.nio.file.Files
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.assertContentEquals
@@ -107,6 +110,43 @@ class FreezeSnapshotCryptoServiceTest {
         }
     }
 
+    @Test
+    fun `malformed persisted archive key is rejected as invalid snapshot during decrypt`() {
+        withSnapshotArchiveKeyDatabase { database ->
+            val header = sampleHeader()
+            val payload = "snapshot-payload".encodeToByteArray()
+            val encryptingService = FreezeSnapshotCryptoService(FixedArchiveKeyStore(sampleKey(header.keyId)), format)
+            val encrypted = encryptingService.encrypt(header, payload)
+
+            database.execute {
+                SnapshotArchiveKeysTable.insert { statement ->
+                    statement[keyId] = header.keyId
+                    statement[secret] = "%%%not-base64%%%"
+                    statement[isActive] = true
+                    statement[createdAt] = header.createdAt.epochSecond
+                }
+            }
+            val decryptingService =
+                FreezeSnapshotCryptoService(
+                    SqliteFreezeSnapshotArchiveKeyStore(
+                        database,
+                        header.createdAt
+                            .atZone(
+                                java.time.ZoneOffset.UTC,
+                            ).toInstant()
+                            .let {
+                                java.time.Clock.fixed(it, java.time.ZoneOffset.UTC)
+                            },
+                    ),
+                    format,
+                )
+
+            assertFailsWith<InvalidFreezeSnapshotException> {
+                decryptingService.decrypt(header, encrypted)
+            }
+        }
+    }
+
     private fun sampleHeader() =
         FreezeSnapshotHeader(
             formatVersion = FreezeSnapshotFormat.CURRENT_FORMAT_VERSION,
@@ -125,6 +165,23 @@ class FreezeSnapshotCryptoServiceTest {
     private fun sampleKey(keyId: String) = FreezeSnapshotArchiveKey(keyId, ByteArray(16) { (it + 1).toByte() })
 
     private fun otherKey(keyId: String) = FreezeSnapshotArchiveKey(keyId, ByteArray(16) { (it + 31).toByte() })
+
+    private fun withSnapshotArchiveKeyDatabase(block: (StructuredStateDatabase) -> Unit) {
+        val directory = Files.createTempDirectory("freeze-snapshot-crypto")
+        val path = directory.resolve("mosa_db.sqlite")
+
+        try {
+            val database = StructuredStateDatabase(path)
+            database.initialize(SnapshotArchiveKeysTable)
+            database.execute {
+                SnapshotArchiveKeysTable.ensureIndexes()
+            }
+            block(database)
+        } finally {
+            Files.deleteIfExists(path)
+            Files.deleteIfExists(directory)
+        }
+    }
 
     private class FixedArchiveKeyStore(
         vararg keys: FreezeSnapshotArchiveKey,

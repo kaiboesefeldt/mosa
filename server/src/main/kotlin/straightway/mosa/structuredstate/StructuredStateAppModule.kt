@@ -4,13 +4,17 @@ import org.koin.core.module.Module
 import org.koin.dsl.bind
 import straightway.mosa.content.complaint.PostComplaintsTable
 import straightway.mosa.identity.blocklist.BlockedIdentitiesTable
+import straightway.mosa.identity.privacy.snapshot.SnapshotArchiveKeysTable
 import straightway.mosa.message.AdminMessagesTable
 import java.nio.file.Path
 
 fun Module.configureStructuredStateModule() {
     single(createdAtStart = true) {
         StructuredStateDatabase(defaultStructuredStateDatabasePath()).also {
-            it.initialize(AdminMessagesTable, PostComplaintsTable, BlockedIdentitiesTable)
+            it.initialize(AdminMessagesTable, PostComplaintsTable, BlockedIdentitiesTable, SnapshotArchiveKeysTable)
+            it.execute {
+                SnapshotArchiveKeysTable.ensureIndexes()
+            }
         }
     } bind StructuredStateContext::class
 }

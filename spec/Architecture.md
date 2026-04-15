@@ -236,8 +236,8 @@ Administrative messages and post complaints have separate controller, service, s
 Server uses polyglot local storage:
 
 - Lucene: semantic content and metadata
-- SQLite: structured state such as admin messages, complaints, and blocked identities
-- filesystem: pod keys, snapshot keys, legal YAML, persistent pod-local config
+- SQLite: structured state such as admin messages, complaints, blocked identities, and snapshot archive keys
+- filesystem: pod keys, legal YAML, persistent pod-local config
 - classpath resources: bundled baseline documents and server documentation
 
 `straightway.mosa.structuredstate` owns `StructuredStateContext` and `StructuredStateDatabase` so service APIs do not expose raw Exposed transactions.

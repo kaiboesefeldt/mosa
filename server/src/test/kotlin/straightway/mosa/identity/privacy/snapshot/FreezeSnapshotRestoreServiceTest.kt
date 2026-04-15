@@ -6,6 +6,9 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Test
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
@@ -340,19 +343,20 @@ class FreezeSnapshotRestoreServiceTest {
     fun `snapshot encrypted before key rotation is restored with historical archive key after rotation`() =
         runTest {
             val directory = Files.createTempDirectory("snapshot-key-store")
-            val path = directory.resolve("archive-keys.json")
+            val path = directory.resolve("mosa_db.sqlite")
             val freezeClock = Clock.fixed(Instant.parse("2026-03-09T10:15:30Z"), ZoneOffset.UTC)
             val restoreClock = Clock.fixed(Instant.parse("2027-04-02T08:00:00Z"), ZoneOffset.UTC)
 
             try {
-                val freezeKeyStore = FileBackedFreezeSnapshotArchiveKeyStore(path, freezeClock)
+                val database = snapshotArchiveKeyDatabase(path)
+                val freezeKeyStore = SqliteFreezeSnapshotArchiveKeyStore(database, freezeClock)
                 val freezeService =
                     FreezeSnapshotService(
                         selectionService =
                             mockk<FreezeSnapshotSelectionService>().also {
                                 coEvery { it.resolveFor("gid-owner") } returns listOf(rootRecord(), replyRecord())
                             },
-                        database = noOpStructuredStateDatabase(),
+                        database = database,
                         postComplaintStoreFactory = PostComplaintStoreFactory { noOpPostComplaintStore() },
                         adminMessageStoreFactory = AdminMessageStoreFactory { noOpAdminMessageStore() },
                         activeArchiveKeyProvider = freezeKeyStore,
@@ -366,16 +370,15 @@ class FreezeSnapshotRestoreServiceTest {
                 val snapshot = freezeService.freeze("gid-owner")
                 val historicalKey = freezeKeyStore.activeKey()
 
-                Files.writeString(
-                    path,
-                    rotatedArchiveKeysJson(
-                        activeKeyId = "archive-2027",
-                        activeSecret = ByteArray(16) { (it + 16).toByte() },
-                        historicalKey = historicalKey,
-                    ),
+                rotateArchiveKey(
+                    database = database,
+                    activeKeyId = "archive-2027",
+                    activeSecret = ByteArray(16) { (it + 16).toByte() },
+                    historicalKeyId = historicalKey.keyId,
+                    createdAt = restoreClock.instant().epochSecond,
                 )
 
-                val rotatedKeyStore = FileBackedFreezeSnapshotArchiveKeyStore(path, restoreClock)
+                val rotatedKeyStore = SqliteFreezeSnapshotArchiveKeyStore(database, restoreClock)
                 val restoreVectorStore = RecordingVectorStore()
                 val restoreEmbeddingService = RecordingEmbeddingService()
                 val restoreService =
@@ -384,7 +387,7 @@ class FreezeSnapshotRestoreServiceTest {
                         cryptoService = FreezeSnapshotCryptoService(rotatedKeyStore, format),
                         validator = FreezeSnapshotRestoreValidator(FreezeSnapshotSizePolicy()),
                         embeddingService = restoreEmbeddingService,
-                        database = noOpStructuredStateDatabase(),
+                        database = database,
                         postComplaintStoreFactory = PostComplaintStoreFactory { noOpPostComplaintStore() },
                         adminMessageStoreFactory = AdminMessageStoreFactory { noOpAdminMessageStore() },
                         vectorStore = restoreVectorStore,
@@ -512,23 +515,35 @@ class FreezeSnapshotRestoreServiceTest {
         return frame(rawHeader.encodeToByteArray(), payload)
     }
 
-    private fun rotatedArchiveKeysJson(
+    private fun snapshotArchiveKeyDatabase(path: java.nio.file.Path): StructuredStateDatabase =
+        StructuredStateDatabase(path).also { database ->
+            database.initialize(SnapshotArchiveKeysTable)
+            database.execute {
+                SnapshotArchiveKeysTable.ensureIndexes()
+            }
+        }
+
+    private fun rotateArchiveKey(
+        database: StructuredStateDatabase,
         activeKeyId: String,
         activeSecret: ByteArray,
-        historicalKey: FreezeSnapshotArchiveKey,
-    ): String {
-        val encoder = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
-        val encodedActiveSecret = encoder.encode(activeSecret)
-        val encodedHistoricalSecret = encoder.encode(historicalKey.secret)
-        return """
-            {
-              "activeKeyId": "$activeKeyId",
-              "keys": [
-                {"keyId": "$activeKeyId", "secret": "$encodedActiveSecret"},
-                {"keyId": "${historicalKey.keyId}", "secret": "$encodedHistoricalSecret"}
-              ]
+        historicalKeyId: String,
+        createdAt: Long,
+    ) {
+        database.execute {
+            SnapshotArchiveKeysTable.update(
+                where = { SnapshotArchiveKeysTable.keyId eq historicalKeyId },
+            ) { statement ->
+                statement[SnapshotArchiveKeysTable.isActive] = false
             }
-            """.trimIndent()
+            SnapshotArchiveKeysTable.insert { statement ->
+                statement[SnapshotArchiveKeysTable.keyId] = activeKeyId
+                statement[SnapshotArchiveKeysTable.secret] =
+                    Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(activeSecret)
+                statement[SnapshotArchiveKeysTable.isActive] = true
+                statement[SnapshotArchiveKeysTable.createdAt] = createdAt
+            }
+        }
     }
 
     private fun frame(

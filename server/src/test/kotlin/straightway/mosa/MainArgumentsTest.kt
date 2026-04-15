@@ -221,7 +221,6 @@ class MainArgumentsTest {
 
         assertContains(output, "File name: mosa_imprint.yaml")
         assertContains(output, "File name: mosa_db.sqlite")
-        assertContains(output, "File name: mosa_snapshot_archive_keys.json")
         assertContains(output, "File name: mosa_pod_keypair.pem")
         assertContains(output, "Directory name: mosa_lucene_index")
         assertFalse(output.contains("File name: mosa_admin_messages.json"), output)
