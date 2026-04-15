@@ -16,6 +16,10 @@ This skill is read-only with respect to production and test code.
 # Task Coordination
 
 Follow the shared task-coordination rules in `tasks/Coordination.md`.
+Before flagging a migration, bootstrap, or rollout issue, read the current task directory's
+`ArchitectureNotes.md`, `ImplementationNotes.md`, and `QualityGate.md` when present, and check
+`spec/Architecture.md` for the repo-level architectural decision before deciding that the behavior
+is missing or wrong.
 
 Look first for:
 
@@ -56,6 +60,8 @@ Probe these areas:
 - state changes across retries or repeated calls
 - mismatches between server behavior, shared models, and client assumptions
 - changes that should also update `spec/` or user-facing documentation
+- cases where the task notes explicitly accept a temporary constraint, such as a deliberate
+  no-migration assumption for pre-release state
 
 # Output
 
