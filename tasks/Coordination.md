@@ -4,10 +4,12 @@ This file defines how repository-specific skills coordinate within a task direct
 
 ## Current Task Directory
 
-By default, the current task directory is the only task folder under `tasks/2-in-progres/`.
+By default, the current task directory is the only task folder directly under `tasks/2-in-progres/`.
 
 If the user explicitly points to a different task, use that task instead.
 If there are multiple folders under `tasks/2-in-progres/` and the user did not specify one, the current task is ambiguous and must be clarified before writing task coordination files.
+
+When locating the current task, inspect only the immediate children of `tasks/2-in-progres/`; do not recurse into nested task folders.
 
 ## Coordination Files
 
