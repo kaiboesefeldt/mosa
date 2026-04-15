@@ -2,10 +2,10 @@ package straightway.mosa.defense
 
 import io.ktor.server.routing.Routing
 import org.koin.ktor.ext.getKoin
-import straightway.mosa.content.BlockedIdentityStore
 import straightway.mosa.defense.blocklist.createMosaAuthenticatedIdentityBlockListPlugin
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.ratelimit.createMosaAuthenticatedRateLimitPlugin
+import straightway.mosa.identity.blocklist.BlockedIdentityStore
 
 fun Routing.installDefenseRoutingPlugins() {
     val koin = getKoin()

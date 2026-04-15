@@ -28,7 +28,7 @@ import react.dom.html.ReactHTML.button
 import react.useState
 import straightway.mosa.auth.PodCertificate
 import straightway.mosa.auth.PodCertificateResponse
-import straightway.mosa.content.AdminIdentityModerationStatus
+import straightway.mosa.identity.moderation.AdminIdentityModerationStatus
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.browser.SubtleCrypto
@@ -57,7 +57,7 @@ import straightway.mosa.client.content.CachedPostResolution
 import straightway.mosa.client.content.PostCache
 import straightway.mosa.client.content.PostCacheSnapshot
 import straightway.mosa.client.content.ContentCapabilitiesService
-import straightway.mosa.client.content.IdentityModerationService
+import straightway.mosa.client.identity.moderation.IdentityModerationService
 import straightway.mosa.client.content.TopicScopedPost
 import straightway.mosa.client.content.Topic
 import straightway.mosa.client.content.TopicRepository
@@ -84,11 +84,11 @@ import straightway.mosa.content.QueryResult
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.SearchResult
 import straightway.mosa.content.ContentCapabilitiesResult
-import straightway.mosa.content.DeleteIdentityResult
+import straightway.mosa.identity.privacy.DeleteIdentityResult
 import straightway.mosa.content.FetchResult
 import straightway.mosa.content.DeletePostsResult
-import straightway.mosa.content.FreezeSnapshotRestoreResult
-import straightway.mosa.content.IdentityModerationRequest
+import straightway.mosa.identity.privacy.FreezeSnapshotRestoreResult
+import straightway.mosa.identity.moderation.IdentityModerationRequest
 import straightway.mosa.content.complaint.CreatePostComplaintRequest
 import straightway.mosa.content.complaint.DecidePostComplaintRequest
 import straightway.mosa.content.complaint.OpenPostComplaint
@@ -1883,7 +1883,7 @@ private fun inboxScrollTop(container: Element): Double =
                 single { AdminMessageInboxService(get()) }
                 single { AdminMessageHistoryService(get()) }
                 single { AdminMessagePublisher(get()) }
-                single { straightway.mosa.client.content.AdminIdentityModerationStatusService(get()) }
+                single { straightway.mosa.client.identity.moderation.AdminIdentityModerationStatusService(get()) }
                 single { ContentCapabilitiesService(get()) }
                 single { IdentityModerationService(get()) }
                 single { PostDeletionService(get(), get(), get()) }

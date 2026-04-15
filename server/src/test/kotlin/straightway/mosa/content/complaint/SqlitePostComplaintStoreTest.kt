@@ -2,7 +2,7 @@ package straightway.mosa.content.complaint
 
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
-import straightway.mosa.content.StructuredStateDatabase
+import straightway.mosa.structuredstate.StructuredStateDatabase
 import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

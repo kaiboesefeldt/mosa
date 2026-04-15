@@ -28,7 +28,7 @@ import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
-import straightway.mosa.content.FreezeSnapshotRestoreResult
+import straightway.mosa.identity.privacy.FreezeSnapshotRestoreResult
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.SearchResult

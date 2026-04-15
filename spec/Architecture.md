@@ -68,11 +68,15 @@ Main wiring: `server/src/main/kotlin/straightway/mosa/AppModule.kt`
 Submodules:
 
 - Auth
+- Identity Blocklist
+- Identity Moderation
+- Identity Privacy
 - Content
 - Defense
 - Embedding
 - Legal
 - Network
+- Structured State
 - Vector Store
 - Web Client Delivery
 
@@ -95,21 +99,29 @@ flowchart TD
 
     subgraph AppModule
         Auth[Auth]
+        Blocklist[Identity Blocklist]
+        Moderation[Identity Moderation]
+        Privacy[Identity Privacy]
         Content[Content]
         Defense[Defense]
         Embedding[Embedding]
         Legal[Legal]
         Network[Network]
+        StructuredState[Structured State]
         Vector[Vector Store]
         Webclient[Web Client]
     end
 
     Koin --> Auth
+    Koin --> Blocklist
+    Koin --> Moderation
+    Koin --> Privacy
     Koin --> Content
     Koin --> Defense
     Koin --> Embedding
     Koin --> Legal
     Koin --> Network
+    Koin --> StructuredState
     Koin --> Vector
     Koin --> Webclient
 ```
@@ -162,9 +174,8 @@ flowchart TD
 - posts and replies
 - semantic and thread queries
 - fetch and export
-- deletion of owned content and identities
-- privacy snapshots
-- adjacent complaint and admin messaging flows
+- deletion of owned content
+- adjacent complaint and admin messaging flows that stay coupled to content
 
 `ContentService` combines embedding generation and vector store access.
 
@@ -180,6 +191,17 @@ Read flow:
 2. optionally generate topic embedding
 3. search vector store
 4. project results to API DTOs
+
+#### Identity
+
+Identity-related server responsibilities are split by ownership:
+
+- `straightway.mosa.identity.blocklist` owns blocked-identity persistence and lookup
+- `straightway.mosa.identity.moderation` owns admin moderation flows for identities
+- `straightway.mosa.identity.privacy` owns identity deletion and privacy snapshot flows
+- `straightway.mosa.identity.privacy.snapshot` owns snapshot-specific implementation details
+
+This keeps identity lifecycle and moderation behavior out of `straightway.mosa.content`.
 
 #### Auth
 
@@ -218,7 +240,7 @@ Server uses polyglot local storage:
 - filesystem: pod keys, snapshot keys, legal YAML, persistent pod-local config
 - classpath resources: bundled baseline documents and server documentation
 
-`StructuredStateContext` and `StructuredStateDatabase` wrap SQLite access so service APIs do not expose raw Exposed transactions.
+`straightway.mosa.structuredstate` owns `StructuredStateContext` and `StructuredStateDatabase` so service APIs do not expose raw Exposed transactions.
 
 Semantic search is abstracted behind `VectorStore`. Current implementation is local and Lucene-based.
 

@@ -9,7 +9,7 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import straightway.mosa.content.ControllerHttpTestEnvironment
-import straightway.mosa.content.StructuredStateDatabase
+import straightway.mosa.structuredstate.StructuredStateDatabase
 import straightway.mosa.testutils.setJsonBody
 import java.nio.file.Files
 import java.security.MessageDigest

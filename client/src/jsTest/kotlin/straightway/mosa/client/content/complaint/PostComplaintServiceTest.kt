@@ -19,7 +19,7 @@ import straightway.mosa.content.complaint.CreatePostComplaintRequest
 import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
-import straightway.mosa.content.FreezeSnapshotRestoreResult
+import straightway.mosa.identity.privacy.FreezeSnapshotRestoreResult
 import straightway.mosa.content.complaint.PostComplaintAvailability
 import straightway.mosa.content.complaint.PostComplaintAvailabilityResult
 import straightway.mosa.content.complaint.OpenPostComplaintCountResult

@@ -1,6 +1,6 @@
 package straightway.mosa.content.complaint
 
-import straightway.mosa.content.StructuredStateContext
+import straightway.mosa.structuredstate.StructuredStateContext
 
 fun interface PostComplaintStoreFactory {
     fun create(context: StructuredStateContext): PostComplaintStore

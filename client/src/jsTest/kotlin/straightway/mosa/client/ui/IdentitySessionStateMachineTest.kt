@@ -18,7 +18,6 @@ import straightway.mosa.client.browser.CryptoKey
 import straightway.mosa.client.browser.CryptoKeyPair
 import straightway.mosa.client.browser.SubtleCrypto
 import straightway.mosa.client.content.PostsExportPort
-import straightway.mosa.client.content.PrivacySnapshotPort
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
@@ -27,8 +26,10 @@ import straightway.mosa.client.identity.InvalidIdentityTransferException
 import straightway.mosa.client.identity.IdentityProtector
 import straightway.mosa.client.identity.PasswordPrompter
 import straightway.mosa.client.identity.CryptoExport
+import straightway.mosa.client.identity.privacy.PrivacySnapshotPort
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.identity.FictionalName
+import straightway.mosa.identity.privacy.FreezeSnapshotRestoreResult
 
 class IdentitySessionStateMachineTest {
     @Test
@@ -521,7 +522,7 @@ class IdentitySessionStateMachineTest {
         val identity = identity("gid-a")
         val repository = FakeIdentitySelectionRepository(identity)
         val store = RecordingIdentitySessionStore()
-        val snapshots = RecordingPrivacySnapshotPort(restoreResult = straightway.mosa.content.FreezeSnapshotRestoreResult(listOf("a", "b"), 2))
+        val snapshots = RecordingPrivacySnapshotPort(restoreResult = FreezeSnapshotRestoreResult(listOf("a", "b"), 2))
         val machine = createMachine(repository, store, privacySnapshots = snapshots)
 
         machine.refresh()
@@ -544,7 +545,7 @@ class IdentitySessionStateMachineTest {
         val identity = identity("gid-a")
         val repository = FakeIdentitySelectionRepository(identity)
         val store = RecordingIdentitySessionStore()
-        val snapshots = RecordingPrivacySnapshotPort(restoreResult = straightway.mosa.content.FreezeSnapshotRestoreResult(listOf("a"), 1))
+        val snapshots = RecordingPrivacySnapshotPort(restoreResult = FreezeSnapshotRestoreResult(listOf("a"), 1))
         val machine = createMachine(repository, store, privacySnapshots = snapshots)
 
         machine.refresh()
@@ -792,7 +793,7 @@ private class RecordingPostsExportPort : PostsExportPort {
 }
 
 private class RecordingPrivacySnapshotPort(
-    private val restoreResult: straightway.mosa.content.FreezeSnapshotRestoreResult? = null,
+    private val restoreResult: FreezeSnapshotRestoreResult? = null,
 ) : PrivacySnapshotPort {
     val freezeFileBaseNames = mutableListOf<String>()
     var restoreCalls = 0
@@ -801,7 +802,7 @@ private class RecordingPrivacySnapshotPort(
         freezeFileBaseNames += fileBaseName
     }
 
-    override suspend fun restore(): straightway.mosa.content.FreezeSnapshotRestoreResult? {
+    override suspend fun restore(): FreezeSnapshotRestoreResult? {
         restoreCalls += 1
         return restoreResult
     }

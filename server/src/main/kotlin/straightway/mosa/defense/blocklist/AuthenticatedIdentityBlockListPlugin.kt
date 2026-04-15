@@ -9,7 +9,7 @@ import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import straightway.mosa.auth.PodPrincipal
-import straightway.mosa.content.BlockedIdentityStore
+import straightway.mosa.identity.blocklist.BlockedIdentityStore
 
 fun createMosaAuthenticatedIdentityBlockListPlugin(blockedIdentityStore: BlockedIdentityStore) =
     createRouteScopedPlugin("MosaIdentityBlockList") {

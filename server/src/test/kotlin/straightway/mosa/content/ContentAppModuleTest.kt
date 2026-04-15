@@ -4,6 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.koin.core.KoinApplication
 import org.koin.core.module.Module
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
@@ -16,15 +17,17 @@ import straightway.mosa.SignatureVerifierProvider
 import straightway.mosa.VectorStore
 import straightway.mosa.config.AdminAllowList
 import straightway.mosa.config.AutoRefreshingFileBackedContent
-import straightway.mosa.content.snapshot.FreezeSnapshotCryptoService
-import straightway.mosa.content.snapshot.FreezeSnapshotFormat
-import straightway.mosa.content.snapshot.FreezeSnapshotRestoreService
-import straightway.mosa.content.snapshot.FreezeSnapshotRestoreValidator
-import straightway.mosa.content.snapshot.FreezeSnapshotSelectionService
-import straightway.mosa.content.snapshot.FreezeSnapshotService
-import straightway.mosa.content.snapshot.FreezeSnapshotSizePolicy
 import straightway.mosa.crypto.CryptoEd25519
 import straightway.mosa.defense.adminAllowList
+import straightway.mosa.identity.privacy.configureIdentityPrivacyModule
+import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotCryptoService
+import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotFormat
+import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotRestoreService
+import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotRestoreValidator
+import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotSelectionService
+import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotService
+import straightway.mosa.identity.privacy.snapshot.FreezeSnapshotSizePolicy
+import straightway.mosa.structuredstate.configureStructuredStateModule
 import java.nio.file.Path
 import java.security.MessageDigest
 import java.security.PublicKey
@@ -44,17 +47,7 @@ class ContentAppModuleTest {
     @Test
     fun `provides freeze snapshot selection service as singleton`() {
         val vectorStore = mockk<VectorStore>()
-        val koinApplication =
-            koinApplication {
-                modules(
-                    dependenciesModule(
-                        vectorStore = vectorStore,
-                    ),
-                    module {
-                        configureContentAppModule()
-                    },
-                )
-            }
+        val koinApplication = privacyApplication(vectorStore)
 
         try {
             val first = koinApplication.koin.get<FreezeSnapshotSelectionService>()
@@ -69,17 +62,7 @@ class ContentAppModuleTest {
     @Test
     fun `provides freeze snapshot format as singleton`() {
         val vectorStore = mockk<VectorStore>()
-        val koinApplication =
-            koinApplication {
-                modules(
-                    dependenciesModule(
-                        vectorStore = vectorStore,
-                    ),
-                    module {
-                        configureContentAppModule()
-                    },
-                )
-            }
+        val koinApplication = privacyApplication(vectorStore)
 
         try {
             val first = koinApplication.koin.get<FreezeSnapshotFormat>()
@@ -94,17 +77,7 @@ class ContentAppModuleTest {
     @Test
     fun `provides freeze snapshot crypto service as singleton`() {
         val vectorStore = mockk<VectorStore>()
-        val koinApplication =
-            koinApplication {
-                modules(
-                    dependenciesModule(
-                        vectorStore = vectorStore,
-                    ),
-                    module {
-                        configureContentAppModule()
-                    },
-                )
-            }
+        val koinApplication = privacyApplication(vectorStore)
 
         try {
             val first = koinApplication.koin.get<FreezeSnapshotCryptoService>()
@@ -119,17 +92,7 @@ class ContentAppModuleTest {
     @Test
     fun `provides freeze snapshot service as singleton`() {
         val vectorStore = mockk<VectorStore>()
-        val koinApplication =
-            koinApplication {
-                modules(
-                    dependenciesModule(
-                        vectorStore = vectorStore,
-                    ),
-                    module {
-                        configureContentAppModule()
-                    },
-                )
-            }
+        val koinApplication = privacyApplication(vectorStore)
 
         try {
             val first = koinApplication.koin.get<FreezeSnapshotService>()
@@ -144,17 +107,7 @@ class ContentAppModuleTest {
     @Test
     fun `provides freeze snapshot restore service as singleton`() {
         val vectorStore = mockk<VectorStore>()
-        val koinApplication =
-            koinApplication {
-                modules(
-                    dependenciesModule(
-                        vectorStore = vectorStore,
-                    ),
-                    module {
-                        configureContentAppModule()
-                    },
-                )
-            }
+        val koinApplication = privacyApplication(vectorStore)
 
         try {
             val first = koinApplication.koin.get<FreezeSnapshotRestoreService>()
@@ -169,17 +122,7 @@ class ContentAppModuleTest {
     @Test
     fun `provides freeze snapshot restore validator as singleton`() {
         val vectorStore = mockk<VectorStore>()
-        val koinApplication =
-            koinApplication {
-                modules(
-                    dependenciesModule(
-                        vectorStore = vectorStore,
-                    ),
-                    module {
-                        configureContentAppModule()
-                    },
-                )
-            }
+        val koinApplication = privacyApplication(vectorStore)
 
         try {
             val first = koinApplication.koin.get<FreezeSnapshotRestoreValidator>()
@@ -194,17 +137,7 @@ class ContentAppModuleTest {
     @Test
     fun `provides freeze snapshot size policy as singleton`() {
         val vectorStore = mockk<VectorStore>()
-        val koinApplication =
-            koinApplication {
-                modules(
-                    dependenciesModule(
-                        vectorStore = vectorStore,
-                    ),
-                    module {
-                        configureContentAppModule()
-                    },
-                )
-            }
+        val koinApplication = privacyApplication(vectorStore)
 
         try {
             val first = koinApplication.koin.get<FreezeSnapshotSizePolicy>()
@@ -219,17 +152,7 @@ class ContentAppModuleTest {
     @Test
     fun `provides content signature verifier as singleton`() {
         val vectorStore = mockk<VectorStore>()
-        val koinApplication =
-            koinApplication {
-                modules(
-                    dependenciesModule(
-                        vectorStore = vectorStore,
-                    ),
-                    module {
-                        configureContentAppModule()
-                    },
-                )
-            }
+        val koinApplication = contentApplication(vectorStore)
 
         try {
             val first = koinApplication.koin.get<ContentSignatureVerifier>()
@@ -252,16 +175,7 @@ class ContentAppModuleTest {
 
         try {
             val koinApplication =
-                koinApplication {
-                    modules(
-                        dependenciesModule(
-                            vectorStore = vectorStore,
-                        ),
-                        module {
-                            configureContentAppModule()
-                        },
-                    )
-                }
+                structuredStateApplication(vectorStore)
 
             try {
                 assertTrue(
@@ -279,6 +193,39 @@ class ContentAppModuleTest {
                 .deleteIfExists(directory)
         }
     }
+
+    private fun contentApplication(vectorStore: VectorStore): KoinApplication =
+        koinApplication {
+            modules(
+                dependenciesModule(vectorStore),
+                module {
+                    configureStructuredStateModule()
+                    configureContentAppModule()
+                },
+            )
+        }
+
+    private fun privacyApplication(vectorStore: VectorStore): KoinApplication =
+        koinApplication {
+            modules(
+                dependenciesModule(vectorStore),
+                module {
+                    configureStructuredStateModule()
+                    configureContentAppModule()
+                    configureIdentityPrivacyModule()
+                },
+            )
+        }
+
+    private fun structuredStateApplication(vectorStore: VectorStore): KoinApplication =
+        koinApplication {
+            modules(
+                dependenciesModule(vectorStore),
+                module {
+                    configureStructuredStateModule()
+                },
+            )
+        }
 
     private fun dependenciesModule(vectorStore: VectorStore): Module =
         module {

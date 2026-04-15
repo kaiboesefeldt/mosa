@@ -21,13 +21,11 @@ import web.html.HTMLDivElement
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
+import straightway.mosa.client.content.ContentCapabilitiesService
 import straightway.mosa.client.content.AdminMessageHistoryService
 import straightway.mosa.client.content.AdminMessageInboxService
 import straightway.mosa.client.content.AdminMessagePublisher
-import straightway.mosa.client.content.AdminIdentityModerationStatusService
 import straightway.mosa.client.content.AllPostsDeletionService
-import straightway.mosa.client.content.ContentCapabilitiesService
-import straightway.mosa.client.content.IdentityModerationService
 import straightway.mosa.client.content.PostCache
 import straightway.mosa.client.content.PostDeletionService
 import straightway.mosa.client.content.PostPublisher
@@ -39,6 +37,8 @@ import straightway.mosa.client.content.TopicSearchService
 import straightway.mosa.client.content.complaint.AdminPostComplaintService
 import straightway.mosa.client.content.complaint.PostComplaintService
 import straightway.mosa.client.i18n.Translator
+import straightway.mosa.client.identity.moderation.AdminIdentityModerationStatusService
+import straightway.mosa.client.identity.moderation.IdentityModerationService
 import straightway.mosa.client.pod.PodBaseProvider
 import straightway.mosa.identity.FictionalNameGenerator
 

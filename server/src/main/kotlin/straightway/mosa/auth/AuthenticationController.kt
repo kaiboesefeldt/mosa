@@ -8,8 +8,8 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import straightway.mosa.base.BaseController
-import straightway.mosa.content.BlockedIdentityStore
 import straightway.mosa.defense.ratelimit.RateLimiter
+import straightway.mosa.identity.blocklist.BlockedIdentityStore
 import straightway.mosa.network.ClientIpResolver
 import java.time.Clock
 import kotlin.time.Duration

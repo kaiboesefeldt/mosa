@@ -18,11 +18,11 @@ import io.ktor.server.testing.testApplication
 import io.mockk.every
 import io.mockk.mockk
 import straightway.mosa.auth.PodPrincipal
-import straightway.mosa.content.BlockedIdentityStore
 import straightway.mosa.defense.blocklist.createMosaAuthenticatedIdentityBlockListPlugin
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
 import straightway.mosa.defense.ratelimit.createMosaAuthenticatedRateLimitPlugin
+import straightway.mosa.identity.blocklist.BlockedIdentityStore
 import straightway.mosa.network.ClientIpResolver
 import straightway.mosa.testutils.installTestNetworkServerPlugins
 import kotlin.test.Test

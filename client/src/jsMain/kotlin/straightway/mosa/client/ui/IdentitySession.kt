@@ -12,13 +12,13 @@ import react.useMemo
 import react.useState
 import straightway.mosa.client.avatar.DiceBearAvatarGenerator
 import straightway.mosa.client.content.PostsExportPort
-import straightway.mosa.client.content.PrivacySnapshotPort
-import straightway.mosa.client.content.IdentityDeletionService
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.identity.IdentitySelectionRepository
 import straightway.mosa.client.identity.IdentityTransferPort
 import straightway.mosa.client.identity.IdentityProtector
 import straightway.mosa.client.identity.PasswordPrompter
+import straightway.mosa.client.identity.privacy.IdentityDeletionService
+import straightway.mosa.client.identity.privacy.PrivacySnapshotPort
 import straightway.mosa.client.logging.Logger
 import straightway.mosa.identity.FictionalName
 import straightway.mosa.identity.FictionalNameGenerator

@@ -15,10 +15,10 @@ import io.mockk.every
 import io.mockk.mockk
 import straightway.mosa.NanoClock
 import straightway.mosa.base.register
-import straightway.mosa.content.BlockedIdentityStore
 import straightway.mosa.content.ControllerHttpTestEnvironment
 import straightway.mosa.defense.ratelimit.RateLimitConfig
 import straightway.mosa.defense.ratelimit.RateLimiter
+import straightway.mosa.identity.blocklist.BlockedIdentityStore
 import straightway.mosa.network.ClientIpResolver
 import straightway.mosa.testutils.setJsonBody
 import java.time.Clock

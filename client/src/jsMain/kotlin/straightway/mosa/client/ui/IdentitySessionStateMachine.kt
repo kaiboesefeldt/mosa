@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import straightway.mosa.client.content.PostsExportPort
-import straightway.mosa.client.content.PrivacySnapshotPort
 import straightway.mosa.client.identity.Identity
 import straightway.mosa.client.identity.IdentitySelection
 import straightway.mosa.client.identity.IdentitySelectionRepository
@@ -17,6 +16,7 @@ import straightway.mosa.client.identity.IdentityTransferPort
 import straightway.mosa.client.identity.InvalidIdentityTransferException
 import straightway.mosa.client.identity.IdentityProtector
 import straightway.mosa.client.identity.PasswordPrompter
+import straightway.mosa.client.identity.privacy.PrivacySnapshotPort
 import straightway.mosa.client.logging.Logger
 
 class IdentitySessionStateMachine(

@@ -33,7 +33,7 @@ import straightway.mosa.content.ContentSignatureVersion
 import straightway.mosa.content.DeletePostsResult
 import straightway.mosa.content.FetchRequest
 import straightway.mosa.content.FetchResult
-import straightway.mosa.content.FreezeSnapshotRestoreResult
+import straightway.mosa.identity.privacy.FreezeSnapshotRestoreResult
 import straightway.mosa.content.PublishRequest
 import straightway.mosa.content.QueryOnRequest
 import straightway.mosa.content.QueryRequest
