@@ -40,6 +40,17 @@ Allowed:
 
 Markdown is the default. Content may stay concise, but it must be executable without ambiguity for a human or coding agent.
 
+Task-specific docs belong in the task folder. Project-wide docs belong in `spec/`. Help texts and serveable docs belong under repository resources, including `server/src/main/resources/doc/serve` and `server/src/main/resources/clearterms`. Use full-project scans only as a last resort.
+- Use this Bash script to find the current task:
+
+```bash
+tasks=$(find tasks/2-in-progres -mindepth 1 -maxdepth 1 -type d | sort)
+[ "$(printf '%s\n' "$tasks" | sed '/^$/d' | wc -l)" -eq 1 ] || exit 1
+current_task=$(printf '%s\n' "$tasks" | sed '/^$/d')
+```
+
+- Then inspect only files inside `$current_task` unless the coordinating skill explicitly allows a wider scope.
+
 ## Subtasks
 
 If a task is split up, subtasks live as Markdown files in the same task folder.
@@ -112,6 +123,10 @@ If a human must run the test, the description must be executable without follow-
 1. New task: create a folder in `1-open`, then write `Description.md`.
 2. Start work: move the folder to `2-in-progres`.
 3. Before substantial implementation, confirm whether the task needs subtask decomposition.
+   - When finding the current task, inspect only `tasks/2-in-progres/` and its immediate children.
+   - Do not recurse into deeper task folders or scan the full `tasks/` tree.
+   - Use exactly this discovery command: `find tasks/2-in-progres -mindepth 1 -maxdepth 1 -type d | sort`
+   - For architecture files, use exactly this command inside the selected task folder: `find tasks/2-in-progres/<current-task> -maxdepth 1 -type f \( -name 'ArchitectureReview.md' -o -name 'ArchitectureNotes.md' -o -name 'Architecture*.md' \) | sort`
 4. If decomposition is needed, the architect creates or updates the subtasks before implementation continues.
 5. Developer, tester, and quality work on the current subtask until quality is satisfied.
 6. Quality closes the current subtask by renaming it to `done-subNNN-...md`.

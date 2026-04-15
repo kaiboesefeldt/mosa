@@ -181,19 +181,26 @@ private suspend fun awaitImagesLoaded(root: HTMLDivElement) {
     Promise.all(pending.toTypedArray()).await()
 }
 
-private fun saveCanvasAsPdf(
+internal fun saveCanvasAsPdf(
     canvas: HTMLCanvasElement,
     fileName: String,
     logoUrl: String,
     documentName: String,
     exportDateText: String,
     logoAspectRatio: Double,
+    pdfFactory: (dynamic) -> dynamic = { pdfConfig -> jspdfModule.jsPDF(pdfConfig) },
+    sliceCanvasFactory: () -> HTMLCanvasElement = {
+        document.createElement("canvas") as HTMLCanvasElement
+    },
+    rowInkCalculator: (HTMLCanvasElement) -> IntArray = ::calculateRowInkPerRow,
+    sliceImageDataProvider: (HTMLCanvasElement, HTMLCanvasElement, PdfCanvasSlice) -> String =
+        ::renderCanvasSliceToImageData,
 ) {
     val pdfConfig: dynamic = js("({})")
     pdfConfig.orientation = "portrait"
     pdfConfig.unit = "pt"
     pdfConfig.format = "a4"
-    val pdf = jspdfModule.jsPDF(pdfConfig)
+    val pdf = pdfFactory(pdfConfig)
     val pageWidth = pdf.internal.pageSize.getWidth() as Double
     val pageHeight = pdf.internal.pageSize.getHeight() as Double
     val margin = 28.0
@@ -209,7 +216,7 @@ private fun saveCanvasAsPdf(
         ((pageHeight - firstPageTop - contentBottom) * pixelsPerPoint).toInt().coerceAtLeast(1)
     val continuationSlicePxTarget =
         ((pageHeight - continuationTop - contentBottom) * pixelsPerPoint).toInt().coerceAtLeast(1)
-    val rowInk = calculateRowInkPerRow(canvas)
+    val rowInk = rowInkCalculator(canvas)
     val searchWindowPx = 48
     val slices = mutableListOf<PdfCanvasSlice>()
     var offsetPx = 0
@@ -236,55 +243,46 @@ private fun saveCanvasAsPdf(
         isFirstPage = false
     }
     val totalPages = slices.size.coerceAtLeast(1)
-    for ((index, slice) in slices.withIndex()) {
-        if (index > 0) {
-            pdf.addPage()
-        }
-        if (!slice.isFirstPage) {
-            drawContinuationPageHeader(
+    val sliceCanvas = sliceCanvasFactory()
+    try {
+        for ((index, slice) in slices.withIndex()) {
+            if (index > 0) {
+                pdf.addPage()
+            }
+            if (!slice.isFirstPage) {
+                drawContinuationPageHeader(
+                    pdf = pdf,
+                    logoUrl = logoUrl,
+                    documentName = documentName,
+                    margin = margin,
+                    pageWidth = pageWidth,
+                    logoAspectRatio = logoAspectRatio,
+                )
+            }
+            val contentTop =
+                if (slice.isFirstPage) {
+                    margin
+                } else {
+                    continuationTop
+                }
+            val imageData = sliceImageDataProvider(canvas, sliceCanvas, slice)
+            val sliceHeightPt = slice.heightPx.toDouble() / pixelsPerPoint
+            pdf.addImage(imageData, "PNG", margin, contentTop, targetWidth, sliceHeightPt, "", "FAST")
+            drawPageFooter(
                 pdf = pdf,
-                logoUrl = logoUrl,
-                documentName = documentName,
+                exportDateLabel = buildPdfExportDateLabel(exportDateText),
+                pageCounterText = buildPdfPageCounterText(pageNumber = index + 1, totalPages = totalPages),
                 margin = margin,
+                pageHeight = pageHeight,
                 pageWidth = pageWidth,
-                logoAspectRatio = logoAspectRatio,
             )
         }
-        val contentTop =
-            if (slice.isFirstPage) {
-                margin
-            } else {
-                continuationTop
-            }
-        val sliceCanvas = document.createElement("canvas") as HTMLCanvasElement
-        sliceCanvas.width = canvas.width
-        sliceCanvas.height = slice.heightPx
-        val context = sliceCanvas.getContext("2d").unsafeCast<dynamic>()
-        context.drawImage(
-            canvas,
-            0,
-            slice.startPx,
-            canvas.width,
-            slice.heightPx,
-            0,
-            0,
-            canvas.width,
-            slice.heightPx,
-        )
-        val imageData = sliceCanvas.toDataURL("image/png")
-        val sliceHeightPt = slice.heightPx.toDouble() / pixelsPerPoint
-        pdf.addImage(imageData, "PNG", margin, contentTop, targetWidth, sliceHeightPt, "", "FAST")
-        drawPageFooter(
-            pdf = pdf,
-            exportDateLabel = buildPdfExportDateLabel(exportDateText),
-            pageCounterText = buildPdfPageCounterText(pageNumber = index + 1, totalPages = totalPages),
-            margin = margin,
-            pageHeight = pageHeight,
-            pageWidth = pageWidth,
-        )
+        val targetFile = if (fileName.endsWith(".pdf")) fileName else "$fileName.pdf"
+        pdf.save(targetFile)
+    } finally {
+        clearCanvas(sliceCanvas)
+        clearCanvas(canvas)
     }
-    val targetFile = if (fileName.endsWith(".pdf")) fileName else "$fileName.pdf"
-    pdf.save(targetFile)
 }
 
 private fun drawContinuationPageHeader(
@@ -365,7 +363,7 @@ private fun drawPageFooter(
     pdf.text(pageCounterText, counterX, textY)
 }
 
-private data class PdfCanvasSlice(
+internal data class PdfCanvasSlice(
     val startPx: Int,
     val heightPx: Int,
     val isFirstPage: Boolean,
@@ -388,6 +386,11 @@ private fun resolveLogoAspectRatio(exportRoot: HTMLDivElement): Double {
     val naturalHeight = logo.naturalHeight.toDouble()
     if (naturalWidth <= 0.0 || naturalHeight <= 0.0) return 1.0
     return naturalWidth / naturalHeight
+}
+
+internal fun clearCanvas(canvas: HTMLCanvasElement) {
+    canvas.width = 0
+    canvas.height = 0
 }
 
 internal fun choosePageSliceEndExclusive(
@@ -465,4 +468,27 @@ private fun calculateRowInkPerRow(canvas: HTMLCanvasElement): IntArray {
         rowInk[rowIndex] = totalInk
     }
     return rowInk
+}
+
+private fun renderCanvasSliceToImageData(
+    canvas: HTMLCanvasElement,
+    sliceCanvas: HTMLCanvasElement,
+    slice: PdfCanvasSlice,
+): String {
+    sliceCanvas.width = canvas.width
+    sliceCanvas.height = slice.heightPx
+    val context = sliceCanvas.getContext("2d").unsafeCast<dynamic>()
+    context.clearRect(0, 0, sliceCanvas.width, sliceCanvas.height)
+    context.drawImage(
+        canvas,
+        0,
+        slice.startPx,
+        canvas.width,
+        slice.heightPx,
+        0,
+        0,
+        canvas.width,
+        slice.heightPx,
+    )
+    return sliceCanvas.toDataURL("image/png")
 }

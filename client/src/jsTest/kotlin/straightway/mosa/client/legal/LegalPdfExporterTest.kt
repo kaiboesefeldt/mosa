@@ -5,6 +5,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.browser.document
+import kotlin.js.unsafeCast
+import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLDivElement
 
 class LegalPdfExporterTest {
@@ -151,5 +153,65 @@ class LegalPdfExporterTest {
         assertTrue((logo.asDynamic().getAttribute("src") as String).contains("data:image/png;base64,ZmFrZQ=="))
         assertTrue(heading != null)
         assertTrue(listItems.length == 2)
+    }
+
+    @Test
+    fun `clear canvas resets width and height for cleanup`() {
+        val canvas = document.createElement("canvas") as HTMLCanvasElement
+        canvas.width = 320
+        canvas.height = 180
+
+        clearCanvas(canvas)
+
+        assertEquals(0, canvas.width)
+        assertEquals(0, canvas.height)
+    }
+
+    @Test
+    fun `save canvas as pdf clears temporary canvases when pdf export fails`() {
+        val canvas = document.createElement("canvas") as HTMLCanvasElement
+        canvas.width = 120
+        canvas.height = 4
+
+        val sliceCanvas = document.createElement("canvas") as HTMLCanvasElement
+        val pdf = js("{}").unsafeCast<dynamic>()
+        pdf.internal = js("{}")
+        pdf.internal.pageSize = js("{}")
+        pdf.internal.pageSize.getWidth = { _: dynamic -> 500.0 }
+        pdf.internal.pageSize.getHeight = { _: dynamic -> 700.0 }
+        pdf.addPage = { _: dynamic -> Unit }
+        pdf.addImage = { _: dynamic, _: dynamic, _: dynamic, _: dynamic, _: dynamic, _: dynamic, _: dynamic, _: dynamic ->
+            throw IllegalStateException("boom")
+        }
+        pdf.setTextColor = { _: dynamic, _: dynamic, _: dynamic -> Unit }
+        pdf.setFont = { _: dynamic, _: dynamic -> Unit }
+        pdf.setFontSize = { _: dynamic -> Unit }
+        pdf.getTextWidth = { _: dynamic -> 0.0 }
+        pdf.setDrawColor = { _: dynamic, _: dynamic, _: dynamic -> Unit }
+        pdf.setLineWidth = { _: dynamic -> Unit }
+        pdf.text = { _: dynamic, _: dynamic -> Unit }
+        pdf.line = { _: dynamic, _: dynamic, _: dynamic, _: dynamic -> Unit }
+        pdf.save = { _: dynamic -> Unit }
+
+        try {
+            saveCanvasAsPdf(
+                canvas = canvas,
+                fileName = "privacy-policy",
+                logoUrl = "data:image/png;base64,ZmFrZQ==",
+                documentName = "Datenschutzerklaerung",
+                exportDateText = "2026-03-06",
+                logoAspectRatio = 2.0,
+                pdfFactory = { pdf },
+                sliceCanvasFactory = { sliceCanvas },
+                rowInkCalculator = { IntArray(canvas.height) { 0 } },
+                sliceImageDataProvider = { _, _, _ -> "data:image/png;base64,ZmFrZQ==" },
+            )
+        } catch (_: IllegalStateException) {
+        }
+
+        assertEquals(0, canvas.width)
+        assertEquals(0, canvas.height)
+        assertEquals(0, sliceCanvas.width)
+        assertEquals(0, sliceCanvas.height)
     }
 }

@@ -10,6 +10,19 @@ If the user explicitly points to a different task, use that task instead.
 If there are multiple folders under `tasks/2-in-progres/` and the user did not specify one, the current task is ambiguous and must be clarified before writing task coordination files.
 
 When locating the current task, inspect only the immediate children of `tasks/2-in-progres/`; do not recurse into nested task folders.
+Do not scan the whole `tasks/` tree to discover the current task.
+Do not use a recursive file listing such as `rg --files tasks` for task discovery.
+If a command is needed, use exactly this Bash script to find the current task:
+
+```bash
+tasks=$(find tasks/2-in-progres -mindepth 1 -maxdepth 1 -type d | sort)
+[ "$(printf '%s\n' "$tasks" | sed '/^$/d' | wc -l)" -eq 1 ] || exit 1
+current_task=$(printf '%s\n' "$tasks" | sed '/^$/d')
+```
+
+Use only `current_task` from that script.
+
+When locating files for the current task, inspect only files in `$current_task`:
 
 ## Coordination Files
 

@@ -19,6 +19,24 @@ Keep this file short. Only stable, repo-wide rules belong here.
 - `models/`: optional model assets, avoid committing large artifacts
 - `mosa_lucene_index/`: local Lucene index data, delete to reset local state
 
+## Document Scope
+
+- `AGENTS.md` files may exist in multiple directories.
+- Task coordination documents belong in the current task folder.
+- Project documentation belongs in `spec/` unless it is task-specific.
+- Help texts and serveable reference docs belong under repository resources, including `server/src/main/resources/doc/serve` and `server/src/main/resources/clearterms`.
+- Complete repository-wide search is a last resort only.
+- Prefer the narrowest path that can contain the document before scanning the whole project.
+- Use this Bash script to find the current task:
+
+```bash
+tasks=$(find tasks/2-in-progres -mindepth 1 -maxdepth 1 -type d | sort)
+[ "$(printf '%s\n' "$tasks" | sed '/^$/d' | wc -l)" -eq 1 ] || exit 1
+current_task=$(printf '%s\n' "$tasks" | sed '/^$/d')
+```
+
+- Do not replace that script with a broader search.
+
 ## Architecture And Security
 
 - Top-level architecture lives in `spec/Architecture.md`.
