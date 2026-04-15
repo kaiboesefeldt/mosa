@@ -13,6 +13,7 @@ Assume the proposed structure is incomplete until proven otherwise.
 Also challenge whether the task is implementation-ready before substantial coding starts.
 
 This skill is read-only with respect to production and test code.
+If the user does not name a different task, continue reviewing the active task or current subtask from the previous turn.
 
 # Task Coordination
 

@@ -40,6 +40,8 @@ Keep this file short. Only stable, repo-wide rules belong here.
 - `.agents/skills/mosa-architect`: structural boundaries and architecture changes
 - `.agents/skills/mosa-architecture-reviewer`: critical architecture review for structural risks and design gaps
 
+The listed `mosa-*` work skills continue the active task by default unless the user says otherwise. New skills must opt in to that behavior explicitly.
+
 ## Known Tooling Noise
 
 - Under JDK 25, `sun.misc.Unsafe` warnings still come from upstream tooling.

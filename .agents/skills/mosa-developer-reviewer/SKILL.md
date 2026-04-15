@@ -12,6 +12,7 @@ description: >
 Review with the assumption that the change is not ready yet.
 
 This skill is read-only with respect to production and test code.
+If the user does not name a different task, continue reviewing the active task or current subtask from the previous turn.
 
 # Task Coordination
 

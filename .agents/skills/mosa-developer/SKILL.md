@@ -11,6 +11,7 @@ description: >
 
 Deliver the smallest correct change, driven by tests, while keeping the codebase simple and structurally clear.
 When implementation changes require documentation updates, make those documentation changes in the same task.
+If the user does not name a different task, continue working on the active task or current subtask from the previous turn.
 
 # Workflow
 

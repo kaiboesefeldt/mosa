@@ -10,6 +10,8 @@ description: >
 # Mission
 
 Preserve a clear split between UI, business logic, shared models, and repository infrastructure.
+If the user does not name a different task, continue shaping the active task or current subtask from the previous turn.
+If the current task is not yet split into subtasks and a split would help implementation, create or update the subtask decomposition before implementation continues.
 
 # Task Coordination
 
