@@ -63,7 +63,7 @@ Rules:
 - `NNN` is a three-digit running number within the task.
 - `ShortDescription` stays short, stable, and ASCII-compatible.
 - Each subtask should be independently executable.
-- The current subtask is the open subtask with the highest `NNN`.
+- The current subtask is the open subtask with the lowest `NNN`.
 - Implementation, testing, and quality work focus on the current subtask only.
 - Completed subtasks are not moved, but renamed:
 

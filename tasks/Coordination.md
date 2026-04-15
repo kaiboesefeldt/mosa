@@ -33,7 +33,7 @@ Before substantial implementation starts, the task should be checked for impleme
 
 ## Current Subtask
 
-When a task has subtasks, the current subtask is the open subtask with the highest `NNN`.
+When a task has subtasks, the current subtask is the open subtask with the lowest `NNN`.
 
 - The developer works on the current subtask only.
 - The tester tests the current subtask only.
