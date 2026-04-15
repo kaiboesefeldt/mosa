@@ -40,7 +40,7 @@ When the task has subtasks, work only on the current subtask.
 Address findings in `ArchitectureNotes.md`, `ArchitectureReview.md`, `CodeReview.md`, `TestFindings.md`, and `QualityGate.md` explicitly instead of silently ignoring them.
 Update the relevant `status` and `Developer Response` fields when implementing, rejecting, deferring, or superseding a finding.
 When `TestFindings.md` documents a failing test or a meaningful uncovered gap, treat that as a handoff back from the tester and resolve it before asking quality to close the subtask.
-Run `./gradlew check` once near the end when production or test code changed, and document the command and result in `ImplementationNotes.md`.
+If production or test code changed, run `./gradlew check` once near the end, and document the command and result in `ImplementationNotes.md`.
 
 # Code Rules
 

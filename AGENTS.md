@@ -10,11 +10,6 @@ Keep this file short. Only stable, repo-wide rules belong here.
 - Do not use reflection.
 - New dependencies must use the latest stable version and be verified via web search.
 
-## Required Quality Gate
-
-- If production or test code changed, the developer runs `./gradlew check` once before finishing and documents the result.
-- For documentation-only or other non-code changes, `./gradlew check` is not required.
-
 ## Repo Map
 
 - `server/src/main/kotlin`: Ktor server and business services
