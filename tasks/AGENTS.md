@@ -1,6 +1,6 @@
 # Poor Man's Task Board
 
-For code or documentation work, also follow the root [`AGENTS.md`](/home/kai/Projects/straightway/mosa/AGENTS.md) and the local skills referenced there. This file governs the filesystem-based task board. Skill coordination inside a task directory is defined in [`tasks/Coordination.md`](/home/kai/Projects/straightway/mosa/tasks/Coordination.md).
+For code or documentation work, also follow the root [`AGENTS.md`](./AGENTS.md) and the local skills referenced there. This file governs the filesystem-based task board. Skill coordination inside a task directory is defined in [`tasks/Coordination.md`](./tasks/Coordination.md).
 
 This directory is an intentionally simple task board in the filesystem. A task is a folder. Its status is defined only by its parent status folder.
 
@@ -41,6 +41,7 @@ Allowed:
 Markdown is the default. Content may stay concise, but it must be executable without ambiguity for a human or coding agent.
 
 Task-specific docs belong in the task folder. Project-wide docs belong in `spec/`. Help texts and serveable docs belong under repository resources, including `server/src/main/resources/doc/serve` and `server/src/main/resources/clearterms`. Use full-project scans only as a last resort.
+For task discovery and quality work, use only the current task folder and its immediate children. Do not search the full `tasks/` tree for `sub*.md`, `done-sub*.md`, `AGENTS.md`, or `Coordination.md`.
 - Use this Bash script to find the current task:
 
 ```bash

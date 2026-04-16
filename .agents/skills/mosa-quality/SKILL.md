@@ -29,6 +29,18 @@ Evaluate the current subtask until it is ready to close.
 Close a satisfied subtask by renaming it from `subNNN-...md` to `done-subNNN-...md`.
 If that was the last open subtask, perform a final whole-task review.
 
+Task discovery must be narrow:
+
+```bash
+tasks=$(find tasks/2-in-progres -mindepth 1 -maxdepth 1 -type d | sort)
+[ "$(printf '%s\n' "$tasks" | sed '/^$/d' | wc -l)" -eq 1 ] || exit 1
+current_task=$(printf '%s\n' "$tasks" | sed '/^$/d')
+```
+
+After that, inspect only files inside `$current_task`.
+Do not run `find tasks ...` with broad name patterns such as `done-sub*.md`, `sub*.md`, `AGENTS.md`, or `Coordination.md`.
+Do not use recursive repository scans to discover task files.
+
 # Verification
 
 - If production or test code changed, verify that the developer documented a final `./gradlew check` run in `ImplementationNotes.md`.

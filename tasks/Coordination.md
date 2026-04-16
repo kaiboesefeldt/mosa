@@ -22,7 +22,8 @@ current_task=$(printf '%s\n' "$tasks" | sed '/^$/d')
 
 Use only `current_task` from that script.
 
-When locating files for the current task, inspect only files in `$current_task`:
+When locating files for the current task, inspect only files in `$current_task`.
+For quality work, inspect only these files in that task folder:
 
 ## Coordination Files
 
@@ -34,6 +35,8 @@ These files are the default coordination surface inside the current task directo
 - `CodeReview.md`: developer-reviewer-owned code review findings
 - `TestFindings.md`: tester-owned adversarial findings and missing-test recommendations
 - `QualityGate.md`: quality-owned release-readiness findings, documentation gaps, verification status
+
+Quality must not search for `done-sub*.md` or `sub*.md` in the whole `tasks/` tree. It should only examine the current task folder and its immediate children.
 
 Skills may read any of these files when they exist and when the contents are relevant to the current task.
 
