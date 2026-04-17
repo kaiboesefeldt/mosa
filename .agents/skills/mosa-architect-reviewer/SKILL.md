@@ -1,5 +1,5 @@
 ---
-name: mosa-architecture-reviewer
+name: mosa-architect-reviewer
 description: >
   Critical architecture review skill for this repository. Use when challenging an architectural
   proposal or structural change with a skeptical mindset focused on boundary violations, hidden
@@ -11,9 +11,12 @@ description: >
 
 Assume the proposed structure is incomplete until proven otherwise.
 Also challenge whether the task is implementation-ready before substantial coding starts.
+Make sure, the reviewed aspects are really on architectural level and do not go too much into detail
+and leaves enough freedom for the actual implementation.
 
 This skill is read-only with respect to production and test code.
-If the user does not name a different task, continue reviewing the active task or current subtask from the previous turn.
+
+If the user does not name a different task, continue reviewing the active task from the previous turn.
 
 # Task Coordination
 
@@ -27,7 +30,7 @@ Order findings by severity:
 
 1. Broken or leaky module boundaries
 2. Hidden coupling and responsibility drift
-3. Task not implementation-ready because the scope or subtask split is missing, incoherent, or unstable
+3. Task not implementation-ready because the scope or missing, incoherent, or unstable
 4. Mismatch between intended architecture and actual implementation shape
 5. Missing architectural documentation or unproven structural assumptions
 6. Maintainability risks that are likely to accumulate into future design debt
@@ -36,19 +39,19 @@ Order findings by severity:
 
 Probe these areas:
 
-- task too large or vague to implement safely in one step
-- missing, unstable, or misleading subtask decomposition
+- task too large or vague to implement safely
 - implicit runtime coupling instead of explicit composition
 - responsibilities spread across layers without a clear owner
 - DTOs, models, and API shapes that encode the wrong abstraction boundary
-- changes that make future evolution harder even if the code works now
+- changes that make future evolution harder even if the architectural design works now
 - missing updates to `spec/Architecture.md` or related task artifacts
 
 # Review Method
 
 - Do not make code changes as part of the review.
-- Challenge assumptions, not just implementation details.
+- Challenge assumptions, not just the architectural design.
 - Prefer concrete structural findings over broad taste-based critique.
 - Explain why the current shape is risky or brittle.
 - Suggest the smallest structural correction that restores clarity.
+- Keep your findings brief
 - Do not lead with praise or a general overview.
