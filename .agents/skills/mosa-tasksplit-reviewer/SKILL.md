@@ -13,7 +13,7 @@ to support implementation without hidden work.
 
 # Task Coordination
 
-Follow the shared task-coordination rules in `tasks/Coordination.md`.
+Follow the shared task-coordination rules in [`tasks/Coordination.md`](../../../tasks/Coordination.md).
 Write review findings to `TaskSplitReview.md`.
 
 # Review Priorities

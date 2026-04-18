@@ -36,12 +36,12 @@ Allowed:
 
 - additional Markdown files for context
 - additional files or simple substructures when they help execution
-- coordination files as defined in [`tasks/Coordination.md`](/home/kai/Projects/straightway/mosa/tasks/Coordination.md)
+- coordination files as defined in [`tasks/Coordination.md`](Coordination.md)
 
 Markdown is the default. Content may stay concise, but it must be executable without ambiguity for a human or coding agent.
 
 Task-specific docs belong in the task folder. Project-wide docs belong in `spec/`. Help texts and serveable docs belong under repository resources, including `server/src/main/resources/doc/serve` and `server/src/main/resources/clearterms`. Use full-project scans only as a last resort.
-For task discovery and quality work, use only the current task folder and its immediate children. Do not search the full `tasks/` tree for `sub*.md`, `done-sub*.md`, `AGENTS.md`, or `Coordination.md`.
+For task discovery and quality work, use only the current task folder and its immediate children. Do not search the full `tasks/` tree for `sub*.md`, `done-sub*.md`, `AGENTS.md`, or [`Coordination.md`](Coordination.md).
 - Use this Bash script to find the current task:
 
 ```bash

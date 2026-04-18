@@ -19,7 +19,7 @@ This skill is read-only with respect to production and test code.
 
 # Task Coordination
 
-Follow the shared task-coordination rules in `tasks/Coordination.md`.
+Follow the shared task-coordination rules in [`tasks/Coordination.md`](../../../tasks/Coordination.md).
 Write architectural guidance and findings to `ArchitectureNotes.md`.
 
 # Structural Rules

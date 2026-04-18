@@ -20,7 +20,7 @@ If the user does not name a different task, continue reviewing the active task f
 
 # Task Coordination
 
-Follow the shared task-coordination rules in `tasks/Coordination.md`.
+Follow the shared task-coordination rules in [`tasks/Coordination.md`](../../../tasks/Coordination.md).
 Write review findings to `ArchitectureReview.md`.
 If there are no findings, say so there and note residual architectural risks or open assumptions.
 

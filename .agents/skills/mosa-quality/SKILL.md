@@ -23,7 +23,7 @@ Questions to answer:
 
 # Task Coordination
 
-Follow the shared task-coordination rules in `tasks/Coordination.md`.
+Follow the shared task-coordination rules in [`tasks/Coordination.md`](../../../tasks/Coordination.md).
 Write quality findings to `QualityGate.md`.
 Evaluate the current subtask until it is ready to close.
 Close a satisfied subtask by renaming it from `subNNN-...md` to `done-subNNN-...md`.
@@ -38,7 +38,7 @@ current_task=$(printf '%s\n' "$tasks" | sed '/^$/d')
 ```
 
 After that, inspect only files inside `$current_task`.
-Do not run `find tasks ...` with broad name patterns such as `done-sub*.md`, `sub*.md`, `AGENTS.md`, or `Coordination.md`.
+Do not run `find tasks ...` with broad name patterns such as `done-sub*.md`, `sub*.md`, `AGENTS.md`, or [`tasks/Coordination.md`](../../../tasks/Coordination.md).
 Do not use recursive repository scans to discover task files.
 
 # Verification

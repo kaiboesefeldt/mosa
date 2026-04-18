@@ -16,7 +16,7 @@ If the user does not name a different task, continue reviewing current subtask o
 
 # Task Coordination
 
-Follow the shared task-coordination rules in `tasks/Coordination.md`.
+Follow the shared task-coordination rules in [`tasks/Coordination.md`](../../../tasks/Coordination.md).
 Before flagging a migration, bootstrap, or rollout issue, read the current task directory's
 `ArchitectureNotes.md`, `ImplementationNotes.md`, and `QualityGate.md` when present, and check
 `spec/Architecture.md` for the repo-level architectural decision before deciding that the behavior

@@ -20,7 +20,7 @@ working on the current subtask of the active task from the previous turn.
 
 # Task Coordination
 
-Follow the shared task-coordination rules in `tasks/Coordination.md`.
+Follow the shared task-coordination rules in [`tasks/Coordination.md`](../../../tasks/Coordination.md).
 Maintain `ImplementationNotes.md`.
 Work only on the current subtask.
 Address findings in `ArchitectureNotes.md`, `ArchitectureReview.md`, `CodeReview.md`, `TestFindings.md`, and `QualityGate.md` explicitly instead of silently ignoring them.

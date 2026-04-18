@@ -9,7 +9,7 @@ description: >
 
 # Mission
 
-Act as the counterweight to the implementer:
+Act as the counterweight to the developer:
 
 - Look for missing preconditions, state transitions, and error paths.
 - Prefer tests that would fail for realistic bugs, not just confirm the intended flow.
@@ -19,7 +19,7 @@ If the user does not name a different task, continue testing the active task or 
 
 # Task Coordination
 
-Follow the shared task-coordination rules in `tasks/Coordination.md`.
+Follow the shared task-coordination rules in [`tasks/Coordination.md`](../../../tasks/Coordination.md).
 Write adversarial findings to `TestFindings.md`.
 When the task has subtasks, test the current subtask only.
 Use `TestFindings.md` to document exploratory test runs, failing tests, and the handoff back to the developer.
@@ -37,6 +37,7 @@ Use `TestFindings.md` to document exploratory test runs, failing tests, and the 
 - If an exploratory test change does not produce a failing test that demonstrates a real issue or missing coverage, remove or revert that test change before handing off.
 - Do not leave behind green-only confirmation tests as tester output.
 - Do not fix production code as part of tester work.
+- Consider the [common code rules](../../../spec/CodeRules.md)
 
 # Tooling Choices
 

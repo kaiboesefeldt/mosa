@@ -15,6 +15,6 @@ to the comments from the review.
 
 # Task Coordination
 
-Follow the shared task-coordination rules in `tasks/Coordination.md`.
+Follow the shared task-coordination rules in [`tasks/Coordination.md`](../../../tasks/Coordination.md).
 Read `Description.md` and `ArchitectureNotes.md` for guidance.
 If there are findings from a previous review, they may already be recorded in `TaskSplitReview.md`.
