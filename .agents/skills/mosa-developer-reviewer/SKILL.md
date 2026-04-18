@@ -12,7 +12,7 @@ description: >
 Review with the assumption that the change is not ready yet.
 
 This skill is read-only with respect to production and test code.
-If the user does not name a different task, continue reviewing the active task or current subtask from the previous turn.
+If the user does not name a different task, continue reviewing current subtask of the active task from the previous turn.
 
 # Task Coordination
 
@@ -30,6 +30,7 @@ Look first for:
 - missing or misleading tests
 - invalid assumptions about state, ordering, nullability, or ownership
 - accidental architecture drift
+- potential cybersecurity problems
 
 # Review Priorities
 
@@ -50,6 +51,7 @@ Order findings by severity:
 - Suggest the smallest credible fix.
 - Call out when the diff lacks enough evidence to trust the change.
 - If no findings are present, say that explicitly and mention residual risk or testing gaps.
+- Consider the [common code rules](../../../spec/CodeRules.md)
 
 # Common Review Angles
 
