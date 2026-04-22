@@ -1,5 +1,6 @@
 package straightway.mosa.content
 
+import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.junit.jupiter.api.Test
@@ -22,7 +23,7 @@ import kotlin.time.measureTime
 @EnabledIfEnvironmentVariable(named = "MOSA_RUN_QUALITY_TEST", matches = "true")
 class QualityTest {
     val embeddingService = OnnxLocalEmbeddingService.create()
-    val clock =
+    val clock: Clock =
         Clock.fixed(
             Instant.ofEpochSecond(170000000L),
             ZoneId.of("UTC"),
@@ -42,6 +43,7 @@ class QualityTest {
             vectorStore,
             { MessageDigest.getInstance("SHA-256") },
             maxFetchItems = 100,
+            postComplaintStore = mockk(relaxed = true),
         )
     val gid = "gid"
 

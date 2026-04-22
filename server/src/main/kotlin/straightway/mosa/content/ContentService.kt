@@ -3,6 +3,7 @@ package straightway.mosa.content
 import io.ktor.server.plugins.BadRequestException
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
+import straightway.mosa.content.complaint.PostComplaintStore
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
@@ -18,12 +19,13 @@ class ContentService(
     private val embeddingService: EmbeddingService,
     private val vectorStore: VectorStore,
     private val hasherFactory: () -> MessageDigest,
-    private val maxFetchItems: Int,
+    maxFetchItems: Int,
     private val replyIdFactory: () -> String = { UUID.randomUUID().toString() },
     private val isAdmin: suspend (String) -> Boolean = { false },
+    postComplaintStore: PostComplaintStore,
 ) {
     private val readService = ContentReadService(embeddingService, vectorStore, maxFetchItems)
-    private val deleteService = ContentDeleteService(vectorStore, isAdmin)
+    private val deleteService = ContentDeleteService(vectorStore, postComplaintStore, isAdmin)
     private val csvExportService = ContentCsvExportService(vectorStore)
 
     suspend fun publish(

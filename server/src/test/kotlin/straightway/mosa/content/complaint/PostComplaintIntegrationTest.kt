@@ -32,7 +32,6 @@ import straightway.mosa.identity.privacy.IdentityDeletionService
 import straightway.mosa.message.AdminMessageController
 import straightway.mosa.message.AdminMessageListResult
 import straightway.mosa.message.AdminMessageService
-import straightway.mosa.message.AdminMessageStoreFactory
 import straightway.mosa.message.AdminMessagesTable
 import straightway.mosa.message.SqliteAdminMessageStore
 import straightway.mosa.structuredstate.StructuredStateDatabase
@@ -42,7 +41,6 @@ import straightway.mosa.vectorstore.LuceneLocalVectorStore
 import straightway.mosa.vectorstore.LuceneQueryPlanner
 import straightway.mosa.vectorstore.QueryOnRegistry
 import java.nio.file.Files
-import java.nio.file.Path
 import java.security.KeyPair
 import java.security.MessageDigest
 import java.security.Signature
@@ -767,6 +765,64 @@ class PostComplaintIntegrationTest {
         }
 
     @Test
+    fun `identity deletion fails and leaves content intact when complaint cleanup fails`() =
+        runTest {
+            withFixture(
+                complaintStoreFactory = { context ->
+                    FailingDeleteForPostComplaintStore(SqlitePostComplaintStore(context))
+                },
+            ) { fixture ->
+                val deletedIdentity = fixture.identity()
+                val otherIdentity = fixture.identity()
+                val rootPostId = fixture.publishPost(deletedIdentity.gid, "Deleted root", 1, deletedIdentity.keyPair.public.toBase64())
+                val deletedReplyId =
+                    fixture.contentService.reply(
+                        otherIdentity.gid,
+                        ReplyRequest(
+                            rootId = rootPostId,
+                            content = PublishRequest("Foreign reply"),
+                        ),
+                        2,
+                        otherIdentity.keyPair.public.toBase64(),
+                    )
+                fixture.createComplaint(otherIdentity, deletedReplyId, "Targeted complaint")
+                fixture.adminGids += deletedIdentity.gid
+
+                fixture.env {
+                    val deleteResponse =
+                        client.delete("/v1/identity") {
+                            bearerAuth(deletedIdentity.token)
+                        }
+
+                    assertEquals(HttpStatusCode.InternalServerError, deleteResponse.status)
+
+                    val fetchResponse =
+                        client.post("/v1/fetch") {
+                            bearerAuth(otherIdentity.token)
+                            setJsonBody(FetchRequest(listOf(rootPostId, deletedReplyId)))
+                        }
+                    assertEquals(
+                        FetchResult(
+                            entries =
+                                listOf(
+                                    FetchResult.Entry(
+                                        id = rootPostId,
+                                        content = "Deleted root",
+                                        authorGID = deletedIdentity.gid,
+                                        storedAt = 1,
+                                        rootId = null,
+                                        authorPublicKey = deletedIdentity.keyPair.public.toBase64(),
+                                    ),
+                                ),
+                        ),
+                        fetchResponse.body(),
+                    )
+                    assertEquals(1, fixture.postComplaintStore.countOpen())
+                }
+            }
+        }
+
+    @Test
     fun `identity deletion removes admin messages sent by deleted identity`() =
         runTest {
             withFixture { fixture ->
@@ -811,6 +867,8 @@ class PostComplaintIntegrationTest {
 
     private suspend fun withFixture(
         openPageSize: Int = 10,
+        complaintStoreFactory: (straightway.mosa.structuredstate.StructuredStateContext) -> PostComplaintStore =
+            { context -> SqlitePostComplaintStore(context) },
         vectorStoreFactory: (Clock) -> VectorStore =
             { clock ->
                 LuceneLocalVectorStore.create(
@@ -824,6 +882,7 @@ class PostComplaintIntegrationTest {
         block: suspend (ComplaintIntegrationFixture) -> Unit,
     ) {
         val fixture = ComplaintIntegrationFixture(openPageSize, vectorStoreFactory)
+        fixture.setComplaintStoreFactory(complaintStoreFactory)
         try {
             block(fixture)
         } finally {
@@ -844,6 +903,8 @@ class PostComplaintIntegrationTest {
         private val directory = Files.createTempDirectory("post-complaint-integration")
         private val dbPath = directory.resolve("mosa_db.sqlite")
         private val database = StructuredStateDatabase(dbPath)
+        private var complaintStoreFactory: (straightway.mosa.structuredstate.StructuredStateContext) -> PostComplaintStore =
+            { context -> SqlitePostComplaintStore(context) }
         private val embeddingService = mockk<EmbeddingService>()
         private val vectorStore = vectorStoreFactory(clock)
         val contentService =
@@ -853,6 +914,7 @@ class PostComplaintIntegrationTest {
                 hasherFactory = hasherFactory,
                 maxFetchItems = 100,
                 isAdmin = { gid -> adminGids.contains(gid) },
+                postComplaintStore = mockk(relaxed = true),
             )
         val adminMessageService =
             AdminMessageService(
@@ -868,7 +930,6 @@ class PostComplaintIntegrationTest {
         private var nextAdminMessageId = 1
         private val complaintIds = ArrayDeque(listOf("complaint-1", "complaint-2", "complaint-3", "complaint-4"))
         val postComplaintStore = SqlitePostComplaintStore(database)
-        private val adminMessageStore = SqliteAdminMessageStore(database)
         private val postComplaintService =
             PostComplaintService(
                 store = postComplaintStore,
@@ -883,8 +944,8 @@ class PostComplaintIntegrationTest {
             IdentityDeletionService(
                 contentService = contentService,
                 database = database,
-                postComplaintStoreFactory = PostComplaintStoreFactory { context -> SqlitePostComplaintStore(context) },
-                adminMessageStoreFactory = AdminMessageStoreFactory { context -> SqliteAdminMessageStore(context) },
+                postComplaintStoreFactory = { context -> complaintStoreFactory(context) },
+                adminMessageStoreFactory = { context -> SqliteAdminMessageStore(context) },
                 blockedIdentityStore =
                     object : BlockedIdentityStore {
                         override fun isBlocked(gid: String): Boolean = false
@@ -922,6 +983,10 @@ class PostComplaintIntegrationTest {
                     AdminMessageController(adminMessageService),
                 ),
             )
+
+        fun setComplaintStoreFactory(factory: (straightway.mosa.structuredstate.StructuredStateContext) -> PostComplaintStore) {
+            complaintStoreFactory = factory
+        }
 
         init {
             every { embeddingService.dimension } returns 3
@@ -1023,6 +1088,12 @@ class PostComplaintIntegrationTest {
                 )
             }
         }
+    }
+
+    private class FailingDeleteForPostComplaintStore(
+        private val delegate: SqlitePostComplaintStore,
+    ) : PostComplaintStore by delegate {
+        override fun deleteForPost(postId: String): Int = throw IllegalStateException("complaint delete failed")
     }
 
     private data class TestIdentity(

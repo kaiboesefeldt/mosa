@@ -114,7 +114,15 @@ class ControllerHttpTestEnvironment(
                 single<SignatureVerifierProvider> { signatureVerifierProvider }
                 single<Crypto> { crypto }
                 single<TokenUtil> { Auth0TokenUtil(get(), get(), get(), get(), get()) }
-                single<ContentService> { ContentService(get(), get(), get(), maxFetchItems = 100) }
+                single<ContentService> {
+                    ContentService(
+                        get(),
+                        get(),
+                        get(),
+                        maxFetchItems = 100,
+                        postComplaintStore = mockk(relaxed = true),
+                    )
+                }
                 single<PodCertificateService> { podCertService }
                 single<MeterRegistry> { SimpleMeterRegistry() }
                 additionalTestModules()

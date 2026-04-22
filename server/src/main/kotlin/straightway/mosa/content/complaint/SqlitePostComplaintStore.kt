@@ -58,6 +58,22 @@ class SqlitePostComplaintStore(
         }
     }
 
+    override fun deleteForPost(postId: String): Int =
+        context.execute {
+            PostComplaintsTable.deleteWhere {
+                PostComplaintsTable.postId eq postId
+            }
+        }
+
+    override fun loadForPost(postId: String): List<PostComplaintRecord> =
+        context.execute {
+            PostComplaintsTable
+                .selectAll()
+                .where { PostComplaintsTable.postId eq postId }
+                .orderBy(PostComplaintsTable.createdAt, SortOrder.ASC)
+                .map(::toRecord)
+        }
+
     override fun loadLatestForPost(postId: String): PostComplaintRecord? =
         context.execute {
             PostComplaintsTable

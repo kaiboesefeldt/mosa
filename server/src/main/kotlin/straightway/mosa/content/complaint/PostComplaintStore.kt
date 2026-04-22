@@ -9,6 +9,10 @@ interface PostComplaintStore {
 
     fun deleteByIds(ids: List<String>): Int
 
+    fun deleteForPost(postId: String): Int
+
+    fun loadForPost(postId: String): List<PostComplaintRecord>
+
     fun deleteForIdentity(gid: String): Int
 
     fun loadLatestForPost(postId: String): PostComplaintRecord?

@@ -16,7 +16,6 @@ import straightway.mosa.content.complaint.PostComplaintStore
 import straightway.mosa.content.complaint.PostComplaintStoreFactory
 import straightway.mosa.content.complaint.SqlitePostComplaintStore
 import straightway.mosa.defense.adminAllowList
-import straightway.mosa.identity.blocklist.BlockedIdentityStore
 import straightway.mosa.message.AdminMessageCleanupJob
 import straightway.mosa.message.AdminMessageController
 import straightway.mosa.message.AdminMessageService
@@ -35,6 +34,7 @@ fun Module.configureContentAppModule() {
         ContentService(
             embeddingService = get(),
             vectorStore = get(),
+            postComplaintStore = get(),
             hasherFactory = get(),
             maxFetchItems = maxFetchItems,
             isAdmin = { gid -> (admins.get() ?: AdminAllowList(emptyList())).adminGids.contains(gid) },

@@ -12,6 +12,9 @@ import org.junit.jupiter.api.assertThrows
 import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import straightway.mosa.VectorStore.Query
+import straightway.mosa.content.complaint.PostComplaintRecord
+import straightway.mosa.content.complaint.PostComplaintState
+import straightway.mosa.content.complaint.PostComplaintStore
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_PUBLIC_KEY_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_SIGNATURE_KEY
@@ -29,6 +32,7 @@ import kotlin.test.assertTrue
 class ContentServiceTest {
     private val embeddingService = mockk<EmbeddingService>()
     private val vectorStore = mockk<VectorStore>()
+    private val postComplaintStore = mockk<PostComplaintStore>(relaxed = true)
     private val messageDigest = mockk<MessageDigest>()
     private val hasherFactory = mockk<() -> MessageDigest>()
     private val transaction = mockk<VectorStore.Transaction>(relaxed = true)
@@ -37,6 +41,7 @@ class ContentServiceTest {
         ContentService(
             embeddingService = embeddingService,
             vectorStore = vectorStore,
+            postComplaintStore = postComplaintStore,
             hasherFactory = hasherFactory,
             maxFetchItems = maxFetchItems,
             replyIdFactory = { "reply-id" },
@@ -54,6 +59,7 @@ class ContentServiceTest {
         ContentService(
             embeddingService = embeddingService,
             vectorStore = vectorStore,
+            postComplaintStore = postComplaintStore,
             hasherFactory = hasherFactory,
             maxFetchItems = maxFetchItems,
             replyIdFactory = { "reply-id" },
@@ -1135,7 +1141,14 @@ class ContentServiceTest {
         @Test
         fun `fetching too many IDs rejects the request`() =
             runTest {
-                val service = ContentService(embeddingService, vectorStore, hasherFactory, maxFetchItems = 2)
+                val service =
+                    ContentService(
+                        embeddingService,
+                        vectorStore,
+                        hasherFactory,
+                        maxFetchItems = 2,
+                        postComplaintStore = mockk(relaxed = true),
+                    )
 
                 val ex =
                     assertFailsWith<BadRequestException> {
@@ -1274,7 +1287,15 @@ class ContentServiceTest {
         @Test
         fun `removes item when user is admin`() =
             runTest {
-                val service = ContentService(embeddingService, vectorStore, hasherFactory, maxFetchItems, isAdmin = { it == "admin-gid" })
+                val service =
+                    ContentService(
+                        embeddingService = embeddingService,
+                        vectorStore = vectorStore,
+                        hasherFactory = hasherFactory,
+                        maxFetchItems = maxFetchItems,
+                        isAdmin = { it == "admin-gid" },
+                        postComplaintStore = postComplaintStore,
+                    )
                 coEvery { vectorStore.fetch(listOf(postId)) } returns
                     listOf(
                         VectorStore.PostDump(
@@ -1291,6 +1312,7 @@ class ContentServiceTest {
                 val deletedIds = service.delete("admin-gid", postId)
 
                 coVerify { transaction.remove(postId) }
+                coVerify { postComplaintStore.deleteByIds(emptyList()) }
                 assertEquals(listOf(postId), deletedIds)
             }
 
@@ -1313,7 +1335,46 @@ class ContentServiceTest {
                 val deletedIds = sut.delete(testUserGID, postId)
 
                 coVerify { transaction.remove(postId) }
+                coVerify { postComplaintStore.deleteByIds(emptyList()) }
                 assertEquals(listOf(postId), deletedIds)
+            }
+
+        @Test
+        fun `restores complaints when vector deletion fails`() =
+            runTest {
+                coEvery { vectorStore.fetch(listOf(postId)) } returns
+                    listOf(
+                        VectorStore.PostDump(
+                            postId,
+                            "content",
+                            mapOf(
+                                AUTHOR_GID_KEY to testUserGID,
+                                ROOT_ID_KEY to "root-1",
+                            ),
+                        ),
+                    )
+                coEvery { postComplaintStore.loadForPost(postId) } returns
+                    listOf(
+                        PostComplaintRecord(
+                            id = "complaint-1",
+                            postId = postId,
+                            complainantGid = "complainant-1",
+                            postAuthorGid = testUserGID,
+                            reason = "Spam",
+                            createdAt = 1,
+                            complainantSignature = "sig",
+                            complainantSignatureVersion = 1,
+                            state = PostComplaintState.OPEN,
+                        ),
+                    )
+                coEvery { vectorStore.writeAccess(any()) } throws RuntimeException("boom")
+
+                assertThrows<RuntimeException> {
+                    sut.delete(testUserGID, postId)
+                }
+
+                coVerify { postComplaintStore.deleteByIds(listOf("complaint-1")) }
+                coVerify { postComplaintStore.restore(any()) }
             }
 
         @Test
@@ -1358,6 +1419,19 @@ class ContentServiceTest {
                                     fields = mapOf(ROOT_ID_KEY to rootId),
                                 ),
                             ),
+                        queryOnId = UUID.randomUUID(),
+                    )
+                val laterRepliesPage =
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = "reply-3",
+                                    text = "text-3",
+                                    similarity = 1.0f,
+                                    fields = mapOf(ROOT_ID_KEY to rootId),
+                                ),
+                            ),
                         queryOnId = null,
                     )
                 val emptyPage = VectorStore.QueryResults(resultsPage = emptyList(), queryOnId = null)
@@ -1365,7 +1439,10 @@ class ContentServiceTest {
                     vectorStore.query(
                         Query(fields = mapOf(ROOT_ID_KEY to rootId)),
                     )
-                } returnsMany listOf(repliesPage, emptyPage)
+                } returns repliesPage
+                coEvery {
+                    vectorStore.queryOn(any())
+                } returnsMany listOf(laterRepliesPage, emptyPage)
                 setupWriteAccess()
 
                 val deletedIds = sut.delete(testUserGID, rootId)
@@ -1373,7 +1450,8 @@ class ContentServiceTest {
                 coVerify { transaction.remove(rootId) }
                 coVerify { transaction.remove("reply-1") }
                 coVerify { transaction.remove("reply-2") }
-                assertEquals(listOf(rootId, "reply-1", "reply-2"), deletedIds)
+                coVerify { transaction.remove("reply-3") }
+                assertEquals(listOf(rootId, "reply-1", "reply-2", "reply-3"), deletedIds)
             }
     }
 
@@ -1615,6 +1693,7 @@ class ContentServiceTest {
                         hasherFactory = { MessageDigest.getInstance("SHA-256") },
                         maxFetchItems = maxFetchItems,
                         replyIdFactory = { replyIds.removeFirst() },
+                        postComplaintStore = mockk(relaxed = true),
                     )
                 setupEmbedding(content)
                 setupWriteAccess()

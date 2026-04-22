@@ -62,6 +62,7 @@ class AdminDeleteIntegrationTest {
                 hasherFactory = { MessageDigest.getInstance("SHA-256") },
                 maxFetchItems = 100,
                 isAdmin = { gid -> (adminAllowList.get() ?: AdminAllowList(emptyList())).adminGids.contains(gid) },
+                postComplaintStore = mockk(relaxed = true),
             )
         val environment =
             ControllerHttpTestEnvironment(
