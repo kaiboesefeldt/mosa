@@ -1,6 +1,7 @@
 package straightway.mosa.content
 
 import io.ktor.server.plugins.BadRequestException
+import straightway.mosa.EmbeddingService
 import straightway.mosa.VectorStore
 import straightway.mosa.content.complaint.PostComplaintRecord
 import straightway.mosa.content.complaint.PostComplaintStore
@@ -8,6 +9,7 @@ import straightway.mosa.vectorstore.ContentMetadataKeys.AUTHOR_GID_KEY
 import straightway.mosa.vectorstore.ContentMetadataKeys.ROOT_ID_KEY
 
 internal class ContentDeleteService(
+    private val embeddingService: EmbeddingService,
     private val vectorStore: VectorStore,
     private val postComplaintStore: PostComplaintStore,
     private val isAdmin: suspend (String) -> Boolean,
@@ -22,8 +24,9 @@ internal class ContentDeleteService(
         if (author != userGID && !isAdmin(userGID)) throw ContentService.ContentForbiddenException()
         val deletedIds = linkedSetOf(post.id)
         if (post.fields[ROOT_ID_KEY] == null) {
-            deletedIds.addAll(collectReplyIds(post.id))
+            collectReplyIds(post.id, deletedIds)
         }
+        val deletedPosts = vectorStore.fetch(deletedIds.toList())
         val complaintsByPostId = deletedIds.associateWith { postComplaintStore.loadForPost(it) }
         try {
             postComplaintStore.deleteByIds(complaintsByPostId.values.flatten().map(PostComplaintRecord::id))
@@ -31,75 +34,86 @@ internal class ContentDeleteService(
                 deletedIds.forEach { remove(it) }
             }
         } catch (exception: Throwable) {
-            complaintsByPostId.values.flatten().forEach { postComplaintStore.restore(it) }
+            rollbackDeletion(deletedPosts, complaintsByPostId, exception)
             throw exception
         }
         return deletedIds.toList()
     }
 
     suspend fun deleteAllForUser(userGID: String): List<String> {
-        val deletedIds = linkedSetOf<String>()
-        while (true) {
-            val queryResult =
-                vectorStore.query(
-                    VectorStore.Query(fields = mapOf(AUTHOR_GID_KEY to userGID)),
-                )
-            if (queryResult.resultsPage.isEmpty()) return deletedIds.toList()
-            val rootIds = queryResult.resultsPage.filter { it.fields[ROOT_ID_KEY] == null }.map { it.id }
-            val complaintsByPostId = queryResult.resultsPage.associate { it.id to postComplaintStore.loadForPost(it.id) }
-            try {
-                removeQueryResults(queryResult, deletedIds)
-                queryResult.resultsPage.forEach { postComplaintStore.deleteForPost(it.id) }
-                rootIds.forEach { deleteRepliesForRoot(it, deletedIds) }
-            } catch (exception: Throwable) {
-                complaintsByPostId.values.flatten().forEach { postComplaintStore.restore(it) }
-                throw exception
+        val deletedIds = collectAllUserPostIds(userGID)
+        if (deletedIds.isEmpty()) return emptyList()
+        val deletedPosts = vectorStore.fetch(deletedIds.toList())
+        val complaintsByPostId = deletedIds.associateWith { postComplaintStore.loadForPost(it) }
+        try {
+            deletedIds.forEach { postComplaintStore.deleteForPost(it) }
+            vectorStore.writeAccess {
+                deletedIds.forEach { remove(it) }
             }
+        } catch (exception: Throwable) {
+            rollbackDeletion(deletedPosts, complaintsByPostId, exception)
+            throw exception
+        }
+        return deletedIds.toList()
+    }
+
+    private suspend fun collectAllUserPostIds(userGID: String): LinkedHashSet<String> {
+        val deletedIds = linkedSetOf<String>()
+        var queryResult =
+            vectorStore.query(
+                VectorStore.Query(fields = mapOf(AUTHOR_GID_KEY to userGID)),
+            )
+        while (true) {
+            if (queryResult.resultsPage.isEmpty()) return deletedIds
+            val postIds = queryResult.resultsPage.map { it.id }
+            deletedIds.addAll(postIds)
+            postIds.forEach { collectReplyIds(it, deletedIds) }
+            val queryOnId = queryResult.queryOnId ?: return deletedIds
+            queryResult = vectorStore.queryOn(queryOnId)
         }
     }
 
-    private suspend fun deleteRepliesForRoot(
+    private suspend fun collectReplyIds(
         rootId: String,
         deletedIds: MutableSet<String>,
+        visitedRoots: MutableSet<String> = linkedSetOf(),
     ) {
-        while (true) {
-            val replies =
-                vectorStore.query(
-                    VectorStore.Query(fields = mapOf(ROOT_ID_KEY to rootId)),
-                )
-            if (replies.resultsPage.isEmpty()) return
-            val complaintsByPostId = replies.resultsPage.associate { it.id to postComplaintStore.loadForPost(it.id) }
-            try {
-                removeQueryResults(replies, deletedIds)
-                replies.resultsPage.forEach { postComplaintStore.deleteForPost(it.id) }
-            } catch (exception: Throwable) {
-                complaintsByPostId.values.flatten().forEach { postComplaintStore.restore(it) }
-                throw exception
-            }
-        }
-    }
-
-    private suspend fun collectReplyIds(rootId: String): List<String> {
-        val replyIds = mutableListOf<String>()
+        if (!visitedRoots.add(rootId)) return
         var replies =
             vectorStore.query(
                 VectorStore.Query(fields = mapOf(ROOT_ID_KEY to rootId)),
             )
         while (true) {
-            replyIds.addAll(replies.resultsPage.map { it.id })
-            val queryOnId = replies.queryOnId ?: return replyIds
+            val replyIds = replies.resultsPage.map { it.id }
+            deletedIds.addAll(replyIds)
+            replyIds.forEach { collectReplyIds(it, deletedIds, visitedRoots) }
+            val queryOnId = replies.queryOnId ?: return
             replies = vectorStore.queryOn(queryOnId)
         }
     }
 
-    private suspend fun removeQueryResults(
-        results: VectorStore.QueryResults,
-        deletedIds: MutableSet<String>,
+    private suspend fun rollbackDeletion(
+        deletedPosts: List<VectorStore.PostDump>,
+        complaintsByPostId: Map<String, List<PostComplaintRecord>>,
+        originalException: Throwable,
     ) {
+        runCatching { restorePosts(deletedPosts) }
+            .onFailure { originalException.addSuppressed(it) }
+        runCatching {
+            complaintsByPostId.values.flatten().forEach { postComplaintStore.restore(it) }
+        }.onFailure { originalException.addSuppressed(it) }
+    }
+
+    private suspend fun restorePosts(posts: List<VectorStore.PostDump>) {
+        if (posts.isEmpty()) return
         vectorStore.writeAccess {
-            results.resultsPage.forEach {
-                remove(it.id)
-                deletedIds.add(it.id)
+            posts.forEach { post ->
+                add(
+                    id = post.id,
+                    text = post.text,
+                    fields = post.fields,
+                    vector = embeddingService.embed(post.text),
+                )
             }
         }
     }

@@ -1342,7 +1342,9 @@ class ContentServiceTest {
         @Test
         fun `restores complaints when vector deletion fails`() =
             runTest {
-                coEvery { vectorStore.fetch(listOf(postId)) } returns
+                coEvery {
+                    vectorStore.fetch(listOf(postId))
+                } returns
                     listOf(
                         VectorStore.PostDump(
                             postId,
@@ -1378,6 +1380,98 @@ class ContentServiceTest {
             }
 
         @Test
+        fun `keeps content when reply deletion fails after remove`() =
+            runTest {
+                val storedPostId = "reply-1"
+                val failingVectorStore =
+                    object : VectorStore {
+                        private val items =
+                            linkedMapOf(
+                                storedPostId to
+                                    VectorStore.PostDump(
+                                        storedPostId,
+                                        "content",
+                                        mapOf(
+                                            AUTHOR_GID_KEY to testUserGID,
+                                            ROOT_ID_KEY to "root-1",
+                                        ),
+                                    ),
+                            )
+
+                        override suspend fun writeAccess(transactionBlock: suspend VectorStore.Transaction.() -> Unit) {
+                            transactionBlock(
+                                object : VectorStore.Transaction {
+                                    override suspend fun add(
+                                        id: String,
+                                        text: String,
+                                        fields: Map<String, String>,
+                                        vector: FloatArray,
+                                    ) {
+                                        items[id] =
+                                            VectorStore.PostDump(
+                                                id = id,
+                                                text = text,
+                                                fields = fields,
+                                            )
+                                    }
+
+                                    override suspend fun remove(id: String) {
+                                        items.remove(id)
+                                        throw RuntimeException("boom")
+                                    }
+                                },
+                            )
+                        }
+
+                        override suspend fun query(query: VectorStore.Query): VectorStore.QueryResults = error("unexpected query: $query")
+
+                        override suspend fun queryOn(queryOnId: UUID?): VectorStore.QueryResults = error("unexpected queryOn: $queryOnId")
+
+                        override suspend fun fetch(ids: List<String>): List<VectorStore.PostDump> = ids.mapNotNull(items::get)
+
+                        override suspend fun fetchByFieldValues(
+                            fieldName: String,
+                            values: Set<String>,
+                        ): List<VectorStore.PostDump> = emptyList()
+
+                        override fun dumpAll(): kotlinx.coroutines.flow.Flow<VectorStore.PostDump> = kotlinx.coroutines.flow.emptyFlow()
+
+                        override fun close() {
+                        }
+                    }
+                val service =
+                    ContentService(
+                        embeddingService = embeddingService,
+                        vectorStore = failingVectorStore,
+                        hasherFactory = hasherFactory,
+                        maxFetchItems = maxFetchItems,
+                        isAdmin = { false },
+                        postComplaintStore = postComplaintStore,
+                    )
+                coEvery { embeddingService.embed(any()) } returns testEmbedding
+
+                val exception =
+                    assertFailsWith<RuntimeException> {
+                        service.delete(testUserGID, storedPostId)
+                    }
+
+                assertEquals("boom", exception.message)
+                assertEquals(
+                    listOf(
+                        VectorStore.PostDump(
+                            storedPostId,
+                            "content",
+                            mapOf(
+                                AUTHOR_GID_KEY to testUserGID,
+                                ROOT_ID_KEY to "root-1",
+                            ),
+                        ),
+                    ),
+                    failingVectorStore.fetch(listOf(storedPostId)),
+                )
+            }
+
+        @Test
         fun `throws BadRequestException when id is blank`() =
             runTest {
                 val exception =
@@ -1401,6 +1495,19 @@ class ContentServiceTest {
                                 AUTHOR_GID_KEY to testUserGID,
                             ),
                         ),
+                    )
+                coEvery { vectorStore.fetch(listOf(rootId, "reply-1", "reply-2", "reply-3")) } returns
+                    listOf(
+                        VectorStore.PostDump(
+                            rootId,
+                            "content",
+                            mapOf(
+                                AUTHOR_GID_KEY to testUserGID,
+                            ),
+                        ),
+                        VectorStore.PostDump("reply-1", "text-1", mapOf(ROOT_ID_KEY to rootId)),
+                        VectorStore.PostDump("reply-2", "text-2", mapOf(ROOT_ID_KEY to rootId)),
+                        VectorStore.PostDump("reply-3", "text-3", mapOf(ROOT_ID_KEY to rootId)),
                     )
                 val repliesPage =
                     VectorStore.QueryResults(
@@ -1443,6 +1550,21 @@ class ContentServiceTest {
                 coEvery {
                     vectorStore.queryOn(any())
                 } returnsMany listOf(laterRepliesPage, emptyPage)
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to "reply-1")),
+                    )
+                } returns emptyPage
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to "reply-2")),
+                    )
+                } returns emptyPage
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to "reply-3")),
+                    )
+                } returns emptyPage
                 setupWriteAccess()
 
                 val deletedIds = sut.delete(testUserGID, rootId)
@@ -1452,6 +1574,209 @@ class ContentServiceTest {
                 coVerify { transaction.remove("reply-2") }
                 coVerify { transaction.remove("reply-3") }
                 assertEquals(listOf(rootId, "reply-1", "reply-2", "reply-3"), deletedIds)
+            }
+
+        @Test
+        fun `removes descendant replies when deleting root post`() =
+            runTest {
+                val rootId = "post-1"
+                val replyId = "reply-1"
+                val descendantId = "reply-2"
+                coEvery { vectorStore.fetch(listOf(rootId)) } returns
+                    listOf(
+                        VectorStore.PostDump(rootId, "content", mapOf(AUTHOR_GID_KEY to testUserGID)),
+                    )
+                coEvery { vectorStore.fetch(listOf(rootId, replyId, descendantId)) } returns
+                    listOf(
+                        VectorStore.PostDump(
+                            rootId,
+                            "content",
+                            mapOf(
+                                AUTHOR_GID_KEY to testUserGID,
+                            ),
+                        ),
+                        VectorStore.PostDump(replyId, "reply", mapOf(ROOT_ID_KEY to rootId)),
+                        VectorStore.PostDump(descendantId, "descendant reply", mapOf(ROOT_ID_KEY to replyId)),
+                    )
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to rootId)),
+                    )
+                } returns
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = replyId,
+                                    text = "reply",
+                                    similarity = 1.0f,
+                                    fields = mapOf(ROOT_ID_KEY to rootId),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to replyId)),
+                    )
+                } returns
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = descendantId,
+                                    text = "descendant reply",
+                                    similarity = 1.0f,
+                                    fields = mapOf(ROOT_ID_KEY to replyId),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to descendantId)),
+                    )
+                } returns VectorStore.QueryResults(resultsPage = emptyList(), queryOnId = null)
+                coEvery {
+                    vectorStore.fetch(listOf(rootId, replyId, descendantId))
+                } returns
+                    listOf(
+                        VectorStore.PostDump(rootId, "content", mapOf(AUTHOR_GID_KEY to testUserGID)),
+                        VectorStore.PostDump(replyId, "reply", mapOf(ROOT_ID_KEY to rootId)),
+                        VectorStore.PostDump(descendantId, "descendant reply", mapOf(ROOT_ID_KEY to replyId)),
+                    )
+                setupWriteAccess()
+
+                val deletedIds = sut.delete(testUserGID, rootId)
+
+                coVerify { transaction.remove(rootId) }
+                coVerify { transaction.remove(replyId) }
+                coVerify { transaction.remove(descendantId) }
+                assertEquals(listOf(rootId, replyId, descendantId), deletedIds)
+            }
+
+        @Test
+        fun `stops when reply graph cycles back to a visited post`() =
+            runTest {
+                val rootId = "post-1"
+                val replyId = "reply-1"
+                val descendantId = "reply-2"
+                coEvery { vectorStore.fetch(listOf(rootId)) } returns
+                    listOf(
+                        VectorStore.PostDump(rootId, "content", mapOf(AUTHOR_GID_KEY to testUserGID)),
+                    )
+                coEvery { vectorStore.fetch(listOf(rootId, replyId, descendantId)) } returns
+                    listOf(
+                        VectorStore.PostDump(rootId, "content", mapOf(AUTHOR_GID_KEY to testUserGID)),
+                        VectorStore.PostDump(replyId, "reply", mapOf(ROOT_ID_KEY to rootId)),
+                        VectorStore.PostDump(descendantId, "descendant reply", mapOf(ROOT_ID_KEY to replyId)),
+                    )
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to rootId)),
+                    )
+                } returns
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = replyId,
+                                    text = "reply",
+                                    similarity = 1.0f,
+                                    fields = mapOf(ROOT_ID_KEY to rootId),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to replyId)),
+                    )
+                } returns
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = descendantId,
+                                    text = "descendant reply",
+                                    similarity = 1.0f,
+                                    fields = mapOf(ROOT_ID_KEY to replyId),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to descendantId)),
+                    )
+                } returns
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = replyId,
+                                    text = "reply",
+                                    similarity = 1.0f,
+                                    fields = mapOf(ROOT_ID_KEY to descendantId),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                setupWriteAccess()
+
+                val deletedIds = sut.delete(testUserGID, rootId)
+
+                coVerify(exactly = 1) { vectorStore.query(Query(fields = mapOf(ROOT_ID_KEY to rootId))) }
+                coVerify(exactly = 1) { vectorStore.query(Query(fields = mapOf(ROOT_ID_KEY to replyId))) }
+                coVerify(exactly = 1) { vectorStore.query(Query(fields = mapOf(ROOT_ID_KEY to descendantId))) }
+                coVerify { transaction.remove(rootId) }
+                coVerify { transaction.remove(replyId) }
+                coVerify { transaction.remove(descendantId) }
+                assertEquals(listOf(rootId, replyId, descendantId), deletedIds)
+            }
+
+        @Test
+        fun `preserves original delete failure when rollback restore also fails`() =
+            runTest {
+                val rootId = "post-1"
+                coEvery { vectorStore.fetch(listOf(rootId)) } returns
+                    listOf(
+                        VectorStore.PostDump(rootId, "content", mapOf(AUTHOR_GID_KEY to testUserGID)),
+                    )
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to rootId)),
+                    )
+                } returns VectorStore.QueryResults(resultsPage = emptyList(), queryOnId = null)
+                coEvery { embeddingService.embed(any()) } throws IllegalStateException("restore failed")
+                val failingVectorStore =
+                    object : VectorStore by vectorStore {
+                        override suspend fun writeAccess(transactionBlock: suspend VectorStore.Transaction.() -> Unit) {
+                            transactionBlock(
+                                object : VectorStore.Transaction by transaction {
+                                    override suspend fun remove(id: String): Unit = throw RuntimeException("delete failed")
+                                },
+                            )
+                        }
+                    }
+                val service =
+                    ContentService(
+                        embeddingService = embeddingService,
+                        vectorStore = failingVectorStore,
+                        hasherFactory = hasherFactory,
+                        maxFetchItems = maxFetchItems,
+                        replyIdFactory = { "reply-id" },
+                        isAdmin = { false },
+                        postComplaintStore = postComplaintStore,
+                    )
+                val exception =
+                    assertFailsWith<RuntimeException> {
+                        service.delete(testUserGID, rootId)
+                    }
+
+                assertEquals("delete failed", exception.message)
+                assertEquals(1, exception.suppressed.size)
+                assertEquals("restore failed", exception.suppressed.single().message)
             }
     }
 
@@ -1492,7 +1817,7 @@ class ContentServiceTest {
                                     fields = mapOf(AUTHOR_GID_KEY to testUserGID, ROOT_ID_KEY to "post-1"),
                                 ),
                             ),
-                        queryOnId = null,
+                        queryOnId = testQueryOnId,
                     )
                 val secondPage =
                     VectorStore.QueryResults(
@@ -1516,7 +1841,10 @@ class ContentServiceTest {
                     vectorStore.query(
                         Query(fields = mapOf(AUTHOR_GID_KEY to testUserGID)),
                     )
-                } returnsMany listOf(firstPage, secondPage, emptyPage)
+                } returns firstPage
+                coEvery {
+                    vectorStore.queryOn(testQueryOnId)
+                } returnsMany listOf(secondPage, emptyPage)
                 val repliesPage =
                     VectorStore.QueryResults(
                         resultsPage =
@@ -1537,7 +1865,36 @@ class ContentServiceTest {
                 } returnsMany listOf(repliesPage, emptyPage)
                 coEvery {
                     vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to "post-2")),
+                    )
+                } returns emptyPage
+                coEvery {
+                    vectorStore.query(
                         Query(fields = mapOf(ROOT_ID_KEY to "reply-1")),
+                    )
+                } returns emptyPage
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to "reply-2")),
+                    )
+                } returns emptyPage
+                coEvery {
+                    vectorStore.fetch(listOf("post-1", "post-2", "reply-2", "reply-1"))
+                } returns
+                    listOf(
+                        VectorStore.PostDump("post-1", "text-1", mapOf(AUTHOR_GID_KEY to testUserGID)),
+                        VectorStore.PostDump("post-2", "text-2", mapOf(AUTHOR_GID_KEY to testUserGID, ROOT_ID_KEY to "post-1")),
+                        VectorStore.PostDump("reply-2", "text-4", mapOf(ROOT_ID_KEY to "post-1")),
+                        VectorStore.PostDump("reply-1", "text-3", mapOf(AUTHOR_GID_KEY to testUserGID)),
+                    )
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to "reply-3")),
+                    )
+                } returns emptyPage
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to "reply-2")),
                     )
                 } returns emptyPage
                 setupWriteAccess()
@@ -1549,6 +1906,166 @@ class ContentServiceTest {
                 coVerify { transaction.remove("reply-1") }
                 coVerify { transaction.remove("reply-2") }
                 assertEquals(listOf("post-1", "post-2", "reply-2", "reply-1"), deletedIds)
+            }
+
+        @Test
+        fun `removes descendants of user replies when deleting all content for user`() =
+            runTest {
+                val rootId = "post-1"
+                val userReplyId = "reply-1"
+                val foreignReplyId = "reply-2"
+                val firstPage =
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = rootId,
+                                    text = "root",
+                                    similarity = 1.0f,
+                                    fields = mapOf(AUTHOR_GID_KEY to testUserGID),
+                                ),
+                                VectorStore.QueryResult(
+                                    id = userReplyId,
+                                    text = "user reply",
+                                    similarity = 1.0f,
+                                    fields = mapOf(AUTHOR_GID_KEY to testUserGID, ROOT_ID_KEY to rootId),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                val rootReplies =
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = foreignReplyId,
+                                    text = "foreign reply",
+                                    similarity = 1.0f,
+                                    fields = mapOf(ROOT_ID_KEY to rootId),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                val userReplyReplies =
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = "reply-3",
+                                    text = "reply to user reply",
+                                    similarity = 1.0f,
+                                    fields = mapOf(ROOT_ID_KEY to userReplyId),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                val emptyPage = VectorStore.QueryResults(resultsPage = emptyList(), queryOnId = null)
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(AUTHOR_GID_KEY to testUserGID)),
+                    )
+                } returns firstPage
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to rootId)),
+                    )
+                } returnsMany listOf(rootReplies, emptyPage)
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to userReplyId)),
+                    )
+                } returns userReplyReplies
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to "reply-3")),
+                    )
+                } returns emptyPage
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to foreignReplyId)),
+                    )
+                } returns emptyPage
+                coEvery {
+                    vectorStore.fetch(listOf(rootId, userReplyId, foreignReplyId, "reply-3"))
+                } returns
+                    listOf(
+                        VectorStore.PostDump(rootId, "root", mapOf(AUTHOR_GID_KEY to testUserGID)),
+                        VectorStore.PostDump(userReplyId, "user reply", mapOf(AUTHOR_GID_KEY to testUserGID, ROOT_ID_KEY to rootId)),
+                        VectorStore.PostDump(foreignReplyId, "foreign reply", mapOf(ROOT_ID_KEY to rootId)),
+                        VectorStore.PostDump("reply-3", "reply to user reply", mapOf(ROOT_ID_KEY to userReplyId)),
+                    )
+                setupWriteAccess()
+
+                val deletedIds = sut.deleteAllForUser(testUserGID)
+
+                coVerify { transaction.remove(rootId) }
+                coVerify { transaction.remove(userReplyId) }
+                coVerify { transaction.remove(foreignReplyId) }
+                coVerify { transaction.remove("reply-3") }
+                assertEquals(listOf(rootId, userReplyId, foreignReplyId, "reply-3"), deletedIds)
+            }
+
+        @Test
+        fun `preserves original delete failure when rollback restore also fails`() =
+            runTest {
+                val postId = "post-1"
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(AUTHOR_GID_KEY to testUserGID)),
+                    )
+                } returns
+                    VectorStore.QueryResults(
+                        resultsPage =
+                            listOf(
+                                VectorStore.QueryResult(
+                                    id = postId,
+                                    text = "content",
+                                    similarity = 1.0f,
+                                    fields = mapOf(AUTHOR_GID_KEY to testUserGID),
+                                ),
+                            ),
+                        queryOnId = null,
+                    )
+                coEvery { vectorStore.fetch(listOf(postId)) } returns
+                    listOf(
+                        VectorStore.PostDump(postId, "content", mapOf(AUTHOR_GID_KEY to testUserGID)),
+                    )
+                coEvery {
+                    vectorStore.query(
+                        Query(fields = mapOf(ROOT_ID_KEY to postId)),
+                    )
+                } returns VectorStore.QueryResults(resultsPage = emptyList(), queryOnId = null)
+                coEvery { postComplaintStore.loadForPost(postId) } returns emptyList()
+                val failingVectorStore =
+                    object : VectorStore by vectorStore {
+                        override suspend fun writeAccess(transactionBlock: suspend VectorStore.Transaction.() -> Unit) {
+                            transactionBlock(
+                                object : VectorStore.Transaction by transaction {
+                                    override suspend fun remove(id: String): Unit = throw RuntimeException("delete failed")
+                                },
+                            )
+                        }
+                    }
+                val service =
+                    ContentService(
+                        embeddingService = embeddingService,
+                        vectorStore = failingVectorStore,
+                        hasherFactory = hasherFactory,
+                        maxFetchItems = maxFetchItems,
+                        replyIdFactory = { "reply-id" },
+                        isAdmin = { false },
+                        postComplaintStore = postComplaintStore,
+                    )
+                coEvery { embeddingService.embed(any()) } throws IllegalStateException("restore failed")
+
+                val exception =
+                    assertFailsWith<RuntimeException> {
+                        service.deleteAllForUser(testUserGID)
+                    }
+
+                assertEquals("delete failed", exception.message)
+                assertEquals(1, exception.suppressed.size)
+                assertEquals("restore failed", exception.suppressed.single().message)
             }
     }
 

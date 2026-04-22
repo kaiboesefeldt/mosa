@@ -785,8 +785,9 @@ class PostComplaintIntegrationTest {
                         2,
                         otherIdentity.keyPair.public.toBase64(),
                     )
-                fixture.createComplaint(otherIdentity, deletedReplyId, "Targeted complaint")
+                fixture.createComplaint(otherIdentity, rootPostId, "Targeted complaint")
                 fixture.adminGids += deletedIdentity.gid
+                every { fixture.contentComplaintStore.deleteForPost(rootPostId) } throws IllegalStateException("complaint delete failed")
 
                 fixture.env {
                     val deleteResponse =
@@ -812,6 +813,14 @@ class PostComplaintIntegrationTest {
                                         storedAt = 1,
                                         rootId = null,
                                         authorPublicKey = deletedIdentity.keyPair.public.toBase64(),
+                                    ),
+                                    FetchResult.Entry(
+                                        id = deletedReplyId,
+                                        content = "Foreign reply",
+                                        authorGID = otherIdentity.gid,
+                                        storedAt = 2,
+                                        rootId = rootPostId,
+                                        authorPublicKey = otherIdentity.keyPair.public.toBase64(),
                                     ),
                                 ),
                         ),
@@ -903,6 +912,7 @@ class PostComplaintIntegrationTest {
         private val directory = Files.createTempDirectory("post-complaint-integration")
         private val dbPath = directory.resolve("mosa_db.sqlite")
         private val database = StructuredStateDatabase(dbPath)
+        val contentComplaintStore: PostComplaintStore = mockk(relaxed = true)
         private var complaintStoreFactory: (straightway.mosa.structuredstate.StructuredStateContext) -> PostComplaintStore =
             { context -> SqlitePostComplaintStore(context) }
         private val embeddingService = mockk<EmbeddingService>()
@@ -914,7 +924,7 @@ class PostComplaintIntegrationTest {
                 hasherFactory = hasherFactory,
                 maxFetchItems = 100,
                 isAdmin = { gid -> adminGids.contains(gid) },
-                postComplaintStore = mockk(relaxed = true),
+                postComplaintStore = contentComplaintStore,
             )
         val adminMessageService =
             AdminMessageService(

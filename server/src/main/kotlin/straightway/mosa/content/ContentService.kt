@@ -25,7 +25,7 @@ class ContentService(
     postComplaintStore: PostComplaintStore,
 ) {
     private val readService = ContentReadService(embeddingService, vectorStore, maxFetchItems)
-    private val deleteService = ContentDeleteService(vectorStore, postComplaintStore, isAdmin)
+    private val deleteService = ContentDeleteService(embeddingService, vectorStore, postComplaintStore, isAdmin)
     private val csvExportService = ContentCsvExportService(vectorStore)
 
     suspend fun publish(
