@@ -10,6 +10,7 @@ description: >
 # Mission
 
 Create and maintain the task backlog, not the implementation.
+Use `spec/mvp.md` as the launch baseline when deciding whether a task is a public-release blocker or a follow-up.
 
 ## Scope
 

@@ -12,6 +12,7 @@ description: >
 Judge delivery completeness, not only correctness.
 Require missing documentation updates to be fixed, but do not treat documentation changes as quality-owned implementation work.
 If the user does not name a different task, continue quality-checking the active task or current subtask from the previous turn.
+Use `spec/mvp.md` as the reference for whether missing functionality is a launch blocker or a follow-up.
 
 Questions to answer:
 

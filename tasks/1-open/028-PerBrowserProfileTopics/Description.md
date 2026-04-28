@@ -1,27 +1,34 @@
-Jedes Nutzer-Profil in einem Browser soll seinen eigenen Satz an Topics haben.
+## Problem
 
-Aktuell ist davon auszugehen, dass Topics im Browser mindestens teilweise global pro Browserzustand gehalten werden und dadurch zwischen verschiedenen lokalen Nutzer-Profilen vermischt werden koennen. Das fuehrt dazu, dass ein Profil Topics sieht oder weiterverwendet, die eigentlich zu einem anderen Profil im selben Browser gehoeren.
+Browser-local topic state can leak between local identities in the same browser.
+This can cause one identity to see, reuse, or overwrite topics that belong to a
+different identity.
 
-Ziel ist eine klare Trennung des Topic-Satzes pro Nutzer-Profil innerhalb desselben Browsers. Wenn in einem Browser mehrere lokale Profile verwendet werden, muss jedes Profil nur seine eigenen Topics sehen, verwalten und wiederfinden.
+## Goal
 
-Die Aufgabe umfasst mindestens diese Punkte:
+Ensure that each identity has its own browser state for topics, including its
+own topic list, so switching identities does not mix their local topic data.
 
-- Topics werden im Client-Zustand und in browserseitiger Persistenz pro Nutzer-Profil getrennt gehalten.
-- Ein Profilwechsel im selben Browser zeigt nur den zu diesem Profil gehoerenden Topic-Satz.
-- Aktionen auf Topics eines Profils wirken sich nicht auf Topics anderer Profile im selben Browser aus.
-- Die Trennung gilt auch nach Reload oder Neustart des Browsers weiter, soweit Topics bereits browserseitig persistiert werden.
-- Bestehende Flows fuer Topic-Anzeige, Topic-Auswahl und topic-bezogene Navigation bleiben funktional konsistent.
+Also assess whether any other browser-local identity properties should be
+scoped per identity for the same reason.
 
-Akzeptanzkriterien:
+## Constraints
 
-- Wenn zwei verschiedene Nutzer-Profile im selben Browser verwendet werden, hat jedes Profil einen eigenen Topic-Bestand.
-- Ein in Profil A sichtbares oder angelegtes Topic erscheint nicht allein durch die gemeinsame Browser-Instanz in Profil B.
-- Nach einem Reload bleibt die Zuordnung der Topics zum jeweiligen Profil erhalten.
-- Der Wechsel zwischen Profilen fuehrt nicht zu Vermischung, Ueberschreiben oder Verlust des Topic-Satzes eines anderen Profils.
+- Topic state must be separated per identity in client state and browser
+  persistence.
+- Switching identities in the same browser must show only the topic data for
+  the active identity.
+- Actions on one identity's topics must not affect another identity's topics in
+  the same browser.
+- The separation must survive browser reload or restart where topic data is
+  already persisted locally.
+- Existing topic display, selection, and navigation flows must remain coherent.
 
-Bei der Umsetzung ist insbesondere zu klaeren:
+## Expected Outcome
 
-- Woran ein lokales Nutzer-Profil im Client eindeutig identifiziert wird.
-- Welche bestehenden Topic-Daten aktuell global im Browser gespeichert oder gecacht werden.
-- Ob und wie vorhandene global gespeicherte Topic-Daten in eine profilgebundene Struktur migriert werden muessen.
-- Wie mit Alt-Daten umgegangen wird, wenn sich ein Profil nicht eindeutig rekonstruieren laesst.
+- Each identity in the same browser has its own topic list.
+- A topic created or visible in one identity does not appear in another
+  identity just because the browser instance is shared.
+- Topic identity separation survives reloads.
+- Any additional browser-local identity-specific properties that should be
+  separated are identified clearly enough for follow-up work if needed.

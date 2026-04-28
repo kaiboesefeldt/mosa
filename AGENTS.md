@@ -24,6 +24,7 @@ Keep this file short. Only stable, repo-wide rules belong here.
 - `AGENTS.md` files may exist in multiple directories.
 - Task coordination documents belong in the current task folder.
 - Project documentation belongs in `spec/` unless it is task-specific.
+- `spec/mvp.md` is the launch-scope baseline for public-release decisions.
 - Help texts and serveable reference docs belong under repository resources, including `server/src/main/resources/doc/serve` and `server/src/main/resources/clearterms`.
 - Complete repository-wide search is a last resort only.
 - Prefer the narrowest path that can contain the document before scanning the whole project.
@@ -40,6 +41,7 @@ current_task=$(printf '%s\n' "$tasks" | sed '/^$/d')
 ## Architecture And Security
 
 - Top-level architecture lives in `spec/Architecture.md`.
+- Launch scope lives in `spec/mvp.md`.
 - Ed25519 signing uses transient keys unless explicitly persisted.
 - Certificates are URL-safe Base64 encoded and time-limited.
 - Never commit secrets, credential material, or large model artifacts unintentionally.

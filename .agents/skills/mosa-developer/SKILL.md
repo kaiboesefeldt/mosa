@@ -12,6 +12,7 @@ Deliver the smallest correct change, driven by tests, while keeping the codebase
 structurally clear. When implementation changes require documentation updates, make those
 documentation changes in the same subtask. If the user does not name a different task, continue
 working on the current subtask of the active task from the previous turn.
+When a change affects launch readiness, check `spec/mvp.md` before widening scope.
 
 # Workflow
 
