@@ -23,76 +23,82 @@ access can remain a follow-up.
 This is a broader launch checklist, intentionally independent from the current
 task backlog. Use it to spot missing tasks or missing acceptance criteria.
 
+Status legend:
+
+- `done` = `✅`
+- `partial` = `🟡`
+- `open` = `🔴`
+
 ### Identity and Session
 
-- A user can create or load a local identity.
-- Identity state survives browser restart.
-- The active identity can be switched without corrupting other local profiles.
+- A user can create or load a local identity. Status: done ✅.
+- Identity state survives browser restart. Status: done ✅.
+- The active identity can be switched without corrupting other local profiles. Status: done ✅.
 - Browser-local data is separated per identity where the product stores user
-  state locally.
-- The client can re-establish a valid authenticated session with the pod.
+  state locally. Status: partial 🟡.
+- The client can re-establish a valid authenticated session with the pod. Status: done ✅.
 
 ### Pod Access
 
-- The client can connect to a configured pod and keep that connection usable.
-- Authentication and certificate flows are understandable to users.
+- The client can connect to a configured pod and keep that connection usable. Status: done ✅.
+- Authentication and certificate flows are understandable to users. Status: partial 🟡.
 - A pod can reject access cleanly when a session, identity, or certificate is
-  no longer valid.
+  no longer valid. Status: done ✅.
 - Public launch should not require manual operator intervention for normal
-  session refresh or reconnection.
+  session refresh or reconnection. Status: done ✅.
 
 ### Core Content Loop
 
-- Users can publish content.
-- Users can reply to content.
+- Users can publish content. Status: done ✅.
+- Users can reply to content. Status: done ✅.
 - Users can read content they published or received through search and fetch
-  flows.
-- Users can find content through semantic or topic-oriented search.
-- Users can delete their own content where the product promises that behavior.
+  flows. Status: done ✅.
+- Users can find content through semantic or topic-oriented search. Status: done ✅.
+- Users can delete their own content where the product promises that behavior. Status: done ✅.
 - Content signatures and content verification remain consistent across client
-  and server.
+  and server. Status: done ✅.
 
 ### Moderation and Safety
 
-- Users can report problematic content.
-- Admins can review reports and act on them.
+- Users can report problematic content. Status: done ✅.
+- Admins can review reports and act on them. Status: done ✅.
 - Admins can block, unblock, and delete identities where the product exposes
-  those actions.
+  those actions. Status: done ✅.
 - Admin communication to users is available for moderation outcomes and other
-  relevant operational messages.
-- Moderation-related state remains consistent across deletion and freeze flows.
+  relevant operational messages. Status: done ✅.
+- Moderation-related state remains consistent across deletion and freeze flows. Status: done ✅.
 - The public product has a clear answer for what happens to misuse, spam, and
-  operator mistakes.
+  operator mistakes. Status: partial 🟡.
 
 ### Legal and Trust
 
-- Users can view the current imprint, privacy policy, and terms.
-- Legal document changes require explicit confirmation before continued use.
-- Confirmed legal versions are stored per identity and survive restart.
-- Legal PDFs are available for all public legal documents the product offers.
-- ClearTerms content can be verified with stable trust anchors.
+- Users can view the current imprint, privacy policy, and terms. Status: done ✅.
+- Legal document changes require explicit confirmation before continued use. Status: open 🔴.
+- Confirmed legal versions are stored per identity and survive restart. Status: open 🔴.
+- Legal PDFs are available for all public legal documents the product offers. Status: partial 🟡.
+- ClearTerms content can be verified with stable trust anchors. Status: open 🔴.
 
 ### Client Experience
 
-- The client shows understandable errors for common failure modes.
-- The UI remains usable on the intended supported browsers.
-- Long-lived client state does not leak between different local identities.
+- The client shows understandable errors for common failure modes. Status: open 🔴.
+- The UI remains usable on the intended supported browsers. Status: partial 🟡.
+- Long-lived client state does not leak between different local identities. Status: open 🔴.
 - The user can recover from a temporary failure without losing their place more
-  than necessary.
+  than necessary. Status: partial 🟡.
 
 ### Data Persistence and Recovery
 
-- Browser state, server state, and structured pod state persist across restart.
+- Browser state, server state, and structured pod state persist across restart. Status: done ✅.
 - The product has a clear story for backup, export, and restore of user-owned
-  data.
-- A pod restart does not silently lose normal user data.
+  data. Status: done ✅.
+- A pod restart does not silently lose normal user data. Status: done ✅.
 
 ### Operational Baseline
 
-- The pod starts and serves the client bundle reliably.
-- The pod has a documented and practical configuration path.
-- The server can degrade safely under load rather than failing unpredictably.
-- Operators can identify what is broken when a public launch issue happens.
+- The pod starts and serves the client bundle reliably. Status: done ✅.
+- The pod has a documented and practical configuration path. Status: done ✅.
+- The server can degrade safely under load rather than failing unpredictably. Status: partial 🟡.
+- Operators can identify what is broken when a public launch issue happens. Status: partial 🟡.
 
 ## Current Core Coverage
 
