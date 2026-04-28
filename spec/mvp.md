@@ -50,6 +50,8 @@ Status legend:
 ### Core Content Loop
 
 - Users can publish content. Status: done ✅.
+- Users can immediately see or reliably reach a newly published post even when
+  the previously selected topic filter would not include it. Status: open 🔴.
 - Users can reply to content. Status: done ✅.
 - Users can read content they published or received through search and fetch
   flows. Status: done ✅.
@@ -134,6 +136,10 @@ to trust and use without caveats.
 - Common failures such as `503` and `422` need explicit treatment.
 - The client must keep per-profile browser state separated where it is stored
   locally, including topic state.
+- Publishing a post must not leave the user in a selected topic view where the
+  new post appears to be lost. The current product direction is to treat topics
+  as one kind of post filter and provide a coherent "My posts" view as a safe
+  destination after publishing when the active topic would hide the new post.
 
 ### Moderation and Admin Operations
 
@@ -170,6 +176,7 @@ These items are useful, but they do not define the minimum public launch bar.
 - [028-PerBrowserProfileTopics](../tasks/1-open/028-PerBrowserProfileTopics/Description.md)
 - [039-ModerationAndAdminMessaging](../tasks/1-open/039-ModerationAndAdminMessaging/Description.md)
 - [044-LegalPdfExportForAdditionalDocuments](../tasks/1-open/044-LegalPdfExportForAdditionalDocuments/Description.md)
+- [046-NewPostsMustStayDiscoverableWithActiveTopicFilter](../tasks/1-open/046-NewPostsMustStayDiscoverableWithActiveTopicFilter/Description.md)
 
 ## Working Rule
 
