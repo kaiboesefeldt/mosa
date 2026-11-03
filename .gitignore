@@ -60,3 +60,4 @@ models
 kotlin-js-store
 *.pem
 .fx/
+tmp/**
