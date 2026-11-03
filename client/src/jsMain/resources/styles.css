@@ -2643,6 +2643,8 @@ button:disabled {
 
 .legal-dialog__content table {
     width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     margin: 0.75rem 0 1rem;
     font-size: 0.9rem;
@@ -2654,6 +2656,7 @@ button:disabled {
     border: 1px solid #d1d5db;
     text-align: left;
     vertical-align: top;
+    overflow-wrap: anywhere;
 }
 
 .legal-dialog__content th {
