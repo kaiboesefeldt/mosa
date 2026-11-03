@@ -4,6 +4,10 @@
 
 A federated social network that organizes content exclusively by **semantic topics** instead of social connections. Users follow topics (defined by text descriptions), not people. Content is discovered and clustered via embedding vectors.
 
+## Screenshot
+
+![Mosa web client showing topic filters, a feed of matching posts, and the replies panel](docs/images/mosa-screenshot.png)
+
 ## Basic Architecture
 
 ### Pods (Servers)
