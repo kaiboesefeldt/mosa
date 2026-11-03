@@ -10,7 +10,7 @@ class MarkdownToHtmlRenderer {
         fun closeParagraph() {
             if (paragraphLines.isEmpty()) return
             html.append("<p>")
-            html.append(escape(paragraphLines.joinToString(" ")))
+            html.append(renderInline(paragraphLines.joinToString(" ")))
             html.append("</p>")
             paragraphLines.clear()
         }
@@ -75,7 +75,7 @@ class MarkdownToHtmlRenderer {
                 closeList()
                 val text = line.drop(headingLevel + 1).trim()
                 html.append("<h").append(headingLevel).append('>')
-                html.append(escape(text))
+                html.append(renderInline(text))
                 html.append("</h").append(headingLevel).append('>')
                 index++
                 continue
@@ -89,7 +89,7 @@ class MarkdownToHtmlRenderer {
                     inList = true
                 }
                 html.append("<li>")
-                html.append(escape(listItem))
+                html.append(renderInline(listItem))
                 html.append("</li>")
                 index++
                 continue
@@ -134,6 +134,37 @@ class MarkdownToHtmlRenderer {
 
     private fun tableCells(line: String): List<String> =
         line.trim().removePrefix("|").removeSuffix("|").split('|').map(String::trim)
+
+    private fun renderInline(text: String): String {
+        val result = StringBuilder()
+        var offset = 0
+        while (offset < text.length) {
+            val labelStart = text.indexOf('[', offset)
+            if (labelStart < 0) break
+            val labelEnd = text.indexOf("](", labelStart + 1)
+            if (labelEnd < 0) break
+            val urlEnd = text.indexOf(')', labelEnd + 2)
+            if (urlEnd < 0) break
+
+            result.append(escape(text.substring(offset, labelStart)))
+            val label = text.substring(labelStart + 1, labelEnd)
+            val rawUrl = text.substring(labelEnd + 2, urlEnd)
+            val url = when {
+                rawUrl.startsWith("https://") || rawUrl.startsWith("http://") || rawUrl.startsWith("/") -> rawUrl
+                rawUrl.matches(Regex("[A-Za-z0-9._-]+")) -> "/licenses/$rawUrl"
+                else -> null
+            }
+            if (url == null) {
+                result.append(escape(text.substring(labelStart, urlEnd + 1)))
+            } else {
+                result.append("<a href=\"").append(escapeAttribute(url)).append("\" target=\"_blank\" rel=\"noopener noreferrer\">")
+                    .append(escape(label)).append("</a>")
+            }
+            offset = urlEnd + 1
+        }
+        result.append(escape(text.substring(offset)))
+        return result.toString()
+    }
 
     private fun escapeCode(text: String): String =
         buildString(text.length) {

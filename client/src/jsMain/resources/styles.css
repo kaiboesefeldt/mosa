@@ -2481,6 +2481,7 @@ button:disabled {
 
 .legal-dialog__header {
     position: relative;
+    z-index: 2;
     min-height: 2rem;
     padding-right: 5rem;
 }
@@ -2494,6 +2495,7 @@ button:disabled {
 
 .legal-dialog__close {
     position: absolute;
+    z-index: 1;
     top: 0;
     right: 0;
     display: inline-flex;
@@ -2568,6 +2570,8 @@ button:disabled {
     max-height: min(60vh, 640px);
     overflow-y: auto;
     min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
     padding-right: 0.9rem;
     line-height: 1.5;
 }
