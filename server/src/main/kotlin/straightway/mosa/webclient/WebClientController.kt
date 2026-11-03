@@ -71,6 +71,19 @@ class WebClientController(
             call.respondBytes(fontBytes, ContentType("font", "woff2"))
         }
 
+        getRoute("/licenses/{licensePath...}") {
+            val pathSegments = call.parameters.getAll("licensePath").orEmpty()
+            if (pathSegments.isEmpty() ||
+                pathSegments.any { it.isBlank() || it == "." || it == ".." || it.contains('/') || it.contains('\\') }
+            ) {
+                return@getRoute call.respondText("", ContentType.Text.Plain, HttpStatusCode.BadRequest)
+            }
+            val licenseResource =
+                getResourceUrl("static/licenses/${pathSegments.joinToString("/")}")
+                    ?: return@getRoute call.respondText("", ContentType.Text.Plain, HttpStatusCode.NotFound)
+            call.respondText(licenseResource.readText(), ContentType.Text.Plain)
+        }
+
         getRoute("/{assetName}") {
             val assetName =
                 call.parameters["assetName"] ?: return@getRoute call.respondText(

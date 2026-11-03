@@ -112,7 +112,7 @@ class ContentService(
         idProvider: () -> String,
     ): String {
         validateLength(request.text)
-        val embeddingVector = embeddingService.embed(request.text)
+        val embeddingVector = embeddingService.embed("passage: ${request.text}")
         val id = idProvider()
         vectorStore.writeAccess {
             add(

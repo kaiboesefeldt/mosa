@@ -22,3 +22,4 @@ sealed interface LegalDialogState {
 internal const val LEGAL_DOCUMENT_PRIVACY = "privacy"
 internal const val LEGAL_DOCUMENT_IMPRINT = "imprint"
 internal const val LEGAL_DOCUMENT_TERMS = "terms"
+internal const val LEGAL_DOCUMENT_LICENSES = "licenses"

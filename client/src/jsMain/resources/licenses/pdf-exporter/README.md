@@ -9,4 +9,4 @@ The browser PDF export includes these packages and their license texts:
 | `fflate` | 0.8.3 | MIT | `fflate-MIT.txt` |
 | `node-html-better-parser` | 1.5.9 | MIT | `node-html-better-parser-MIT.txt` |
 | `html-entities` | 2.6.0 | MIT | `html-entities-MIT.txt` |
-| `tslib` | 2.8.1 | 0BSD | `tslib-0BSD.txt` |
+| `tslib` | 2.9.1 | 0BSD | `tslib-0BSD.txt` |

@@ -67,7 +67,8 @@ class ContentServiceTest {
         )
 
     private fun setupEmbedding(text: String) {
-        coEvery { embeddingService.embed(text) } returns testEmbedding
+        coEvery { embeddingService.embed("query: $text") } returns testEmbedding
+        coEvery { embeddingService.embed("passage: $text") } returns testEmbedding
     }
 
     private fun setupVectorStore(result: VectorStore.QueryResults = createVectorStoreResults()) {
@@ -533,6 +534,7 @@ class ContentServiceTest {
 
             val result = sut.query(request)
 
+            if (needsEmbedding) coVerify { embeddingService.embed("query: ${request.topic}") }
             verifyQueryCall(expectedQuery)
             assertEquals(expectedQueryResult(), result)
         }
@@ -2095,7 +2097,7 @@ class ContentServiceTest {
                 val contentId = sut.publish(testUserGID, PublishRequest(content), TEST_TIME, "")
 
                 assertEquals("AQIDBA", contentId)
-                coVerify { embeddingService.embed(content) }
+                coVerify { embeddingService.embed("passage: $content") }
                 coVerify { hasherFactory() }
                 coVerify { messageDigest.digest(content.toByteArray(Charsets.UTF_8)) }
                 coVerify {
@@ -2179,7 +2181,7 @@ class ContentServiceTest {
                     sut.reply(testUserGID, ReplyRequest(PublishRequest(content), "root-123"), TEST_TIME, testPublicKey)
 
                 assertEquals("reply-id", contentId)
-                coVerify { embeddingService.embed(content) }
+                coVerify { embeddingService.embed("passage: $content") }
                 coVerify {
                     transaction.add(
                         id = "reply-id",

@@ -90,4 +90,32 @@ class MarkdownToHtmlRendererTest {
 
         assertEquals("<ul><li>One</li><li>Two</li></ul>", html)
     }
+
+    @Test
+    fun `renders tables and fenced license text`() {
+        val markdown =
+            """
+            | Package | License |
+            | --- | --- |
+            | example | MIT |
+
+            ```text
+            Permission granted.
+            ```
+            """.trimIndent()
+
+        val html = renderer.render(markdown)
+
+        assertEquals(
+            "<table><thead><tr><th>Package</th><th>License</th></tr></thead><tbody><tr><td>example</td><td>MIT</td></tr></tbody></table><pre><code>Permission granted.</code></pre>",
+            html,
+        )
+    }
+
+    @Test
+    fun `escapes html inside fenced license text`() {
+        val html = renderer.render("```text\n<script>alert(1)</script>\n```")
+
+        assertEquals("<pre><code>&lt;script&gt;alert(1)&lt;/script&gt;</code></pre>", html)
+    }
 }

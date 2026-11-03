@@ -112,7 +112,7 @@ internal class ContentDeleteService(
                     id = post.id,
                     text = post.text,
                     fields = post.fields,
-                    vector = embeddingService.embed(post.text),
+                    vector = embeddingService.embed("passage: ${post.text}"),
                 )
             }
         }

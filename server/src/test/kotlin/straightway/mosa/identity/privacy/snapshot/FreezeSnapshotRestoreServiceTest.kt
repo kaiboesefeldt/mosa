@@ -66,7 +66,7 @@ class FreezeSnapshotRestoreServiceTest {
                 ),
                 vectorStore.entries(),
             )
-            assertEquals(listOf("Root", "Reply", "Other reply"), embeddingService.embeddedTexts)
+            assertEquals(listOf("passage: Root", "passage: Reply", "passage: Other reply"), embeddingService.embeddedTexts)
         }
 
     @Test
@@ -410,7 +410,7 @@ class FreezeSnapshotRestoreServiceTest {
                     ),
                     restoreVectorStore.entries(),
                 )
-                assertEquals(listOf("Root", "Reply"), restoreEmbeddingService.embeddedTexts)
+                assertEquals(listOf("passage: Root", "passage: Reply"), restoreEmbeddingService.embeddedTexts)
             } finally {
                 Files.deleteIfExists(path)
                 Files.deleteIfExists(directory)

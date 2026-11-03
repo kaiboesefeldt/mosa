@@ -191,4 +191,8 @@ The pod answers with a MIS certificate for the transmitted `gid`.
 
 ## Attribution
 
-Font Awesome Free by [Fonticons, Inc.](https://fontawesome.com) is available under the [CC BY 4.0 License](https://fontawesome.com/license/free) and is bundled in the web client.
+The web client bundles [Font Awesome Free](https://fontawesome.com) by Fonticons, Inc. Its icons are licensed under CC BY 4.0, its web fonts under SIL OFL 1.1, and its code under MIT.
+
+The web client uses the DiceBear Adventurer Neutral avatar style, designed by Lisa Wischofsky and licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+The complete third-party notices are available in the running web client under **Legal → Third-party notices**. The server distribution also contains `SERVER-THIRD-PARTY-NOTICES.txt` and the original license and notice files from its runtime dependencies.

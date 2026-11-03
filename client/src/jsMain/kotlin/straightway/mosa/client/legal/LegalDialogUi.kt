@@ -67,6 +67,13 @@ internal fun ChildrenBuilder.legalDialogOverlay(
                         loadingText = translator.translate("legal.terms.loading"),
                     )
 
+                LEGAL_DOCUMENT_LICENSES ->
+                    staticDialogContent(
+                        state = legalDocumentState,
+                        contentRef = legalDocumentContentRef,
+                        loadingText = translator.translate("legal.licenses.loading"),
+                    )
+
                 else ->
                     staticDialogContent(
                         state = legalDocumentState,

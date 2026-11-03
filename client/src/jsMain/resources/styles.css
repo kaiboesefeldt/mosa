@@ -2641,6 +2641,35 @@ button:disabled {
     margin: 0.2rem 0;
 }
 
+.legal-dialog__content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75rem 0 1rem;
+    font-size: 0.9rem;
+}
+
+.legal-dialog__content th,
+.legal-dialog__content td {
+    padding: 0.35rem 0.5rem;
+    border: 1px solid #d1d5db;
+    text-align: left;
+    vertical-align: top;
+}
+
+.legal-dialog__content th {
+    background: #f3f4f6;
+}
+
+.legal-dialog__content pre {
+    max-width: 100%;
+    overflow-x: auto;
+    padding: 0.75rem;
+    background: #f3f4f6;
+    border-radius: 0.35rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
 .legal-ct-bg-yellow {
     color: #78350f;
     background-color: #fef3c7;

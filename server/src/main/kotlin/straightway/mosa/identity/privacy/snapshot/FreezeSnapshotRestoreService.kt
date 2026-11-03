@@ -81,7 +81,7 @@ class FreezeSnapshotRestoreService(
                         put(RECEIVED_AT_KEY, record.storedAt.toString())
                         record.rootId?.let { put(ROOT_ID_KEY, it) }
                     },
-                vector = embeddingService.embed(record.text),
+                vector = embeddingService.embed("passage: ${record.text}"),
             )
         }
 

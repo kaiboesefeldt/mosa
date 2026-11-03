@@ -1,9 +1,11 @@
 package straightway.mosa.client
 
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.await
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.browser.window
 import org.koin.core.context.GlobalContext
 import kotlin.js.unsafeCast
 import kotlin.js.console
@@ -22,12 +24,15 @@ import react.useState
 import straightway.mosa.client.assets.LogoResources
 import straightway.mosa.client.i18n.Translator
 import straightway.mosa.client.legal.LEGAL_DOCUMENT_IMPRINT
+import straightway.mosa.client.legal.LEGAL_DOCUMENT_LICENSES
 import straightway.mosa.client.legal.LEGAL_DOCUMENT_PRIVACY
 import straightway.mosa.client.legal.LEGAL_DOCUMENT_TERMS
 import straightway.mosa.client.legal.LegalComparisonSelection
 import straightway.mosa.client.legal.LegalDialogState
 import straightway.mosa.client.legal.LegalImprintService
 import straightway.mosa.client.legal.LegalPrivacyPolicyService
+import straightway.mosa.client.legal.LegalPrivacyPolicyDocument
+import straightway.mosa.client.legal.MarkdownToHtmlRenderer
 import straightway.mosa.client.legal.LegalRailMarker
 import straightway.mosa.client.legal.LegalViewportIndicator
 import straightway.mosa.client.legal.downloadLegalPdf
@@ -60,6 +65,7 @@ internal val IdentityApp = FC<Props> {
             LEGAL_DOCUMENT_PRIVACY -> appTranslator.translate("legal.privacy.label")
             LEGAL_DOCUMENT_IMPRINT -> appTranslator.translate("legal.imprint.label")
             LEGAL_DOCUMENT_TERMS -> appTranslator.translate("legal.terms.label")
+            LEGAL_DOCUMENT_LICENSES -> appTranslator.translate("legal.licenses.label")
             else -> null
         }
     val legalDialogTitle =
@@ -67,6 +73,7 @@ internal val IdentityApp = FC<Props> {
             LEGAL_DOCUMENT_PRIVACY -> activeDocumentTitle
             LEGAL_DOCUMENT_IMPRINT -> activeDocumentTitle
             LEGAL_DOCUMENT_TERMS -> activeDocumentTitle
+            LEGAL_DOCUMENT_LICENSES -> activeDocumentTitle
             else -> null
         }
 
@@ -75,6 +82,7 @@ internal val IdentityApp = FC<Props> {
             activeLegalDocument != LEGAL_DOCUMENT_PRIVACY &&
             activeLegalDocument != LEGAL_DOCUMENT_IMPRINT &&
             activeLegalDocument != LEGAL_DOCUMENT_TERMS
+            && activeLegalDocument != LEGAL_DOCUMENT_LICENSES
         ) {
             legalDocumentState = LegalDialogState.Idle
             isLegalPdfDownloading = false
@@ -100,6 +108,14 @@ internal val IdentityApp = FC<Props> {
                         LEGAL_DOCUMENT_PRIVACY -> legalPrivacyPolicyService.loadPrivacyPolicyDocument()
                         LEGAL_DOCUMENT_IMPRINT -> legalImprintService.loadImprintDocument()
                         LEGAL_DOCUMENT_TERMS -> legalPrivacyPolicyService.loadTermsDocument()
+                        LEGAL_DOCUMENT_LICENSES -> {
+                            val response = window.fetch("/licenses/THIRD-PARTY-NOTICES.md").await()
+                            check(response.ok) { "Failed to load third-party notices: ${response.status}" }
+                            LegalPrivacyPolicyDocument(
+                                html = MarkdownToHtmlRenderer().render(response.text().await()),
+                                uncriticalTextByBlockId = emptyMap(),
+                            )
+                        }
                         else -> error("Unsupported legal document: $activeLegalDocument")
                     }
                 }
@@ -116,6 +132,7 @@ internal val IdentityApp = FC<Props> {
                         when (activeLegalDocument) {
                             LEGAL_DOCUMENT_IMPRINT -> "legal.imprint.load.error"
                             LEGAL_DOCUMENT_TERMS -> "legal.terms.load.error"
+                            LEGAL_DOCUMENT_LICENSES -> "legal.licenses.load.error"
                             else -> "legal.privacy.load.error"
                         }
                     legalDocumentState = LegalDialogState.Error(appTranslator.translate(messageKey))
@@ -222,6 +239,15 @@ internal val IdentityApp = FC<Props> {
                             isLegalMenuVisible = false
                         }
                         +appTranslator.translate("legal.terms.label")
+                    }
+                    a {
+                        href = "#legal-licenses"
+                        onClick = { event ->
+                            event.preventDefault()
+                            activeLegalDocument = LEGAL_DOCUMENT_LICENSES
+                            isLegalMenuVisible = false
+                        }
+                        +appTranslator.translate("legal.licenses.label")
                     }
                 }
             }

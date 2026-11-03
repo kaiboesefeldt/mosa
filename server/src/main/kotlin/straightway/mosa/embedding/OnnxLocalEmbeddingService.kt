@@ -35,7 +35,7 @@ class OnnxLocalEmbeddingService private constructor(
     }
 
     companion object {
-        const val DEFAULT_MODEL_URL = "djl://ai.djl.huggingface.rust/efederici/multilingual-e5-small-4096"
+        const val DEFAULT_MODEL_URL = "djl://ai.djl.huggingface.rust/intfloat/multilingual-e5-small"
 
         var embeddingServiceFactory: Factory? = null
 

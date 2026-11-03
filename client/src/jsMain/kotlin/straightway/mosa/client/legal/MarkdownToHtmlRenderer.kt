@@ -21,12 +21,52 @@ class MarkdownToHtmlRenderer {
             inList = false
         }
 
-        lines.forEach { rawLine ->
-            val line = rawLine.trimEnd()
+        var index = 0
+        while (index < lines.size) {
+            val line = lines[index].trimEnd()
+
+            if (line.startsWith("```")) {
+                closeParagraph()
+                closeList()
+                index++
+                val codeLines = mutableListOf<String>()
+                while (index < lines.size && !lines[index].trimStart().startsWith("```")) {
+                    codeLines += lines[index]
+                    index++
+                }
+                if (index < lines.size) index++
+                html.append("<pre><code>")
+                html.append(escapeCode(codeLines.joinToString("\n")))
+                html.append("</code></pre>")
+                continue
+            }
+
+            if (isTableStart(lines, index)) {
+                closeParagraph()
+                closeList()
+                html.append("<table><thead><tr>")
+                tableCells(line).forEach { cell ->
+                    html.append("<th>").append(escape(cell)).append("</th>")
+                }
+                html.append("</tr></thead><tbody>")
+                index += 2
+                while (index < lines.size && lines[index].trim().startsWith("|")) {
+                    html.append("<tr>")
+                    tableCells(lines[index]).forEach { cell ->
+                        html.append("<td>").append(escape(cell)).append("</td>")
+                    }
+                    html.append("</tr>")
+                    index++
+                }
+                html.append("</tbody></table>")
+                continue
+            }
+
             if (line.isBlank()) {
                 closeParagraph()
                 closeList()
-                return@forEach
+                index++
+                continue
             }
 
             val headingLevel = headingLevel(line)
@@ -37,7 +77,8 @@ class MarkdownToHtmlRenderer {
                 html.append("<h").append(headingLevel).append('>')
                 html.append(escape(text))
                 html.append("</h").append(headingLevel).append('>')
-                return@forEach
+                index++
+                continue
             }
 
             val listItem = listItemContent(line)
@@ -50,11 +91,13 @@ class MarkdownToHtmlRenderer {
                 html.append("<li>")
                 html.append(escape(listItem))
                 html.append("</li>")
-                return@forEach
+                index++
+                continue
             }
 
             closeList()
             paragraphLines += line.trim()
+            index++
         }
 
         closeParagraph()
@@ -77,6 +120,36 @@ class MarkdownToHtmlRenderer {
         if (!(trimmed.startsWith("- ") || trimmed.startsWith("* "))) return null
         return trimmed.drop(2).trim()
     }
+
+    private fun isTableStart(
+        lines: List<String>,
+        index: Int,
+    ): Boolean =
+        index + 1 < lines.size &&
+            lines[index].trim().startsWith("|") &&
+            lines[index + 1].trim().startsWith("|") &&
+            lines[index + 1].trim().removePrefix("|").removeSuffix("|").split('|').all { cell ->
+                cell.trim().isNotEmpty() && cell.trim().all { it == '-' || it == ':' }
+            }
+
+    private fun tableCells(line: String): List<String> =
+        line.trim().removePrefix("|").removeSuffix("|").split('|').map(String::trim)
+
+    private fun escapeCode(text: String): String =
+        buildString(text.length) {
+            text.forEach { char ->
+                append(
+                    when (char) {
+                        '&' -> "&amp;"
+                        '<' -> "&lt;"
+                        '>' -> "&gt;"
+                        '"' -> "&quot;"
+                        '\'' -> "&#39;"
+                        else -> char
+                    },
+                )
+            }
+        }
 
     private fun escape(text: String): String =
         buildString {

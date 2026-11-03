@@ -19,7 +19,7 @@ internal class ContentReadService(
 ) {
     suspend fun query(request: QueryRequest): QueryResult {
         if (request == QueryRequest()) throw BadRequestException("no search criteria")
-        val topicEmbedding = request.topic?.let { embeddingService.embed(it) }
+        val topicEmbedding = request.topic?.let { embeddingService.embed("query: $it") }
         val queryResults =
             vectorStore.query(
                 VectorStore.Query(
