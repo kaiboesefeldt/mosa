@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.3.20"
-ktor = "3.4.3"
-ktor-js = "3.3.3"
+ktor = "3.6.1"
+ktor-js = "3.6.1"
 koin = "4.1.1"
 jackson = "2.21.8"
 logback = "1.5.38"

@@ -82,8 +82,8 @@ fun Application.installNetworkServerPlugins() {
                 call.respond(HttpStatusCode.BadRequest, mapOf("message" to cause.message))
             }
         }
-        exception<PayloadTooLargeException> { call, _ ->
-            call.respond(HttpStatusCode.PayloadTooLarge)
+        exception<PayloadTooLargeException> { call, cause ->
+            call.respond(HttpStatusCode.PayloadTooLarge, mapOf("message" to cause.message))
         }
     }
     install(ContentNegotiation) {

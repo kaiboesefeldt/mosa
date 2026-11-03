@@ -227,11 +227,11 @@ class StaticAdminMessageIdentityRepository(
 class RecordingAdminMessageLogger : Logger {
     override fun warn(
         message: String,
-        cause: Throwable?,
+        throwable: Throwable?,
     ) = Unit
 
     override fun error(
         message: String,
-        cause: Throwable?,
+        throwable: Throwable?,
     ) = Unit
 }
