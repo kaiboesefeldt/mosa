@@ -5,6 +5,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.browser.document
+import kotlinx.coroutines.test.runTest
+import kotlin.js.Promise
 import kotlin.js.unsafeCast
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLDivElement
@@ -168,30 +170,23 @@ class LegalPdfExporterTest {
     }
 
     @Test
-    fun `save canvas as pdf clears temporary canvases when pdf export fails`() {
+    fun `save canvas as pdf clears temporary canvases when pdf export fails`() = runTest {
         val canvas = document.createElement("canvas") as HTMLCanvasElement
         canvas.width = 120
         canvas.height = 4
 
         val sliceCanvas = document.createElement("canvas") as HTMLCanvasElement
         val pdf = js("{}").unsafeCast<dynamic>()
-        pdf.internal = js("{}")
-        pdf.internal.pageSize = js("{}")
-        pdf.internal.pageSize.getWidth = { _: dynamic -> 500.0 }
-        pdf.internal.pageSize.getHeight = { _: dynamic -> 700.0 }
-        pdf.addPage = { _: dynamic -> Unit }
-        pdf.addImage = { _: dynamic, _: dynamic, _: dynamic, _: dynamic, _: dynamic, _: dynamic, _: dynamic, _: dynamic ->
+        val page = js("{}").unsafeCast<dynamic>()
+        pdf.embedFont = { _: dynamic -> Promise.resolve<dynamic>(js("{}")) }
+        pdf.embedPng = { _: dynamic -> Promise.resolve<dynamic>(js("{}")) }
+        pdf.addPage = { _: dynamic -> page }
+        page.drawImage = { _: dynamic, _: dynamic ->
             throw IllegalStateException("boom")
         }
-        pdf.setTextColor = { _: dynamic, _: dynamic, _: dynamic -> Unit }
-        pdf.setFont = { _: dynamic, _: dynamic -> Unit }
-        pdf.setFontSize = { _: dynamic -> Unit }
-        pdf.getTextWidth = { _: dynamic -> 0.0 }
-        pdf.setDrawColor = { _: dynamic, _: dynamic, _: dynamic -> Unit }
-        pdf.setLineWidth = { _: dynamic -> Unit }
-        pdf.text = { _: dynamic, _: dynamic -> Unit }
-        pdf.line = { _: dynamic, _: dynamic, _: dynamic, _: dynamic -> Unit }
-        pdf.save = { _: dynamic -> Unit }
+        page.drawText = { _: dynamic, _: dynamic -> Unit }
+        page.drawLine = { _: dynamic -> Unit }
+        pdf.save = { Promise.resolve<dynamic>(js("new Uint8Array()")) }
 
         try {
             saveCanvasAsPdf(
@@ -201,8 +196,9 @@ class LegalPdfExporterTest {
                 documentName = "Datenschutzerklaerung",
                 exportDateText = "2026-03-06",
                 logoAspectRatio = 2.0,
-                pdfFactory = { pdf },
+                pdfDocumentFactory = { Promise.resolve<dynamic>(pdf) },
                 sliceCanvasFactory = { sliceCanvas },
+                pdfDownloader = { _, _ -> },
                 rowInkCalculator = { IntArray(canvas.height) { 0 } },
                 sliceImageDataProvider = { _, _, _ -> "data:image/png;base64,ZmFrZQ==" },
             )
@@ -213,5 +209,89 @@ class LegalPdfExporterTest {
         assertEquals(0, canvas.height)
         assertEquals(0, sliceCanvas.width)
         assertEquals(0, sliceCanvas.height)
+    }
+
+    @Test
+    fun `save canvas as pdf preserves multipage images and downloads pdf`() = runTest {
+        val canvas = document.createElement("canvas") as HTMLCanvasElement
+        canvas.width = 120
+        canvas.height = 600
+        val sliceCanvas = document.createElement("canvas") as HTMLCanvasElement
+        val pdf = js("{}").unsafeCast<dynamic>()
+        val page = js("{}").unsafeCast<dynamic>()
+        val font = js("{}").unsafeCast<dynamic>()
+        var pageCount = 0
+        var imageCount = 0
+        var textCount = 0
+        var lineCount = 0
+        var downloadedFile: String? = null
+        font.widthOfTextAtSize = { _: dynamic, _: dynamic -> 80.0 }
+        pdf.embedFont = { _: dynamic -> Promise.resolve<dynamic>(font) }
+        pdf.embedPng = { _: dynamic -> Promise.resolve<dynamic>(js("{}")) }
+        pdf.addPage = { _: dynamic ->
+            pageCount += 1
+            page
+        }
+        pdf.save = { Promise.resolve<dynamic>(js("new Uint8Array()")) }
+        page.drawImage = { _: dynamic, _: dynamic -> imageCount += 1 }
+        page.drawText = { _: dynamic, _: dynamic -> textCount += 1 }
+        page.drawLine = { _: dynamic -> lineCount += 1 }
+
+        saveCanvasAsPdf(
+            canvas = canvas,
+            fileName = "privacy-policy.pdf",
+            logoUrl = "data:image/png;base64,ZmFrZQ==",
+            documentName = "Datenschutzerklaerung",
+            exportDateText = "2026-03-06",
+            logoAspectRatio = 2.0,
+            pdfDocumentFactory = { Promise.resolve<dynamic>(pdf) },
+            pdfDownloader = { _, name -> downloadedFile = name },
+            sliceCanvasFactory = { sliceCanvas },
+            rowInkCalculator = { IntArray(canvas.height) { 0 } },
+            sliceImageDataProvider = { _, _, _ -> "data:image/png;base64,ZmFrZQ==" },
+        )
+
+        assertTrue(pageCount > 1)
+        assertTrue(imageCount > pageCount)
+        assertEquals(pageCount * 2 + pageCount - 1, textCount)
+        assertEquals(pageCount * 2 - 1, lineCount)
+        assertEquals("privacy-policy.pdf", downloadedFile)
+        assertEquals(0, canvas.width)
+        assertEquals(0, sliceCanvas.width)
+    }
+
+    @Test
+    fun `save canvas as pdf creates a pdf with pdf lib`() = runTest {
+        val canvas = document.createElement("canvas") as HTMLCanvasElement
+        canvas.width = 120
+        canvas.height = 40
+        val logoCanvas = document.createElement("canvas") as HTMLCanvasElement
+        logoCanvas.width = 2
+        logoCanvas.height = 2
+        val logoUrl = logoCanvas.toDataURL("image/png")
+        var downloadedBytes: dynamic = null
+        var downloadedFile: String? = null
+
+        saveCanvasAsPdf(
+            canvas = canvas,
+            fileName = "privacy-policy",
+            logoUrl = logoUrl,
+            documentName = "Datenschutzerklaerung",
+            exportDateText = "2026-03-06",
+            logoAspectRatio = 1.0,
+            pdfDownloader = { bytes, name ->
+                downloadedBytes = bytes
+                downloadedFile = name
+            },
+            sliceImageDataProvider = { _, sliceCanvas, _ -> sliceCanvas.toDataURL("image/png") },
+        )
+
+        assertTrue((downloadedBytes.length as Number).toInt() > 5)
+        assertEquals(37, (downloadedBytes[0] as Number).toInt())
+        assertEquals(80, (downloadedBytes[1] as Number).toInt())
+        assertEquals(68, (downloadedBytes[2] as Number).toInt())
+        assertEquals(70, (downloadedBytes[3] as Number).toInt())
+        assertEquals(45, (downloadedBytes[4] as Number).toInt())
+        assertEquals("privacy-policy.pdf", downloadedFile)
     }
 }

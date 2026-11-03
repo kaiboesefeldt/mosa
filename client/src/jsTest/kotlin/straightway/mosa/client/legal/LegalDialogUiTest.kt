@@ -6,6 +6,7 @@ import kotlin.js.json
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.get
 import react.FC
@@ -36,6 +37,17 @@ class LegalDialogUiTest {
         assertEquals("X", closeButton.textContent?.trim())
     }
 
+    @Test
+    fun `renders disabled pdf export action while terms are loading`() = runTest {
+        AppModule.start()
+
+        render(LegalDialogOverlayHarness.create())
+
+        val exportButton = screen.getByRole("button", json("name" to text("legal.terms.downloadPdf.label")))
+
+        assertTrue(exportButton.asDynamic().disabled as Boolean)
+    }
+
     private fun text(key: String): String = AppModule.get<Translator>().translate(key)
 }
 
@@ -47,12 +59,12 @@ private val LegalDialogOverlayHarness = FC<Props> {
         activeLegalDocument = LEGAL_DOCUMENT_TERMS,
         legalDialogTitle = "Terms",
         legalDocumentState = LegalDialogState.Loading,
-        isPrivacyPdfDownloading = false,
+        isLegalPdfDownloading = false,
         legalDocumentContentRef = contentRef,
         legalDiffMarkers = emptyList(),
         legalViewportIndicator = LegalViewportIndicator(topPercent = 0.0, heightPercent = 100.0),
         onClose = {},
-        onPrivacyPdfDownload = {},
+        onLegalPdfDownload = {},
         onComparisonToggle = {},
         onPrivacyScroll = {},
     )

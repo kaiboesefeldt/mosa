@@ -51,7 +51,7 @@ internal val IdentityApp = FC<Props> {
     var isLegalMenuVisible by useState(false)
     var activeLegalDocument by useState<String?>(null)
     var legalDocumentState by useState<LegalDialogState>(LegalDialogState.Idle)
-    var isPrivacyPdfDownloading by useState(false)
+    var isLegalPdfDownloading by useState(false)
     var activeComparison by useState<LegalComparisonSelection?>(null)
     var legalDiffMarkers by useState<List<LegalRailMarker>>(emptyList())
     var legalViewportIndicator by useState(LegalViewportIndicator(topPercent = 0.0, heightPercent = 100.0))
@@ -77,7 +77,7 @@ internal val IdentityApp = FC<Props> {
             activeLegalDocument != LEGAL_DOCUMENT_TERMS
         ) {
             legalDocumentState = LegalDialogState.Idle
-            isPrivacyPdfDownloading = false
+            isLegalPdfDownloading = false
             legalDocumentContentRef.current?.asDynamic()?.innerHTML = ""
             lastRenderedLegalHtmlRef.current = ""
             activeComparison = null
@@ -234,26 +234,32 @@ internal val IdentityApp = FC<Props> {
             activeLegalDocument = activeLegalDocument,
             legalDialogTitle = legalDialogTitle,
             legalDocumentState = legalDocumentState,
-            isPrivacyPdfDownloading = isPrivacyPdfDownloading,
+            isLegalPdfDownloading = isLegalPdfDownloading,
             legalDocumentContentRef = legalDocumentContentRef,
             legalDiffMarkers = legalDiffMarkers,
             legalViewportIndicator = legalViewportIndicator,
             onClose = { activeLegalDocument = null },
-            onPrivacyPdfDownload = clickHandler@{
+            onLegalPdfDownload = clickHandler@{
                 val contentElement = legalDocumentContentRef.current
                 if (contentElement == null) return@clickHandler
-                isPrivacyPdfDownloading = true
+                val fileNameKey =
+                    when (activeLegalDocument) {
+                        LEGAL_DOCUMENT_PRIVACY -> "legal.privacy.downloadPdf.filename"
+                        LEGAL_DOCUMENT_TERMS -> "legal.terms.downloadPdf.filename"
+                        else -> return@clickHandler
+                    }
+                isLegalPdfDownloading = true
                 scope.launch {
                     runCatching {
                         downloadLegalPdf(
                             source = contentElement.unsafeCast<org.w3c.dom.HTMLDivElement>(),
                             logoUrl = LogoResources.dataUrl,
-                            fileName = appTranslator.translate("legal.privacy.downloadPdf.filename"),
+                            fileName = appTranslator.translate(fileNameKey),
                         )
                     }.onFailure {
-                        console.error("Failed to download privacy PDF", it)
+                        console.error("Failed to download legal document PDF", it)
                     }
-                    isPrivacyPdfDownloading = false
+                    isLegalPdfDownloading = false
                 }
             },
             onComparisonToggle = { selection ->

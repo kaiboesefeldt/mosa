@@ -64,7 +64,7 @@ kotlin {
                 implementation(npm("@dicebear/adventurer-neutral", libs.versions.dicebear.get()))
                 implementation(npm("@fortawesome/fontawesome-free", libs.versions.fontawesome.get()))
                 implementation(npm("html2canvas", libs.versions.html2canvas.get()))
-                implementation(npm("jspdf", libs.versions.jspdf.get()))
+                implementation(npm("@cantoo/pdf-lib", libs.versions.cantoo.pdf.lib.get()))
             }
         }
 

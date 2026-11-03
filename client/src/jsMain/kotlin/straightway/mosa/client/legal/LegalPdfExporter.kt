@@ -4,6 +4,7 @@ import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.await
 import kotlin.js.Promise
+import kotlin.js.unsafeCast
 import kotlin.math.abs
 import kotlin.js.Date
 import kotlin.coroutines.resume
@@ -12,6 +13,9 @@ import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLImageElement
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.CanvasRenderingContext2D
+import org.w3c.dom.HTMLAnchorElement
+import org.w3c.files.Blob
+import org.w3c.files.BlobPropertyBag
 
 @JsModule("html2canvas")
 @JsNonModule
@@ -20,9 +24,9 @@ private external fun html2canvas(
     options: dynamic = definedExternally,
 ): Promise<HTMLCanvasElement>
 
-@JsModule("jspdf")
+@JsModule("@cantoo/pdf-lib")
 @JsNonModule
-private external val jspdfModule: dynamic
+private external val pdfLibModule: dynamic
 
 suspend fun downloadLegalPdf(
     source: HTMLDivElement,
@@ -181,14 +185,15 @@ private suspend fun awaitImagesLoaded(root: HTMLDivElement) {
     Promise.all(pending.toTypedArray()).await()
 }
 
-internal fun saveCanvasAsPdf(
+internal suspend fun saveCanvasAsPdf(
     canvas: HTMLCanvasElement,
     fileName: String,
     logoUrl: String,
     documentName: String,
     exportDateText: String,
     logoAspectRatio: Double,
-    pdfFactory: (dynamic) -> dynamic = { pdfConfig -> jspdfModule.jsPDF(pdfConfig) },
+    pdfDocumentFactory: () -> Promise<dynamic> = { pdfLibModule.PDFDocument.create() },
+    pdfDownloader: (dynamic, String) -> Unit = ::downloadPdf,
     sliceCanvasFactory: () -> HTMLCanvasElement = {
         document.createElement("canvas") as HTMLCanvasElement
     },
@@ -196,13 +201,9 @@ internal fun saveCanvasAsPdf(
     sliceImageDataProvider: (HTMLCanvasElement, HTMLCanvasElement, PdfCanvasSlice) -> String =
         ::renderCanvasSliceToImageData,
 ) {
-    val pdfConfig: dynamic = js("({})")
-    pdfConfig.orientation = "portrait"
-    pdfConfig.unit = "pt"
-    pdfConfig.format = "a4"
-    val pdf = pdfFactory(pdfConfig)
-    val pageWidth = pdf.internal.pageSize.getWidth() as Double
-    val pageHeight = pdf.internal.pageSize.getHeight() as Double
+    val pdf = pdfDocumentFactory().await()
+    val pageWidth = 595.28
+    val pageHeight = 841.89
     val margin = 28.0
     val continuationHeaderHeight = 22.0
     val continuationHeaderGap = 10.0
@@ -245,18 +246,21 @@ internal fun saveCanvasAsPdf(
     val totalPages = slices.size.coerceAtLeast(1)
     val sliceCanvas = sliceCanvasFactory()
     try {
+        val regularFont = awaitPdfValue(pdf.embedFont(pdfLibModule.StandardFonts.Helvetica))
+        val boldFont = awaitPdfValue(pdf.embedFont(pdfLibModule.StandardFonts.HelveticaBold))
+        val logoBytes = window.fetch(logoUrl).await().arrayBuffer().await()
+        val logoImage = awaitPdfValue(pdf.embedPng(logoBytes))
         for ((index, slice) in slices.withIndex()) {
-            if (index > 0) {
-                pdf.addPage()
-            }
+            val page = pdf.addPage(arrayOf(pageWidth, pageHeight))
             if (!slice.isFirstPage) {
                 drawContinuationPageHeader(
-                    pdf = pdf,
-                    logoUrl = logoUrl,
+                    page = page,
+                    logoImage = logoImage,
                     documentName = documentName,
                     margin = margin,
                     pageWidth = pageWidth,
                     logoAspectRatio = logoAspectRatio,
+                    boldFont = boldFont,
                 )
             }
             val contentTop =
@@ -267,47 +271,64 @@ internal fun saveCanvasAsPdf(
                 }
             val imageData = sliceImageDataProvider(canvas, sliceCanvas, slice)
             val sliceHeightPt = slice.heightPx.toDouble() / pixelsPerPoint
-            pdf.addImage(imageData, "PNG", margin, contentTop, targetWidth, sliceHeightPt, "", "FAST")
+            val pageImage = awaitPdfValue(pdf.embedPng(imageData))
+            val imageOptions: dynamic = js("({})")
+            imageOptions.x = margin
+            imageOptions.y = pageHeight - contentTop - sliceHeightPt
+            imageOptions.width = targetWidth
+            imageOptions.height = sliceHeightPt
+            page.drawImage(pageImage, imageOptions)
             drawPageFooter(
-                pdf = pdf,
+                page = page,
                 exportDateLabel = buildPdfExportDateLabel(exportDateText),
                 pageCounterText = buildPdfPageCounterText(pageNumber = index + 1, totalPages = totalPages),
                 margin = margin,
                 pageHeight = pageHeight,
                 pageWidth = pageWidth,
+                regularFont = regularFont,
             )
         }
         val targetFile = if (fileName.endsWith(".pdf")) fileName else "$fileName.pdf"
-        pdf.save(targetFile)
+        pdfDownloader(awaitPdfValue(pdf.save()), targetFile)
     } finally {
         clearCanvas(sliceCanvas)
         clearCanvas(canvas)
     }
 }
 
+private suspend fun awaitPdfValue(promise: dynamic): dynamic =
+    promise.unsafeCast<Promise<dynamic>>().await()
+
 private fun drawContinuationPageHeader(
-    pdf: dynamic,
-    logoUrl: String,
+    page: dynamic,
+    logoImage: dynamic,
     documentName: String,
     margin: Double,
     pageWidth: Double,
     logoAspectRatio: Double,
+    boldFont: dynamic,
 ) {
     val logoSize = calculateLogoSizeForHeader(maxHeight = 13.0, aspectRatio = logoAspectRatio)
     val logoHeight = logoSize.height
     val logoWidth = logoSize.width
     val logoY = margin + 1.0
-    pdf.addImage(logoUrl, "PNG", margin, logoY, logoWidth, logoHeight, "", "FAST")
-    pdf.setTextColor(17, 24, 39)
-    pdf.setFont("helvetica", "bold")
-    pdf.setFontSize(11)
+    val logoOptions: dynamic = js("({})")
+    logoOptions.x = margin
+    logoOptions.y = 841.89 - logoY - logoHeight
+    logoOptions.width = logoWidth
+    logoOptions.height = logoHeight
+    page.drawImage(logoImage, logoOptions)
     val text = buildContinuationPageHeaderText(documentName)
     val textY = margin + 11.0
-    pdf.text(text, margin + logoWidth + 8.0, textY)
-    pdf.setDrawColor(229, 231, 235)
-    pdf.setLineWidth(0.6)
+    val textOptions: dynamic = js("({})")
+    textOptions.x = margin + logoWidth + 8.0
+    textOptions.y = 841.89 - textY
+    textOptions.size = 11.0
+    textOptions.font = boldFont
+    textOptions.color = pdfLibModule.rgb(17.0 / 255.0, 24.0 / 255.0, 39.0 / 255.0)
+    page.drawText(text, textOptions)
     val lineY = margin + 18.0
-    pdf.line(margin, lineY, pageWidth - margin, lineY)
+    drawPdfLine(page, margin, 841.89 - lineY, pageWidth - margin)
 }
 
 internal fun buildContinuationPageHeaderText(documentName: String): String = "Mosa - $documentName"
@@ -341,26 +362,61 @@ private fun resolvePdfExportDateText(): String {
 }
 
 private fun drawPageFooter(
-    pdf: dynamic,
+    page: dynamic,
     exportDateLabel: String,
     pageCounterText: String,
     margin: Double,
     pageHeight: Double,
     pageWidth: Double,
+    regularFont: dynamic,
 ) {
     val footerBandHeight = 22.0
-    pdf.setDrawColor(229, 231, 235)
-    pdf.setLineWidth(0.6)
-    val lineY = pageHeight - margin - footerBandHeight + 6.0
-    pdf.line(margin, lineY, pageWidth - margin, lineY)
-    pdf.setTextColor(55, 65, 81)
-    pdf.setFont("helvetica", "normal")
-    pdf.setFontSize(9)
-    val textY = pageHeight - margin - 3.0
-    pdf.text(exportDateLabel, margin, textY)
-    val counterWidth = (pdf.getTextWidth(pageCounterText) as Number).toDouble()
+    val lineY = margin + footerBandHeight - 6.0
+    drawPdfLine(page, margin, lineY, pageWidth - margin)
+    val textY = margin + 3.0
+    drawPdfText(page, exportDateLabel, margin, textY, regularFont)
+    val counterWidth = (regularFont.widthOfTextAtSize(pageCounterText, 9.0) as Number).toDouble()
     val counterX = calculateRightAlignedTextX(pageWidth, margin, counterWidth)
-    pdf.text(pageCounterText, counterX, textY)
+    drawPdfText(page, pageCounterText, counterX, textY, regularFont)
+}
+
+private fun drawPdfText(page: dynamic, text: String, x: Double, y: Double, font: dynamic) {
+    val options: dynamic = js("({})")
+    options.x = x
+    options.y = y
+    options.size = 9.0
+    options.font = font
+    options.color = pdfLibModule.rgb(55.0 / 255.0, 65.0 / 255.0, 81.0 / 255.0)
+    page.drawText(text, options)
+}
+
+private fun drawPdfLine(page: dynamic, startX: Double, y: Double, endX: Double) {
+    val options: dynamic = js("({})")
+    options.start = js("({})")
+    options.start.x = startX
+    options.start.y = y
+    options.end = js("({})")
+    options.end.x = endX
+    options.end.y = y
+    options.thickness = 0.6
+    options.color = pdfLibModule.rgb(229.0 / 255.0, 231.0 / 255.0, 235.0 / 255.0)
+    page.drawLine(options)
+}
+
+private fun downloadPdf(bytes: dynamic, fileName: String) {
+    val blob = Blob(arrayOf(bytes), BlobPropertyBag(type = "application/pdf"))
+    val urlApi = window.asDynamic().URL
+    val objectUrl = urlApi.createObjectURL(blob) as String
+    val anchor = document.createElement("a") as HTMLAnchorElement
+    anchor.href = objectUrl
+    anchor.download = fileName
+    document.body?.appendChild(anchor)
+    try {
+        anchor.click()
+    } finally {
+        anchor.remove()
+        urlApi.revokeObjectURL(objectUrl)
+    }
 }
 
 internal data class PdfCanvasSlice(

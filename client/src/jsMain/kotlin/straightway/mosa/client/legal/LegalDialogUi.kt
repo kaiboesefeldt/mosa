@@ -21,12 +21,12 @@ internal fun ChildrenBuilder.legalDialogOverlay(
     activeLegalDocument: String?,
     legalDialogTitle: String?,
     legalDocumentState: LegalDialogState,
-    isPrivacyPdfDownloading: Boolean,
+    isLegalPdfDownloading: Boolean,
     legalDocumentContentRef: RefObject<HTMLDivElement>,
     legalDiffMarkers: List<LegalRailMarker>,
     legalViewportIndicator: LegalViewportIndicator,
     onClose: () -> Unit,
-    onPrivacyPdfDownload: () -> Unit,
+    onLegalPdfDownload: () -> Unit,
     onComparisonToggle: (LegalComparisonSelection) -> Unit,
     onPrivacyScroll: () -> Unit,
 ) {
@@ -44,9 +44,9 @@ internal fun ChildrenBuilder.legalDialogOverlay(
                 activeLegalDocument = activeLegalDocument,
                 legalDialogTitle = legalDialogTitle,
                 legalDocumentState = legalDocumentState,
-                isPrivacyPdfDownloading = isPrivacyPdfDownloading,
+                isLegalPdfDownloading = isLegalPdfDownloading,
                 onClose = onClose,
-                onPrivacyPdfDownload = onPrivacyPdfDownload,
+                onLegalPdfDownload = onLegalPdfDownload,
             )
             when (activeLegalDocument) {
                 LEGAL_DOCUMENT_PRIVACY ->
@@ -83,9 +83,9 @@ private fun ChildrenBuilder.legalDialogHeader(
     activeLegalDocument: String?,
     legalDialogTitle: String?,
     legalDocumentState: LegalDialogState,
-    isPrivacyPdfDownloading: Boolean,
+    isLegalPdfDownloading: Boolean,
     onClose: () -> Unit,
-    onPrivacyPdfDownload: () -> Unit,
+    onLegalPdfDownload: () -> Unit,
 ) {
     div {
         className = ClassName("legal-dialog__header")
@@ -93,8 +93,21 @@ private fun ChildrenBuilder.legalDialogHeader(
             className = ClassName("legal-dialog__title")
             +(legalDialogTitle ?: "")
         }
-        if (activeLegalDocument == LEGAL_DOCUMENT_PRIVACY) {
-            if (isPrivacyPdfDownloading) {
+        val downloadLabelKey =
+            when (activeLegalDocument) {
+                LEGAL_DOCUMENT_PRIVACY -> "legal.privacy.downloadPdf.label"
+                LEGAL_DOCUMENT_TERMS -> "legal.terms.downloadPdf.label"
+                else -> null
+            }
+        if (downloadLabelKey != null) {
+            val downloadProgressKey =
+                if (activeLegalDocument == LEGAL_DOCUMENT_PRIVACY) {
+                    "legal.privacy.downloadPdf.inProgress"
+                } else {
+                    "legal.terms.downloadPdf.inProgress"
+                }
+            val downloadLabel = translator.translate(downloadLabelKey)
+            if (isLegalPdfDownloading) {
                 span {
                     className = ClassName("legal-dialog__download-status")
                     this.asDynamic()["ariaLive"] = "polite"
@@ -102,18 +115,18 @@ private fun ChildrenBuilder.legalDialogHeader(
                         className = ClassName("fa fa-solid fa-spinner fa-spin")
                     }
                     span {
-                        +translator.translate("legal.privacy.downloadPdf.inProgress")
+                        +translator.translate(downloadProgressKey)
                     }
                 }
             }
             button {
                 type = "button".unsafeCast<ButtonType>()
                 className = ClassName("legal-dialog__download")
-                ariaLabel = translator.translate("legal.privacy.downloadPdf.label")
-                title = translator.translate("legal.privacy.downloadPdf.label")
-                disabled = legalDocumentState !is LegalDialogState.Ready || isPrivacyPdfDownloading
+                ariaLabel = downloadLabel
+                title = downloadLabel
+                disabled = legalDocumentState !is LegalDialogState.Ready || isLegalPdfDownloading
                 onClick = {
-                    onPrivacyPdfDownload()
+                    onLegalPdfDownload()
                 }
                 i {
                     className = ClassName("fa fa-solid fa-download")
