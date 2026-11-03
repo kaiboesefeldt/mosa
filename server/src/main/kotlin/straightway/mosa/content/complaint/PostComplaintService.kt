@@ -51,7 +51,6 @@ class PostComplaintService(
             }
 
             PostComplaintState.CONFIRMED, null -> {
-                Unit
             }
         }
         store.appendOpen(
