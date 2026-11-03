@@ -1,7 +1,7 @@
 # Client third-party notices
 
 Generated from the resolved production npm dependency graph for the `mosa-client` workspace. This list excludes development and test dependencies.
-The server runtime dependency inventory is available in the [server third-party notices](/SERVER-THIRD-PARTY-NOTICES.txt).
+The server runtime dependency inventory is displayed in the same legal dialog.
 
 ## Runtime-fetched model
 

@@ -109,10 +109,18 @@ internal val IdentityApp = FC<Props> {
                         LEGAL_DOCUMENT_IMPRINT -> legalImprintService.loadImprintDocument()
                         LEGAL_DOCUMENT_TERMS -> legalPrivacyPolicyService.loadTermsDocument()
                         LEGAL_DOCUMENT_LICENSES -> {
-                            val response = window.fetch("/licenses/THIRD-PARTY-NOTICES.md").await()
-                            check(response.ok) { "Failed to load third-party notices: ${response.status}" }
+                            suspend fun loadNotice(path: String): String {
+                                val response = window.fetch(path).await()
+                                check(response.ok) { "Failed to load third-party notices from $path: ${response.status}" }
+                                return response.text().await()
+                            }
+                            val clientNotices = loadNotice("/licenses/THIRD-PARTY-NOTICES.md")
+                            val serverNotices = loadNotice("/SERVER-THIRD-PARTY-NOTICES.txt")
                             LegalPrivacyPolicyDocument(
-                                html = MarkdownToHtmlRenderer().render(response.text().await()),
+                                html =
+                                    MarkdownToHtmlRenderer().render(
+                                        "$clientNotices\n\n# Server runtime dependencies\n\n$serverNotices",
+                                    ),
                                 uncriticalTextByBlockId = emptyMap(),
                             )
                         }
