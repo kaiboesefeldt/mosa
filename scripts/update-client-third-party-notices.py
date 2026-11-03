@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 NPM_ROOT = ROOT / "build" / "js"
 NODE_MODULES = NPM_ROOT / "node_modules"
 OUTPUT = ROOT / "client" / "src" / "jsMain" / "resources" / "licenses" / "THIRD-PARTY-NOTICES.md"
+MODEL_LICENSE = ROOT / "client" / "src" / "jsMain" / "resources" / "licenses" / "multilingual-e5-small-MIT.txt"
 
 
 def collect_dependencies(node, result):
@@ -64,6 +65,12 @@ def main():
         "## Runtime-fetched model",
         "",
         "The server downloads [`intfloat/multilingual-e5-small`](https://huggingface.co/intfloat/multilingual-e5-small) when embeddings are first needed. Its model card declares the model weights MIT-licensed. The model is fetched at runtime and is not bundled in this client notice file.",
+        "",
+        "The full MIT license text and copyright notice from the [upstream E5 source](https://github.com/microsoft/unilm/blob/master/LICENSE) are included below and as [`multilingual-e5-small-MIT.txt`](multilingual-e5-small-MIT.txt).",
+        "",
+        "```text",
+        "\n".join(line.rstrip() for line in MODEL_LICENSE.read_text().splitlines()).rstrip(),
+        "```",
         "",
         "| Package | Version | Declared license |",
         "| --- | --- | --- |",
