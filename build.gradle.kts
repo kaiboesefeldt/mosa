@@ -58,5 +58,26 @@ tasks.named("build") {
 }
 
 allprojects {
-    repositories { mavenCentral() }
+    repositories {
+        val nodeJsDistribution = ivy {
+            name = "nodeJsDistribution"
+            url = uri("https://nodejs.org/dist/")
+            patternLayout {
+                artifact("v[revision]/[artifact](-v[revision]-[classifier]).[ext]")
+            }
+            metadataSources { artifact() }
+            content { includeModule("org.nodejs", "node") }
+        }
+        exclusiveContent {
+            forRepositories(nodeJsDistribution)
+            filter { includeModule("org.nodejs", "node") }
+        }
+        mavenCentral()
+    }
+    plugins.withType<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsPlugin> {
+        project.the<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsEnvSpec>().apply {
+            version = providers.gradleProperty("mosaNodeJsVersion").get()
+            downloadBaseUrl = null
+        }
+    }
 }
