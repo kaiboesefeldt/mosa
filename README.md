@@ -8,6 +8,7 @@ Mosa is a social network organized around **semantic topics**: people describe t
 
 - **Structure:** a Ktor server, Kotlin/JS client, and shared Kotlin models; Lucene provides vector search.
 - **Status:** the core content loop works, including publishing, replies, and semantic search. Mosa is still in development and has open requirements before a public launch; see the [MVP scope](spec/mvp.md) for details. The [concept](spec/Concept.md) also includes ideas and postponed features.
+- **Development:** this project was created with the help of AI coding agents.
 
 ## Areas of experimentation
 
