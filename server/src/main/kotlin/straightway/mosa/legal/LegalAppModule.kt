@@ -88,10 +88,10 @@ fun Module.configureLegalAppModule() {
             canonicalNodeRenderer = get(),
         )
     }
-    single(createdAtStart = true) {
-        ImprintService(path = get(legalImprintPathQualifier)).also { it.validateStartup() }
+    single {
+        ImprintService(path = get(legalImprintPathQualifier))
     }
-    single(createdAtStart = true) {
+    single {
         LegalService(
             operatorProfilePath = get(legalPrivacyProfilePathQualifier),
             termsOperatorProfilePath = get(legalTermsProfilePathQualifier),
@@ -99,9 +99,14 @@ fun Module.configureLegalAppModule() {
             chainValidator = get(),
             templateWriter = get(),
             documentFactory = get(),
-        ).also { it.validateStartup() }
+        )
     }
-    single { LegalController(get(), get()) } bind BaseController::class
+    single(createdAtStart = true) {
+        val legalService = get<LegalService>()
+        val imprintService = get<ImprintService>()
+        LegalStartupStatus(legalService::validateStartup, imprintService::validateStartup)
+    }
+    single { LegalController(get(), get(), get()) } bind BaseController::class
 }
 
 private val legalPrivacyProfilePathQualifier: StringQualifier = named("legalPrivacyProfilePath")

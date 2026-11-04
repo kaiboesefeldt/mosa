@@ -54,6 +54,8 @@ internal val IdentityApp = FC<Props> {
     val lastAutoScrolledComparisonRef = useRef("")
     val legalRequestVersion = useRef(0)
     var isLegalMenuVisible by useState(false)
+    var legalInformationComplete by useState<Boolean?>(null)
+    var legalStatusUnavailable by useState(false)
     var activeLegalDocument by useState<String?>(null)
     var legalDocumentState by useState<LegalDialogState>(LegalDialogState.Idle)
     var isLegalPdfDownloading by useState(false)
@@ -76,6 +78,17 @@ internal val IdentityApp = FC<Props> {
             LEGAL_DOCUMENT_LICENSES -> activeDocumentTitle
             else -> null
         }
+
+    useEffect(*identityAppNoDependencies) {
+        scope.launch {
+            runCatching { legalImprintService.legalInformationComplete() }
+                .onSuccess { legalInformationComplete = it }
+                .onFailure {
+                    legalStatusUnavailable = true
+                    console.error("Failed to load legal status", it)
+                }
+        }
+    }
 
     useEffect(arrayOf(activeLegalDocument)) {
         if (
@@ -196,6 +209,12 @@ internal val IdentityApp = FC<Props> {
     PasswordPromptOverlay {}
     div {
         className = ClassName("app-shell")
+        if (legalInformationComplete == false || legalStatusUnavailable) {
+            div {
+                className = ClassName("legal-warning")
+                +appTranslator.translate(if (legalStatusUnavailable) "legal.status.unavailable" else "legal.status.incomplete")
+            }
+        }
         div {
             className = ClassName("app-shell__content")
             IdentitySessionContent {}

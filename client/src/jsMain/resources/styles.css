@@ -2388,6 +2388,14 @@ button:disabled {
     flex-direction: column;
 }
 
+.legal-warning {
+    background: #a31515;
+    color: #fff;
+    font-weight: 700;
+    padding: 0.9rem 1rem;
+    text-align: center;
+}
+
 .app-shell__content {
     flex: 1;
 }

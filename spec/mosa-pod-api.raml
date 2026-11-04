@@ -19,6 +19,17 @@ documentation:
       - Request bodies are size-limited based on server configuration (`max-fetch-items` and optional `max-request-body-bytes`).
 
 types:
+  LegalStatus:
+    type: object
+    properties:
+      complete:
+        type: boolean
+        description: |
+          Whether the configured privacy policy, terms and imprint passed startup validation.
+          This is not a determination of legal compliance. The status is refreshed on restart.
+    example:
+      complete: false
+
   AuthenticationApprovalRequest:
     type: object
     properties:
@@ -776,6 +787,20 @@ securitySchemes:
           description: Server error
 
   /legal:
+    /status:
+      get:
+        displayName: Get Legal Configuration Status
+        description: |
+          Returns the result of legal configuration validation at server startup.
+          This endpoint is unauthenticated.
+        responses:
+          200:
+            body:
+              application/json:
+                type: LegalStatus
+          5xx:
+            description: Server error
+
     /imprint:
       get:
         displayName: Get Imprint Document

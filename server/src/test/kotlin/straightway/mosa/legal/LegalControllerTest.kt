@@ -23,10 +23,19 @@ class LegalControllerTest {
     private val imprintService = mockk<ImprintService>()
     private val environment =
         ControllerHttpTestEnvironment(
-            LegalController(legalService, imprintService),
+            LegalController(legalService, imprintService, LegalStartupStatus({}, {})),
         ) {
             single<LegalService> { legalService }
             single<ImprintService> { imprintService }
+        }
+
+    @Test
+    fun `returns legal startup status without authentication`() =
+        environment {
+            val response = client.get("/v1/legal/status")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals("""{"complete":true}""", response.body<String>())
         }
 
     @Test

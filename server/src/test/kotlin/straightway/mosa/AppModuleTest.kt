@@ -14,7 +14,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.koin.core.Koin
 import org.koin.core.KoinApplication
-import org.koin.core.error.InstanceCreationException
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import straightway.mosa.VectorStore.Transaction
@@ -44,9 +43,7 @@ import java.nio.file.Path
 import java.time.Clock
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
@@ -173,18 +170,15 @@ class AppModuleTest {
     }
 
     @Test
-    fun `requires mosa imprint config for startup`() {
+    fun `starts and creates imprint template when imprint is missing`() {
         koinApplication?.close()
         koinApplication = null
         Files.deleteIfExists(moduleWorkingDir.resolve("mosa_imprint.yaml"))
         writeLegacyImprintConfig(moduleWorkingDir)
 
-        val exception =
-            assertFailsWith<InstanceCreationException> {
-                createKoinApplication()
-            }
-
-        assertContains(exception.cause?.message.orEmpty(), "mosa_imprint.yaml")
+        koinApplication = createKoinApplication()
+        assertFalse(koin.get<straightway.mosa.legal.LegalStartupStatus>().complete)
+        assertTrue(Files.exists(moduleWorkingDir.resolve("mosa_imprint.yaml")))
     }
 
     @Test

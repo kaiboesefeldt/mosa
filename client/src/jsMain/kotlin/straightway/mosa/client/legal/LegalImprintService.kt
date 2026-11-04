@@ -9,6 +9,11 @@ class LegalImprintService(
     private val imprintHtmlRenderer: ImprintHtmlRenderer = ImprintHtmlRenderer(),
     private val podBaseResolver: () -> String? = { podBaseProvider.base() },
 ) {
+    suspend fun legalInformationComplete(): Boolean {
+        val podBase = podBaseResolver() ?: throw IllegalStateException("No pod base available")
+        return podAccessFactory(podBase).legalStatus().complete
+    }
+
     suspend fun loadImprintDocument(): LegalPrivacyPolicyDocument {
         val podBase = podBaseResolver() ?: throw IllegalStateException("No pod base available")
         val document = podAccessFactory(podBase).imprint()

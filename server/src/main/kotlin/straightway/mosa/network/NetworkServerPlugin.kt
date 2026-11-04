@@ -152,6 +152,7 @@ private const val APPROVE_GID_ROUTE = "/v1/approvegid"
 private const val LEGAL_PRIVACY_ROUTE = "/v1/legal/privacy"
 private const val LEGAL_IMPRINT_ROUTE = "/v1/legal/imprint"
 private const val LEGAL_TERMS_ROUTE = "/v1/legal/terms"
+private const val LEGAL_STATUS_ROUTE = "/v1/legal/status"
 private const val ALLOWED_CORS_METHODS = "POST, GET, DELETE, OPTIONS"
 private const val ALLOWED_CORS_HEADERS = "Authorization, Content-Type"
 private const val CORS_MAX_AGE_SECONDS = "7200"
@@ -183,6 +184,7 @@ private fun isUnauthenticatedApiRoute(
 
         HttpMethod.Get -> {
             path.equals(LEGAL_PRIVACY_ROUTE, ignoreCase = true) ||
+                path.equals(LEGAL_STATUS_ROUTE, ignoreCase = true) ||
                 path.startsWith("$LEGAL_PRIVACY_ROUTE/", ignoreCase = true) ||
                 path.equals(LEGAL_IMPRINT_ROUTE, ignoreCase = true) ||
                 path.startsWith("$LEGAL_IMPRINT_ROUTE/", ignoreCase = true) ||

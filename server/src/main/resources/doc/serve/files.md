@@ -84,8 +84,10 @@ The imprint endpoint is loaded from a dedicated YAML document.
 **Reload:** Loaded during startup. Restart after changes.
 
 If missing, a template is created in the working directory at startup. Fill in
-the required publisher information before restarting the server. Existing files
-are not overwritten. Optional fields may be filled in when applicable.
+the required publisher information and restart the server. Existing files are
+not overwritten. Optional fields may be filled in when applicable. The server
+starts with missing or invalid legal information but logs an error and displays
+a warning that the pod cannot be operated publicly in legal compliance.
 
 ### Pod signing key pair
 The server uses an Ed25519 key pair to sign pod certificates and related

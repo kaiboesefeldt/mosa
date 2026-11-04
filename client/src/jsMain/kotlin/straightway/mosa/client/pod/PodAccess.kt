@@ -33,6 +33,7 @@ import straightway.mosa.content.QueryRequest
 import straightway.mosa.content.ReplyRequest
 import straightway.mosa.content.SearchResult
 import straightway.mosa.legal.LegalDocumentChainResponse
+import straightway.mosa.legal.LegalStatus
 import straightway.mosa.legal.imprint.ImprintDocument
 import straightway.mosa.message.AdminMessageListResult
 import straightway.mosa.message.CreateAdminMessageRequest
@@ -114,6 +115,7 @@ interface PodAccess {
     suspend fun searchOn(request: QueryOnRequest, jwt: String): SearchResult
     suspend fun fetch(request: FetchRequest, jwt: String): FetchResult
     suspend fun imprint(): ImprintDocument = error("Imprint endpoint is not implemented for this PodAccess")
+    suspend fun legalStatus(): LegalStatus = error("Legal status endpoint is not implemented for this PodAccess")
     suspend fun privacyClearTerms(): LegalDocumentChainResponse =
         LegalDocumentChainResponse(
             baseline = Json.parseToJsonElement(privacyBaselineClearTerms()).jsonObject,
@@ -149,6 +151,9 @@ class PodAccessImpl(
     private val podBase: String,
     private val httpClient: HttpClient,
 ): PodAccess  {
+    override suspend fun legalStatus(): LegalStatus =
+        get("/v1/legal/status").ensureSuccess("/v1/legal/status", Unit).body()
+
     override suspend fun privacyClearTerms(): LegalDocumentChainResponse =
         get("/v1/legal/privacy")
             .ensureSuccess("/v1/legal/privacy", Unit)

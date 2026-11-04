@@ -201,6 +201,8 @@
   "passwordPrompt.show": "Passwort anzeigen",
   "passwordPrompt.hide": "Passwort verbergen",
   "legal.button.label": "Rechtliches",
+  "legal.status.incomplete": "Rechtliche Angaben fehlen oder sind ungültig. Dieser Mosa-Pod kann deshalb nicht öffentlich rechtskonform betrieben werden.",
+  "legal.status.unavailable": "Der Status der rechtlichen Angaben konnte nicht abgerufen werden. Bitte lade die Seite erneut.",
   "legal.privacy.label": "Datenschutz",
   "legal.imprint.label": "Impressum",
   "legal.imprint.loading": "Impressum wird geladen...",

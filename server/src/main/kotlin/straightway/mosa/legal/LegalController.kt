@@ -10,8 +10,15 @@ import straightway.mosa.base.BaseController
 class LegalController(
     private val legalService: LegalService,
     private val imprintService: ImprintService,
+    private val startupStatus: LegalStartupStatus,
 ) : BaseController() {
     override fun Route.register() {
+        getRoute("/legal/status") {
+            call.respondText(
+                text = Json.encodeToString(LegalStatus(startupStatus.complete)),
+                contentType = ContentType.Application.Json,
+            )
+        }
         getRoute("/legal/privacy") {
             call.respondText(
                 text = Json.encodeToString(legalService.privacyDocumentChainResponse()),

@@ -17,6 +17,7 @@ import straightway.mosa.legal.imprint.ImprintAddress
 import straightway.mosa.legal.imprint.ImprintContactBlock
 import straightway.mosa.legal.imprint.ImprintDocument
 import straightway.mosa.legal.imprint.ImprintProviderBlock
+import straightway.mosa.legal.LegalStatus
 
 internal fun fixedImprintPodBaseProvider(base: String): PodBaseProvider =
     PodBaseProvider {
@@ -28,6 +29,8 @@ internal fun fixedImprintPodBaseProvider(base: String): PodBaseProvider =
 internal fun fixedImprintPodAccessFactory(): PodAccessFactory = { RecordingImprintPodAccess() }
 
 private class RecordingImprintPodAccess : PodAccess {
+    override suspend fun legalStatus(): LegalStatus = LegalStatus(complete = true)
+
     override suspend fun approveGid(gid: String): PodCertificateResponse = error("unused")
 
     override suspend fun refreshGid(jwt: String): PodCertificateResponse = error("unused")

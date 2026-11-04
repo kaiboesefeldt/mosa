@@ -201,6 +201,8 @@
   "passwordPrompt.show": "Show password",
   "passwordPrompt.hide": "Hide password",
   "legal.button.label": "Legal",
+  "legal.status.incomplete": "Legal information is missing or invalid. This Mosa pod cannot be operated publicly in legal compliance until it is corrected.",
+  "legal.status.unavailable": "The status of the legal information could not be retrieved. Please reload the page.",
   "legal.privacy.label": "Privacy policy",
   "legal.imprint.label": "Imprint",
   "legal.imprint.loading": "Loading imprint...",
