@@ -47,6 +47,25 @@ Build the runnable server artifact from the repository root:
 ./gradlew :server:shadowJar
 ```
 
+### Optional: import sample content
+
+The CSV files in [`testdata/`](../testdata/) contain sample posts and replies
+for exploring the local pod. Before starting the server, import them from the
+data directory you will use for the pod. For example:
+
+```bash
+cd /home/me/mosa-local
+cat /home/me/src/mosa/testdata/*.csv | /home/me/src/mosa/mosa import
+```
+
+Replace the paths with your own. To import only selected samples, list their
+CSV files instead of using `*.csv`.
+The import reports how many posts and replies it imported. It may download the
+embedding model on first use; missing or invalid legal profiles can also
+produce warnings as described below.
+
+### Start the server
+
 Start the server from that data directory using the repository's launcher:
 
 ```bash
