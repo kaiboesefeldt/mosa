@@ -12,8 +12,10 @@ import straightway.mosa.legal.imprint.ImprintProviderBlock
 import straightway.mosa.legal.imprint.ImprintRegisterBlock
 import straightway.mosa.legal.imprint.ImprintSupervisionBlock
 import straightway.mosa.legal.imprint.ImprintTaxBlock
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 
 class ImprintService(
     private val path: Path,
@@ -23,6 +25,7 @@ class ImprintService(
 
     fun validateStartup() {
         try {
+            createTemplateIfMissing()
             document()
         } catch (exception: IllegalStateException) {
             logger.error(exception) { exception.message ?: "Failed to load imprint configuration." }
@@ -31,6 +34,14 @@ class ImprintService(
     }
 
     fun document(): ImprintDocument = documentCache
+
+    private fun createTemplateIfMissing() {
+        try {
+            Files.writeString(path, imprintTemplate, Charsets.UTF_8, StandardOpenOption.CREATE_NEW)
+        } catch (_: FileAlreadyExistsException) {
+            return
+        }
+    }
 
     private fun loadDocument(): ImprintDocument {
         val normalizedPath = path.toAbsolutePath().normalize()
@@ -202,3 +213,51 @@ private fun ImprintDocument.fieldValue(fieldName: String): String? =
     }
 
 private val logger = KotlinLogging.logger {}
+
+private val imprintTemplate =
+    """
+    # Replace null with the applicable text. Quote values containing YAML special characters.
+    # Required fields must be filled in before the server can start.
+    provider:
+      name: null # Required: name of the provider
+      legal_form: null # Optional: legal form of the provider
+      representative: null # Optional: authorized representative
+    address:
+      street: null # Required: street address
+      postal_code: null # Required: postal code
+      city: null # Required: city
+      region: null # Optional: state or region
+      country: null # Required: country
+    contact:
+      email: null # Required: contact email address
+      phone: null # Optional: telephone number
+      website: null # Optional: website URL
+    # Optional: complete the following fields when applicable.
+    register:
+      court: null # Register court
+      number: null # Registration number
+      name: null # Register name
+    tax:
+      vat_id: null # VAT identification number
+      business_id: null # Business identification number
+      other: null # Other tax information
+    supervision:
+      authority: null # Supervisory authority
+      address:
+        street: null
+        postal_code: null
+        city: null
+        region: null
+        country: null
+      website: null # Supervisory authority website URL
+    editorial:
+      responsible_person: null # Person responsible for editorial content
+      address:
+        street: null
+        postal_code: null
+        city: null
+        region: null
+        country: null
+    additional:
+      markdown: null # Additional information in Markdown format
+    """.trimIndent() + "\n"

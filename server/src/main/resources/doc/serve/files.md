@@ -83,8 +83,9 @@ The imprint endpoint is loaded from a dedicated YAML document.
 **Managed by:** Operator-maintained configuration  
 **Reload:** Loaded during startup. Restart after changes.
 
-This file contains legally relevant publisher information and is required at
-startup.
+If missing, a template is created in the working directory at startup. Fill in
+the required publisher information before restarting the server. Existing files
+are not overwritten. Optional fields may be filled in when applicable.
 
 ### Pod signing key pair
 The server uses an Ed25519 key pair to sign pod certificates and related

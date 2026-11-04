@@ -18,9 +18,35 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 class ImprintServiceTest {
+    @Test
+    fun `startup creates an incomplete imprint template when missing`() {
+        val path = Files.createTempDirectory("imprint-template").resolve("mosa_imprint.yaml")
+
+        val exception = assertThrows<IllegalStateException> { ImprintService(path).validateStartup() }
+
+        assertContains(exception.message.orEmpty(), "provider.name")
+        val template = Files.readString(path)
+        assertContains(template, "postal_code: null")
+        assertContains(template, "email: null")
+        assertContains(template, "# Required")
+        assertContains(template, "# Optional")
+        assertFalse(template.contains("\"\""))
+    }
+
+    @Test
+    fun `startup preserves an existing imprint file`() {
+        val content = "provider:\n  name: Existing\n"
+        val path = writeImprintYaml(content)
+
+        assertThrows<IllegalStateException> { ImprintService(path).validateStartup() }
+
+        assertEquals(content, Files.readString(path))
+    }
+
     @Test
     fun `loads valid imprint configuration with all supported blocks`() {
         val path =
