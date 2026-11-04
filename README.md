@@ -24,6 +24,7 @@ These are areas of experimentation and design goals; see the [MVP scope](spec/mv
 
 ## Explore the repository
 
+- [Getting started](docs/getting-started.md) — build, verify, and prepare a local pod.
 - [Architecture](spec/Architecture.md) — module boundaries and system design.
 - [Pod API](spec/mosa-pod-api.raml) — API specification.
 - [MVP scope](spec/mvp.md) — launch posture and outstanding requirements.
