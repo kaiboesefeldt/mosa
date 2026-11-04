@@ -1,6 +1,6 @@
-# Architecture Notes
+# Pre-Release Notes
 
-## Temporary Pre-Release Assumptions
+## Temporary Assumptions
 
 ### ARCH-TEMP-1: No migration logic before first release
 
